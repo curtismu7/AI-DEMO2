@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { buildDemoReadinessCatalog } = require('./demoReadinessCatalog');
 const featureCheckSource = require('../config/demoReadinessFeatureChecks.json');
 const { HARD_DEADLINE_MS, TARGET_WARNING_MS, createReadinessReport, recordCheck, redactReadinessValue } = require('./demoReadinessReport');
+const { outcomeConforms } = require('./useCaseConformance');
 
 const PROVIDERS = new Set(['pingone', 'pingfederate']);
 const exactValues = (actual, expected) => JSON.stringify([...new Set((Array.isArray(actual) ? actual : actual == null ? [] : [actual]).filter(Boolean).map(String))].sort()) === JSON.stringify([...new Set((Array.isArray(expected) ? expected : expected == null ? [] : [expected]).filter(Boolean).map(String))].sort());
@@ -364,11 +365,23 @@ function evidenceFailures({ evidence, provider, authorization: catalogAuthorizat
   if ((caseRow.id === 'UC2' || caseRow.id === 'UC2.5') && provider === 'pingfederate') {
     const hops = evidence.exchangeHops || [];
     require(hops.length === 2 && hops[0]?.step === 'exchange1-id-jag' && hops[0]?.type === 'id-jag' && hops[1]?.step === 'exchange2-access-token' && hops[1]?.type === 'access_token', 'PF A2A requires ordered intermediate ID-JAG then Exchange #2 access token');
-    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject && orderedValues(hop?.actorChain, evidence.actorChain)), 'PF A2A exchanges must retain the user subject and ordered actor chain');
+    // Exchange #1 names only the generalist; Exchange #2 adds the specialist in
+    // front of it, so the first hop's chain is the final chain without the specialist.
+    const withoutSpecialist = Array.isArray(evidence.actorChain) ? [evidence.actorChain[0], ...evidence.actorChain.slice(2)] : [];
+    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject)
+      && orderedValues(hops[0]?.actorChain, withoutSpecialist) && orderedValues(hops[1]?.actorChain, evidence.actorChain),
+    'PF A2A exchanges must retain the user subject and ordered actor chain');
   }
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') {
     const hops = evidence.exchangeHops || [];
-    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject && orderedValues(hop?.actorChain, evidence.actorChain)), 'actor-bound exchanges must retain the same subject and ordered actor chain at every hop');
+    // PingFederate: Exchange #1 names only the workload agent; Exchange #2 puts
+    // the MCP-service actor in front of it, so the first hop's chain is the
+    // final chain without that second entry.
+    const firstHop = provider === 'pingfederate' && Array.isArray(evidence.actorChain)
+      ? [evidence.actorChain[0], ...evidence.actorChain.slice(2)]
+      : evidence.actorChain;
+    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject)
+      && orderedValues(hops[0]?.actorChain, firstHop) && orderedValues(hops[1]?.actorChain, evidence.actorChain), 'actor-bound exchanges must retain the same subject and ordered actor chain at every hop');
     require(Boolean(evidence.workloadAgentClientId) && evidence.actorChain.includes(evidence.workloadAgentClientId), 'actor chain must name the workload agent that presented the actor token');
   }
   if (authorization?.primaryTool) {
@@ -537,7 +550,7 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, prod
     const prerequisite = typeof saved.worker.verifyPrerequisites === 'function' ? await saved.worker.verifyPrerequisites({ caseRow, vertical, prerequisites, deadlineAt }) : { status: 'blocked', reason: 'worker cannot verify runtime prerequisites' };
     if (prerequisite?.status !== 'pass') return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: prerequisite?.reason || 'runtime prerequisites unavailable', prerequisites } });
     if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before dispatch' } });
-    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow, behavior })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization: authorizationForProvider(authorization, saved.provider), expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
+    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(outcomeConforms(expected, observed) ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow, behavior })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization: authorizationForProvider(authorization, saved.provider), expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
   }
   async function executeReadinessFeature({ context, check, deadlineAt, abortSignal }) {
     const saved = contexts.get(context); const expected = check.expectedByProvider?.[saved?.provider] || check.expectedOutcome;

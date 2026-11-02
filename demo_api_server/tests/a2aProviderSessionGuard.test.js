@@ -83,6 +83,33 @@ describe('A2A token provider follows the authenticated session issuer', () => {
     expect(deps.oauthService.performTokenExchangeAs).not.toHaveBeenCalled();
   });
 
+  test('PingFederate Exchange #1 reports its token type, endpoint, and the roles its configured clients filled', async () => {
+    const issuer = 'https://local.ping-devops.com:9031';
+    const deps = dependencies('pingfederate', issuer);
+    deps.oauthService.config = { tokenEndpoint: 'https://pingfederate:9031/as/token.oauth2' };
+    deps.oauthService.getAiAgentClientCredentialsToken.mockResolvedValue(jwt({ sub: 'pf-actor', client_id: 'pf-actor' }));
+    const part = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    deps.oauthService.performTokenExchangeAs.mockResolvedValue(`${part({ alg: 'none', typ: 'oauth-id-jag+jwt' })}.${part({ sub: 'user-1', act: { sub: 'pf-actor' } })}.`);
+    const result = await exchangeAsGeneralist({}, { vertical: 'banking', deps, exchangeAttempts: 1 });
+
+    expect(result.tokenEvents.find((event) => event.id === 'a2a-exchange1')).toMatchObject({
+      tokenTyp: 'oauth-id-jag+jwt',
+      exchangeRequest: { exchanger_client_id: 'pf-agent-exchanger', requested_token_type: 'urn:ietf:params:oauth:token-type:id-jag' },
+      pfExchange: { endpoint: 'https://pingfederate:9031/as/token.oauth2', credentialRoles: ['standard-agent-exchanger', 'ai-agent-actor'] },
+    });
+
+    // An actor token issued to another client does not fill the actor role.
+    deps.oauthService.getAiAgentClientCredentialsToken.mockResolvedValue(jwt({ sub: 'other', client_id: 'other' }));
+    const other = await exchangeAsGeneralist({}, { vertical: 'banking', deps, exchangeAttempts: 1 });
+    expect(other.tokenEvents.find((event) => event.id === 'a2a-exchange1').pfExchange.credentialRoles).toEqual(['standard-agent-exchanger']);
+  });
+
+  test('PingOne Exchange #1 reports no PingFederate exchange', async () => {
+    const deps = dependencies('pingone', 'https://auth.pingone.com/env-1/as');
+    const result = await exchangeAsGeneralist({}, { vertical: 'banking', deps, exchangeAttempts: 1 });
+    expect(result.tokenEvents.find((event) => event.id === 'a2a-exchange1').pfExchange).toBeUndefined();
+  });
+
   test('rejects an unrecognized issuer before minting an actor token', async () => {
     const deps = dependencies('pingone', 'https://idp.example.test');
     const result = await exchangeAsGeneralist({}, { vertical: 'banking', deps });

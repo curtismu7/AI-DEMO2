@@ -31,7 +31,7 @@ A sophisticated AI agent system that integrates LangChain with MCP (Model Contex
 ## 📋 Prerequisites
 
 - **Python 3.11+**
-- **Node.js 18+** (for frontend)
+- **Node.js 26+** (for frontend)
 - **Docker & Docker Compose** (for containerized deployment)
 - **PingOne AI IAM Core** account
 - **OpenAI API** key

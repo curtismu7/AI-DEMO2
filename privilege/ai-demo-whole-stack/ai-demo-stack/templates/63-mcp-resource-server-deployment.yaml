@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: mcp-resource-server
-        image: "{{ .Values.imageRegistry }}/ai-demo-mcp-resource-server:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-mcp-resource-server:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 8081

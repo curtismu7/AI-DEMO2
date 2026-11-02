@@ -197,8 +197,13 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
     let userAccounts = dataStore.getAccountsByUserId(req.user.id);
 
     // Session-scoped: this session's chosen vertical (falls back to the global
-    // default for sessions that never switched).
-    const activeVertical = verticalManifest.resolver.activeIdFor(req) || 'banking';
+    // default for sessions that never switched). A token-only call from the MCP
+    // server has no session; it carries the session's vertical as
+    // X-Active-Vertical. Without it that call fell back to the global vertical
+    // and switched the user's accounts away from the vertical they were on.
+    const forwardedVertical = !req.session?.active_vertical ? req.get('X-Active-Vertical') : null;
+    const activeVertical = (forwardedVertical && !verticalManifest.activationRefusal(forwardedVertical) ? forwardedVertical : null)
+      || verticalManifest.resolver.activeIdFor(req) || 'banking';
     // Primary accountType derived from active vertical's manifest
     // (was hardcoded VERTICAL_PRIMARY_TYPE map; now read from manifest.terminology.accountTypes[0]).
     const activeManifestEntry = verticalManifest.loader.get(activeVertical);

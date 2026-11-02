@@ -320,6 +320,12 @@ services:
       # key is actually set. See demo_api_server/.env.example for the values.
     environment:
       NODE_ENV: development
+      # Audiences accepted on the /api/investment portfolio callback only. Under
+      # PingFederate, Exchange #3 reuses the persistent grant, so the token the
+      # resource server forwards keeps the PingGateway audience; without it the
+      # callback 401s ("Token audience [https://api.ping.demo:3036/mcp] does not
+      # match"). Added, never swapped; scope is still enforced per route.
+      PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,https://api.ping.demo:3036/mcp"
       MCP_DISCOVERY_AGENT_URL: "http://mcp-discovery-agent:3910"
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
@@ -2050,6 +2056,10 @@ services:
       PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.p12}}"
       PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
+      # Readiness lanes' own resource servers, chosen by the lane BFF's
+      # X-Readiness-Lane header (invest-dispatch.groovy, docker-compose.readiness.yml).
+      PG_INVEST_BACKEND_URL_PINGONE: "http://readiness-resource-server-pingone:8081"
+      PG_INVEST_BACKEND_URL_PINGFEDERATE: "http://readiness-resource-server-pingfederate:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       # Unlocks certs/pg-tls/pg-server.p12 for the 8443 TLS connector. IG's

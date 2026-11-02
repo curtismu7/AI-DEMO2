@@ -21,7 +21,7 @@ import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
 import { HttpMCPTransport } from './HttpMCPTransport';
 import { correlationFromMessage } from './correlationFromMessage';
 import { authorizeLastHop } from '../auth/lastHopAuthorization';
-import { runWithCorrelation } from '../utils/correlationContext';
+import { runWithCorrelation, activeVerticalFrom } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
 import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager } from '../oauth';
 import { attachReplayStorage } from '../oauth/IdJagGrantHandler';
@@ -40,6 +40,8 @@ export interface ConnectionInfo {
   ws: WebSocket;
   sessionId?: string;
   agentToken?: string;
+  /** X-Active-Vertical from the connect request: the BFF session's vertical, forwarded on BFF calls. */
+  activeVertical?: string;
   /** Email of the authenticated user, injected via session_init message from the frontend. */
   userEmail?: string;
   connectedAt: Date;
@@ -456,6 +458,8 @@ export class DemoMCPServer extends EventEmitter {
         }
       }
 
+      connectionInfo.activeVertical = activeVerticalFrom(request?.headers?.['x-active-vertical']);
+
       // Store connection
       this.connections.set(connectionId, connectionInfo);
       this.stats.totalConnections++;
@@ -567,7 +571,7 @@ export class DemoMCPServer extends EventEmitter {
           messageId: message.id,
           timestamp: new Date()
         });
-      });
+      }, { activeVertical: connection.activeVertical });
 
     } catch (error) {
       console.error(`[DemoMCPServer] Error processing message from ${connectionId}:`, error);

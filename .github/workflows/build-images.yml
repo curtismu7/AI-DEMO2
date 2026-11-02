@@ -37,7 +37,7 @@ jobs:
     # land. workflow_dispatch is someone deciding to rebuild on purpose, which is
     # a different thing from a PR building itself.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -48,6 +48,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # ci-build-matrix.js and check-ghcr-source-labels.js run on Node; pin the
+      # major the rest of CI uses instead of whatever the runner image ships.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
 
       - name: Collect changed paths
         id: changed
@@ -111,7 +118,7 @@ jobs:
     name: ${{ matrix.key }}
     needs: build-images
     if: needs.build-images.outputs.any == 'true'
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -120,52 +127,19 @@ jobs:
       matrix: ${{ fromJSON(needs.build-images.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
-      # The runner's own ~/.docker/config.json has `credsStore: osxkeychain`, and
-      # a launchd runner service cannot write to the login keychain: the login
-      # step below died with "error storing credentials ... User interaction is
-      # not allowed. (-25308)" on every self-hosted Mac. A job-scoped config
-      # keeps the token in a file under RUNNER_TEMP, which the runner wipes after
-      # the job (login-action also logs out in its post step).
-      # cli-plugins is linked so `docker compose` and buildx still resolve.
-      #
-      # The placeholder `auths` entry is load-bearing. An empty `{}` is NOT
-      # enough: when the config holds no auth and docker-credential-osxkeychain
-      # is on PATH, the CLI picks the keychain as its default store anyway and
-      # fails identically (#484 shipped `{}`; all 12 jobs failed). One existing
-      # auth entry makes it keep using the file.
-      - name: Use a job-scoped Docker config (no keychain)
+      # The SE cluster nodes are Graviton (arm64) and ubuntu-latest is amd64.
+      # The images used to be built natively on Apple Silicon runners; now QEMU
+      # emulates arm64, so the build is slower but the images are the same.
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      # A hosted runner has ~14 GB free and the bff/server image alone is ~3.6 GB
+      # once built under emulation. Drop toolchains this job never uses.
+      - name: Free disk space
         run: |
           set -euo pipefail
-          cfg="$RUNNER_TEMP/docker-config"
-          mkdir -p "$cfg"
-          ln -s "$HOME/.docker/cli-plugins" "$cfg/cli-plugins"
-          echo '{"auths":{"placeholder.invalid":{}}}' > "$cfg/config.json"
-          echo "DOCKER_CONFIG=$cfg" >> "$GITHUB_ENV"
-      # On a runner machine that runs OrbStack, /var/run/docker.sock can be a
-      # symlink to Docker Desktop's socket (~/.docker/run/docker.sock), which does
-      # not exist there. setup-buildx then died with "failed to connect to the
-      # docker API at unix:///var/run/docker.sock" (main run 37123317458, bff and
-      # frontend). Only when the default socket does not answer, point at the
-      # first live one; runners where it works are left exactly as they were.
-      - name: Use a live Docker socket
-        run: |
-          set -euo pipefail
-          if docker info >/dev/null 2>&1; then
-            echo "default Docker socket is live"
-            exit 0
-          fi
-          # A socket FILE is not a live daemon: a stopped Docker Desktop leaves its
-          # file behind (cmuir-air, main run 37140242446 picked one and setup-buildx
-          # still failed). Ask each candidate to answer before choosing it.
-          for s in "$HOME/.orbstack/run/docker.sock" "$HOME/.docker/run/docker.sock"; do
-            if [ -S "$s" ] && DOCKER_HOST="unix://$s" docker info >/dev/null 2>&1; then
-              echo "DOCKER_HOST=unix://$s" >> "$GITHUB_ENV"
-              echo "default Docker socket is dead; using $s"
-              exit 0
-            fi
-          done
-          echo "no live Docker socket found (is OrbStack running on this runner?)" >&2
-          exit 1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h / | tail -1
       - uses: docker/setup-buildx-action@v4
       # GITHUB_TOKEN — short-lived and repository-scoped. A classic PAT was used
       # briefly (#2540, reverted by #2548, restored here) while the real cause was
@@ -203,7 +177,7 @@ jobs:
         # Mirrors se-update-code.sh's build-input preflight (lines 196-216).
         # langchain_agent/repo-src/ and langchain_agent/codegraph.db are both
         # generated, gitignored files the Dockerfile COPYs — a clean checkout
-        # (this runner) has neither. se-update-code.sh generates them itself,
+        # (a fresh hosted runner) has neither. se-update-code.sh generates them itself,
         # but only after --print-map's early exit, so this job never runs
         # that path; --print-map must stay reachable with no .env, Docker, or
         # cluster access, so the preflight can't move earlier — it has to be
@@ -238,6 +212,14 @@ jobs:
         # reproducible, while :latest remains available for shared/local
         # namespaces and emergency recovery when a commit-specific image was
         # not published.
+        #
+        # linux/arm64 for the Graviton SE nodes: DOCKER_DEFAULT_PLATFORM makes
+        # compose build (and pull base images) for arm64 under QEMU, and
+        # BUILDX_NO_DEFAULT_ATTESTATIONS is the env form of --provenance=false, so
+        # the pushed tags stay plain single-platform manifests as before.
+        env:
+          DOCKER_DEFAULT_PLATFORM: linux/arm64
+          BUILDX_NO_DEFAULT_ATTESTATIONS: '1'
         run: |
           set -euo pipefail
           BASE="ghcr.io/${{ github.repository_owner }}/${{ matrix.ghcrImage }}"
@@ -245,23 +227,14 @@ jobs:
           LATEST_URI="$BASE:latest"
           docker compose -p ai-demo-se -f docker-compose.yml --profile demo-auth \
             build "${{ matrix.composeService }}"
+          # Refuse to push anything that is not arm64: an amd64 image on the
+          # Graviton nodes only fails later, at pod start, with exec format error.
+          arch="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "${{ matrix.localImage }}:latest")"
+          if [ "$arch" != "linux/arm64" ]; then
+            echo "::error::built image is $arch, expected linux/arm64"
+            exit 1
+          fi
           docker tag "${{ matrix.localImage }}:latest" "$SHA_URI"
           docker tag "${{ matrix.localImage }}:latest" "$LATEST_URI"
           docker push "$SHA_URI"
           docker push "$LATEST_URI"
-      # Every run leaves its sha-<sha> tag of all 12 images on the runner's
-      # daemon (the bff/server image alone is ~3.6 GB). Nothing consumed them —
-      # deployments pull from GHCR — and 2026-10-09 the Air's 460 GB disk hit
-      # 100% mid-"Install deps" (ENOSPC, attempts 14/16). Keep :latest and the
-      # current run's sha tag; drop everything else, plus dangling layers.
-      # rmi by REPOSITORY:TAG, not image ID: a server image shares layers with
-      # its frontend counterpart's ID space and `rmi <id>` dies with "image is
-      # referenced in multiple repositories" when a tag pair exists.
-      - name: Prune old local images
-        if: always()
-        run: |
-          set -euo pipefail
-          docker images "ghcr.io/${{ github.repository_owner }}/*:sha-*" --format "{{.Repository}}:{{.Tag}}" \
-            | /usr/bin/grep -Fv ":sha-${{ github.sha }}" \
-            | xargs -r -n1 docker rmi || true
-          docker image prune -f >/dev/null

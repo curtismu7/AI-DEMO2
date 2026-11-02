@@ -82,18 +82,18 @@ die()     { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2)
 IMAGE_MAP=(
-  "ai-demo-k8-ui:ai-demo-frontend"
-  "ai-demo-k8-api-server:ai-demo-demo-api-server"
-  "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+  "ai-demo-k8-ui:ai-demo2-frontend"
+  "ai-demo-k8-api-server:ai-demo2-demo-api-server"
+  "ai-demo-k8-mcp-server:ai-demo2-mcp-server"
   "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
-  "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
-  "ai-demo-k8-authz-server:ai-demo-authz-server"
-  "ai-demo-k8-agent-service:ai-demo-agent-service"
-  "ai-demo-k8-hitl-service:ai-demo-hitl-service"
-  "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
-  "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
-  "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
-  "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
+  "ai-demo-k8-mcp-gateway:ai-demo2-mcp-gateway"
+  "ai-demo-k8-authz-server:ai-demo2-authz-server"
+  "ai-demo-k8-agent-service:ai-demo2-agent-service"
+  "ai-demo-k8-hitl-service:ai-demo2-hitl-service"
+  "ai-demo-k8-mcp-resource-server:ai-demo2-mcp-resource-server"
+  "ai-demo-k8-api-resource-server:ai-demo2-api-resource-server"
+  "ai-demo-k8-mcp-brave:ai-demo2-mcp-brave"
+  "ai-demo-k8-langchain-agent:ai-demo2-langchain-agent"
   "ai-demo-k8-llm-proxy:ai-demo-llm-proxy"
   "ai-demo-k8-tier-manager:ai-demo-tier-manager"
   "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
@@ -114,12 +114,13 @@ IMAGE_MAP=(
 # Unset = rewrite everything (CI / full-deploy path, unchanged behavior).
 FOCUS_DEPLOYMENTS="${FOCUS_DEPLOYMENTS:-}"
 
-# ghcr_name → k8s deployment name, derived from the map: ai-demo-<svc>. The
+# ghcr_name → k8s deployment name, derived from the map: ai-demo2-<svc> (older ai-demo-<svc> still accepted). The
 # authz-server sidecar lives INSIDE the mcp-gateway/ping-gateway pod templates,
 # so rewriting "the mcp-gateway deployment" rewrites its sidecar too — one key
 # per manifest, no separate sidecar list.
 ghcr_to_dep() {
   case "$1" in
+    ai-demo2-*) echo "${1#ai-demo2-}" ;;
     ai-demo-*) echo "${1#ai-demo-}" ;;
     *) echo "$1" ;;
   esac

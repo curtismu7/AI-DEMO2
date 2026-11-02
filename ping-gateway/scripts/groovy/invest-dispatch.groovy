@@ -137,7 +137,15 @@ def pfExchangeConfigValid = {
     }
 }
 def investAudience = System.getenv('PG_MCP_RESOURCE_SERVER_URI') ?: ''
-def investBaseUrl  = System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081'
+// Readiness lanes (docker-compose.readiness.yml) share this gateway but run their
+// own resource server, which reads its own lane BFF's data: the presenter's BFF
+// rejects a lane's token (UC2 banking 401'd on the PingFederate lane, 2026-10-31).
+// A lane BFF names itself in X-Readiness-Lane; only a lane with a configured
+// backend is honoured, and the header travels no further.
+def readinessLane = (request.headers.getFirst('X-Readiness-Lane') ?: '').toLowerCase()
+request.headers.remove('X-Readiness-Lane')
+def laneBackendUrl = (readinessLane ==~ /[a-z]+/) ? System.getenv('PG_INVEST_BACKEND_URL_' + readinessLane.toUpperCase()) : null
+def investBaseUrl  = laneBackendUrl ?: (System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081')
 def investMcpUrl   = investBaseUrl.replaceAll('/+$', '') + '/mcp'
 
 // ── Read the JSON-RPC envelope ────────────────────────────────────────────────
@@ -432,6 +440,31 @@ try { issuedToken = new JsonSlurper().parseText(exchangeResp.body ?: '{}')?.acce
 if (!issuedToken) {
     logger.warn('[InvestDispatch] No access_token in exchange response')
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'No access_token in exchange response'))
+}
+
+// Report what Exchange #3 issued, as olb-token-exchange.groovy does for the OLB
+// hop: audience and scope read from the token itself, never the token, so
+// p1az-decision.groovy puts it on X-Gw-Audit-Trail as `backend` and the BFF
+// records the gw-backend-exchange event. Without it every airlines and invest
+// call's gateway-to-backend hop was invisible. FAIL-SAFE: reporting must never
+// break the tool call.
+try {
+    def issuedParts = issuedToken.split('\\.', -1)
+    def issuedClaims = issuedParts.length == 3
+        ? new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(issuedParts[1]), 'UTF-8'))
+        : [:]
+    def issuedAud = issuedClaims.aud instanceof Collection ? issuedClaims.aud.collect { it?.toString() } : [issuedClaims.aud?.toString()].findAll { it }
+    def issuedScope = issuedClaims.scope instanceof Collection ? issuedClaims.scope.collect { it?.toString() }.join(' ') : (issuedClaims.scope ?: '').toString()
+    attributes['backendExchange'] = [
+        target   : 'resource-server',
+        audience : issuedAud.join(' '),
+        scope    : issuedScope,
+        exchanged: true,
+        cached   : false,
+    ]
+} catch (Exception e) {
+    // No exception text: this script never logs e.message (it can carry token data).
+    logger.warn('[InvestDispatch] could not describe the issued token for the audit trail')
 }
 
 // ── Forward the original JSON-RPC envelope to the resource server ─────────────

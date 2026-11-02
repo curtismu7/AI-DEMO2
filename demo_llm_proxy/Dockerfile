@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:26-alpine
 
 # Half of what CI needs to push this image to GHCR. A package first pushed by
 # hand is owned by that user with `repository: NONE`; the first push carrying

@@ -264,8 +264,10 @@ function createGitHubReader({
 
   async function getRepository() {
     if (!repositoryPromise) {
-      repositoryPromise = callGh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
-        .then(validateRepositorySlug);
+      // The checkout's origin may not be the repo CI actually runs in; CI_DASHBOARD_REPO pins it.
+      repositoryPromise = process.env.CI_DASHBOARD_REPO
+        ? Promise.resolve(validateRepositorySlug(process.env.CI_DASHBOARD_REPO))
+        : callGh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']).then(validateRepositorySlug);
     }
     return repositoryPromise;
   }
@@ -329,12 +331,19 @@ function createGitHubReader({
 
   async function getControlState() {
     const repository = await getRepository();
+    // GitHub answers 404 on the runner list unless the caller can administer the repo.
+    let runnersUnavailable = false;
     const [workflows, runners] = await Promise.all([
       readControlList(repository, 'workflows', 'workflows'),
-      readControlList(repository, 'runners', 'runners'),
+      readControlList(repository, 'runners', 'runners').catch((error) => {
+        if (!(error instanceof DashboardDataError)) throw error;
+        runnersUnavailable = true;
+        return [];
+      }),
     ]);
     return {
       repository,
+      runnersUnavailable,
       workflows: workflows.map(normalizeWorkflow).filter((workflow) => Number.isSafeInteger(workflow.id) && workflow.id > 0),
       runners: runners.map(normalizeRunner).filter((runner) => Number.isSafeInteger(runner.id) && runner.id > 0),
     };

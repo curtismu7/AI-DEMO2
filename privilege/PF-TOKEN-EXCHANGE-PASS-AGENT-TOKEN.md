@@ -1,5 +1,8 @@
 # PingFederate token exchange into Privilege, with Pass Agent Token
 
+> **Terminology:** Ping's 2026-11-02 release notes (deck "ID4AI Workforce - H2 2026", slide 35) rename **Non-Human Identity** to **Federated Identity** (display name only; the console API object is still `NonHumanIdentity` at `/v1/nonhumanidentities` in the 2026-10-31 swagger). This page was written under the old name and is kept as measured. Not yet seen on our tenant.
+
+
 Set up, deploy and use the agent-presents-token path: a PingFederate token exchange produces a token that acts for an agent, the agent sends it to a P1 Privilege Agent App, and the agent app forwards the verified token to the MCP server (Pass Agent Token). Expected configuration follows the recipe from the Ping thread (Federico Carbone and Suman Sharma, 2026-10-23). Status as of 2026-10-26: **working end to end** on gateway `v1.261024` (see "Working configuration" right below). Each claim below is tagged:
 
 - **[measured]**: seen on our tenant or in the gateway log, 2026-10-22.
@@ -772,6 +775,55 @@ A plain string value is refused with 400 `cannot unmarshal string into Go value 
 `pftoken-rs` (`whoami`) has no condition.
 
 **The page.** Run mints three tokens for the same agent: `openid opensearch:admin whoami:read` (also used for the main answer and `whoami`), `openid opensearch:read`, and `openid whoami:read`, and shows what the agent app answered for each.
+
+## 17. Gateway v1.261029 and v1.261030 (read 2026-11-01, not run)
+
+Ping published no release notes for these two tags, and we ran nothing against them. This section is what we can read from the public image repository, the `mcpgw` binary in each image and the console API spec. It is **[expected]** at best: every "what it does" line is our reading of a symbol or message name. The live page is `/gateway-claims`, parts 6 and 7. The v1.261028 step (AgentCore governance) is part 5 of that page.
+
+**[measured]** on 2026-11-01:
+
+| Fact | Value |
+|---|---|
+| Newest tag in the public repository | `v1.261030` (`latest` is the same image). No tag is newer. |
+| Our SE gateway | runs `v1.261030`; one `tools/list` through it returned 6 tools (both from the 2026-11-01 00:26 UTC baseline check, not repeated when this section was written) |
+| Console API spec (swagger) | identical to the 2026-10-31 baseline: 447 operations, 644 definitions |
+| Ping's public release notes | checked once, nothing found for either tag; last entry 2026-07-13 (an absence seen once, not a statement from Ping) |
+
+| Tag | Built (UTC) | `mcpgw` binary (bytes) | Symbols against the tag before |
+|---|---|---|---|
+| `v1.261028` | 2026-10-28 17:30 | 244,454,104 | base |
+| `v1.261029` | 2026-10-29 09:15 | 244,558,704 | 80 added, 26 removed |
+| `v1.261030` | 2026-10-30 16:01 | 244,570,600 | 24 added, 22 removed |
+
+Symbol counts include compiler temporaries. Only the `mcpgw` and `cyctl` layers and a small time-zone data layer differ between the tags.
+
+**[expected]** what changed since `v1.261028` (readings of the binary, none run):
+
+| Tag | Change | Evidence in the binary |
+|---|---|---|
+| `v1.261029` | A rejected human-approval hold is remembered, so the same request is not held again | `aipolicy.(*PendingIndex).RememberRejected`, `LookupRejected`; message "the same request will not be held again". `watcher.rejectionHorizon` is a symbol in `v1.261029` and gone as a symbol in `v1.261030`; we do not know why |
+| `v1.261029` | Alias handling in the AI policy engine | `Registry.Canonicalize`, `ResolveIdentities`, `aliasIndex`, `groupAliasIndex`, `rewriteAliasUIDs` |
+| `v1.261029` | A login refusal path | `mcpgw.(*Server).refuseLogin`, `aiPolicyPrincipal` |
+| `v1.261029` | GitHub Copilot as a managed coding agent | `codingagent.copilotArgs`, `copilotEvent`, `copilotResult`, `copilotTool`; path `/etc/github-copilot/policy.d/privilege.json` |
+| `v1.261029` | More AgentCore inventory and rate-limit helpers | `aws.MergeAgentCoreInventoryJSON`, `RegionFromARN`, `listGatewayRateLimits`, `updateGatewayRateLimit` |
+| `v1.261029` | Workload pinning steered to the runtime authorizer | one message naming runtime-level pinning (`hostingEnvironments`) as the supported control |
+| `v1.261030` | AgentCore rate-limit delete, resource-policy grading, rule listing | `aws.DeleteAgentCoreGatewayRateLimit`, `gradeResourcePolicy`, `listOneGatewayRules`; the message says `<gatewayID>/<rateLimitID>` where `v1.261029` says `<ruleID>` |
+
+The second binary in the image, `cyctl`, gained the same AgentCore helpers and lost none. We have no confirmed reason for the `v1.261030` rebuild.
+
+### Not yet measured: the 2026-11-02 Agent Privilege release
+
+The release is dated 2026-11-02 and not yet published, and our gateway runs `v1.261030`. No symbol or message in either tag matches these five features. All are **UNVERIFIED** on our tenant:
+
+| Feature | Our reading of the name | What a test needs |
+|---|---|---|
+| Entitlement-aware discovery | `tools/list` shows a caller only the tools its entitlements allow | Two agent keys with different entitlements, the same `tools/list` with each, compare. Creating the lower-entitled key is a tenant write |
+| Aggregate cap | A cap counted across calls together, not per key | A low-cap test key and a small burst until the first refusal. Keep the burst small |
+| OBO redeem | An agent redeems a delegated token for a call made for a user | A PingFederate token that acts for a user, and an agent app set to accept it; compare `sub` and `act` at the backend |
+| Scope layers | Tools layered by token scope; may be the same as section 16 | Repeat the section 16 tier run on the new release: a token with `opensearch:admin` gave 9 tools, `opensearch:read` gave 3, and a token with neither (for example `openid` alone) gave 403 |
+| Hold | A tool call waits for a human to approve it | An AI policy that returns the approval action, then approve one call, reject one, and retry the rejected one |
+
+**When the release lands**, repeat the three checks the baseline was taken for: look for an image tag newer than `v1.261030`, fetch the console swagger and diff it against the 2026-10-31 baseline, and repeat `tools/list` with the same key and a second, lower-entitled key.
 
 ## Related
 

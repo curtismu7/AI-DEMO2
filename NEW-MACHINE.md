@@ -45,7 +45,7 @@ not provide them. `mgrep` in particular is referenced by the harness rules.
 ### c. Host setup (run.sh path only — Docker skips this)
 - `echo '127.0.0.1  api.ping.demo' | sudo tee -a /etc/hosts`
 - `mkcert -install` (local HTTPS CA; `run.sh` installs `mkcert` via Homebrew on macOS)
-- Node 20+ (`node --version` ≥ v20)
+- Node 26+ (`node --version` ≥ v26)
 - **`run.sh` auto-install steps are macOS-only.** On Linux, prefer the Docker path,
   or install `mkcert`/Node manually.
 

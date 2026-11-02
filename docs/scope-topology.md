@@ -610,4 +610,4 @@ Granted scopes: `read`, `identity:read`
 | `browse_gear` | gateway | `read` | — |
 | `get_loyalty_status` | gateway | `airlines:read` | — |
 | `redeem_miles` | gateway | `airlines:read` `airlines:write` | — |
-| `book_airline_flight` | gateway | `airlines:read` `airlines:write` | — |
+| `book_airline_flight` | gateway | `airlines:read` `airlines:write` | consent |

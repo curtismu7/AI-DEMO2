@@ -14,8 +14,10 @@
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'false';
 process.env.ENDUSER_AUDIENCE = 'enduser.ping.demo';
 process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI = 'mcpgateway.ping.demo';
+// As docker-compose.yml sets it: PingFederate's Exchange #3 reuses the persistent
+// grant, so the invest token keeps the PingGateway audience.
 process.env.PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI =
-  'mcp-invest.ping.demo,mcp-resource-server.ping.demo';
+  'mcp-invest.ping.demo,mcp-resource-server.ping.demo,https://api.ping.demo:3036/mcp';
 
 let mockPayload;
 jest.mock('../services/tokenValidationService', () => ({
@@ -83,6 +85,38 @@ describe('MCP invest audiences must stay portfolio-scoped', () => {
     });
     expect(isAudience401(r)).toBe(false);
     expect(r.outcome).toBe('next');
+  });
+
+  test('accepts the PingGateway audience a PingFederate Exchange #3 token keeps, on portfolio', async () => {
+    const r = await invoke('/accounts/acct-1/portfolio', 'https://api.ping.demo:3036/mcp', {
+      baseUrl: '/api/investment',
+      method: 'GET',
+    });
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
+  });
+
+  // The resource server calls back for every investment read tool, not just portfolio.
+  test.each(['/accounts', '/accounts/acct-1/balance', '/accounts/acct-1/transactions'])(
+    'accepts the PingGateway audience on GET /api/investment%s',
+    async (path) => {
+      const r = await invoke(path, 'https://api.ping.demo:3036/mcp', { baseUrl: '/api/investment', method: 'GET' });
+      expect(isAudience401(r)).toBe(false);
+      expect(r.outcome).toBe('next');
+    },
+  );
+
+  test('the investment audiences are GET-only: the same paths with another method are rejected', async () => {
+    const r = await invoke('/accounts/acct-1/balance', 'mcp-invest.ping.demo', { baseUrl: '/api/investment', method: 'POST' });
+    expect(isAudience401(r)).toBe(true);
+  });
+
+  test('that audience is still rejected on a route that is not a callback', async () => {
+    const r = await invoke('/accounts/acct-1/statements', 'https://api.ping.demo:3036/mcp', {
+      baseUrl: '/api/investment',
+      method: 'GET',
+    });
+    expect(isAudience401(r)).toBe(true);
   });
 
   test('rejects mcp-invest audience on POST /api/transactions (write callback)', async () => {

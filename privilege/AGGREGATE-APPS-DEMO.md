@@ -19,7 +19,7 @@ Master index row: [feature 12](../docs/privilege-agent-features.md).
 - **Door:** `https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp` — the demo's
   aggregate fronts `opensearch` + `banking-mcp`. The gateway client lists it as a
   preset ("MCP Aggregate app: opensearch + banking-mcp behind one URL",
-  `standalone/ai-gateway-client/server/lib/relay.js`), and the demo's
+  [`server/lib/relay.js`](https://github.com/ping-sandbox/ai-gateway-client-LAB/blob/main/server/lib/relay.js)), and the demo's
   [/privilege-mcp-client](https://ai-demo.ping-devops.com/privilege-mcp-client)
   can select it as a door.
 - **Console:** an application of type **MCP Aggregate** — a name (its address) and

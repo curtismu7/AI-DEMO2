@@ -45,12 +45,13 @@ jobs:
     # count as passing, and a draft cannot be merged anyway.
     # A closed PR event exists only to cancel the PR's earlier run (see `on`).
     if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.action != 'closed')
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.nightly.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
       ui: ${{ steps.all.outputs['ui'] || steps.nightly.outputs['ui'] || steps.filter.outputs['ui'] }}
       ui-changed-files: ${{ steps.ui-files.outputs.files || '[]' }}
+      ui-matrix: ${{ steps.ui-plan.outputs.matrix || '{"include":[{"shard":1,"total":1}]}' }}
       unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
       python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
       standalone-a2a: ${{ steps.all.outputs['standalone-a2a'] || steps.nightly.outputs['standalone-a2a'] || steps.filter.outputs['standalone-a2a'] }}
@@ -189,13 +190,44 @@ jobs:
               .map(({ filename, previous_filename, status }) => ({ filename, previous_filename, status }));
             core.setOutput('files', JSON.stringify(uiFiles));
 
+      - name: Check out the Vitest mode selector
+        if: github.event_name == 'pull_request' && steps.filter.outputs.ui == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: demo_api_ui/scripts/select-vitest-mode.mjs
+          sparse-checkout-cone-mode: false
+      # One shard when a PR runs only the related tests: each shard repeats checkout + two installs
+      # (~1.5 min), which would cost more than splitting a 2-16 min related run saves. The full suite
+      # (nightly, manual runs, or a PR the selector sends to the full suite) is ~20 min on 2 workers,
+      # so it is split across FULL_SHARDS runners. The selector is the same function the memory guard
+      # calls, fed the same changed-file list, so the two always agree; if it cannot be run, plan the
+      # full suite: more coverage is the safe failure.
+      - name: Plan Vitest shards
+        id: ui-plan
+        if: steps.all.outputs['ui'] == 'true' || steps.nightly.outputs['ui'] == 'true' || steps.filter.outputs['ui'] == 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+          CHANGED: ${{ steps.ui-files.outputs.files || '[]' }}
+          FULL_SHARDS: '4'
+        run: |
+          mode=full
+          if [[ "$EVENT" == pull_request ]]; then
+            mode=$(node --input-type=module -e "import { selectVitestMode } from './demo_api_ui/scripts/select-vitest-mode.mjs'; console.log(selectVitestMode(JSON.parse(process.env.CHANGED)).mode)") || mode=full
+          fi
+          total=1
+          if [[ "$mode" == full ]]; then total="$FULL_SHARDS"; fi
+          matrix=$(node -e 'const t=Number(process.argv[1]);console.log(JSON.stringify({include:Array.from({length:t},(_,i)=>({shard:i+1,total:t}))}))' "$total")
+          echo "Vitest mode=$mode shards=$total"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   gates:
     name: Hygiene + topology gates
     needs: changes
     # Run selection first, then run repository gates on the single CI runner.
     # Jobs pin to the event SHA: queued jobs can start after a merge removes
     # the mutable refs/pull/<number>/merge ref used by github.ref.
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     # 15 was too tight: a slow-network `npm ci` alone took 17.5 min and timed out an all-green run.
     timeout-minutes: 30
     steps:
@@ -203,12 +235,28 @@ jobs:
         with:
           ref: ${{ inputs.target_ref || github.sha }}
       - name: Lint GitHub Actions workflows
-        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7 "$RUNNER_TEMP"
+          "$RUNNER_TEMP/actionlint" .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # Skip restoring the >1 GiB npm cache on this shared-runner gate.
           package-manager-cache: false
+      # scripts/check-use-cases-maturity.js shells out to rg (ripgrep), which was
+      # on the old Mac runner but is not guaranteed on a hosted image.
+      - name: Install ripgrep (use-case maturity gate)
+        run: command -v rg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ripgrep; }
+      # scripts/export-edition.test.js runs the real gitleaks gate (spawnSync gitleaks),
+      # which was installed on the old Mac runner (brew) but is not on a hosted image.
+      # Same version as the Mac (8.30.1), checked against the release's published sha256.
+      - name: Install gitleaks (export-edition secret gate)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tar.gz" https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/gitleaks-bin"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks-bin" gitleaks
+          echo "$RUNNER_TEMP/gitleaks-bin" >> "$GITHUB_PATH"
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
@@ -286,7 +334,7 @@ jobs:
     name: API server tests (Jest)
     needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -294,7 +342,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # Shares the oversized npm cache with the gates job.
           package-manager-cache: false
       - name: Install deps
@@ -329,13 +377,51 @@ jobs:
     # typecheck or resolve the production bundle, and a green test run over a
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
+    # Split in three so the long pole shrinks: `ui-shards` (Vitest, matrix), `ui-build-reel` (Vite build +
+    # movie reel, in parallel) and this aggregate. The aggregate keeps the old job id and name, so
+    # main-red-alert (needs.ui-tests.result) and any required-check list keep matching unchanged.
     name: UI tests (Vitest) + build
+    needs: [changes, ui-shards, ui-build-reel]
+    # !cancelled(), not always(): a run superseded by cancel-in-progress should not start a runner
+    # to report on a stale head. changes.result == 'success' reproduces the implicit success() the
+    # old job had on `changes`, so a draft or closed-PR run still skips this job.
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs['ui'] == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every UI shard and the build and movie-reel job
+        env:
+          EVENT: ${{ github.event_name }}
+          SHARDS: ${{ needs.ui-shards.result }}
+          BUILD: ${{ needs.ui-build-reel.result }}
+        run: |
+          echo "ui-shards=$SHARDS ui-build-reel=$BUILD (event=$EVENT)"
+          # Pushes to main skip Vitest on purpose (the merged PR already ran it), so the shards are
+          # skipped there. Anywhere else a skipped or failed shard is a failure, never a pass.
+          shards_ok=false
+          if [[ "$SHARDS" == success ]]; then shards_ok=true; fi
+          if [[ "$EVENT" == push && "$SHARDS" == skipped ]]; then shards_ok=true; fi
+          if [[ "$shards_ok" != true ]]; then
+            echo "::error::UI shards finished as '$SHARDS'"
+            exit 1
+          fi
+          if [[ "$BUILD" != success ]]; then
+            echo "::error::UI build + movie reel finished as '$BUILD'"
+            exit 1
+          fi
+
+  ui-shards:
+    name: UI tests shard ${{ matrix.shard }}/${{ matrix.total }}
+    needs: [changes]
     # Not gated on `gates`: the hygiene gate takes 3-4.5 min and the UI job is the long pole, so
     # serializing them added that to every UI PR. `gates` is still a required upstream of `main-red`.
-    needs: [changes]
-    if: needs.changes.outputs['ui'] == 'true'
-    runs-on: self-hosted
+    # Not on push to main: the merged PR already ran its Vitest step on this code.
+    if: needs.changes.outputs['ui'] == 'true' && github.event_name != 'push'
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs['ui-matrix']) }}
     steps:
       # Older target commits predate the 4 GB Vitest RSS guard. Preserve the
       # current guard from this workflow revision, then check out the target.
@@ -369,7 +455,7 @@ jobs:
           cp "$RUNNER_TEMP/ci-ui-guard/vitest-memory-guard.config.mjs" demo_api_ui/scripts/
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # The shared Mac's npm cache is over 1 GiB and costs more time to
           # restore/save than it saves during dependency installation.
           package-manager-cache: false
@@ -388,16 +474,18 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit:pr
         env:
           CI: 'true'
-          # 4 workers: full suite measured 1667 s at 2, 961 s at 4 (8 was 569 s but flaked when
-          # three runners ran at once). Related runs only; nightly and pinned runs stay at 2.
-          VITEST_MAX_WORKERS: '4'
+          # Hosted ubuntu-latest has 2 vCPUs: at 4 workers two heavy AIAgent tests hit the 30 s
+          # test timeout. (The old self-hosted Macs measured 1667 s at 2 workers, 961 s at 4.)
+          VITEST_MAX_WORKERS: '2'
           VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
+          VITEST_SHARD: ${{ matrix.total > 1 && format('{0}/{1}', matrix.shard, matrix.total) || '' }}
       - name: Full Vitest suite for pinned target refs (4 GB guarded)
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
         working-directory: demo_api_ui
         run: node scripts/run-vitest-with-memory-guard.mjs unit
         env:
           CI: 'true'
+          VITEST_SHARD: ${{ matrix.total > 1 && format('{0}/{1}', matrix.shard, matrix.total) || '' }}
       # Not on push to main: the merged PR already ran its Vitest step on this
       # code, and the full 704-file jsdom suite took 7-12 min per merge on the
       # shared self-hosted Mac, backing up the whole queue. Nightly (schedule)
@@ -407,8 +495,27 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
+          VITEST_SHARD: ${{ matrix.total > 1 && format('{0}/{1}', matrix.shard, matrix.total) || '' }}
+
+  ui-build-reel:
+    name: UI build + movie reel
+    needs: [changes]
+    if: needs.changes.outputs['ui'] == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - name: Install deps
+        run: npm ci --prefix demo_api_ui --no-audit --no-fund
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
+
 
       # The movie reel has gone missing FIVE times, and every previous guard was
       # a static source check that stayed green while the reel was off screen.
@@ -425,9 +532,26 @@ jobs:
         run: echo "needed=$(node scripts/reel-guard-needed.mjs)" >> "$GITHUB_OUTPUT"
         env:
           VITEST_RELATED_FILES_JSON: ${{ github.event_name == 'pull_request' && needs.changes.outputs['ui-changed-files'] || '[]' }}
+      # Cache only the browser download (~110-180 MB). The apt libraries it needs live outside the
+      # cache, so install-deps always runs; `playwright install` then finds the cached revision and
+      # does nothing. Keyed on the resolved Playwright version, with no restore-keys: a partial match
+      # would restore a different Chromium revision.
+      - name: Playwright version
+        id: pw-version
+        if: steps.reel.outputs.needed == 'true'
+        run: |
+          echo "version=$(jq -r '.packages["node_modules/playwright-core"].version' demo_api_ui/package-lock.json)" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browser
+        if: steps.reel.outputs.needed == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
       - name: Install chromium for the movie-reel lock
         if: steps.reel.outputs.needed == 'true'
-        run: npm --prefix demo_api_ui exec -- playwright install --with-deps chromium
+        run: |
+          npm --prefix demo_api_ui exec -- playwright install-deps chromium
+          npm --prefix demo_api_ui exec -- playwright install chromium
       - name: Movie reel is on screen (Playwright)
         if: steps.reel.outputs.needed == 'true'
         working-directory: demo_api_ui
@@ -435,6 +559,7 @@ jobs:
         env:
           CI: 'true'
           BANKING_UI_PORT: '4173'
+
 
   unwired-service-suites:
     # 2026-08-17: an audit found ~117 test files across ten services that NO job
@@ -452,7 +577,7 @@ jobs:
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
     needs: [changes, gates]
     if: needs.changes.outputs['unwired-services'] == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -460,7 +585,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           package-manager-cache: false
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
@@ -495,21 +620,15 @@ jobs:
     name: Python agent suites (langchain, llamaindex)
     needs: [changes, gates]
     if: needs.changes.outputs['python-agents'] == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.sha }}
-      - name: Use the runner's installed Python 3.12
-        run: |
-          python="$HOME/.local/bin/python3.12"
-          if [ ! -x "$python" ]; then
-            echo "Python 3.12 is not installed at $python" >&2
-            exit 1
-          fi
-          "$python" --version
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
@@ -533,7 +652,7 @@ jobs:
     name: Standalone A2A demo suite (main agent, worker, MCP)
     needs: [changes, gates]
     if: needs.changes.outputs['standalone-a2a'] == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -541,7 +660,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           package-manager-cache: false
       - name: Install standalone demo deps
         run: bash scripts/ci-cached-npm-ci.sh standalone/privilege-a2a-anthropic-demo
@@ -576,7 +695,7 @@ jobs:
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
     needs: [changes, gates]
     if: needs.changes.outputs['decision-services'] == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -584,7 +703,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # Keep the large shared-runner npm cache out of this grouped suite.
           package-manager-cache: false
       - name: Install demo_authz_server deps
@@ -634,12 +753,14 @@ jobs:
     # notifier (Slack/webhook) has one file to read. It does not replace
     # branch protection — it makes "main is red" un-missable in the run list.
     name: Main is red (alert)
-    needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, standalone-a2a-tests, authz-decision-tests]
+    # ui-shards and ui-build-reel are listed so a cancelled UI run still counts as cancelled below:
+    # the ui-tests aggregate is skipped (not cancelled) when its run is cancelled.
+    needs: [changes, gates, api-server-tests, ui-tests, ui-shards, ui-build-reel, unwired-service-suites, python-agent-suites, standalone-a2a-tests, authz-decision-tests]
     # A newer merge cancels this run (the concurrency group above), which makes
     # the upstream jobs "cancelled" — not red. Alerting on that is a false
     # positive, so stay quiet unless every upstream job actually finished.
     if: always() && github.event_name == 'schedule' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'cancelled')
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Evaluate upstream jobs

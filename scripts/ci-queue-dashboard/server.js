@@ -294,7 +294,9 @@ function startDashboard({ port = DEFAULT_DASHBOARD_PORT, log = console.log, erro
     const state = await reader.getControlState();
     return {
       ...state,
-      runners: await runnerController.inspect(state.repository, state.runners),
+      runners: state.runnersUnavailable
+        ? await runnerController.listLocal(state.repository)
+        : await runnerController.inspect(state.repository, state.runners),
       workflowLog: controlLog.observe(state.workflows),
     };
   };

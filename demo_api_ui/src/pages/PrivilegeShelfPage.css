@@ -1,0 +1,16 @@
+.pshelf-page { background: var(--th-bg-page); color: var(--th-text); min-height: 100%; }
+.pshelf-body { padding: 16px 24px 32px; max-width: 1200px; margin: 0 auto; }
+.pshelf-section { margin: 0 0 28px; }
+.pshelf-section h2 { margin: 0 0 4px; font-size: var(--font-size-lg); font-weight: 600; }
+.pshelf-blurb { margin: 0 0 12px; color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.pshelf-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.pshelf-card {
+  display: grid; gap: 4px; height: 100%; box-sizing: border-box; padding: 14px 16px; text-decoration: none; color: var(--th-text);
+  background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-radius: var(--radius-md);
+}
+.pshelf-card:hover { border-color: var(--th-status-info); }
+.pshelf-card:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.pshelf-card-title { font-weight: 600; }
+.pshelf-card-text { color: var(--th-text-muted); font-size: var(--font-size-sm); line-height: 1.4; }
+.pshelf-card-meta { color: var(--th-status-info-text, var(--th-status-info)); font-size: var(--font-size-sm); }
+@media (max-width: 480px) { .pshelf-body { padding: 16px; } }

@@ -814,6 +814,9 @@ export default function BankingAgent({
   if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
   const [modelAdvisory, setModelAdvisory] = useState(null);
   const modelAdvisoryTimerRef = useRef(null);
+  // The 6 s advisory timer must not outlive the component: a late setState after unmount
+  // threw "window is not defined" when a test file tore its jsdom down first.
+  useEffect(() => () => { if (modelAdvisoryTimerRef.current) clearTimeout(modelAdvisoryTimerRef.current); }, []);
   // Single-slot conversation state for clarification follow-ups.
   // Set when we asked "Which account?"/"How much?" and we're waiting on
   // the user's next message to fill that slot. Shape: { action, slot, asked }.

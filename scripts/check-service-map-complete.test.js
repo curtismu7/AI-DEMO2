@@ -96,8 +96,8 @@ test('readImageMap parses the real k8s/aws/deploy.sh', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'k8s', 'aws', 'deploy.sh'), 'utf8');
   const names = readImageMap(text);
   assert.ok(names.size > 10, `expected >10 IMAGE_MAP pairs, got ${names.size}`);
-  assert.ok(names.has('ai-demo-frontend'), 'the UI image must parse');
-  assert.ok(names.has('ai-demo-demo-api-server'), 'the BFF image must parse');
+  assert.ok(names.has('ai-demo2-frontend'), 'the UI image must parse');
+  assert.ok(names.has('ai-demo2-demo-api-server'), 'the BFF image must parse');
   // Local names are the OTHER side of each pair and must not leak in.
   assert.ok(!names.has('ai-demo-k8-ui'), 'local names must not be collected');
 });

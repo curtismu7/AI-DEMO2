@@ -246,7 +246,7 @@ A row's "What it shows" may carry an **Overlaps** note naming catalog ids it sha
 | D17 | **Audit trail** | Demo | Who did what through which agent | ✅ `demo_mcp_audit` |
 | D18 | **Cost and token usage** | Demo | Per-agent LLM spend and timings | ✅ PostHog work |
 | D19 | **LLM gateway** | Demo | Provider routing, custom and OpenRouter lanes, secured | ✅ `Privilege-standalone/llm-gateway`, `demo_llm_proxy` |
-| D20 | **AI gateway client** | Tester | Client for the AI gateway | ✅ `standalone/ai-gateway-client` |
+| D20 | **AI gateway client** | Tester | Client for the AI gateway | ✅ [ai-gateway-client-LAB](https://github.com/ping-sandbox/ai-gateway-client-LAB) |
 | D21 | **Personal agent (Dot)** | Demo | A user's own agent with consent | ✅ Dot |
 | D22 | **Worker agent** | Demo | Autonomous agent under policy | 🟡 `PLAN-autonomous-vs-worker-agents.md` |
 | D23 | **Digital worker** | Demo | Unattended agent; UC38 live run | ✅ digital worker demo |

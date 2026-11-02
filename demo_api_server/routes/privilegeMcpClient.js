@@ -2790,7 +2790,7 @@ const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 // Its own variable rather than repointing PRIVILEGE_SSO_ENV_ID, because that
 // one is paired with PRIVILEGE_SSO_CLIENT_ID/_SECRET for a client_credentials
 // grant (privilegeMcpSimple.js) and moving it would break that separately.
-// This mirrors standalone/ai-gateway-client, which has always kept the two
+// This mirrors ai-gateway-client (ping-sandbox/ai-gateway-client-LAB), which has always kept the two
 // apart as PRIVILEGE_CONSOLE_ENV_ID.
 function consoleEnvId() {
   return process.env.PRIVILEGE_CONSOLE_ENV_ID

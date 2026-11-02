@@ -441,7 +441,7 @@ PY
 }
 
 # Mirror the Privilege A2A main agent's secrets from the vault. The main agent
-# (Deployment mainagentdemo, standalone/privilege-a2a-anthropic-demo/k8s) is the
+# (Deployment mainagentdemo, k8s/privilege-a2a) is the
 # caller that starts Demo Steps 25 and 26; the BFF reaches it in-cluster.
 #   PRIVILEGE_A2A_BFF_SECRET       shared by the BFF and the main agent: goes to
 #                                  ai-demo-secrets (BFF) and, as

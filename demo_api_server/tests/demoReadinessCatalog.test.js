@@ -118,8 +118,8 @@ describe('demo readiness catalog', () => {
       auth: 'user',
       expectedBehavior: {
         kind: 'page-load',
-        pathname: '/privilege-mcp-client',
-        searchParams: { view: 'demo', tab: 'a2a' },
+        pathname: '/privilege-a2a',
+        searchParams: {},
       },
     });
   });
@@ -161,15 +161,15 @@ describe('demo readiness catalog', () => {
     });
     expect(ordinary.issuerSourceRef).toEqual(expect.any(String));
     expect(ordinary.endpointSourceRef).toEqual(expect.any(String));
-    // A2A and UC40 roles are still unresolved, so their rows stay blocked.
-    for (const contract of [a2a, native]) {
-      expect(contract).toMatchObject({
-        status: 'blocked',
-        issuer: { configurationKey: 'pf_issuer' },
-        endpoint: { configurationKey: 'pf_token_endpoint' },
-        sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
-      });
-    }
+    // The A2A specialist role is resolved too (readback 2026-10-31).
+    expect(a2a).toMatchObject({ status: 'ready', issuer: ordinary.issuer, endpoint: ordinary.endpoint, sourceGap: null });
+    // The UC40 native ID-JAG role is still unresolved, so its rows stay blocked.
+    expect(native).toMatchObject({
+      status: 'blocked',
+      issuer: { configurationKey: 'pf_issuer' },
+      endpoint: { configurationKey: 'pf_token_endpoint' },
+      sourceGap: { code: 'pf_exact_exchange_contract_source_gap', missingRoleIds: ['uc40-native-id-jag'] },
+    });
     expect(ordinary.credentialRoles.map((role) => role.roleId)).toEqual([
       'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
     ]);
@@ -177,8 +177,9 @@ describe('demo readiness catalog', () => {
       'standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist',
     ]);
     expect(native.credentialRoles.map((role) => role.roleId)).toEqual(['uc40-native-id-jag']);
+    // The customer's workload agent is the first-hop actor, so no built-in ai-agent-actor role.
     expect(workload.credentialRoles.map((role) => role.roleId)).toEqual([
-      'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
+      'standard-agent-exchanger', 'standard-mcp-exchanger', 'mcp-service-actor',
     ]);
   });
 

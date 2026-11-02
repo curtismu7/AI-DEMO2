@@ -34,7 +34,10 @@ const PrivilegeAiPoliciesDemoPage = lazyWithRetry(() => import("./pages/Privileg
 const PrivilegePfTokenDemoPage = lazyWithRetry(() => import("./pages/PrivilegePfTokenDemoPage"));
 const P1ThirdPartyExchangePage = lazyWithRetry(() => import("./pages/P1ThirdPartyExchangePage"));
 const PrivilegeGatewayTopologyPage = lazyWithRetry(() => import("./components/PrivilegeGatewayTopologyPage"));
+const GatewayStatsPage = lazyWithRetry(() => import("./components/GatewayStatsPage"));
 const PrivilegeDocsIndexPage = lazyWithRetry(() => import("./pages/PrivilegeDocsIndexPage"));
+const PrivilegeShelfPage = lazyWithRetry(() => import("./pages/PrivilegeShelfPage"));
+const PrivilegeMapPage = lazyWithRetry(() => import("./pages/PrivilegeMapPage"));
 const SkillsIndexPage = lazyWithRetry(() => import("./pages/SkillsIndexPage"));
 const InvestDualAuthDiagramPage = lazyWithRetry(() => import("./components/InvestDualAuthDiagramPage"));
 const ExternalDoorDiagramPage = lazyWithRetry(() => import("./components/ExternalDoorDiagramPage"));
@@ -2385,12 +2388,24 @@ function AppWithAuth() {
                               element={<PrivilegeDocsIndexPage />}
                             />
                             <Route
+                              path="/privilege-shelf"
+                              element={<PrivilegeShelfPage />}
+                            />
+                            <Route
+                              path="/privilege-map"
+                              element={<PrivilegeMapPage />}
+                            />
+                            <Route
                               path="/claude-skills"
                               element={<SkillsIndexPage />}
                             />
                             <Route
                               path="/privilege-gateway-topologies"
                               element={<PrivilegeGatewayTopologyPage />}
+                            />
+                            <Route
+                              path="/gateway-stats"
+                              element={<GatewayStatsPage />}
                             />
                             <Route
                               path="/demo-track"

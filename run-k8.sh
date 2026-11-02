@@ -495,21 +495,21 @@ aws_build() {
   # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2).
   # Local side = compose default naming under -p: ai-demo-k8-<service>.
   local IMAGE_MAP=(
-    "ai-demo-k8-ui:ai-demo-frontend"
-    "ai-demo-k8-demo-api-server:ai-demo-demo-api-server"
-    "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+    "ai-demo-k8-ui:ai-demo2-frontend"
+    "ai-demo-k8-demo-api-server:ai-demo2-demo-api-server"
+    "ai-demo-k8-mcp-server:ai-demo2-mcp-server"
     "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
-    "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
-    "ai-demo-k8-authz-server:ai-demo-authz-server"
-    "ai-demo-k8-agent-service:ai-demo-agent-service"
-    "ai-demo-k8-hitl-service:ai-demo-hitl-service"
-    "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
-    "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
+    "ai-demo-k8-mcp-gateway:ai-demo2-mcp-gateway"
+    "ai-demo-k8-authz-server:ai-demo2-authz-server"
+    "ai-demo-k8-agent-service:ai-demo2-agent-service"
+    "ai-demo-k8-hitl-service:ai-demo2-hitl-service"
+    "ai-demo-k8-mcp-resource-server:ai-demo2-mcp-resource-server"
+    "ai-demo-k8-api-resource-server:ai-demo2-api-resource-server"
     "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
-    "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
+    "ai-demo-k8-mcp-brave:ai-demo2-mcp-brave"
     "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
     "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
-    "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
+    "ai-demo-k8-langchain-agent:ai-demo2-langchain-agent"
     # llm-proxy + tier-manager ship in k8s/56-llm-stack.yaml and are in
     # k8s/aws/deploy.sh's IMAGE_MAP; omitting them here meant their sha-tagged
     # images were never pushed while the deploy referenced them → ImagePullBackOff

@@ -20,15 +20,23 @@ const { USE_CASES } = require('../config/useCases');
 const slugFor = (caseRow) => USE_CASES.find((useCase) => useCase.id === caseRow?.id)?.useCaseId || null;
 
 const INVOKE_PATH = '/api/agent/invoke';
+const ACTIVE_VERTICAL_PATH = '/api/verticals/active';
 const ATTACK_SIM_PATH = '/api/demo/attack-sim/run';
 // The refusal statuses the attack track declares as DENY_<status> outcomes.
 const ATTACK_REFUSAL_STATUSES = new Set([401, 403, 429, 503]);
 const FLAG_ENABLE_PATH = '/api/demo-flags/enable';
 const AGENT_SCOPE = 'agent:invoke';
 const AGENT_STATE_PATH = '/api/agent-builder/state';
+const AGENT_CREATE_PATH = '/api/agent-builder/agent';
 const MFA_DEVICES_PATH = '/api/auth/mfa/devices';
 // UC38's flag: the route behind it refuses to delegate without an MFA acr.
 const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
+const AGENT_CONSENT_STATUS_PATH = '/api/agent-authorization/status';
+const AGENT_CONSENT_GRANT_PATH = '/api/agent-authorization/grant';
+// A held tool's challenge, approved by the signed-in user.
+const HITL_APPROVE_PATH = '/api/mcp/decision';
+const A2A_INIT_PATH = '/api/a2a/init';
+const A2A_MESSAGE_PATH = '/api/a2a/message';
 
 const eventById = (events, id) => events.find((event) => event && event.id === id) || null;
 // A scope claim is a space-delimited string from PingOne and a list from PingFederate.
@@ -120,7 +128,6 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       return { subject: hop.claims?.sub || null, actorChain: [hop.claims?.sub, ...actors].filter(Boolean) };
     });
     evidence.exchangeService = 'token-exchange';
-    evidence.exchangeProvenance = `${provider}-standard`;
     // Actor-bound when the BFF verified a customer-owned workload agent and
     // used it, not the built-in agent, as the actor of the first exchange.
     evidence.exchangePath = eventById(events, 'personal-agent-lookup')?.status === 'active'
@@ -129,6 +136,13 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     evidence.subjectTokenType = 'access_token';
     // The agent that presented the actor token on a workload run. The runner
     // requires it in the actor chain: a run recorded under another agent fails.
+    // PingFederate names its actor-bound flow separately from the standard one.
+    evidence.exchangeProvenance = evidence.exchangePath === 'actor-bound-standard-two-exchange' && provider === 'pingfederate'
+      ? 'pingfederate-workload'
+      : `${provider}-standard`;
+    // PingFederate adds the MCP-service actor on Exchange #2, so the run's actor
+    // chain is the final token's (the audit does not name the workload agent).
+    if (evidence.exchangePath === 'actor-bound-standard-two-exchange' && provider === 'pingfederate') evidence.actorChain = evidence.exchangeHops[1].actorChain;
     if (evidence.exchangePath === 'actor-bound-standard-two-exchange') evidence.workloadAgentClientId = agentActor?.claims?.client_id || null;
     // PingFederate: the exchange as the BFF reports making it, for the runner
     // to compare with the profile's recorded issuer, endpoint and roles. The
@@ -178,7 +192,9 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     const claims = a2aExchange2.claims || {};
     const actors = [];
     for (let act = claims.act; act?.sub; act = act.act) actors.push(act.sub);
-    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || null;
+    // The gateway's filter-chain row is built from its audit-trail header, which now and
+    // then arrives without the chain; its own audit record of the call always names the tool.
+    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || audit?.what?.tool || null;
     Object.assign(evidence, {
       agentIdentityProvider: providerOf(eventById(events, 'a2a-agent1-actor')?.claims?.iss, lane),
       tokenIssuer: providerOf(claims.iss, lane),
@@ -187,7 +203,7 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       actorChain: [claims.sub, ...actors].filter(Boolean),
       selectedTool: a2aTool,
       audiences: list(claims.aud),
-      scopes: list(String(claims.scope || '').split(/\s+/)),
+      scopes: scopesOf(claims.scope),
       roleApplicability: { userLogin: Boolean(userToken), agentIdentity: eventById(events, 'a2a-agent2-actor')?.status === 'acquired', tokenExchange: true },
       exchangeService: 'token-exchange',
       exchangeProvenance: `${provider}-a2a`,
@@ -195,8 +211,38 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       subjectTokenType: 'access_token',
     });
     if (a2aTool && a2aTool === authorization?.primaryTool) evidence.resourceServer = authorization.resourceServer;
+    // PingFederate: Exchange #1 issues an ID-JAG that Exchange #2 redeems for an
+    // access token. Each hop as issued (type from the token's own header, chain
+    // from its own act claim), and the endpoint and roles the BFF reports for
+    // each exchange; the two must name one endpoint.
+    if (provider === 'pingfederate') {
+      const hop = (event, step) => {
+        const hopActors = [];
+        for (let act = event.claims?.act; act?.sub; act = act.act) hopActors.push(act.sub);
+        return {
+          step,
+          type: event.tokenTyp === 'oauth-id-jag+jwt' ? 'id-jag' : 'access_token',
+          subject: event.claims?.sub || null,
+          actorChain: [event.claims?.sub, ...hopActors].filter(Boolean),
+        };
+      };
+      evidence.exchangePath = 'a2a-id-jag-then-access';
+      evidence.exchangeHops = [hop(a2aExchange1, 'exchange1-id-jag'), hop(a2aExchange2, 'exchange2-access-token')];
+      const endpoint = a2aExchange1.pfExchange?.endpoint && a2aExchange1.pfExchange.endpoint === a2aExchange2.pfExchange?.endpoint
+        ? a2aExchange2.pfExchange.endpoint
+        : null;
+      evidence.pfExchange = {
+        issuer: claims.iss || null,
+        endpoint,
+        credentialRoles: [...list(a2aExchange1.pfExchange?.credentialRoles), ...list(a2aExchange2.pfExchange?.credentialRoles)],
+        configurationComplete: Boolean(endpoint),
+        subjectTokenType: 'access_token',
+      };
+      if (authorization?.primaryTool) evidence.pfExchange.registeredToolResult = a2aTool === authorization.primaryTool ? 'pass' : 'fail';
+    }
     if (authorization?.primaryTool) {
-      evidence.gateway = { route: challengedRoute, verdict: gatewayAuthorize?.decision || null };
+      // PingGateway reports the route in its audit; the node gateway in its challenge.
+      evidence.gateway = { route: audit?.where?.routePath || challengedRoute, verdict: gatewayAuthorize?.decision || null };
       // `engine` says who decided: this path is decided by the gateway's
       // built-in policy engine unless real PingOne Authorize is wired to it.
       evidence.authorize = {
@@ -291,14 +337,33 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
         return { status: 'blocked', reason: 'needs the customer to pass MFA step-up, which this worker cannot do' };
       }
       const state = await request(AGENT_STATE_PATH, { method: 'GET' });
-      if (state.status !== 200 || !state.body?.agent) {
-        return { status: 'blocked', reason: 'no workload agent is registered for the readiness identity' };
+      if (state.status !== 200) {
+        return { status: 'blocked', reason: `lane could not read the readiness identity's workload agent (HTTP ${state.status})` };
+      }
+      // Like the user's agent consent below, the worker registers the agent
+      // once, as the readiness user, exactly as a presenter does on the agent
+      // builder page. A workload run mints the agent's own client-credentials
+      // actor token, so the agent must hold that grant; one registered without
+      // it is replaced.
+      let agent = state.body?.agent || null;
+      if (agent && !(agent.grantTypes || []).includes('CLIENT_CREDENTIALS')) {
+        const removed = await request(AGENT_CREATE_PATH, { method: 'DELETE' });
+        if (removed.status !== 200) {
+          return { status: 'blocked', reason: `lane could not replace a workload agent that lacks client credentials (HTTP ${removed.status})` };
+        }
+        agent = null;
+      }
+      if (!agent) {
+        const created = await request(AGENT_CREATE_PATH, { method: 'POST', body: { grantTypes: ['CLIENT_CREDENTIALS'] } });
+        if (![200, 201].includes(created.status)) {
+          return { status: 'blocked', reason: `lane could not register a workload agent for the readiness identity (HTTP ${created.status}${created.body?.error ? `: ${created.body.error}` : ''})` };
+        }
       }
     }
-    // A2A credentials are not checked here: the run itself acquires the
-    // specialist's actor token, and the evidence fails without it.
+    // A2A credentials and PAR settings are not checked here: the run itself
+    // acquires the specialist's actor token or pushes the authorization
+    // request, and the evidence fails without it.
     const unsupported = [
-      prerequisites?.parConfig && 'PAR configuration',
       prerequisites?.groupRequirement && 'group membership',
     ].filter(Boolean);
     if (unsupported.length) {
@@ -320,6 +385,24 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
         return { status: 'blocked', reason: `MFA service cannot serve this identity (HTTP ${devices.status}${devices.body?.error ? `: ${devices.body.error}` : ''}), so the step-up could not be completed` };
       }
     }
+    // An agent may drive a consent-gated tool (agent-mediated, not A2A) only for
+    // a user who has said "this agent may act for me"; without it PingOne
+    // Authorize denies UserConsentMissing before any step-up or approval. The
+    // worker gives that consent once, as the readiness user, exactly as a
+    // presenter does. In the default mode it is a record in this lane BFF's
+    // own store. Workload agents are authorized by their own identity instead.
+    const gatewayTool = caseRow?.authorizationContractByVertical?.[vertical]?.gatewayTool;
+    if (gatewayTool?.requiresAgentMediation && !gatewayTool.a2aDelegated
+        && !caseRow?.expectedBehaviorByVertical?.[vertical]?.adaptedFromLink) {
+      const consent = await request(AGENT_CONSENT_STATUS_PATH, { method: 'GET' });
+      if (consent.status !== 200) return { status: 'blocked', reason: `lane could not read the user's agent consent (HTTP ${consent.status})` };
+      if (consent.body?.authorized !== true) {
+        const granted = await request(AGENT_CONSENT_GRANT_PATH, { method: 'POST', body: {} });
+        if (granted.status !== 200 || granted.body?.ok !== true) {
+          return { status: 'blocked', reason: `lane could not record the user's agent consent (HTTP ${granted.status})` };
+        }
+      }
+    }
     if (!list(prerequisites?.requiredFlags).length) return { status: 'pass' };
     // Arms only this lane's BFF, which has its own config store. The endpoint
     // resolves the flag set from the use case itself, never from the caller.
@@ -336,13 +419,49 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
   // Dispatched on the behavior, not the case's mode: a step can be a link in
   // one vertical and a chip in another (UC48 is a chip in airlines).
   async function executeReadinessCase({ caseRow, vertical, mode, behavior, authorization }) {
+    // Pin this session to the row's vertical, as the UI does whenever its
+    // vertical picker changes. Without it the lane BFF serves the vertical's
+    // account data, and tells the gateway the vertical, from its own global
+    // default: a banking transfer then looked for workforce accounts.
+    const pinned = await request(ACTIVE_VERTICAL_PATH, { method: 'POST', body: { id: vertical } });
+    if (pinned.status < 200 || pinned.status > 299) return { observed: `VERTICAL_HTTP_${pinned.status}`, evidence: {} };
     if (behavior?.kind === 'agent-outcome') {
-      const invoked = await request(INVOKE_PATH, {
-        method: 'POST',
-        body: { prompt: behavior.triggerText, vertical, useCaseId: slugFor(caseRow) },
-      });
+      const body = { prompt: behavior.triggerText, vertical, useCaseId: slugFor(caseRow) };
+      const invoked = await request(INVOKE_PATH, { method: 'POST', body });
       if (invoked.status !== 200) return { observed: `HTTP_${invoked.status}`, evidence: {} };
-      return evidenceFromAgentInvoke({ response: invoked.body, provider, expectedIssuer, authorization });
+      let response = invoked.body;
+      // A2A: the gateway held the specialist's consent tool for the user's
+      // approval. A step that expects it to run is approved as the presenter
+      // does it, then resent once with the challenge; evidence is the retry's.
+      const challengeId = response?.error === 'hitl_required' ? response.hitlChallengeId : null;
+      if (challengeId && authorization?.gatewayTool?.a2aDelegated && ['PERMIT', 'PERMIT_THEN_DENY'].includes(behavior.expectedOutcome)) {
+        const approved = await request(`${HITL_APPROVE_PATH}/${encodeURIComponent(challengeId)}/approve`, { method: 'POST', body: {} });
+        if (approved.status !== 200) return { observed: `HITL_APPROVE_HTTP_${approved.status}`, evidence: {} };
+        const retried = await request(INVOKE_PATH, { method: 'POST', body: { ...body, hitlChallengeId: challengeId } });
+        if (retried.status !== 200) return { observed: `HTTP_${retried.status}`, evidence: {} };
+        response = retried.body;
+      }
+      return evidenceFromAgentInvoke({ response, provider, expectedIssuer, authorization });
+    }
+    // UC2.5 drives the A2A orchestrator page's own routes: init, then a message.
+    // A delegation the gateway held for approval comes back as a failed
+    // delegation naming the challenge; it is approved and resent as for UC2.
+    if (behavior?.kind === 'a2a') {
+      const inited = await request(A2A_INIT_PATH, { method: 'POST', body: {} });
+      if (inited.status !== 200) return { observed: `HTTP_${inited.status}`, evidence: {} };
+      // Heuristics, not the model: which of a multi-tool specialist's tools an LLM
+      // coordinator picks varies run to run, and the contract names one.
+      const body = { message: behavior.triggerText, vertical, mode: 'heuristics' };
+      let delivered = await request(A2A_MESSAGE_PATH, { method: 'POST', body });
+      const decision = delivered.body?.delegationDecision;
+      const challengeId = decision?.error === 'hitl_required' ? decision.result?.challengeId : null;
+      if (challengeId) {
+        const approved = await request(`${HITL_APPROVE_PATH}/${encodeURIComponent(challengeId)}/approve`, { method: 'POST', body: {} });
+        if (approved.status !== 200) return { observed: `HITL_APPROVE_HTTP_${approved.status}`, evidence: {} };
+        delivered = await request(A2A_MESSAGE_PATH, { method: 'POST', body: { ...body, hitlChallengeId: challengeId } });
+      }
+      if (delivered.status !== 200) return { observed: `HTTP_${delivered.status}`, evidence: {} };
+      return evidenceFromAgentInvoke({ response: delivered.body, provider, expectedIssuer, authorization });
     }
     if (behavior?.kind === 'attack-outcome') {
       const attacked = await request(ATTACK_SIM_PATH, { method: 'POST', body: { sim: behavior.sim } });

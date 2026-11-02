@@ -503,7 +503,9 @@ const RAW_USE_CASES = [
       gw:    'Not involved in the probe leg — the probe calls the decision endpoint directly, same contract the gateway uses.',
       authz: 'Evaluates ActChainDepth and NestedActClientId; DENYs invalid_a2a_generalist when the actor does not match the registered generalist.',
     },
-    primaryTool: 'sensitive_holdings',
+    // Banking has no per-vertical override, so its base is UC2's: the Investment
+    // Advisor's default tool, not the investment vertical's sensitive_holdings.
+    primaryTool: 'get_portfolio_summary',
     perVertical: A2A_MISMATCH_PER_VERTICAL,
   },
   {
@@ -1598,7 +1600,7 @@ const RAW_USE_CASES = [
     title: 'Privilege A2A access review',
     buyerStory: 'Security analysts want to ask an agent to review access and follow how a delegated worker gathers evidence through Privilege-protected tools.',
     pingOneSolution: 'A MainAgent delegates the analyst request to a WorkerAgent over A2A; the worker uses MCP through PingOne Privilege Gateway and returns an evidence-backed answer.',
-    trigger: { type: 'link', path: '/privilege-mcp-client?view=demo&tab=a2a', label: 'Open A2A access review' },
+    trigger: { type: 'link', path: '/privilege-a2a', label: 'Open A2A access review' },
     expectedOutcome: 'A2A_ACCESS_REVIEW',
     evidence: { tokenChain: [], activity: ['a2a', 'mcp', 'llm'] },
     codeRefs: [

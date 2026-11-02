@@ -21,7 +21,9 @@
   position: fixed;
   left: 0;
   top: 0;
-  height: 100vh;
+  /* Pinned top and bottom, not height: 100vh. The text-size control zooms <html> (113% by default), which scales
+     100vh as well, so the bar came out taller than the window and its last items could not be scrolled into view. */
+  bottom: 0;
   width: 310px;
   background: linear-gradient(135deg, #1a2332 0%, #2d3e4f 100%);
   padding-top: 0;

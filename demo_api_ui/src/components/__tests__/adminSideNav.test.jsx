@@ -180,6 +180,16 @@ describe("AdminSideNav — best-of-breed pass", () => {
       .toEqual(["Ag", "Ad", "S", "C", "D", "R"]);
   });
 
+  it("pins the sidebar top and bottom so a zoomed page cannot push its last items off screen", () => {
+    const navCss = readFileSync(path.resolve(__dirname, "../AdminSideNav.css"), "utf8");
+    const block = (navCss.match(/\n\.admin-side-nav \{([\s\S]*?)\n\}/)?.[1] ?? "").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(block).toMatch(/position: fixed;/);
+    expect(block).toMatch(/top: 0;/);
+    expect(block).toMatch(/bottom: 0;/);
+    // 100vh is scaled by the html zoom the text-size control applies, which made the bar taller than the window.
+    expect(block).not.toMatch(/height: 100vh/);
+  });
+
   it("keeps sidebar readability styles on the shared theme scale", () => {
     const skinCss = readFileSync(path.resolve(__dirname, "../adminSkinPing2026.css"), "utf8");
     expect(skinCss).toMatch(
@@ -215,6 +225,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     const protect = screen.getByRole("link", { name: "PingOne Protect" });
     expect(protect).toHaveAttribute("href", "/ai-products/protect");
     expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("Ping products");
+  });
+
+  it("gathers the Privilege pages in a Privilege info sub-group under Ping products", () => {
+    renderNav("/privilege-map");
+    // The sub-group opens on one of its own pages.
+    expect(screen.getByRole("button", { name: /^Privilege info/ })).toHaveAttribute("aria-expanded", "true");
+    const expected = [
+      ["Privilege shelf", "/privilege-shelf"],
+      ["Privilege Map", "/privilege-map"],
+      ["Agent Privilege Guide", "/privilege-mcp-learning"],
+      ["Agent Privilege Diagrams", "/privilege-mcp-diagrams"],
+      ["Agent Privilege Topologies", "/privilege-gateway-topologies"],
+      ["External Agent App Diagrams", "/external-door-diagrams"],
+    ];
+    for (const [name, href] of expected) {
+      const link = screen.getAllByRole("link", { name }).find((a) => a.closest(".admin-side-nav__group")?.textContent.includes("Privilege info"));
+      expect(link, name).toBeTruthy();
+      expect(link).toHaveAttribute("href", href);
+    }
+  });
+
+  it("no longer lists the moved pages under Agent Privilege", () => {
+    renderNav("/privilege-demo");
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Privilege/ }));
+    const group = screen.getAllByRole("button", { name: /^Agent Privilege/ })[0].closest(".admin-side-nav__group");
+    for (const name of ["Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"]) {
+      expect(within(group).queryByRole("link", { name }), name).toBeNull();
+    }
   });
 
   it("keeps the DaVinci learning pages together in the DaVinci group", () => {
@@ -574,6 +612,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     vi.unstubAllGlobals();
   });
 
+  it("honors a hide for a link inside the Privilege info sub-group, and hides the sub-group when all its links are hidden", async () => {
+    const stubHidden = (hiddenLabels) =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url) => {
+          if (String(url).includes("/api/user/nav-config")) {
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ hiddenLabels, activeConfigId: null, flagOn: true }) });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }),
+      );
+
+    stubHidden(["Agent Privilege Diagrams"]);
+    const first = renderNav("/privilege-map");
+    expect(await screen.findByRole("link", { name: "Privilege Map" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Agent Privilege Diagrams" })).toBeNull();
+    first.unmount();
+
+    stubHidden([
+      "Privilege shelf", "Privilege Map", "Agent Privilege Guide", "Agent Privilege Diagrams",
+      "Agent Privilege Topologies", "Gateway stats", "External Agent App Diagrams", "Privilege Docs Index",
+    ]);
+    renderNav("/privilege-demo");
+    expect(await screen.findByText("Observability")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Privilege info/ })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it("NAV_ITEM_CATALOG stays in sync with AdminSideNav's real top-level labels", () => {
     renderNavAsUser(customerUser);
     NAV_ITEM_CATALOG.forEach((label) => {
@@ -743,7 +809,7 @@ describe("AdminSideNav: the gateway claims and third-party exchange pages are se
   // The menu search matches one contiguous phrase against a label or its search terms, so each phrase a person would type
   // has to appear in one of them. Admin and a signed-in customer both see these diagram pages.
   const searches = [
-    ["v1.261028", "/gateway-claims"], ["gateway v1.261028", "/gateway-claims"], ["gateway v1.261027", "/gateway-claims"], ["gateway claims", "/gateway-claims"],
+    ["v1.261028", "/gateway-claims"], ["v1.261029", "/gateway-claims"], ["v1.261030", "/gateway-claims"], ["gateway release notes", "/gateway-claims"], ["what is new", "/gateway-claims"], ["gateway v1.261028", "/gateway-claims"], ["gateway v1.261027", "/gateway-claims"], ["gateway claims", "/gateway-claims"],
     ["AgentCore governance", "/gateway-claims"], ["runtime bypass", "/gateway-claims"], ["caller access", "/gateway-claims"], ["RequiredClaims", "/gateway-claims"],
     ["third party token exchange", "/p1-third-party-exchange"], ["third-party", "/p1-third-party-exchange"], ["p1 third party", "/p1-third-party-exchange"],
     ["trusted issuer", "/p1-third-party-exchange"], ["Okta", "/p1-third-party-exchange"], ["RFC 8693", "/p1-third-party-exchange"],

@@ -14,7 +14,7 @@ const { run } = require('./deploy-state');
 
 const CONTEXT = 'us';
 const NAMESPACE = 'ping-devops-cmuir';
-const APP_IMAGE = /\/(ai-demo-[a-z0-9-]+):sha-([0-9a-f]{40})$/;
+const APP_IMAGE = /\/(ai-demo2?-[a-z0-9-]+):sha-([0-9a-f]{40})$/;
 
 // One marker per app image on a running deployment; a pod's sidecar images count too.
 function parseDeployments(json) {
@@ -27,7 +27,7 @@ function parseDeployments(json) {
       const key = `${match[1]}@${match[2]}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      markers.push({ image: match[1], service: match[1].replace(/^ai-demo-/, ''), sha: match[2] });
+      markers.push({ image: match[1], service: match[1].replace(/^ai-demo2?-/, ''), sha: match[2] });
     }
   }
   return markers;

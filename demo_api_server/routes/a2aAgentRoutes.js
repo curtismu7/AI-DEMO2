@@ -80,6 +80,8 @@ router.post('/message', async (req, res) => {
       mode: mode === 'heuristics' || mode === 'llm' ? mode : undefined,
       tokenEvents: tokenEvents || [],
       availableSpecialists: [], // Could be populated from config
+      // Resend after the user approved a specialist call the gateway held.
+      hitlChallengeId: typeof req.body.hitlChallengeId === 'string' && req.body.hitlChallengeId ? req.body.hitlChallengeId : null,
     });
 
     // If delegation is not approved, return a clear response

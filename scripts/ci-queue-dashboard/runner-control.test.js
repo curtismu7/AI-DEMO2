@@ -115,3 +115,22 @@ test('runner control is unavailable on non-macOS hosts', async () => {
   await assert.rejects(controller.perform(repository, runner, 'pause'), { code: 'RUNNER_CONTROL_UNAVAILABLE' });
   assert.equal(calls.length, 0);
 });
+
+test('listLocal shows this Mac\'s runner services for the repository, running or stopped', async () => {
+  const { spawn } = fakeSpawner(() => ({
+    stdout: `PID\tStatus\tLabel\n123\t0\tactions.runner.cmuir_pingcorp-AI-DEMO2.cmuir-dev-mac\n-\t0\tactions.runner.cmuir_pingcorp-AI-DEMO2.cmuir-dev-mac-2\n456\t0\tactions.runner.cmuir_pingcorp-muse.cmuir-mac-muse\n`,
+  }));
+  const controller = createRunnerController({
+    spawn, platform: 'darwin',
+    listLaunchAgentFiles: () => ['actions.runner.cmuir_pingcorp-AI-DEMO2.cmuir-air.plist', 'actions.runner.cmuir_pingcorp-muse.cmuir-mac-muse.plist'],
+  });
+
+  const rows = await controller.listLocal('ping-sandbox/AI-DEMO2');
+
+  assert.deepEqual(rows.map((row) => [row.name, row.localState]), [
+    ['cmuir-dev-mac', 'running'],
+    ['cmuir-dev-mac-2', 'stopped'],
+    ['cmuir-air', 'stopped'],
+  ]);
+  assert.ok(rows.every((row) => row.source === 'local' && row.localControlAvailable === false));
+});

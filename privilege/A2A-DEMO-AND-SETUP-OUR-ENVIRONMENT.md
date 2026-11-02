@@ -213,7 +213,7 @@ The model ID must match the model allowed on the key exactly. `MAIN_AGENT_HOST=0
 
 **6. Connect the app.** In `demo_api_server/.env`, set `PRIVILEGE_A2A_MAIN_URL=http://host.docker.internal:3300` and `PRIVILEGE_A2A_BFF_SECRET` to the same value as the main agent's `A2A_BFF_SHARED_SECRET`. The secret is also in the vault under that name.
 
-**6a. On the SE site, run the main agent in the cluster.** The SE app cannot reach a laptop, so the main agent is a third Deployment, `mainagentdemo`, in `standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml`. It uses the same image as the worker and is not registered in Privilege: it is a caller, not a remote agent.
+**6a. On the SE site, run the main agent in the cluster.** The SE app cannot reach a laptop, so the main agent is a third Deployment, `mainagentdemo`, in `k8s/privilege-a2a/deployment.yaml`. It uses the same image as the worker and is not registered in Privilege: it is a caller, not a remote agent.
 
 | What | Where | Value |
 | --- | --- | --- |

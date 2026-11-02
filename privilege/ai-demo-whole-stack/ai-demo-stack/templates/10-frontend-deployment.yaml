@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: "{{ .Values.imageRegistry }}/ai-demo-frontend:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-frontend:{{ .Values.imageTag }}"
         imagePullPolicy: Always   # use locally-built image (OrbStack/minikube)
         ports:
         - containerPort: 3000

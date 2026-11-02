@@ -1342,7 +1342,9 @@ const _mcpTokenCache = new Map(); // key: `${sessionID}|${tool}` → { result, t
 function resetMcpTokenCacheForTests() { _mcpTokenCache.clear(); }
 
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
-  const sessionKey = `${req?.sessionID || 'anon'}|${tool || 'default'}`;
+  // A workload run mints its own actor chain; a token cached for the same tool
+  // by the built-in agent (or another workload agent) must not stand in for it.
+  const sessionKey = `${req?.sessionID || 'anon'}|${tool || 'default'}${req?.workloadAgentRuntime?.clientId ? `|workload:${req.workloadAgentRuntime.clientId}` : ''}`;
   const cached = _mcpTokenCache.get(sessionKey);
   const now = Date.now();
   if (cached && (now - cached.ts) < MCP_TOKEN_CACHE_TTL_MS && !opts?.skipCache) {
@@ -1357,7 +1359,11 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   const result = await _resolveMcpAccessTokenWithEventsUncached(req, tool, opts);
   if (result?.token && !opts?.skipCache) {
-    _mcpTokenCache.set(sessionKey, { result, ts: now });
+    // Cache a copy of the chain as resolved. The caller keeps pushing this
+    // call's own events (the gateway's audit, filter chain, backend exchange)
+    // onto result.tokenEvents; caching that same array replayed them on the
+    // next call, so a denied call showed the previous call's PERMIT audit.
+    _mcpTokenCache.set(sessionKey, { result: { ...result, tokenEvents: [...(result.tokenEvents || [])] }, ts: now });
   } else if (result?.token && opts?.skipCache) {
     _mcpTokenCache.delete(sessionKey); // a deliberate live run refreshes the window
   }
@@ -1578,16 +1584,31 @@ async function _resolveMcpAccessTokenWithEventsUncached(req, tool, opts = {}) {
     await resolveMcpTokenEnterpriseManaged(req, tokenEvents, { runScoped: runScopedEnterpriseDemo });
   }
 
-  // PingFederate's ID-JAG path currently has no input for the verified
-  // Agent Builder actor runtime. Do not return a user-scoped token while the
-  // Workload Agents UI claims that runtime supplied act.
+  // A workload agent is a PingOne application, so PingFederate has no client for
+  // it and could not issue the actor token that carries `act`. Give it a
+  // PingFederate client with the same id and secret (cloned from the built-in
+  // actor client); the two-exchange path below then takes its actor token from
+  // that client instead of the built-in one. Never fall back to the built-in
+  // actor: that would record the run under the wrong agent.
   if (req?.workloadAgentRuntime?.clientId && configStore.getOAuthProvider?.() === 'pingfederate') {
-    throwTokenResolutionError(
-      tokenEvents,
-      'workload_actor_provider_unsupported',
-      'Workload Agent actor binding currently requires the PingOne two-exchange path; PingFederate ID-JAG does not bind the selected agent.',
-      409,
-    );
+    const pfClientService = require('./pingFederateClientService');
+    try {
+      if (!pfClientService.isConfigured()) {
+        throw Object.assign(new Error('PingFederate Admin API is not configured.'), { code: 'pf_admin_not_configured' });
+      }
+      await pfClientService.ensureAgentClient({
+        clientId: req.workloadAgentRuntime.clientId,
+        clientSecret: req.workloadAgentRuntime.clientSecret,
+        name: req.workloadAgentRuntime.agent?.name || 'Workload agent',
+      });
+    } catch (err) {
+      throwTokenResolutionError(
+        tokenEvents,
+        'workload_actor_provider_unsupported',
+        `The workload agent has no PingFederate client and one could not be created (${err.code || 'error'}), so PingFederate cannot issue its actor token.`,
+        409,
+      );
+    }
   }
 
   // ── ff_skip_token_exchange — deny raw user-token forwarding ───────────────

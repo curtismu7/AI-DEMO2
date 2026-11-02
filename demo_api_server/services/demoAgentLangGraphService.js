@@ -499,11 +499,18 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         toolName = 'get_account_nickname';
         toolArgs = params.accountId ? { account_id: params.accountId } : {};
       } else if (action === 'balance') {
-        if (params.accountId) {
+        // No account named: the vertical's primary account, by type name
+        // ("checking"), which the balance route resolves to the user's own
+        // account in whichever store answers. Listing every account here made
+        // "show my balance" call get_my_accounts while its use cases (UC1,
+        // UC17, UC20, UC25) declare get_account_balance.
+        const primaryType = verticalManifest.loader.get(verticalId)?.manifest?.terminology?.accountTypes?.[0];
+        const accountId = params.accountId || (primaryType ? String(primaryType).toLowerCase() : null);
+        if (accountId) {
+          params = { ...params, accountId };
           toolName = 'get_account_balance';
-          toolArgs = { account_id: params.accountId };
+          toolArgs = { account_id: accountId };
         } else {
-          // No specific account — show all accounts with balances
           toolName = 'get_my_accounts';
           toolArgs = {};
         }
@@ -1048,7 +1055,11 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
 // delegated and executed, just without a rendered card — text reply only.
 const A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' };
 
-async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId }) {
+// The investment tools that require an account_id; the orchestrator's coordinator
+// picks one without arguments, so the delegation fills the user's first portfolio.
+const INVEST_TOOLS_NEEDING_ACCOUNT = new Set(['get_portfolio_summary', 'get_investment_balance', 'get_investment_transactions']);
+
+async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId, hitlChallengeId = null }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
   const { sendA2aProtocolHandoff } = require('./a2aProtocolClient');
@@ -1068,13 +1079,16 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   // single portfolio per user, same "first held record" convention used elsewhere
   // (see applyAdminCustomerContext). Only get_portfolio_summary needs it today.
   const toolArgs = { ...((args && args.args) || {}) };
-  if (result.tool === 'get_portfolio_summary' && toolArgs.account_id == null) {
+  if (INVEST_TOOLS_NEEDING_ACCOUNT.has(result.tool) && toolArgs.account_id == null) {
     try {
       const plugin = verticalDispatch.resolvePlugin('investment');
       const portfolios = plugin?.getDataStore()?.get(req?.session?.user?.id)?.portfolios || [];
       if (portfolios[0]) toolArgs.account_id = portfolios[0].id;
     } catch (_) { /* best-effort default only */ }
   }
+  // Retry after the user approved the specialist's held call: the gateway
+  // verifies this receipt against the user, the specialist and the tool.
+  if (hitlChallengeId) toolArgs._hitl_challenge_id = hitlChallengeId;
 
   // The A2A wire hop (A2A v1.0 §7.3-7.5): the delegated token above IS the
   // bearer. The SPECIALIST performs Exchange #2, calls the tool, and applies the
@@ -1123,6 +1137,9 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     scopes: handoff.scopes && handoff.scopes.length ? handoff.scopes : result.scopes,
     result: toolResult,
     toolError: toolError || null,
+    // The gateway held the specialist's call for approval; the UI approves this
+    // challenge and resends with it.
+    hitlChallengeId: toolError === 'hitl_required' ? toolResult?.challengeId || null : null,
     render: !toolError && result.tool ? A2A_TOOL_RENDER[result.tool] || null : null,
     // The note must not claim more than happened. It previously asserted
     // "PingOne Authorize permitted the specialist to run X" UNCONDITIONALLY —
@@ -1147,13 +1164,14 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
  * to produce a genuine invalid_a2a_generalist DENY. See a2aDelegationService.
  * probeGeneralistMismatch for why this is a probe, not a second live exchange.
  */
-async function executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, sessionId }) {
+async function executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, sessionId, hitlChallengeId = null }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
-  const leg1Json = await executeA2aDelegation(activeId, args, { req, tokenEvents: events, sessionId });
+  const leg1Json = await executeA2aDelegation(activeId, args, { req, tokenEvents: events, sessionId, hitlChallengeId });
   let leg1;
   try { leg1 = JSON.parse(leg1Json); } catch (_) { leg1 = { delegated: false, error: leg1Json }; }
-  if (leg1.error || !leg1.tool) {
+  // A held leg 1 waits for the user's approval; the probe runs on the retry.
+  if (leg1.error || !leg1.tool || leg1.hitlChallengeId) {
     return JSON.stringify(leg1);
   }
   const mismatch = await a2a.probeGeneralistMismatch(req, {
@@ -1199,6 +1217,21 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
         reply += ` ❌ The unregistered-agent probe was NOT denied (${probe.decision || probe.error || 'no decision'}).`;
       }
     }
+  } else if (a2aResult.delegated && a2aResult.hitlChallengeId) {
+    // Same envelope as a held vertical tool, so the UI opens its approval prompt
+    // and resends with the challenge id.
+    return {
+      reply: `${a2aResult.specialist} needs your approval before it can run ${a2aResult.tool.replace(/_/g, ' ')}.`,
+      success: false,
+      toolsCalled: ['delegate_to_specialist'],
+      tokensUsed: 0,
+      requiresConsent: true,
+      agentConfigured: true,
+      tokenEvents,
+      error: 'hitl_required',
+      hitlChallengeId: a2aResult.hitlChallengeId,
+      action: a2aResult.tool,
+    };
   } else if (a2aResult.delegated) {
     reply = `❌ Delegated to ${a2aResult.specialist}, but ${a2aResult.tool || 'the tool call'} failed: ${a2aResult.toolError || 'no result returned'}.`;
   } else {
@@ -1579,7 +1612,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   if (action !== 'delegate_to_specialist' && action !== 'a2a_generalist_mismatch') {
     const { isA2aDelegatedTool } = require('./scopeTopology');
     if (isA2aDelegatedTool(action)) {
-      const a2aJson = await executeA2aDelegation(vertical, { tool: action }, { req, tokenEvents, sessionId });
+      const a2aJson = await executeA2aDelegation(vertical, { tool: action }, { req, tokenEvents, sessionId, hitlChallengeId });
       let a2aResult;
       try { a2aResult = JSON.parse(a2aJson); } catch (_) { a2aResult = { delegated: false, error: a2aJson }; }
       return buildA2aReplyEnvelope(a2aResult, tokenEvents);
@@ -1708,14 +1741,14 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // not the normal MCP pipeline. Applies to every vertical with a specialist registered.
   // Banking reaches here because nlIntentParser exempts this action from kind:'banking'.
   if (action === 'delegate_to_specialist') {
-    const a2aJson = await executeA2aDelegation(vertical, params || {}, { req, tokenEvents, sessionId });
+    const a2aJson = await executeA2aDelegation(vertical, params || {}, { req, tokenEvents, sessionId, hitlChallengeId });
     let a2a;
     try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
     return buildA2aReplyEnvelope(a2a, tokenEvents);
   }
 
   if (action === 'a2a_generalist_mismatch') {
-    const a2aJson = await executeA2aGeneralistMismatch(vertical, params || {}, { req, tokenEvents, sessionId });
+    const a2aJson = await executeA2aGeneralistMismatch(vertical, params || {}, { req, tokenEvents, sessionId, hitlChallengeId });
     let a2a;
     try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
     return buildA2aReplyEnvelope(a2a, tokenEvents);

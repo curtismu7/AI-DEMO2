@@ -315,7 +315,7 @@ phase_deploy() {
     # Build images is diff-driven: a push builds only the services whose files changed, so HEAD often has
     # no image for a service. Take each service's newest image on the first-parent history (IMAGE_SHA pins one commit).
     local waited=0
-    until bff="$(resolve_image ai-demo-demo-api-server)" && fe="$(resolve_image ai-demo-frontend)"; do
+    until bff="$(resolve_image ai-demo2-demo-api-server)" && fe="$(resolve_image ai-demo2-frontend)"; do
       [ "$waited" -ge $((MAX_WAIT_MIN * 60)) ] && die "no demo-api-server / frontend image found in the last ${SHA_WALK:-60} commits after ${MAX_WAIT_MIN} min. Check the source repo's Build images run (and docker login ghcr.io), or set IMAGE_SHA=<commit>."
       say "  waiting for images to exist ... (${waited}s)"; sleep 30; waited=$((waited + 30))
     done
@@ -324,7 +324,7 @@ phase_deploy() {
     say "If the source repo's Build images run for $head is still going, wait for it and rerun: a newer image may be on its way."
   else
     say "docker not installed: cannot check that the images exist; assuming HEAD. Check the source repo's Build images run yourself."
-    bff="ghcr.io/$GHCR_OWNER/ai-demo-demo-api-server:sha-${IMAGE_SHA:-$head}"; fe="ghcr.io/$GHCR_OWNER/ai-demo-frontend:sha-${IMAGE_SHA:-$head}"
+    bff="ghcr.io/$GHCR_OWNER/ai-demo2-demo-api-server:sha-${IMAGE_SHA:-$head}"; fe="ghcr.io/$GHCR_OWNER/ai-demo2-frontend:sha-${IMAGE_SHA:-$head}"
   fi
   capacity_gate
   [ "$CHECK" = 1 ] && { say "--check: stopping before any write"; return 0; }

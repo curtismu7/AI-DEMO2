@@ -75,7 +75,7 @@ const PAGE_HEADING = {
   '/personal-agent': 'Personal Agent',
   '/weather-mcp': 'Weather MCP',
   '/workload-agents?useCase=UC38': 'Choose what the agent does.',
-  '/privilege-mcp-client?view=demo&tab=a2a': 'A2A access review',
+  '/privilege-a2a': 'A2A access review',
   '/dashboard': 'No use case selected',
   '/use-case-diagrams/UC-MUSE1': 'Your agent, our gateway (external agent, standard lane)',
   '/use-case-diagrams/UC-MUSE2': 'Your agent, the Agent Privilege (external agent, lane 2)',

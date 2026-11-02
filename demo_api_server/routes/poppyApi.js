@@ -4,7 +4,8 @@
  * Personal Agent Protocol (Poppy, Draft 0.3) — the Company's OpenAPI API (§7).
  *
  *   GET /poppy/api/openapi.json   public description (listed in poppy.json `apis`)
- *   GET /poppy/api/v1/me          needs a PingFederate bearer with accounts:read AND a Poppy-Session
+ *   GET /poppy/api/v1/me          with a Poppy-Session alone: starts a signed-out Session (no user data);
+ *                                 with a PingFederate bearer that has accounts:read: the signed-in User
  *
  * Every request to /v1 must carry a Poppy-Session header (§5.2); the token's client_id must be the
  * session's iss. Only agents listed in POPPY_ALLOWED_AGENTS (client_id URLs) are accepted — the
@@ -15,7 +16,7 @@
 const express = require('express');
 const configStore = require('../services/configStore');
 const { validateToken } = require('../services/tokenValidationService');
-const { verifyPoppySession, createReplayCache } = require('../services/poppySessionService');
+const { verifyPoppySession, createReplayCache, createSessionBinding } = require('../services/poppySessionService');
 const { isPoppyHost } = require('./poppyDiscovery');
 
 const REQUIRED_SCOPE = 'accounts:read';
@@ -87,6 +88,7 @@ function createPoppyApiRouter(deps = {}) {
   const verifyToken = deps.validateToken || validateToken;
   const resolveJwks = deps.resolveJwks || createAgentJwksResolver();
   const replayCache = deps.replayCache || createReplayCache();
+  const sessionBinding = deps.sessionBinding || createSessionBinding();
   const now = deps.now || (() => undefined);
   const issuer = () => String(configStore.getEffective('pf_issuer') || '').trim();
 
@@ -101,8 +103,24 @@ function createPoppyApiRouter(deps = {}) {
 
     const match = /^Bearer\s+(.+)$/i.exec(req.get('authorization') || '');
     if (!match) {
-      res.set('WWW-Authenticate', `Bearer scope="${REQUIRED_SCOPE}"`);
-      return res.status(401).json({ error: 'unauthorized' });
+      // Signed out (spec 5.3): a valid Session alone starts a Session with the verified client_id and no User data.
+      try {
+        req.poppy = await verifyPoppySession({
+          sessionJwt,
+          method: req.method,
+          url: `https://${req.get('host')}${req.originalUrl}`,
+          issuer: issuer(),
+          resolveJwks,
+          replayCache,
+          sessionBinding,
+          now: now(),
+        });
+      } catch (err) {
+        if (err && err.code === 'invalid_session') return invalidSession(err.reason);
+        return next(err);
+      }
+      req.poppySignedOut = true;
+      return next();
     }
     const accessToken = match[1];
 
@@ -134,6 +152,7 @@ function createPoppyApiRouter(deps = {}) {
         accessTokenClientId: payload.client_id,
         resolveJwks,
         replayCache,
+        sessionBinding,
         now: now(),
       });
     } catch (err) {
@@ -145,7 +164,8 @@ function createPoppyApiRouter(deps = {}) {
   });
 
   router.get('/v1/me', (req, res) => {
-    res.json({ user_id: req.poppy.sub, session_id: req.poppy.sid, agent_id: req.poppy.agentId, scopes: req.poppyScopes });
+    if (req.poppySignedOut) return res.json({ state: 'signed_out', session_id: req.poppy.sid, agent_id: req.poppy.agentId, scopes: [] });
+    return res.json({ state: 'signed_in', user_id: req.poppy.sub, session_id: req.poppy.sid, agent_id: req.poppy.agentId, scopes: req.poppyScopes });
   });
 
   return router;

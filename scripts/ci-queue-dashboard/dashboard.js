@@ -564,7 +564,8 @@ function renderWorkflowControls(controls) {
 
 function renderRunnerControls(controls) {
   elements.runnerControls.replaceChildren();
-  elements.runnerControlNote.textContent = controls?.error || '';
+  elements.runnerControlNote.textContent = controls?.error
+    || (controls?.runnersUnavailable ? 'GitHub does not list runners for this repository to non-admins, so this shows the runner services on this Mac. Online and busy state is not available.' : '');
   const runners = Array.isArray(controls?.runners) ? controls.runners : [];
   if (controls?.error) return;
   if (!runners.length) {
@@ -578,10 +579,15 @@ function renderRunnerControls(controls) {
     identity.append(node('span', 'control-name', runner.name));
     const localPaused = Boolean(runner.localPaused);
     const busy = Boolean(runner.busy);
-    const stateText = localPaused ? 'Paused on this machine' : `${runner.status} · ${busy ? 'Busy' : 'Idle'}`;
-    identity.append(node('span', `control-state${runner.status === 'online' && !busy && !localPaused ? ' control-state--active' : ''}`, stateText));
+    const isLocal = runner.source === 'local';
+    const stateText = isLocal
+      ? `${runner.localState === 'running' ? 'Running' : 'Stopped'} on this Mac`
+      : localPaused ? 'Paused on this machine' : `${runner.status} · ${busy ? 'Busy' : 'Idle'}`;
+    identity.append(node('span', `control-state${isLocal ? (runner.localState === 'running' ? ' control-state--active' : '') : (runner.status === 'online' && !busy && !localPaused ? ' control-state--active' : '')}`, stateText));
     row.append(identity);
-    if (runner.localControlAvailable) {
+    if (isLocal) {
+      // display-only: GitHub's own status for this runner is not readable
+    } else if (runner.localControlAvailable) {
       hasLocalControl = true;
       const action = localPaused ? 'resume' : 'pause';
       const button = makeActionButton('runner', action, runner.id, localPaused ? 'Resume runner' : 'Pause runner');
@@ -593,7 +599,7 @@ function renderRunnerControls(controls) {
     }
     elements.runnerControls.append(row);
   }
-  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Pause and resume appear only for runners whose service is loaded on this Mac.';
+  if (!hasLocalControl && !controls?.runnersUnavailable) elements.runnerControlNote.textContent = 'Pause and resume appear only for runners whose service is loaded on this Mac.';
 }
 
 function renderControls(controls) {

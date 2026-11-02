@@ -29,11 +29,26 @@ function sameSet(actual, expected) {
   return Array.isArray(actual) && actual.length === expected.length && expected.every((entry) => actual.includes(entry));
 }
 
-/** Names of the baseline fields the live view does not match. Arrays compare as sets. */
-function baselineMismatches(expected = {}, actual = {}) {
+/**
+ * Names of the baseline fields the live view does not match. Arrays compare as
+ * sets; a field listed in `subsetFields` only has to contain the baseline's
+ * entries, for shared PingFederate state other apps add to (CIMD policies).
+ */
+function baselineMismatches(expected = {}, actual = {}, { subsetFields = [] } = {}) {
   return Object.entries(expected)
-    .filter(([name, value]) => (Array.isArray(value) ? !sameSet(actual?.[name], value) : actual?.[name] !== value))
+    .filter(([name, value]) => {
+      if (!Array.isArray(value)) return actual?.[name] !== value;
+      if (subsetFields.includes(name)) return !Array.isArray(actual?.[name]) || !value.every((entry) => actual[name].includes(entry));
+      return !sameSet(actual?.[name], value);
+    })
     .map(([name]) => name);
+}
+
+/** Live entries beyond the baseline in each `subsetFields` field, for the report. */
+function baselineExtras(expected = {}, actual = {}, { subsetFields = [] } = {}) {
+  return Object.fromEntries(subsetFields
+    .map((name) => [name, (Array.isArray(actual?.[name]) ? actual[name] : []).filter((entry) => !(expected[name] || []).includes(entry))])
+    .filter(([, extras]) => extras.length));
 }
 
 function createPingFederateReader({ env = process.env, get = adminGet, profiles = PF_PROFILES } = {}) {
@@ -143,7 +158,7 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
     const family = (selected) => {
       if (!selected.length) return { status: 'blocked', reason: 'no committed PingFederate baseline covers this family' };
       const mismatched = Object.fromEntries(selected
-        .map(([role, profile]) => [role, baselineMismatches(profile.baseline, roleView(role, profile, view))])
+        .map(([role, profile]) => [role, baselineMismatches(profile.baseline, roleView(role, profile, view), { subsetFields: profile.baselineSubset })])
         .filter(([, fields]) => fields.length));
       return { status: Object.keys(mismatched).length ? 'fail' : 'pass', observed: { mismatched } };
     };
@@ -163,4 +178,4 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
   return { readConfiguration, readProfile };
 }
 
-module.exports = { createPingFederateReader, baselineMismatches };
+module.exports = { createPingFederateReader, baselineMismatches, baselineExtras };

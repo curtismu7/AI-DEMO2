@@ -12,7 +12,7 @@
 //
 // PRIVILEGE_CONSOLE_ENV_ID is its own variable rather than a repoint of
 // PRIVILEGE_SSO_ENV_ID, which is paired with PRIVILEGE_SSO_CLIENT_ID/_SECRET for
-// a client_credentials grant. standalone/ai-gateway-client has always kept the
+// a client_credentials grant. ai-gateway-client (ping-sandbox/ai-gateway-client-LAB) has always kept the
 // two apart under this same name.
 
 const express = require('express');

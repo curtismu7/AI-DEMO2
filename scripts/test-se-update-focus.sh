@@ -144,13 +144,13 @@ run_deploy() { # run_deploy <logfile> [FOCUS_DEPLOYMENTS value]
 APPLIED="$(run_deploy "$STUB_DIR/run1.log" frontend)"
 
 check "focused deploy rewrote frontend to sha-<HEAD>" \
-  grep -q "image: ghcr.io/testorg/ai-demo-frontend:sha-$HEAD_SHA" <<<"$APPLIED"
+  grep -q "image: ghcr.io/testorg/ai-demo2-frontend:sha-$HEAD_SHA" <<<"$APPLIED"
 
 check "focused deploy left demo-api-server on :latest (no roll)" \
   grep -q "image: ai-demo-k8-api-server:latest" <<<"$APPLIED"
 
 check "focused deploy did NOT put a nonexistent sha tag on demo-api-server" \
-  bash -c "! grep 'ai-demo-demo-api-server' <<'$STUB_DIR/apply.log' | grep -q 'sha-$HEAD_SHA'"
+  bash -c "! grep 'ai-demo2-demo-api-server' <<'$STUB_DIR/apply.log' | grep -q 'sha-$HEAD_SHA'"
 
 check "focused deploy flipped imagePullPolicy to Always" \
   bash -c "! grep -q 'imagePullPolicy: IfNotPresent' '$STUB_DIR/apply.log'"
@@ -159,10 +159,10 @@ check "focused deploy flipped imagePullPolicy to Always" \
 APPLIED="$(run_deploy "$STUB_DIR/run2.log")"
 
 check "full deploy (knob unset) rewrites frontend to sha-<HEAD>" \
-  grep -q "ai-demo-frontend:sha-$HEAD_SHA" <<<"$APPLIED"
+  grep -q "ai-demo2-frontend:sha-$HEAD_SHA" <<<"$APPLIED"
 
 check "full deploy (knob unset) also rewrites demo-api-server to sha-<HEAD>" \
-  grep -q "ai-demo-demo-api-server:sha-$HEAD_SHA" <<<"$APPLIED"
+  grep -q "ai-demo2-demo-api-server:sha-$HEAD_SHA" <<<"$APPLIED"
 
 # ── Run 3: comma list focuses both services ──────────────────────────────────
 APPLIED="$(run_deploy "$STUB_DIR/run3.log" "frontend,demo-api-server")"
