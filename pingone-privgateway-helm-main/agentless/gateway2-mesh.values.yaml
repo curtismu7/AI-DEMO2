@@ -35,7 +35,7 @@ logShipping:
 # Pin the gateway image to the deployed build (latest only refreshes on pod recreation, and the
 # ECR latest tag still points at the older 2026-10-21 build).
 image:
-  tag: v1.261030
+  tag: v1.261102
 
 # Gateway 2's per-node OpenSearch MCP sidecar, added by hand with kubectl; a helm upgrade dropped
 # it on 2026-10-25. OPENSEARCH_URL resolves in this namespace's own opensearch Service.
