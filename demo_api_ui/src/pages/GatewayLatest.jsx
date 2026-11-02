@@ -16,8 +16,8 @@ export default function GatewayLatest() {
       <section className="gwc-card" aria-labelledby="gwc-p6" data-testid="gwc-since">
         <h2 id="gwc-p6">6. Since {BASELINE_VERSION}: {VERSION_MIDDLE}, {VERSION_THIRD} and {VERSION_LATEST} <Tag kind="unverified" /></h2>
         <p className="gwc-warn" role="note">
-          We found no Ping release notes for these tags (checked {CHECKED_ON}) and tried none of their features; the only run is the {VERSION_LATEST} pod
-          starting on our SE gateway. Every change below is our reading of the gateway binary, UNVERIFIED. The three tags are small steps on {BASELINE_VERSION}.
+          We found no Ping release notes for these tags (checked {CHECKED_ON}) and tried none of their features; the only runs are the {VERSION_LATEST} pod
+          on gateway 2 of our SE mesh and a tools/list sent straight to it. Every change below is our reading of the gateway binary, UNVERIFIED. The three tags are small steps on {BASELINE_VERSION}.
         </p>
         <ul>{LATEST_FACTS.map((f) => <li key={f.text}><Tag kind={f.evidence} /> {f.text}</li>)}</ul>
         <h3>The four builds</h3>
@@ -64,7 +64,7 @@ export default function GatewayLatest() {
         <h2 id="gwc-p7">7. Not yet measured on our tenant: the {RELEASE_DATE} release <Tag kind="unverified" /></h2>
         <p className="gwc-warn" role="note">
           Ping&apos;s public release notes do not describe the {RELEASE_DATE} Agent Privilege release (checked {CHECKED_ON}), and we have not confirmed that {VERSION_LATEST},
-          the tag dated that day, is that release. Our SE gateway runs {VERSION_LATEST}, and only its pod becoming ready was observed. The five features below were named to us;
+          the tag dated that day, is that release. Gateway 2 of our SE mesh ran {VERSION_LATEST} and gateway 1 still runs {VERSION_THIRD}; only that pod becoming ready and the same 6 tools from tools/list were observed. The five features below were named to us;
           none is described in Ping&apos;s public notes and none has been tried here. Each stays UNVERIFIED until a test in the last column has been run.
         </p>
         <table className="gwc-table gwc-table--stack" aria-label="Release features not yet measured" data-testid="gwc-not-measured-table">

@@ -15,6 +15,8 @@ import {
 import { AGENTCORE_FACTS } from '../../config/gatewayAgentcore';
 import { DIAGRAMS_INDEX } from '../../config/diagramsIndex';
 import { NAV_PAGE_PATHS } from '../../config/navPagePaths';
+import { NAV_SEARCH_ALIASES } from '../../config/navSearchAliases';
+import measured from './gatewayV1261102.measured.json';
 
 const sourceOf = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
@@ -128,21 +130,40 @@ describe('v1.261029, v1.261030 and v1.261102 config', () => {
     expect(sourceOf('../../components/AdminSideNav.jsx')).toContain(`label: "Gateway ${PAGE_VERSIONS}: Claims"`);
     expect(sourceOf('../../components/LearningHub.tsx')).toContain(`What gateway ${PAGE_VERSIONS} added`);
   });
+  it('lists every version in the page version list in both search-alias sources, so searching a version finds the page', () => {
+    const versions = PAGE_VERSIONS.match(/v1\.\d{6}/g);
+    expect(versions).toHaveLength(6);
+    for (const v of versions) {
+      expect(NAV_SEARCH_ALIASES['/gateway-claims'], `navSearchAliases lacks ${v}`).toContain(v);
+    }
+    const nav = sourceOf('../../components/AdminSideNav.jsx');
+    const entry = nav.slice(nav.indexOf('path: "/gateway-claims"'), nav.indexOf('path: "/gateway-claims"') + 900);
+    const alias = entry.slice(entry.indexOf('searchAlias:'), entry.indexOf('\n', entry.indexOf('searchAlias:')));
+    for (const v of versions) expect(alias, `AdminSideNav searchAlias lacks ${v}`).toContain(v);
+  });
   it('words the evidence for parts 5 and 6 without overclaiming', () => {
     const byStart = (start) => LATEST_FACTS.find((f) => f.text.startsWith(start));
-    const se = byStart('Our SE gateway was rolled from v1.261030 to v1.261102');
+    const se = byStart('Our SE mesh is mixed-version');
     expect(se.evidence).toBe('verified');
-    expect(se.text).toMatch(/ran on our SE gateway and the new pod became ready \(10 of 10 containers, 0 restarts\)/);
-    expect(se.text).toMatch(/did not repeat tools\/list/);
-    expect(se.text).toMatch(/tried none of the release features/);
+    expect(se.text).toMatch(/Gateway 2 \(the namespace we rolled: gateway container only, explicit tag, not latest\) ran v1\.261102: its pod became ready \(10 of 10 containers, 0 restarts\) and its log tail was empty/);
+    expect(se.text).toMatch(/Gateway 1, the front node in a different namespace, still runs v1\.261030, and the public hostname may route to either node/);
+    expect(se.text).toMatch(/returned 6 tools, the same as the 2026-11-01 baseline, once through the public gateway hostname with the worker key and once sent straight to gateway 2/);
+    expect(se.text).toMatch(/did not compare with a second, lower-entitled key, and we tried no release feature/);
+    // Neither node is said to run the new tag alone, the old "not repeated" wording is gone, and no earlier attempt is mentioned.
+    expect(se.text).not.toMatch(/\bour SE gateway (now )?runs v1\.261102/i);
+    expect(se.text).not.toMatch(/did not repeat|not repeated/i);
+    expect(se.text).not.toMatch(/\bfail(ed|ure)?\b|rolled back|rollback|attempt/i);
     expect(se.text).not.toMatch(/\b(works|working|supports|proves)\b/i);
+    const stale = JSON.stringify({ LATEST_FACTS, NOT_MEASURED, RECHECK_STEPS });
+    expect(stale).not.toMatch(/did not repeat tools\/list|not repeated|has not been repeated/i);
     expect(byStart('We looked at Ping').text).toMatch(/checked, not found/);
     const inferred = LATEST_FACTS.filter((f) => f.evidence === 'inferred');
     expect(inferred).toHaveLength(1);
     expect(inferred[0].text).toMatch(/inference/);
     expect(LATEST_FACTS.filter((f) => f.evidence === 'verified').every((f) => !/\bSo none\b/.test(f.text))).toBe(true);
     // The part 5 statement about the gateway tag is dated; part 6 says the SE gateway has moved on.
-    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our SE gateway: it now runs v1\.261102/);
+    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our two SE gateways: on 2026-11-02 gateway 2 ran v1\.261102 and gateway 1 still runs v1\.261030/);
+    expect(AGENTCORE_FACTS[0].text).not.toMatch(/our SE gateway: it now runs/);
   });
   it('names the three scopes of the tier baseline, and keeps the release-features row\'s wording', () => {
     const layers = NOT_MEASURED.find((r) => r.id === 'layers');
@@ -185,6 +206,86 @@ describe('v1.261029, v1.261030 and v1.261102 config', () => {
   });
 });
 
+describe('v1.261102 measured values: the config and the rendered page match the recorded measurements', () => {
+  const fmt = (n) => n.toLocaleString('en-US');
+  const cells = (row) => within(row).getAllByRole('cell').map((c) => c.textContent);
+  const renderPart6 = () => {
+    render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
+    return screen.getByTestId('gwc-since');
+  };
+  const imageRow = (id) => cells(screen.getByTestId(`gwc-image-${id}`));
+  const buildRow = (tag) => {
+    const row = within(screen.getByTestId('gwc-builds')).getAllByRole('row').find((r) => within(r).queryByText(tag));
+    return cells(row);
+  };
+
+  it('digests and build times: right tag in the right column, and the same build time in both tables', () => {
+    expect(IMAGE_DIGESTS).toEqual(measured.digests);
+    renderPart6();
+    expect(imageRow('digest').slice(1)).toEqual([measured.digests[VERSION_THIRD], measured.digests[VERSION_LATEST]]);
+    expect(imageRow('built').slice(1)).toEqual([measured.built[VERSION_THIRD], measured.built[VERSION_LATEST]]);
+    expect(buildRow(VERSION_THIRD)[1]).toBe(measured.built[VERSION_THIRD]);
+    expect(buildRow(VERSION_LATEST)[1]).toBe(measured.built[VERSION_LATEST]);
+  });
+  it('layers: the counts add up to the total and the differing layers named are as many as are counted', () => {
+    const { total, identical, differing } = measured.layers;
+    expect(identical + differing).toBe(total);
+    renderPart6();
+    const [, a, b] = imageRow('layers');
+    expect(a).toBe(String(total));
+    expect(b).toMatch(new RegExp(`^${total}, of which ${identical} are byte-identical`));
+    expect(b).toMatch(new RegExp(`The ${differing} that differ are (.+)$`));
+    const named = b.match(/The \d+ that differ are (.+)$/)[1].split(/, | and /);
+    expect(named).toHaveLength(differing);
+  });
+  it('sizes: compressed layers and binaries, each in its own column', () => {
+    renderPart6();
+    const size = (t) => `${fmt(measured.compressedBytes[t].amd64)} and ${fmt(measured.compressedBytes[t].arm64)}`;
+    expect(imageRow('size').slice(1)).toEqual([size(VERSION_THIRD), size(VERSION_LATEST)]);
+    const bin = (t) => `${fmt(measured.binaryBytes[t].mcpgw)} and ${fmt(measured.binaryBytes[t].cyctl)}`;
+    expect(imageRow('binaries').slice(1)).toEqual([bin(VERSION_THIRD), bin(VERSION_LATEST)]);
+    for (const [tag, b] of Object.entries(measured.binaryBytes)) expect(buildRow(tag)[2], tag).toBe(fmt(b.mcpgw));
+  });
+  it('swagger: the operation and definition counts are in the verified fact and on the page', () => {
+    const text = `${fmt(measured.swagger.operations)} operations and ${fmt(measured.swagger.definitions)} definitions`;
+    expect(LATEST_FACTS.find((f) => f.text.startsWith('The console API spec')).text).toContain(text);
+    expect(renderPart6().textContent).toContain(text);
+  });
+  it('symbols: the raw counts, the compiler-temporary split and the seven named additions all agree', () => {
+    const s = measured.symbols[VERSION_LATEST];
+    expect(s.namedAdded).toHaveLength(s.added - s.compilerTemporariesEach);
+    renderPart6();
+    const named = s.added - s.compilerTemporariesEach;
+    const expected = `${s.added} added, ${s.removed} removed (${s.compilerTemporariesEach} of each are compiler temporaries, so ${named} named added, ${s.removed - s.compilerTemporariesEach} named removed)`;
+    expect(buildRow(VERSION_LATEST)[3]).toBe(expected);
+    const row = screen.getByTestId('gwc-since-idp-claims').textContent;
+    for (const name of s.namedAdded) expect(row, name).toMatch(new RegExp(`(^|[^A-Za-z])${name}([^A-Za-z]|$)`));
+    expect(screen.getByTestId('gwc-since-rebuild-1102').textContent).toContain('workloadid.ErrNotJWT');
+  });
+  it('the 6-tool baseline is quoted for v1.261030 and is the count in the SE line', () => {
+    const n = `${measured.tools.baselineCount} tools`;
+    expect(LATEST_FACTS.find((f) => f.text.startsWith('Our SE mesh')).text).toContain(`returned ${n}`);
+    expect(NOT_MEASURED.find((r) => r.id === 'discovery').test).toContain(`${n} on ${VERSION_THIRD}`);
+    expect(RECHECK_STEPS[2]).toContain(`(${n} on ${VERSION_THIRD} and on ${VERSION_LATEST})`);
+  });
+  it('part 6 heading and sub-headings carry the right evidence tag: UNVERIFIED for readings, VERIFIED for registry facts', () => {
+    const since = renderPart6();
+    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/UNVERIFIED$/);
+    const h3 = within(since).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(h3.find((t) => /^What changed since/.test(t))).toMatch(/UNVERIFIED$/);
+    const images = h3.find((t) => /^The two newest images/.test(t));
+    expect(images).toMatch(/ VERIFIED$/);
+    expect(images).not.toMatch(/UNVERIFIED/);
+  });
+  it('never says a release feature works, on the page or in the facts', () => {
+    const since = renderPart6();
+    const text = `${since.textContent} ${screen.getByTestId('gwc-not-measured').textContent}`;
+    expect(text).not.toMatch(/\bworks\b|\bproven\b|\bproves\b|\bfeatures? (work|worked|is working|are working|is supported|are supported)\b/i);
+    expect(text).not.toMatch(/\bour SE gateway (now )?runs v1\.261102/i);
+    expect(text).not.toMatch(/did not repeat|not repeated/i);
+  });
+});
+
 describe('GatewayClaimsPage', () => {
   const renderPage = () => render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
 
@@ -213,7 +314,8 @@ describe('GatewayClaimsPage', () => {
     const nm = screen.getByTestId('gwc-not-measured');
     expect(nm.textContent).toMatch(/do not describe the 2026-11-02 Agent Privilege release/);
     expect(nm.textContent).toMatch(/not confirmed that v1\.261102/);
-    expect(since.textContent).toMatch(/pod becoming ready|became ready/);
+    expect(since.textContent).toMatch(/became ready/);
+    expect(nm.textContent).toMatch(/Gateway 2 of our SE mesh ran v1\.261102 and gateway 1 still runs v1\.261030/);
     for (const f of NOT_MEASURED) {
       const row = within(screen.getByTestId(`gwc-nm-${f.id}`));
       expect(row.getByText(f.feature)).toBeTruthy();

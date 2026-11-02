@@ -1,0 +1,29 @@
+{
+  "_source": "Recorded measurements, 2026-11-02, read-only: anonymous public ECR registry (manifests, config blobs, layer blobs checked against their digests), llvm-nm on the linux/amd64 mcpgw binaries, and the anonymous console swagger. The tests compare the page and its config against these values, so a slipped digit in the config fails a test. Update only from a new measurement.",
+  "digests": {
+    "v1.261030": "sha256:62037874a437b4fb60c85f5f7f889909e9fdb66b9f27558002f331917ee98298",
+    "v1.261102": "sha256:36d29c0a0ea0575706819f23f2783e4f3a6aeb5f604d6d1717de66333b8eae47"
+  },
+  "built": { "v1.261030": "2026-10-30 16:01", "v1.261102": "2026-11-02 15:43" },
+  "layers": { "total": 10, "identical": 6, "differing": 4 },
+  "compressedBytes": {
+    "v1.261030": { "amd64": 286802980, "arm64": 262394144 },
+    "v1.261102": { "amd64": 286812214, "arm64": 262402758 }
+  },
+  "binaryBytes": {
+    "v1.261028": { "mcpgw": 244454104 },
+    "v1.261029": { "mcpgw": 244558704 },
+    "v1.261030": { "mcpgw": 244570600, "cyctl": 239959232 },
+    "v1.261102": { "mcpgw": 244584504, "cyctl": 239959016 }
+  },
+  "swagger": { "operations": 447, "definitions": 644 },
+  "symbols": {
+    "v1.261102": {
+      "added": 32,
+      "removed": 25,
+      "compilerTemporariesEach": 25,
+      "namedAdded": ["withIDPClaims", "EndUserResolved", "KeyType", "SessionClaims", "readClaims", "ErrNotJWT", "endUserOf"]
+    }
+  },
+  "tools": { "baselineCount": 6 }
+}
