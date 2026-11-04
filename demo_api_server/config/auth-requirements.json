@@ -184,6 +184,7 @@
     "/brave-mcp": "public",
     "/check": "user",
     "/ciba-approve": "public",
+    "/ciba-email-approve": "public",
     "/client-registration": "admin",
     "/code-explorer": "public",
     "/code-search": "public",
