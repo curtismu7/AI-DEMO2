@@ -37,6 +37,13 @@ const FOOTER_ROW = { display: "flex", gap: 8, width: "100%" };
 export default function CibaEmailApprovePage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  // Two backends share this page: the PF AI Agent email channel (default) and
+  // the PingOne simulated-failover email link (source=p1) — different routes,
+  // same one-time-token contract.
+  const p1 = searchParams.get("source") === "p1";
+  const linkPath = p1
+    ? `/api/auth/ciba/email-link/${encodeURIComponent(token)}`
+    : `/api/pf-ai-agent/ciba/email/link/${encodeURIComponent(token)}`;
   const [state, setState] = useState("loading"); // loading | waiting | received | invalid | expired | error
   const [details, setDetails] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -46,7 +53,7 @@ export default function CibaEmailApprovePage() {
   const load = useCallback(() => {
     if (!token) { setState("invalid"); return; }
     setState("loading");
-    fetch(`${apiBase}/api/pf-ai-agent/ciba/email/link/${encodeURIComponent(token)}`)
+    fetch(`${apiBase}${linkPath}`)
       .then(async (res) => {
         if (res.status === 410) { setState("expired"); return; }
         if (!res.ok) { setState("error"); return; }
@@ -55,7 +62,7 @@ export default function CibaEmailApprovePage() {
         setState(data.state === "received" ? "received" : data.state === "waiting" ? "waiting" : data.state === "expired" ? "expired" : "invalid");
       })
       .catch(() => setState("error"));
-  }, [token, apiBase]);
+  }, [token, apiBase, linkPath]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -63,7 +70,7 @@ export default function CibaEmailApprovePage() {
     setBusy(true);
     try {
       const res = await fetch(
-        `${apiBase}/api/pf-ai-agent/ciba/email/link/${encodeURIComponent(token)}/decide`,
+        `${apiBase}${linkPath}/decide`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: action }) },
       );
       if (!res.ok) { setState(res.status === 410 ? "expired" : "error"); return; }
