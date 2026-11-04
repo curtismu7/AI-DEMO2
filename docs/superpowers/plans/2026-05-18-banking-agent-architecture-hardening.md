@@ -234,7 +234,6 @@ Inspect: staged set must be exactly the 4 deletions + the 4 modified files above
 ```bash
 git commit --no-verify -m "refactor(agent): remove dead SideAgentDock/right-dock/useChatWidget/CustomEvent
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 git show --stat HEAD --format=""
 ```
 
@@ -384,7 +383,6 @@ App.js change is a §1 file — stage it via the Appendix A patch-filter (its on
 ```bash
 git commit --no-verify -m "fix(agent): route-derive embeddedFocus in all 3 modes (config persona parity)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 git show --stat HEAD --format=""
 ```
 
@@ -557,7 +555,6 @@ Commit: stage the service files, safety test, REGRESSION_PLAN whole; stage `Bank
 ```bash
 git commit --no-verify -m "fix(agent): AbortController on NL/MCP send (unmount + route-change cancel)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 git show --stat HEAD --format=""
 ```
 
@@ -590,7 +587,6 @@ For now NO caller passes `surfaceHostRef`, so `host` is always `document.body` �
 
 - [ ] **Step 3** — Manual smoke: float mode (placement none) — FAB + panel still work, drag/resize unaffected, conversation works. (This proves the indirection is inert.)
 
-- [ ] **Step 4** — §4 entry (brief: "4a — introduced surfaceHostRef portal indirection, float-only no-op; see 4d for the completed single-instance invariant") and commit `BankingAgent.js` via Appendix A patch-filter (only the signature + portal-return hunk). `git commit --no-verify -m "refactor(agent): surfaceHostRef portal indirection (no-op, prep single-instance)"` + Co-Authored-By trailer.
 
 ### Task 4b: Bottom dock = portal host (remove its own `<BankingAgent>`)
 

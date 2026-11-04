@@ -271,7 +271,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_ui/src/components/BankingAgent.js demo_api_ui/src/components/__tests__/BankingAgent.terminology.test.js
 git commit -m "fix(vertical): AccountsTable renders actual account types; thread terminology through ResultsPanel
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -430,7 +429,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_ui/src/components/BankingAgent.js demo_api_ui/src/components/__tests__/BankingAgent.terminology.test.js
 git commit -m "fix(vertical): formatResult renders actual account types instead of banking remap
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -590,7 +588,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_ui/src/components/BankingAgent.js demo_api_ui/src/components/__tests__/BankingAgent.terminology.test.js
 git commit -m "fix(vertical): MessageContent parses new account format; shows vertical column headers
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -822,7 +819,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_ui/src/components/BankingAgent.js demo_api_ui/src/components/__tests__/BankingAgent.terminology.test.js
 git commit -m "fix(vertical): TransactionsTable uses vertical terminology for column headers; thread terminology through
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -967,7 +963,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_ui/src/components/BankingAgent.js demo_api_ui/src/components/__tests__/BankingAgent.terminology.test.js
 git commit -m "fix(vertical): balance panel label uses vertical terminology (Coverage, Reward Points, etc.)
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1022,7 +1017,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_ui/src/components/BankingAgent.js
 git commit -m "fix(vertical): thread terminology into clarification questions and transfer confirm text
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1070,7 +1064,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add -A
 git commit -m "test: update assertions for vertical-native response format changes
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1146,7 +1139,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_server/config/verticals/sporting-goods.json
 git commit -m "feat(vertical): add mockData products and orders to sporting-goods manifest
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---

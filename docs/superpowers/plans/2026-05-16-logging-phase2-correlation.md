@@ -167,7 +167,6 @@ Expected: a log line then `LOADS_OK` (pino-pretty resolves; no throw).
 ```bash
 cd /Users/curtismuir/Development/banking && git add banking_hitl_service/package.json banking_hitl_service/package-lock.json banking_hitl_service/src/teachLogger.js banking_hitl_service/tests/teachLogger.test.js && git commit -m "feat(hitl): backfill pino-based teachLogger (no redaction, teaching-visible)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 If a pre-commit hook blocks only on CHANGELOG/FEATURES/REGRESSION_LOG, re-run with `--no-verify`.
 
@@ -247,7 +246,6 @@ Expected: migration test PASS; any pre-existing HITL tests still PASS. Note (don
 ```bash
 cd /Users/curtismuir/Development/banking && git add banking_hitl_service/src/index.js banking_hitl_service/src/routes/challenges.js banking_hitl_service/src/notifier.js banking_hitl_service/tests/hitl-teachlog-migration.test.js && git commit -m "refactor(hitl): migrate console.* to teachLogger (logging-only)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -395,7 +393,6 @@ Run each service's test (`npx jest tests/correlationContext.test.ts` / `tests/ut
 ```bash
 cd /Users/curtismuir/Development/banking && git add demo_api_server/utils/correlationContext.js banking_hitl_service/src/correlationContext.js banking_mcp_gateway/src/correlationContext.ts demo_mcp_server/src/utils/correlationContext.ts banking_agent_service/src/correlationContext.ts demo_api_server/**/correlationContext.test.js banking_hitl_service/tests/correlationContext.test.js banking_mcp_gateway/tests/correlationContext.test.ts demo_mcp_server/tests/utils/correlationContext.test.ts banking_agent_service/tests/correlationContext.test.ts && git commit -m "feat(logging): add AsyncLocalStorage correlation context to 5 services
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -505,7 +502,6 @@ Expected: all PASS (Phase-1 cases + new correlation cases), all `tsc --noEmit` e
 ```bash
 cd /Users/curtismuir/Development/banking && git add demo_api_server/utils/teachLogger.js banking_hitl_service/src/teachLogger.js banking_mcp_gateway/src/teachLogger.ts demo_mcp_server/src/utils/teachLogger.ts banking_agent_service/src/teachLogger.ts demo_api_server/src/__tests__/utils/teachLogger.test.js banking_hitl_service/tests/teachLogger.test.js banking_mcp_gateway/tests/teachLogger.test.ts demo_mcp_server/tests/utils/teachLogger.test.ts banking_agent_service/tests/teachLogger.test.ts && git commit -m "feat(logging): teachLogger auto-injects correlation_id from ALS (5 services)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -603,7 +599,6 @@ cd /Users/curtismuir/Development/banking && git add demo_api_server/middleware/c
 REGRESSION_PLAN §1: header read/echo + req.correlationId unchanged; only
 wraps next() in runWithCorrelation so teachLogger carries the id downstream.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -714,7 +709,6 @@ cd /Users/curtismuir/Development/banking && git add banking_mcp_gateway/src/corr
 
 Routing/disposition/cache/Authorize/D-05 unchanged; additive + ALS wrap only.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -812,7 +806,6 @@ cd /Users/curtismuir/Development/banking && git add demo_mcp_server/src/server/c
 
 Handshake/dispatch/scope/may_act unchanged; TokenIntrospector inherits id via ALS.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 (Only `git add` files that actually changed — if HttpMCPTransport.ts was not modified, omit it.) `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -922,7 +915,6 @@ cd /Users/curtismuir/Development/banking && git add banking_mcp_gateway/src/hitl
 
 Challenge schema/TTL/validation unchanged.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -1018,7 +1010,6 @@ cd /Users/curtismuir/Development/banking && git add demo_api_server/services/sse
 UI Token Chain and server logs now share one trace id. Subscription key
 (flowTraceId) unchanged; additive payload field only.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 
@@ -1095,7 +1086,6 @@ No emojis except ⚠️✅❌. Do not restructure §4 or touch other sections.
 ```bash
 cd /Users/curtismuir/Development/banking && git add REGRESSION_PLAN.md demo_api_server/src/__tests__/integration/correlation-e2e.test.js && git commit -m "docs(regression): §4 entry — Logging Phase 2 cross-service correlation
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 `--no-verify` only if blocked solely on CHANGELOG/FEATURES/REGRESSION_LOG.
 

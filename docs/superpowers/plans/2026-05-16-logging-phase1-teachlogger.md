@@ -220,7 +220,6 @@ Expected: exit 0, no TS errors.
 ```bash
 cd /Users/curtismuir/Development/banking && git add demo_mcp_server/package.json demo_mcp_server/package-lock.json demo_mcp_server/src/utils/teachLogger.ts demo_mcp_server/tests/utils/teachLogger.test.ts && git commit -m "feat(mcp-server): add pino-based teachLogger (no redaction, teaching-visible)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -347,7 +346,6 @@ cd /Users/curtismuir/Development/banking && git add demo_mcp_server/src/auth/Tok
 
 REGRESSION_PLAN §1: introspection/may_act/aud logic unchanged; logging-only.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -457,7 +455,6 @@ Expected: exit 0; `dist/index.js` present.
 ```bash
 cd /Users/curtismuir/Development/banking && git add banking_mcp_gateway/package.json banking_mcp_gateway/package-lock.json banking_mcp_gateway/src/teachLogger.ts banking_mcp_gateway/tests/teachLogger.test.ts && git commit -m "feat(gateway): add pino-based teachLogger (no redaction, teaching-visible)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -584,7 +581,6 @@ cd /Users/curtismuir/Development/banking && git add banking_mcp_gateway/src/midd
 
 Routing/disposition/cache/Authorize/D-05 logic unchanged; logging-only.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -737,7 +733,6 @@ cd /Users/curtismuir/Development/banking && git add banking_agent_service/packag
 
 Identity/dedup/reasoning-contract unchanged; logging-only.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -892,7 +887,6 @@ Expected: PASS — 4 green.
 ```bash
 cd /Users/curtismuir/Development/banking && git add demo_api_server/package.json demo_api_server/package-lock.json demo_api_server/utils/teachLogger.js demo_api_server/__tests__/utils/teachLogger.test.js && git commit -m "feat(api-server): add pino-based teachLogger (CJS, no redaction, additive)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1001,7 +995,6 @@ cd /Users/curtismuir/Development/banking && git add demo_api_server/services/rfc
 Additive logging only; exchange request, act validation, scope narrowing,
 return value all unchanged.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1096,7 +1089,6 @@ cd /Users/curtismuir/Development/banking && git add langchain_agent/src/log_util
 
 Structure/levels/handlers unchanged; only redaction filter wiring removed.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1184,7 +1176,6 @@ Expected: `syntax ok`.
 ```bash
 cd /Users/curtismuir/Development/banking && git add langchain_agent/src/agent/mcp_tool_provider.py langchain_agent/tests/test_agent_token_log_lines.py && git commit -m "fix(langchain): DEBUG token lines use masked_fingerprint (were useless masked literal)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1243,7 +1234,6 @@ Expected: services healthy; `[TEACH]` markers present in mcp-server / gateway / 
 ```bash
 cd /Users/curtismuir/Development/banking && git add REGRESSION_PLAN.md && git commit -m "docs(regression): §4 Bug Fix Log — Logging Phase 1 teachLogger + un-redact
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

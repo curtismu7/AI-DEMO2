@@ -206,7 +206,6 @@ git commit -m "feat: add structuredLogger service for JSON event logging
 - Non-blocking: logs are fire-and-forget (async write)
 - Unit tested: timestamp injection, multi-event append, missing requestId fallback
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -354,7 +353,6 @@ git commit -m "feat: add promptSanitizer service for injection defense
 - Logs matched pattern + input preview for audit trail
 - Feature-flag gated: controlled via ff_prompt_injection_guard
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -436,7 +434,6 @@ git commit -m "feat: add request correlation ID middleware
 - All security events logged with same requestId for end-to-end tracing
 - Gracefully closes structuredLogger on SIGTERM/SIGINT
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -482,7 +479,6 @@ git commit -m "feat: add ff_prompt_injection_guard feature flag (default: true)
 - Guards enabled by default; can be toggled via /api/admin/feature-flags
 - Allows zero-restart disable if patterns are too aggressive
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -639,7 +635,6 @@ git commit -m "feat: add GET /api/logs/structured endpoint (admin-only)
 - Returns paginated results (default limit 100, max ~10k)
 - Admin-only access via authenticateToken + requireAdmin middleware
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -730,7 +725,6 @@ git commit -m "feat: add structured logging to OAuth events
 - Logs oauth_refresh_triggered with duration
 - All events correlated by requestId for end-to-end tracing
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -849,7 +843,6 @@ git commit -m "feat: add prompt guard + structured logging to MCP tool route
 - Logs mcp_tool_call, mcp_tool_result, mcp_tool_error with duration
 - Blocked injections logged as prompt_injection_blocked events
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -932,7 +925,6 @@ git commit -m "feat: add prompt guard + structured logging to agent message rout
 - Logs agent_message_received events with message length
 - Blocked injections logged separately
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1012,7 +1004,6 @@ git commit -m "feat: add structured logging to RFC 8693 token exchange
 - Captures subject/target audiences, act claim, duration
 - Enables audit trail for agent delegated access
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1091,7 +1082,6 @@ git commit -m "feat: add structured logging to HITL consent flow
 - Captures transaction IDs, thresholds, approver identity, duration
 - Full audit trail of human-in-the-loop decisions
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1184,7 +1174,6 @@ git commit -m "test: add Phase 1 integration tests for structured logging
 - Tests prompt injection guard blocking
 - Tests feature flag toggle (ff_prompt_injection_guard)
 
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
 ```
 
 ---

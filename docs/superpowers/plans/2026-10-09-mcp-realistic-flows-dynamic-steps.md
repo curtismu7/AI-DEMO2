@@ -19,7 +19,6 @@ Discovery-before-call (real `tools/list` leg on every gateway tool call) already
 ## Global Constraints
 
 - **Commit only from a git worktree.** The repo pre-commit hook blocks commits from the shared main checkout. Task 0 creates the worktree; every commit step runs inside it.
-- End every commit message with `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
 - All output and comments in English.
 - **No new status strings.** Step statuses stay exactly `done | active | error | pending | notinpath | waiting` (buildTraceSteps.js:1292 documents why a new status breaks ~15 surfaces).
 - Challenge hop ids stay `tools-list-challenge` / `tools-call-challenge`.
@@ -292,7 +291,6 @@ One policy for every step-box surface: show what happened, collapse the
 rest behind a count chip on completed runs. Replaces the rail's live
 projection, the reel's HAPPENED set and the topology's UNFIRED_STATUSES.
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -459,7 +457,6 @@ Live and classic views now show only what happened; completed runs get the
 '+N hops not in this run' chip. buildLiveTokenChainSteps deleted — its
 policy lives in stepVisibility.applyStepVisibility.
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -529,7 +526,6 @@ Expected: PASS (the slowReveal suite is 28K — fix any assertion that depended 
 git add src/components/SequenceReelDiagram.jsx src/components/__tests__/SequenceReelDiagramLanes.test.js
 git commit -m "feat(ui): movie reel draws fired hops via the shared visibility policy
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -603,7 +599,6 @@ it('collapses unfired hops behind the chip; expanding reveals them ghosted', asy
 git add src/components/TokenTopologyPanel.jsx src/components/TokenTopologyPanel.css src/components/__tests__/TokenTopologyPanel.enforcement.test.jsx
 git commit -m "feat(ui): topology canvas hides unfired hops behind the count chip
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -728,7 +723,6 @@ probes both: anonymous tools/list -> 401 before the credentialed discovery,
 anonymous tools/call -> 401 after discovery, immediately before the
 authorized call. Evidence-only; probe failures never block the run.
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -892,7 +886,6 @@ git commit -m "feat(seq): static sequence page shows the real MCP 401 dance on b
 401 + WWW-Authenticate challenge and the RFC 9728 metadata fetch as real
 steps, plus a discovery-dance scenario. Canonical .mmd updated 1:1.
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -930,7 +923,6 @@ Static page: the out-of-order challenge gap is marked fixed, the
 steps-that-hadn't-happened gap notes the shared visibility policy, UC1's
 row is re-checked, and the fix list gains the dance rework as ready.
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -1167,7 +1159,6 @@ UC1 and UC8 rebuild their walk from the trace store's fired hops when the
 run's use-case slug matches; every other page (and any non-matching run)
 keeps the curated fallback. Mode is badged on the page header.
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -1238,7 +1229,6 @@ Expected: PASS. If the stack is not available in this environment, mark the spec
 git add tests/e2e/uc1-token-dance.real.spec.js
 git commit -m "test(e2e): UC1 real-run lock — dance hops drawn, unfired hops collapsed
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---

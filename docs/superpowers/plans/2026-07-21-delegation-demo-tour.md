@@ -201,7 +201,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/delegation-cleanup
 git add demo_api_ui/src/context/DemoTourContext.js demo_api_ui/src/context/__tests__/DemoTourContext.test.jsx
 git commit -m "feat(tour): add DELEGATION_TOUR_STEPS + multi-tour provider
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -305,7 +304,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/delegation-cleanup
 git add demo_api_ui/src/components/tour/DemoTourModal.js demo_api_ui/src/components/tour/__tests__/DemoTourModal.test.jsx
 git commit -m "feat(tour): modal renders the active tour's step list
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -439,7 +437,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/delegation-cleanup
 git add demo_api_ui/src/components/DelegationPage.js
 git commit -m "feat(delegation): guided delegation tour launcher + 4-stage talk track
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

@@ -205,7 +205,6 @@ Wire the installed binary into Claude Code's MCP server list.
   Worker app 'PingOne MCP Server' must be created in PingOne Console
   (PKCE, no secret, no roles — see docs/pingone-mcp-server-report.md).
 
-  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
   ```
 
 ---
@@ -308,7 +307,6 @@ So new devs on fresh setups get the Worker app provisioned automatically alongsi
   must still be set manually in the PingOne console (Management API
   does not accept redirectUris on WORKER-type apps).
 
-  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
   ```
 
 ---
@@ -358,7 +356,6 @@ Keep the source-of-truth doc in sync with the new app.
   git add docs/PINGONE_CONFIG.md
   git commit -m "docs(pingone-config): add PingOne MCP Server worker app
 
-  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
   ```
 
 ---

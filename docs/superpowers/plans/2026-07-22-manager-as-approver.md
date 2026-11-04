@@ -305,7 +305,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/manager-approver
 git add demo_api_server/services/delegationService.js demo_api_server/tests/delegationApproval.test.js
 git commit -m "feat(delegation): pendingApproval data model on the delegation record
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -483,7 +482,6 @@ Expected: PASS (all).
 git add demo_api_server/routes/delegation.js demo_api_server/tests/delegationApproval.route.test.js
 git commit -m "feat(delegation): manager approve/deny endpoints
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -792,7 +790,6 @@ Expected: PASS (all pre-existing tests, unchanged) — this is the proof that ba
 git add demo_api_server/routes/ciba.js demo_api_server/src/__tests__/ciba.managerApproval.test.js
 git commit -m "feat(ciba): manager-approval branch on initiate/poll for delegated employees
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -967,7 +964,6 @@ Expected: exit `0`.
 git add demo_api_ui/src/components/DelegationPage.js demo_api_ui/src/components/__tests__/DelegationPage.approval.test.js
 git commit -m "feat(delegation): manager Approve/Deny row on the delegation list
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1011,7 +1007,6 @@ Expected: PASS unchanged (this test snapshots overlay/restore behavior, not raw 
 git add demo_api_server/config/verticals/workforce/manifest.json
 git commit -m "feat(workforce): CIBA chip + manager/employee demo personas
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1153,7 +1148,6 @@ Expected: PASS unchanged.
 git add demo_api_server/services/pingoneProvisionService.js demo_api_server/src/__tests__/pingoneProvisionService.workforceApprovalUsers.test.js
 git commit -m "feat(provisioning): add provisionWorkforceApprovalDemoUsers (code only, not wired into setup:fresh)
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 **Do not run `setup:fresh` / `pingone:bootstrap` as part of this task.** Once this branch is reviewed, ask the user whether/when to actually provision these two users against a real PingOne environment, and whether `provisionWorkforceApprovalDemoUsers()` should be wired into the main orchestrator's call sequence (next to Step 14.5) at that time.

@@ -250,7 +250,6 @@ git branch --show-current   # expect feat/obo-demo-page
 git add demo_api_server/services/oboConfig.js demo_api_server/services/oboEvidence.js demo_api_server/src/__tests__/services/oboEvidence.test.js
 git commit -m "feat(obo): config and evidence builder with 7 delegation checks
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -419,7 +418,6 @@ git branch --show-current
 git add demo_api_server/services/oboDownstream.js demo_api_server/services/oboEventHub.js demo_api_server/src/__tests__/services/oboDownstream.test.js demo_api_server/src/__tests__/services/oboEventHub.test.js
 git commit -m "feat(obo): downstream delegation verifier and per-user event hub
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -566,7 +564,6 @@ git branch --show-current
 git add demo_api_server/services/oboExchangeService.js demo_api_server/src/__tests__/services/oboExchangeService.test.js
 git commit -m "feat(obo): exchange service producing delegation evidence
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -834,7 +831,6 @@ git branch --show-current
 git add demo_api_server/routes/obo.js demo_api_server/server.js demo_api_server/src/__tests__/routes/obo.test.js
 git commit -m "feat(obo): MCP endpoint, downstream verifier and RFC 9728 metadata routes
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -970,7 +966,6 @@ git branch --show-current
 git add demo_api_server/middleware/hostedAccessGate.js demo_api_server/src/__tests__/hostedAccessGate.test.js demo_api_server/services/pingoneProvisionService.js demo_api_server/src/__tests__/services/pingoneProvisionObo.test.js
 git commit -m "feat(obo): wall bypass for the MCP challenge and bootstrap OBO Demo resource
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---

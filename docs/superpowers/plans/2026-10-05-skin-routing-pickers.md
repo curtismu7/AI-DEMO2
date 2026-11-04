@@ -16,7 +16,6 @@
 - Existing Cursor tests `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.*` must pass UNMODIFIED after Tasks 1 and 3.
 - `PrivilegeMcpClientPage.jsx` is a protected surface (REGRESSION_PLAN §0-§1): behaviour-preserving edits only, each in its own commit, no drive-by cleanup.
 - Emoji allowlist only (`⚠️` is allowed; use HTML entities like `&#9679;` for other glyphs). New CSS: no colour/background/font-size literals except `var(--font-size-*)` and `var(--th-*)`/`var(--font-mono)` tokens that exist in `demo_api_ui/src/index.css` (grep first); otherwise `inherit`/`currentColor`/`color-mix(in srgb, currentColor N%, transparent)`. No inline `style={{}}` for colour/background/font-size. No `monospace` literal. No `prefers-color-scheme`.
-- Stage files explicitly (never `git add -A`); `git branch --show-current` must print `worktree-skin-routing-pickers` before each commit. Commit trailer: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - API paths are under `/api/privilege-mcp/*` (skins use `apiClient`; Cursor uses its own `api()` which prefixes the same base).
 - Super Sports is the default vertical for any manual validation.
 

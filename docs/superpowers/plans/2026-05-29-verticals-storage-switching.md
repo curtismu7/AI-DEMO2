@@ -3591,7 +3591,6 @@ not class-driven. schemaVersion 2 no longer parses. featurePage.accent* variant
 fields (accentBg/Light/Code/Text/AccentText) dropped pending Cycle 2 derivation
 from accentColor.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```

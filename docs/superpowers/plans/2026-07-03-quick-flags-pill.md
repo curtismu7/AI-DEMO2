@@ -19,7 +19,6 @@
 - Pinned flags: render disabled with 🔒 and tooltip `Pinned by <ENV_VAR> in docker-compose — change the env to flip`; never send a PATCH for them.
 - Non-admin (`user?.role !== 'admin'`) or PATCH 403: controls disabled, hint text `Admin session required`. Pill and current states remain visible (GET is unauthenticated).
 - Existing files stay behaviorally unchanged except the two named modifications (`featureFlags.js` serializeFlag, `TopNav.js` mount).
-- Work on branch `worktree-quick-flags-pill` in `/Users/cmuir/Development/AI-DEMO2/.claude/worktrees/quick-flags-pill`. Stage explicitly (`git add <file>`), never `git add -A`; verify `git branch --show-current` before each commit; append the trailer `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` to every commit message.
 - UI tests run from `demo_api_ui/`: `npx vitest run src/components/__tests__/QuickFlagsPill.test.jsx`. Server tests run from `demo_api_server/`: `npx jest tests/featureFlagsPinned.test.js --forceExit` (if `node_modules` is missing in the worktree, `npm install` first).
 
 ---

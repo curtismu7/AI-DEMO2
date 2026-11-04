@@ -341,7 +341,6 @@ it persists the last run to localStorage and reloads it when there is
 no fresh state, with a once-per-tab-session modal clarifying the data
 may be stale.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```

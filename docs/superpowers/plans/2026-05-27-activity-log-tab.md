@@ -154,7 +154,6 @@ git commit -m "feat(activity-log): add useActivityLog hook
 Ring buffer, filter state, pause/clear, unread count.
 Wraps existing useAppEventsSSE — no EventSource duplication.
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -401,7 +400,6 @@ git commit -m "feat(activity-log): add ActivityLogPanel CSS
 
 15-category colour palette, toolbar, filter pills, event rows.
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -613,7 +611,6 @@ git commit -m "feat(activity-log): add ActivityLogPanel component
 Toolbar (live/pause/clear), 15-category filter pills, event rows
 with click-to-expand metadata JSON. Uses useActivityLog hook.
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -741,7 +738,6 @@ Two-tab switcher (Token Chain / Activity Log). Activity Log tab
 shows ActivityLogPanel with live SSE stream. Token Chain tab
 unchanged. SSE opens when modal opens (not just when tab active).
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---

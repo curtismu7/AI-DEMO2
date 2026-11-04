@@ -16,7 +16,6 @@
 - New CSS: no colour/background/font-size literals except `var(--font-size-*)` (floor `--font-size-3xs`); take colour from the chrome via `inherit`/`currentColor`/`color-mix(in srgb, currentColor N%, transparent)`. No inline `style={{}}` for colour, background or font-size. Dark mode is never `prefers-color-scheme`.
 - API calls go through `apiClient` (axios) at `/api/privilege-mcp/*`, as `PrivilegeShellPanel` does today.
 - Run vitest only via `npm --prefix demo_api_ui run test:unit -- <path>` (never `npx vitest`; a worktree makes npx fetch the wrong major). First verify the runner lists your file; if `test:unit` ignores the path argument, use `cd demo_api_ui && node scripts/run-vitest-with-memory-guard.mjs --reporter=verbose <path>`.
-- Stage explicitly (`git add <files>`); verify `git branch --show-current` is `worktree-skin-shell-session` before each commit. Commit trailer: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - Super Sports is the default vertical for any manual validation.
 
 ## Review Focus

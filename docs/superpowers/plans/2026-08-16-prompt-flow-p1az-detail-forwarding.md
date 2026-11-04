@@ -188,7 +188,6 @@ Expected: PASS, all 3 tests (the new fields are additive — `decision.correlati
 git add demo_authz_server/logger.js demo_authz_server/tests/logger.test.js
 git commit -m "authz: auditDecision returns the record it logs
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -407,7 +406,6 @@ Expected: PASS, all tests (`decision.correlation.test.js` still asserts the same
 git add demo_authz_server/routes/decision.js demo_authz_server/tests/decision.transactionHop.test.js
 git commit -m "authz: forward the full decision record into the ledger hop details
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---

@@ -18,7 +18,6 @@
 - Secrets: PEMs only in env / `ai-demo-secrets` (base64 of the PEM, vars `SAML_SIGNING_KEY_PEM_B64`, `SAML_SIGNING_CERT_PEM_B64`) and the client secret `PF_SAML_CLIENT_SECRET`; never printed, logged or committed.
 - PingFederate trusts the signer through a CA entry whose id MUST be lower case; the SAML 2.0 token processor must require the Audience; one exchange (assertion -> ID-JAG), not two.
 - PingFederate writes on the shared SE PingFederate and `kubectl` changes on SE are done by the user (the auto-mode classifier blocks them): the script and commands are handed over, not run by the agent.
-- Commit trailer `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`; PR body ends with the Claude Code line. No purple in UI, Ping brand colors (existing page CSS).
 - Diagram / demo / Learning Hub stay a synced trio: check the playground diagrams (`demo_api_ui/src/utils/idJagPlaygroundDiagrams.js`) for the SAML mode and the Hub card text before finishing.
 
 ## Review Focus

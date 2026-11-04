@@ -77,7 +77,6 @@ Expected: PASS (all six).
 git add demo_api_ui/src/pages/DigitalWorkerRunPanel.jsx demo_api_ui/src/pages/__tests__/DigitalWorkerRunPanel.test.jsx
 git commit -m "feat: unattended-run panel for digital worker page
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -123,7 +122,6 @@ Expected: PASS (existing diagram tests still green — editor untouched).
 git add demo_api_ui/src/pages/DigitalWorkerPage.jsx demo_api_ui/src/components/AdminSideNav.jsx demo_api_ui/src/pages/__tests__/DigitalWorkerPage.test.jsx
 git commit -m "feat: live worker run + unattended panel on /digital-worker
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -163,7 +161,6 @@ Expected: PASS.
 git add demo_api_ui/src/config/pageGuides.js demo_api_ui/src/learning/lessonCatalog.js demo_api_ui/src/components/LearningHub.tsx demo_api_ui/src/pages/__tests__/DigitalWorkerPage.test.jsx
 git commit -m "feat: learning surfaces for digital worker demo
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---

@@ -18,7 +18,6 @@
 - Spec §4: hint keys `last_login_hint_customer` / `last_login_hint_admin`; hint endpoint validates with the session-name rule (cleanName: non-empty, ≤256, no control chars) — NOT the §3 email rule; hint write is never fatal.
 - Spec §4: "session-derived `loginHintFor` … keeps winning over the stored hint when a session user exists."
 - PR #1086 pattern: a BFF 5xx on a pi.flow step is a transient error the modal shows inline; do not reintroduce 5xx→redirect.
-- Server tests are CommonJS jest (`demo_api_server/tests/`); UI tests are vitest (`demo_api_ui/src/**/__tests__/`). Commits end with `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
 - Work in a git worktree (the shared main checkout's pre-commit hook blocks commits).
 
 ## Review Focus

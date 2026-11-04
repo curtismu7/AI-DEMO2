@@ -29,7 +29,6 @@
 - No bulk invites, no custom HTML templates, no queue/retry (spec §4).
 - PingOne env: `configStore.getEffective('pingone_environment_id') || 'PINGONE_ENVIRONMENT_ID'`; region from `pingone_region`/`PINGONE_REGION` default `com`.
 - The shared main checkout is worked in by many sessions — run `git pull --ff-only origin main` before starting each task.
-- Commit after every task; commit messages end with `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
 
 ## Review Focus
 
@@ -349,7 +348,6 @@ Expected: PASS (no regression in the shared file).
 git add demo_api_server/services/pingOneUserService.js demo_api_server/routes/demoProvisioning.js demo_api_server/tests/sendInvite.route.test.js
 git commit -m "feat(onboarding): admin invite endpoint — idempotent provisioning + registration link
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ### Task 3: Invite form on HostedRegistrationAdminPage
@@ -423,7 +421,6 @@ Start the local UI if not running, open the Hosted Registrations admin page as a
 git add demo_api_ui/src/pages/HostedRegistrationAdminPage.jsx
 git commit -m "feat(onboarding): admin invite-user form on hosted registrations page
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ### Task 4: Dress rehearsal + PR

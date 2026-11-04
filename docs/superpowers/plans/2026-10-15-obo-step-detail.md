@@ -12,7 +12,6 @@
 
 ## Global Constraints
 
-- Work only in worktree `/Users/cmuir/Development/AI-DEMO2-obo-detail`, branch `feat/obo-step-detail`. `git branch --show-current` before every commit; stage files explicitly (never `git add -A`); never bare `git stash`. Commits end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - Tests: BFF `cd demo_api_server && CI=true ALLOW_TEST_NETWORK=1 node node_modules/jest/bin/jest.js <paths> --forceExit` (`npx jest` does not work in worktrees). UI `cd demo_api_ui && node node_modules/vitest/vitest.mjs run <paths>` (`npx vitest` does not work). vitest, not jest, for the UI. If a broad run rewrites tracked fixtures, restore them with `git checkout -- <path>`.
 - **`client_secret`, `*_secret`, `*password*`, `*assertion*` values and `Authorization: Basic` credentials must never reach the browser, a log line, or a test snapshot.** Tokens (subject/actor/access tokens) are shown for the in-app Run only.
 - **The Claude path must not change:** `runObo` without `capture` returns no `wire` and no raw token anywhere; the MCP tool result, the SSE/hub payload and `evidence` stay token-free (a test asserts it).
@@ -209,7 +208,6 @@ git branch --show-current
 git add demo_api_server/services/oboWire.js demo_api_server/src/__tests__/services/oboWire.test.js
 git commit -m "feat(obo): oboWire - browser-safe hops with secrets masked and tokens decoded
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -382,7 +380,6 @@ git commit -m "feat(obo): optional onWire hook on the exchange and client-creden
 
 Additive and off by default; a throwing hook cannot change either call.
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -560,7 +557,6 @@ git branch --show-current
 git add demo_api_server/services/oboExchangeService.js demo_api_server/routes/obo.js demo_api_server/src/__tests__/services/oboExchangeService.test.js demo_api_server/src/__tests__/routes/obo.test.js
 git commit -m "feat(obo): capture the real wire and tokens per step for the in-app run only
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -805,7 +801,6 @@ git branch --show-current
 git add demo_api_ui/src/components/obo/OboStepWire.jsx demo_api_ui/src/components/obo/OboStepWire.css demo_api_ui/src/components/obo/__tests__/OboStepWire.test.jsx demo_api_ui/src/pages/OboDemoPage.jsx demo_api_ui/src/pages/__tests__/OboDemoPage.test.jsx
 git commit -m "feat(obo-ui): real request, response and tokens in the step details
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 (Add `demo_api_ui/src/pages/OboDemoPage.css` to the `git add` only if you changed it.)
 

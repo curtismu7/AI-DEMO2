@@ -337,7 +337,6 @@ group-policy rule, not a JS groups.includes check. Calls the evaluator
 directly rather than flipping the process-wide ff_authorize_group_policy
 flag, per the UC9 precedent in useCaseDemoBehaviors.js.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -425,7 +424,6 @@ git add REGRESSION_PLAN.md
 git commit -m "$(cat <<'EOF'
 docs: log the pingone-admin P1AZ group-gate fix in REGRESSION_PLAN §4
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
