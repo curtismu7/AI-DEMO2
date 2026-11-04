@@ -275,6 +275,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-11-04 — Node gateway lane dead under PingFederate: validator rejected PF's policy-derived aud
+
+**Files:** `demo_api_server/services/pfStandardTokenExchangeService.js` (`validateFinalToken`), `demo_api_server/services/agentMcpTokenService.js` (`_performTwoExchangeDelegation`), test `pfStandardTokenExchangeService.test.js`. PR #1968 (merged `923795105`).
+
+**What was broken:** every MCP call routed to the Node Demo Agent Gateway (Node-only tools, A2A pins, `pinNodeGateway` callers) failed closed with `PingFederate final audience mismatch` → `delegation_chain_broken` under the PF standard exchange. PingFederate's token-exchange policy derives the output resource from the granted scope set and ignores the audience parameter (`performExchange` sends `omitAudience`): `gateway:mcp:invoke` mints `https://api.ping.demo:3036/mcp`, `read`+`mcp:invoke` mints `mcpserver.ping.demo` — never the Node lane's expected `mcpgateway.ping.demo`. With `ff_mcp_gateway_pinggateway=false` every fresh two-exchange 401'd, which also made the gateway's Web Bot Auth (RFC 9421) verifier unexercisable live.
+
+**What changed:** `validateFinalToken` takes `acceptedAudiences` — the lane's expected audience plus the auds the destination gateway itself accepts (the `MCP_GW_RESOURCE_URI` comma list) and the PingGateway resource — and `_performTwoExchangeDelegation` passes them. The token stays bound to a real gateway resource in either lane; the mismatch error names expected vs received.
+
+**Do not break:** the PingOne lane's aud behavior (branch untouched — `provider` is falsy there); the PingGateway lane (its primary expected audience is unchanged); the ID-JAG lane (separate path); `middleware/auth.js` aud defaults; scope-topology.json (untouched — the guard's strict equality on `PINGONE_RESOURCE_TWO_EXCHANGE_URI` still holds). A token audienced to an audience in NEITHER the lane's expectation NOR the destination gateway's accepted list must still fail closed.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/agentMcpTokenService.test.js src/__tests__/agentMcpTokenService.pfProviderIsolation.test.js src/__tests__/agentMcpTokenService.pfCatalogParity.test.js src/__tests__/agentMcpTokenService.pfIdJag.test.js src/__tests__/pfStandardTokenExchangeService.test.js src/__tests__/pfTokenExchangeDemo.test.js src/__tests__/mcpGatewayRoutingPolicy.test.js src/__tests__/mcpGatewayClient.pinnedAudience.test.js src/__tests__/mcpGatewayClient.a2aPin.test.js --forceExit` (187 pass). Live: `POST /api/demo/attack-sim/run {"sim":"rate-limit-burst"}` → gateway logs `[GW] Web Bot Auth signature verified`; `POST /api/mcp-gateway/test {"tool":"get_my_accounts"}` → `ok:true` via `ping-gateway:8080`.
+
 ### 2026-10-17 — PingFederate sign-on pages were generic again: Ping-branded theme, re-applied on every run
 
 **Files:** `scripts/pingfederate/apply-login-theme.sh` (+ `.test.sh`), `scripts/pingfederate/assets/` (`login-theme.css`, `login-theme-ping.css`, `login-theme-acme.css`, `html.form.login.template.html`, `acme-mark.svg`, `montserrat-latin.woff2` + OFL; removed `login-main.css`, `ping-logo.svg`, the old `ping-identity-logo.png`), `run-docker.sh` (`ensure_pingfederate`), `scripts/pingfederate/ensure-se-pingfederate.sh`, `editions/pingone.json`, `package.json` (`hygiene:check`).
