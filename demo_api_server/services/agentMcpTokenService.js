@@ -3159,8 +3159,28 @@ async function _performTwoExchangeDelegation(
       );
     const finalDecoded = decodeJwtClaims(finalToken);
     const finalClaims  = finalDecoded?.claims;
+    // PF's exchange policy derives the output resource from the granted scope
+    // set (measured live 2026-11-04): gateway:mcp:invoke → the PingGateway
+    // resource (https://api.ping.demo:3036/mcp); read+mcp:invoke → the Demo MCP
+    // Server resource (mcpserver.ping.demo). performExchange sends no audience
+    // parameter to PF (omitAudience), so the minted aud is the POLICY's choice,
+    // not the destination lane's. Accept the full set of auds the destination
+    // gateway itself accepts (the MCP_GW_RESOURCE_URI comma list) plus the
+    // PingGateway resource, so validation checks "bound to a resource the
+    // destination honors" instead of guessing PF's mapping per scope set.
+    let pfAlternateFinalAuds;
+    if (provider) {
+      const accepted = new Set();
+      const nodeAuds = String(process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
+        || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '')
+        .split(',').map((part) => part.trim()).filter(Boolean);
+      for (const a of nodeAuds) if (a !== finalAudTarget) accepted.add(a);
+      const pgAud = configuredPingGatewayAudience(opts.tool);
+      if (pgAud && pgAud !== finalAudTarget) accepted.add(pgAud);
+      if (accepted.size) pfAlternateFinalAuds = [...accepted];
+    }
     if (provider) provider.validateFinalToken(finalToken, {
-      userSub, audience: finalAudTarget, scopes: ex2Scopes,
+      userSub, audience: finalAudTarget, acceptedAudiences: pfAlternateFinalAuds, scopes: ex2Scopes,
       issuer: providerConfig.issuer, agentActorToken, mcpActorToken,
     });
     // Preserve exchangeRequest across splice so TraceRail's exchange step keeps
@@ -3169,7 +3189,10 @@ async function _performTwoExchangeDelegation(
     const ex2ExchangeRequest = ex2Idx !== -1 ? (tokenEvents[ex2Idx].exchangeRequest || null) : null;
     if (ex2Idx !== -1) tokenEvents.splice(ex2Idx, 1);
     const mcpTokenAud = finalClaims?.aud;
-    const audMatches  = mcpTokenAud === finalAudTarget || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget));
+    const audMatches  = mcpTokenAud === finalAudTarget
+      || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget))
+      || (Array.isArray(pfAlternateFinalAuds) && pfAlternateFinalAuds.some((a) => mcpTokenAud === a
+        || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(a))));
     const nestedActOk = !!finalClaims?.act?.sub && !!finalClaims?.act?.act?.sub;
     // audMatches used to be computed here and then only REPORTED (in the event
     // text and metadata), so a token minted for the wrong audience was sent
