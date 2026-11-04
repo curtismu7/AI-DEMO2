@@ -54,6 +54,7 @@ const EXEMPT = new Set([
   '/authz-server-rules',
   '/authz-test',
   '/ciba-approve',
+  '/ciba-email-approve',
   '/compliance-modal-popout',
   '/config',
   '/copilot',
