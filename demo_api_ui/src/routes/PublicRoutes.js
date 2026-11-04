@@ -55,6 +55,7 @@ const DavinciLoginGuidePage = lazyWithRetry(() => import("../pages/DavinciLoginG
 const PingOneProviderGuard = lazyWithRetry(() => import("../components/PingOneProviderGuard"));
 const PingFederateDavinciKitPage = lazyWithRetry(() => import("../pages/PingFederateDavinciKitPage"));
 const CibaApprovalPage = lazyWithRetry(() => import("../pages/CibaApprovalPage"));
+const CibaEmailApprovePage = lazyWithRetry(() => import("../pages/CibaEmailApprovePage"));
 const PrivilegeDemoPage = lazyWithRetry(() => import("../pages/PrivilegeDemoPage"));
 const EnterpriseMcpDemoPage = lazyWithRetry(() => import("../pages/EnterpriseMcpDemoPage"));
 const PingFederateIdJagExplainerPage = lazyWithRetry(() => import("../pages/PingFederateIdJagExplainerPage"));
@@ -736,6 +737,11 @@ export function SdkLoginCallbackRoute() {
 
 export function CibaApprovalPageRoute() {
   return <CibaApprovalPage />;
+}
+
+// CIBA email-channel approval (from the one-time emailed link; bare page).
+export function CibaEmailApprovePageRoute() {
+  return <CibaEmailApprovePage />;
 }
 
 export { LogoutPage, ComplianceModalPopout, DemoGuidePopout };

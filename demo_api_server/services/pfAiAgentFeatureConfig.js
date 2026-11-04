@@ -184,6 +184,16 @@ function resolveCrossDomainConfig(store = configStore) {
 // With the web approver on, CIBA uses its own PingFederate client (tied to the stand-in authenticator).
 const WEB_APPROVER_CLIENT_ID = 'ai-demo-pf-ciba-web';
 
+// Email channel: like the mock phone, it never calls PingFederate (the request waits in the
+// BFF), but the answer arrives from a real SMTP round trip and a one-time emailed link, so it
+// takes precedence over the mock. Never on in production. Mutually exclusive with the mock
+// phone and the web approver, which keep their own gates.
+function emailChannelOn(store) {
+  return process.env.NODE_ENV !== 'production'
+    && value(store, 'pf_ai_ciba_email_enabled').toLowerCase() === 'true'
+    && !webApproverOn(store);
+}
+
 function webApproverOn(store) {
   return process.env.NODE_ENV !== 'production'
     && value(store, 'pf_ai_ciba_web_approver_enabled').toLowerCase() === 'true'
@@ -242,7 +252,8 @@ function getFeatureStatus(store = configStore) {
     // RAR can also bind its token to the BFF's key (DPoP) once a DPoP-requiring client is named.
     rarDpop: rar && Boolean(value(store, 'pf_ai_rar_dpop_client_id')),
     ciba: enabled(store, 'pf_ai_ciba_enabled') && available(resolveCibaConfig, store),
-    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled') && !webApproverOn(store),
+    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled') && !webApproverOn(store) && !emailChannelOn(store),
+    cibaEmail: emailChannelOn(store),
     cibaWebApprover: webApproverOn(store),
     dcr: enabled(store, 'pf_ai_dcr_enabled') && available(resolveDcrConfig, store),
   };
@@ -256,5 +267,6 @@ module.exports = {
   resolveCibaConfig,
   resolveDcrConfig,
   webApproverOn,
+  emailChannelOn,
   getFeatureStatus,
 };

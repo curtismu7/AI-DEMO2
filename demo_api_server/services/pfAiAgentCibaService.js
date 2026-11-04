@@ -1,11 +1,12 @@
 'use strict';
 
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
 const cibaService = require('./cibaService');
 const { safeParams, safeBody, bareUrl, claimsOf, step: traceStep } = require('./pfAiAgentTrace');
 const cibaWebApprover = require('./pfAiAgentCibaWebApproverService');
-const { getFeatureStatus, resolveCibaConfig, webApproverOn } = require('./pfAiAgentFeatureConfig');
+const { getFeatureStatus, resolveCibaConfig, webApproverOn, emailChannelOn } = require('./pfAiAgentFeatureConfig');
 const {
   oauthError,
   discoverPf,
@@ -149,7 +150,107 @@ async function safeJson(response) {
 // Never on in production, whatever the flag says: it approves a request without any device.
 // The web approver (real PingFederate flow) takes precedence over the mock.
 const mockEnabled = (store) => process.env.NODE_ENV !== 'production' && !webApproverOn(store)
+  && !emailChannelOn(store)
   && String(store.getEffective('pf_ai_ciba_mock_enabled') || '').trim().toLowerCase() === 'true';
+
+// Email channel: like the mock phone, no PingFederate call is made — the pending request
+// waits in the BFF — but the answer arrives from a real SMTP send and a one-time emailed
+// link clicked on the click-to-confirm page. The link token lives in a process-global map,
+// because the emailed click carries no BFF session.
+const EMAIL_CHANNEL_TTL_MS = 10 * 60 * 1000;
+const emailApprovals = new Map(); // token -> { loginHint, decision, resolved, expiresAt }
+setInterval(() => {
+  for (const [token, entry] of emailApprovals) {
+    if (entry.expiresAt <= Date.now()) emailApprovals.delete(token);
+  }
+}, 60 * 1000).unref();
+
+function emailChannelEnabled(store) {
+  return process.env.NODE_ENV !== 'production' && emailChannelOn(store);
+}
+
+function startEmailCiba(req, featureSession, { loginHint, bindingMessage, now }) {
+  const email = String(req.session.user?.email || loginHint || '').trim();
+  if (!email || !email.includes('@')) {
+    throw oauthError('PF_AI_CIBA_EMAIL_REQUIRED', 'The email channel needs the signed-in user\'s email address', 400);
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  const createdAt = now();
+  emailApprovals.set(token, {
+    loginHint: email,
+    bindingMessage,
+    decision: null,
+    resolved: false,
+    expiresAt: createdAt + EMAIL_CHANNEL_TTL_MS,
+  });
+  const pending = {
+    emailChannel: true,
+    emailToken: token,
+    createdAt,
+    expiresAt: createdAt + MAX_PENDING_MS,
+    interval: DEFAULT_INTERVAL_SECONDS,
+    lastPolledAt: 0,
+    loginHint: email,
+    bindingMessage,
+    trace: [traceStep({
+      id: 'start',
+      title: 'Start the approval request (email channel)',
+      note: 'No PingFederate call is made: the BFF holds the request and a one-time emailed link answers it. The email goes out over a real SMTP round trip to the in-process sink.',
+    })],
+  };
+  featureSession.cibaPending = pending;
+  delete featureSession.cibaResult;
+  return { pending, view: pendingView(pending) };
+}
+
+// The email's one-time link: look up the token, record the decision. No session — the click
+// comes from an email client, so the token itself (256 bits, single use) is the authority.
+function emailDecide({ token, decision, store = configStore, now = Date.now } = {}) {
+  if (!emailChannelOn(store)) throw oauthError('PF_AI_CIBA_EMAIL_DISABLED', 'The email channel is not enabled', 404);
+  if (decision !== 'approve' && decision !== 'deny') {
+    throw oauthError('PF_AI_CIBA_DECISION_INVALID', 'The decision must be approve or deny', 400);
+  }
+  const entry = typeof token === 'string' ? emailApprovals.get(token) : null;
+  if (!entry || entry.expiresAt <= now()) {
+    emailApprovals.delete(token);
+    throw oauthError('PF_AI_CIBA_EMAIL_TOKEN_INVALID', 'This approval link is no longer valid', 410);
+  }
+  if (entry.resolved) {
+    throw oauthError('PF_AI_CIBA_EMAIL_TOKEN_USED', 'This approval link was already used', 409);
+  }
+  entry.decision = decision === 'approve' ? 'approved' : 'denied';
+  entry.resolved = true;
+  return { state: 'received', loginHint: entry.loginHint, bindingMessage: entry.bindingMessage, decision: entry.decision };
+}
+
+// Read the decision without consuming it (the confirm page renders what was clicked).
+function emailStatus(token) {
+  const entry = typeof token === 'string' ? emailApprovals.get(token) : null;
+  if (!entry) return { state: 'invalid' };
+  if (entry.expiresAt <= Date.now()) { emailApprovals.delete(token); return { state: 'expired' }; }
+  return {
+    state: entry.resolved ? 'received' : 'waiting',
+    decision: entry.decision,
+    loginHint: entry.loginHint,
+    bindingMessage: entry.bindingMessage,
+  };
+}
+
+function consumeEmailDecision(featureSession, pending, now) {
+  const entry = emailApprovals.get(pending.emailToken);
+  if (!entry || !entry.resolved) return null;
+  emailApprovals.delete(pending.emailToken);
+  const approved = entry.decision === 'approved';
+  return finish(featureSession, approved ? 'approved' : 'denied', pending, now,
+    approved
+      ? { subject: pending.loginHint, issuer: 'email-channel', scope: 'openid', tokenType: 'none' }
+      : { reason: 'user_denied' },
+    [traceStep({
+      id: 'decision',
+      title: 'The emailed link answered',
+      note: `The one-time emailed link was clicked to ${approved ? 'approve' : 'deny'}. A real SMTP round trip delivered it; no token was issued.`,
+    })]);
+}
 
 // PingOne CIBA: its login hint is the user's email, and the approval lands on their PingOne MFA device.
 async function startPingOneCiba(req, featureSession, { requestedHint, bindingMessage, now }) {
@@ -242,9 +343,11 @@ async function startCiba(req, {
 } = {}) {
   if (!req?.session) throw oauthError('PF_AI_SESSION_REQUIRED', 'An application session is required', 401);
   const provider = providerOf(req);
-  // The mock phone and the web approver stand in for a PingFederate-side device; a PingOne session never uses them.
-  const mock = provider === 'pingfederate' && mockEnabled(store);
-  if (provider === 'pingfederate' && !mock && !getFeatureStatus(store).ciba) {
+  // The email channel, mock phone and web approver stand in for a PingFederate-side device;
+  // a PingOne session never uses them.
+  const emailChannel = provider === 'pingfederate' && emailChannelEnabled(store);
+  const mock = provider === 'pingfederate' && !emailChannel && mockEnabled(store);
+  if (provider === 'pingfederate' && !mock && !emailChannel && !getFeatureStatus(store).ciba) {
     throw oauthError('PF_AI_CIBA_NOT_CONFIGURED', 'PF AI Agent CIBA is not enabled or configured', 503);
   }
   req.session.pfAiAgent ||= {};
@@ -258,6 +361,11 @@ async function startCiba(req, {
     return startPingOneCiba(req, featureSession, { requestedHint, bindingMessage, now });
   }
   const loginHint = sessionLoginHint(req, requestedHint);
+
+  if (emailChannel) {
+    const { view } = startEmailCiba(req, featureSession, { loginHint, bindingMessage, now });
+    return view;
+  }
 
   if (mock) {
     const createdAt = now();
@@ -328,6 +436,11 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
   const pending = featureSession?.cibaPending;
   if (!pending) return featureSession?.cibaResult || { state: 'none' };
   if (pending.expiresAt <= now()) return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' });
+  if (pending.emailChannel) {
+    const decided = consumeEmailDecision(featureSession, pending, now);
+    if (decided) return decided;
+    return pendingView(pending);
+  }
   if (pending.mock) return pendingView(pending);
   const isPingOne = pending.provider === 'pingone';
   // The page may ask more often than PingFederate allows; answer from the session instead of calling it.
@@ -416,6 +529,9 @@ function decideCiba(req, { store = configStore, now = Date.now } = {}) {
   if (cibaWebApprover.isEnabled(store)) {
     return cibaWebApprover.decide(req, req.body?.decision, { store, now });
   }
+  if (emailChannelEnabled(store)) {
+    throw oauthError('PF_AI_CIBA_NOTHING_PENDING', 'The email channel answers via its emailed link, not this endpoint', 409);
+  }
   return mockDecideCiba(req, req.body?.decision, { store, now });
 }
 
@@ -425,4 +541,7 @@ module.exports = {
   decideCiba,
   startCiba,
   pollCiba,
+  emailDecide,
+  emailStatus,
+  emailChannelEnabled,
 };

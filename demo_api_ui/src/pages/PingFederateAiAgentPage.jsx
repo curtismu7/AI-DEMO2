@@ -274,6 +274,7 @@ export default function PingFederateAiAgentPage({ user }) {
   const [cibaBusy, setCibaBusy] = useState(false);
   const [cibaError, setCibaError] = useState("");
   const [phoneClosed, setPhoneClosed] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
 
   useEffect(() => {
@@ -344,6 +345,7 @@ export default function PingFederateAiAgentPage({ user }) {
     setCibaError("");
     setCibaState(null);
     setPhoneClosed(false);
+    setEmailSent(false);
     try {
       const response = await apiClient.post("/api/pf-ai-agent/ciba/start", {
         loginHint: cibaUser.trim(),
@@ -360,9 +362,26 @@ export default function PingFederateAiAgentPage({ user }) {
 
   // The mock phone pops up while a request is pending: PF_AI_CIBA_MOCK_ENABLED answers in the BFF, the web
   // approver answers the stand-in PingFederate authenticator. Either way it stands in for the user's device.
+  // The email channel answers from the emailed one-time link instead — no phone popup.
   const phoneChannel = features.cibaWebApprover ? "web" : features.cibaMock ? "mock" : null;
+  const emailChannelLive = Boolean(features.cibaEmail);
   // PingOne CIBA is answered on the user's real device, so the mock phone only serves PingFederate requests.
   const phoneOpen = cibaPending && Boolean(phoneChannel) && !phoneClosed && cibaState?.provider !== "pingone";
+  const emailPending = cibaPending && emailChannelLive && cibaState?.provider !== "pingone";
+
+  // Email channel: send the approval email over a real SMTP round trip to the BFF's in-process sink.
+  async function sendApprovalEmail() {
+    setEmailSent(false);
+    try {
+      const response = await apiClient.post("/api/pf-ai-agent/ciba/email/send", {});
+      setEmailSent(true);
+      notifySuccess(`Approval email sent to ${response.data.sentTo}.`);
+    } catch (error) {
+      setCibaError(error?.response?.data?.error === "pf_ai_ciba_email_send_failed"
+        ? "The approval email could not be sent."
+        : "The approval email could not be sent.");
+    }
+  }
   const answerOnPhone = (decision) => (phoneChannel === "web" ? decideOnWebApprover(decision) : decideOnMockPhone(decision));
   const phoneLabel = (decision) => (phoneChannel === "web"
     ? `${decision === "approve" ? "Approve" : "Deny"} (web approver)`
@@ -692,6 +711,18 @@ export default function PingFederateAiAgentPage({ user }) {
               : <span className="pf-ai-agent__disabled-action">Configure CIBA and sign in to ask for approval</span>}
           </div>
           {cibaError && <p className="pf-ai-agent__callback is-error" role="alert">{cibaError}</p>}
+          {emailPending && (
+            <div className="pf-ai-agent__rar-actions">
+              <button className="pf-ai-agent__action" type="button" onClick={sendApprovalEmail}>
+                Send approval email
+              </button>
+              {emailSent && (
+                <p className="pf-ai-agent__callback" role="status" data-testid="ciba-email-sent">
+                  Approval email sent to {cibaState.loginHint} over the in-process SMTP sink. Open the one-time link in the email to approve or deny — this page polls until it is answered.
+                </p>
+              )}
+            </div>
+          )}
           {cibaPending && (
             <p className="pf-ai-agent__callback" role="status" data-testid="ciba-pending">
               Waiting for {cibaState.loginHint} to approve on their device ({cibaServerName(cibaState)} CIBA). Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
