@@ -14,7 +14,8 @@ const { exchangeForThirdPartyAccessToken, cimdPingFederateToken } = require('../
 const hasUsablePfToken = (req) => Boolean(cimdPingFederateToken(req));
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
-const { startCiba, pollCiba, mockDecideCiba, decideCiba } = require('../services/pfAiAgentCibaService');
+const { startCiba, pollCiba, mockDecideCiba, decideCiba, emailDecide, emailStatus, emailChannelEnabled } = require('../services/pfAiAgentCibaService');
+const cibaEmailSmtp = require('../services/cibaEmailSmtp');
 const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 const pfTokenExchangeDemo = require('../services/pfTokenExchangeDemoService');
 const pfDcr = require('../services/pfAiAgentDcrService');
@@ -435,6 +436,51 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
     }
   };
+
+  // Email channel (PingFederate path): start needs a session; the emailed link does not.
+  // Send the approval email: a real SMTP round trip to the in-process sink, whose body
+  // carries the one-time link. The URL uses the canonical frontend origin (no localhost).
+  router.post('/ciba/email/send', requireApplicationSession, async (req, res) => {
+    try {
+      const pending = req.session?.pfAiAgent?.cibaPending;
+      if (!pending?.emailChannel) return res.status(409).json({ error: 'pf_ai_ciba_nothing_pending' });
+      const entry = emailStatus(pending.emailToken);
+      if (entry.state !== 'waiting') return res.status(409).json({ error: 'pf_ai_ciba_email_not_waiting' });
+      const confirmUrl = `${getFrontendOrigin()}/ciba-email-approve?token=${encodeURIComponent(pending.emailToken)}`;
+      const binding = pending.bindingMessage || 'approval';
+      await cibaEmailSmtp.sendApprovalEmail({
+        to: pending.loginHint,
+        subject: `CIBA approval: ${binding}`,
+        text: `A request is waiting for your approval.\n\nBinding message: ${binding}\n\nOpen this one-time link to approve or deny:\n${confirmUrl}\n\nThe link expires when the request does.`,
+        html: `<p>A request is waiting for your approval.</p><p>Binding message: <strong>${binding}</strong></p><p><a href="${confirmUrl}">Open the one-time approval link</a></p><p>The link expires when the request does.</p>`,
+      });
+      res.set('Cache-Control', 'no-store');
+      return res.json({ ok: true, sentTo: pending.loginHint });
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_email_send_failed') });
+    }
+  });
+
+  // The emailed link's click-to-confirm page API: read status, then decide. No session —
+  // the one-time 256-bit token in the URL is the authority. Mail-client prefetch of the
+  // page URL is harmless: only POST /decide records an answer, and it is single-use.
+  router.get('/ciba/email/link/:token', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      return res.json(emailStatus(req.params.token));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+  router.post('/ciba/email/link/:token/decide', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      return res.json(emailDecide({ token: req.params.token, decision: req.body?.decision }));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+
   router.post('/ciba/web-approver/requests', (req, res) => approverReply(res,
     () => cibaWebApprover.register({ headers: req.headers, body: req.body, store })));
   router.get('/ciba/web-approver/requests/:transactionId', (req, res) => approverReply(res,

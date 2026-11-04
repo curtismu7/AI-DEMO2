@@ -235,6 +235,7 @@ import MonitoringRoutes, {
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
   CibaApprovalPageRoute,
+  CibaEmailApprovePageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
@@ -1075,6 +1076,7 @@ function AppWithAuth() {
                 <Route path="/davinci-sdk-login" element={<Navigate to="/davinci-orchestration-sdk" replace />} />
                 <Route path="/davinci-login-guide" element={<Navigate to="/davinci-widget" replace />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
+                <Route path="/ciba-email-approve" element={<CibaEmailApprovePageRoute />} />
                 <Route
                   path="/code-explorer"
                   element={

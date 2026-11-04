@@ -27,6 +27,8 @@ const express = require('express');
 const router  = express.Router();
 const cibaService = require('../services/cibaService');
 const cibaSimulatedService = require('../services/cibaSimulatedService');
+const cibaEmailLinkService = require('../services/cibaEmailLinkService');
+const cibaEmailSmtp = require('../services/cibaEmailSmtp');
 const delegationService = require('../services/delegationService');
 const { authenticateToken } = require('../middleware/auth');
 const { optionalAuthenticateToken } = require('../middleware/optionalAuth');
@@ -38,6 +40,7 @@ const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 const dataStore = require('../data/store');
 const { verticalManifest } = require('../services/verticalManifest');
 const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
+const { getFrontendOrigin } = require('../services/oauthRedirectUris');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 const CIBA_DEFAULT_SCOPE = 'openid';
@@ -288,6 +291,28 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       acr_values,
     );
     simulated = true;
+    // Email-link failover: when CIBA_EMAIL_LINK_FALLBACK is on, the simulated
+    // request is answered from a one-time emailed link (real SMTP to the
+    // in-process sink) instead of the on-page approve buttons. Best-effort:
+    // a send failure keeps the plain simulated path.
+    if (String(process.env.CIBA_EMAIL_LINK_FALLBACK || '').toLowerCase() === 'true') {
+      try {
+        const email = (loginHint.includes('@') ? loginHint : (req.user?.email || req.session?.user?.email || '')).trim();
+        if (email.includes('@')) {
+          const emailToken = cibaEmailLinkService.issueToken(result.auth_req_id);
+          const confirmUrl = `${getFrontendOrigin()}/ciba-email-approve?token=${encodeURIComponent(emailToken)}&source=p1`;
+          await cibaEmailSmtp.sendApprovalEmail({
+            to: email,
+            subject: `CIBA approval: ${approvalSummary || 'sign-in approval'}`,
+            text: `A request is waiting for your approval.\n\n${approvalSummary || ''}\n\nOpen this one-time link to approve or deny:\n${confirmUrl}\n\nThe link expires when the request does.`,
+            html: `<p>A request is waiting for your approval.</p>${approvalSummary ? `<p>${approvalSummary}</p>` : ''}<p><a href="${confirmUrl}">Open the one-time approval link</a></p><p>The link expires when the request does.</p>`,
+          });
+          console.info(`[CIBA] email-link failover: approval email sent to ${email}`);
+        }
+      } catch (emailErr) {
+        console.warn('[CIBA] email-link failover send failed (continuing with on-page approval):', emailErr.message);
+      }
+    }
   }
   if (result.binding_message) binding_message = result.binding_message;
 
@@ -504,6 +529,15 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
         error: 'access_denied',
         message: 'The user denied the authentication request.',
       });
+    }
+
+    // Email-link failover decision: consumed exactly once by the session's poll.
+    const emailDecision = cibaEmailLinkService.consumeForAuthReqId(authReqId);
+    if (emailDecision === 'denied') {
+      req.session.cibaRequests[authReqId].deniedByUser = true;
+    }
+    if (emailDecision === 'approved') {
+      req.session.cibaRequests[authReqId].approvedByUser = true;
     }
 
     let approvalStatus = 'approved';
@@ -841,6 +875,31 @@ router.post('/cancel/:authReqId', authenticateToken, (req, res) => {
 
 router.post('/notify', (_req, res) => {
   res.status(501).json({ error: 'unsupported_delivery_mode', message: 'Configure CIBA poll delivery mode.' });
+});
+
+// ---------------------------------------------------------------------------
+// CIBA email-link failover (simulated path): the emailed one-time link carries
+// no session, so the 256-bit token in the URL is the authority. Read-only
+// status first (prefetch-safe); only the explicit decide POST records an
+// answer, and it is single-use.
+// ---------------------------------------------------------------------------
+
+router.get('/email-link/:token', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json(cibaEmailLinkService.status(req.params.token));
+  } catch (error) {
+    return res.status(error.httpStatus || 502).json({ error: error.code || 'ciba_email_link_failed' });
+  }
+});
+
+router.post('/email-link/:token/decide', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json(cibaEmailLinkService.decide(req.params.token, req.body?.decision));
+  } catch (error) {
+    return res.status(error.httpStatus || 502).json({ error: error.code || 'ciba_email_link_failed' });
+  }
 });
 
 module.exports = router;
