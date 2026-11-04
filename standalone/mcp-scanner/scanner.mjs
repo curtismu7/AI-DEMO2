@@ -8,6 +8,13 @@
 //   exfil-sink — an inputSchema argument that leaks: an off-box URL default, or a
 //     description telling the agent to include sensitive context.
 //
+//   tool-abuse — a call to a legitimate tool with hostile arguments: a
+//     cross-owner account id, a limits-override flag, or a smuggled directive
+//     in a free-text field ("[SYSTEM: ...]").
+//   schema-violation — a call whose arguments do not match the tool's declared
+//     inputSchema: a string where a number is required, a missing required arg,
+//     or an argument the schema does not define.
+//
 // This is where a defense CAN sit: MCP has nothing to inspect metadata with, so
 // the check belongs in front of the consumer. Heuristic and honest about it —
 // it reports, it does not block, and it can miss a novel phrasing.
@@ -18,6 +25,12 @@ const AGENT_IMPERATIVE = /\b(ignore (all )?previous|before (calling|using) (any|
 const LEAK_HINT = /\b(full (conversation )?context|credentials?|api[- ]?keys?|secrets?|passwords?|bearer|auth(entication)? tokens?|tokens?)\b/i;
 const SENSITIVE_ACTION = /\b(transfer|payment|payout|wire|remit)\b/i;
 const APPROVAL_BYPASS = /\b(bypass|skip|without|no)\b[^.\n]{0,40}\b(approval|consent|authorization)\b/i;
+
+// Tool-abuse heuristics on the ARGUMENTS of a legitimate call (right tool,
+// wrong intent — the arguments, not the metadata, are the weapon).
+const ABUSE_OVERRIDE_ARG = /\b(override|bypass|force|skip)[-_ ]?(limits?|guard|policy|check|validation)s?\b/i;
+const ABUSE_DIRECTIVE = /\[\s*(system|admin|operator|internal)\s*[:\]]/i;
+const ABUSE_FOREIGN_ID = /^(?!sim-|acct-|acc-|usr-|user-)[a-z0-9_-]*(external|attacker|hostile|fraud|unknown)[a-z0-9_-]*$/i;
 
 // scan(tools) -> [{ tool, kind, detail }]. `tools` is an MCP tools/list array.
 export function scan(tools) {
@@ -104,4 +117,70 @@ function isOffBoxUrl(v) {
     const h = new URL(v).hostname;
     return !['localhost', '127.0.0.1', '::1'].includes(h);
   } catch { return false; }
+}
+
+// validateToolCall(tools, name, args) -> [{ tool, kind, detail }]
+// Checks a tools/call REQUEST, not the metadata — the second half of the story.
+// Two findings kinds:
+//   schema-violation — args that do not match the tool's declared inputSchema
+//     (string where a number is required, missing required arg, unknown arg).
+//   tool-abuse — schema-valid args with hostile intent: an override/bypass
+//     flag, a foreign account id (cross-owner), or a smuggled [SYSTEM: ...]
+//     directive in a free-text field.
+export function validateToolCall(tools, name, args) {
+  const findings = [];
+  const tool = (tools || []).find((t) => t.name === name);
+  if (!tool) return [{ tool: name, kind: 'schema-violation', detail: 'unknown tool: no schema to validate against' }];
+
+  const schema = tool.inputSchema?.properties || {};
+  const required = tool.inputSchema?.required || [];
+  for (const req of required) {
+    if (args?.[req] === undefined) findings.push({ tool: name, kind: 'schema-violation', detail: `missing required argument "${req}"` });
+  }
+  for (const [arg, value] of Object.entries(args || {})) {
+    const spec = schema[arg];
+    if (!spec) { findings.push({ tool: name, kind: 'schema-violation', detail: `argument "${arg}" is not defined in the tool schema` }); continue; }
+    if (spec.type === 'number' && typeof value !== 'number') {
+      findings.push({ tool: name, kind: 'schema-violation', detail: `argument "${arg}" must be a number, got ${typeof value}` });
+    } else if (spec.type === 'string' && typeof value !== 'string') {
+      findings.push({ tool: name, kind: 'schema-violation', detail: `argument "${arg}" must be a string, got ${typeof value}` });
+    } else if (spec.type === 'boolean' && typeof value !== 'boolean') {
+      findings.push({ tool: name, kind: 'schema-violation', detail: `argument "${arg}" must be a boolean, got ${typeof value}` });
+    }
+  }
+
+  for (const [arg, value] of Object.entries(args || {})) {
+    if (typeof value !== 'string' && typeof value !== 'boolean' && typeof value !== 'number') continue;
+    const strValue = String(value);
+    if (ABUSE_OVERRIDE_ARG.test(arg) && value === true) {
+      findings.push({ tool: name, kind: 'tool-abuse', detail: `arg "${arg}": limits-override flag set on a legitimate call` });
+    }
+    if (ABUSE_DIRECTIVE.test(strValue)) {
+      findings.push({ tool: name, kind: 'tool-abuse', detail: `arg "${arg}": smuggled directive in a free-text field (e.g. [SYSTEM: ...])` });
+    }
+    if (/account|from|to|beneficiary|payee/i.test(arg) && ABUSE_FOREIGN_ID.test(strValue)) {
+      findings.push({ tool: name, kind: 'tool-abuse', detail: `arg "${arg}": foreign account id "${strValue}" — possible cross-owner attempt` });
+    }
+  }
+  return findings;
+}
+
+// scanAgentAbuse(card) -> [{ tool, kind, detail }]
+// The inter-agent abuse check beyond card poisoning: flags a card whose
+// description claims authority the peer has no way to verify ("I am the
+// orchestrator", "with admin authority") or tells the delegating agent to
+// disable its safety checks — the orchestrator-impersonation pattern the
+// gateway guardrails classify as inter_agent_abuse.
+export function scanAgentAbuse(card) {
+  const findings = [];
+  if (!card || typeof card !== 'object') return findings;
+  const text = [card.description, ...(card.skills || []).map((s) => s.description)]
+    .filter(Boolean).join('\n');
+  if (/\b(i am|this is|as)\b[^.\n]{0,40}\b(orchestrator|supervisor|administrator|admin)\b/i.test(text)) {
+    findings.push({ tool: `card:${card.name || 'agent'}`, kind: 'inter-agent-abuse', detail: 'card claims orchestrator/admin authority over the delegating agent' });
+  }
+  if (/\b(disable|turn off|deactivate|ignore)\b[^.\n]{0,30}\b(safety|security|guardrail|policy)[a-z -]{0,20}(checks?|rules?|policies?)\b/i.test(text)) {
+    findings.push({ tool: `card:${card.name || 'agent'}`, kind: 'inter-agent-abuse', detail: 'card instructs the delegating agent to disable its safety checks' });
+  }
+  return findings;
 }

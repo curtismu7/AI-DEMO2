@@ -1,12 +1,18 @@
-// CLI: scan tool/agent metadata for poison before an agent would ever ingest it.
-// Reports findings; exits non-zero if any are found, so it doubles as a check. It
-// never blocks or alters anything — it only looks.
+// CLI: scan tool/agent metadata for poison before an agent would ever ingest it,
+// and validate a tool call's arguments against its schema for abuse. Reports
+// findings; exits non-zero if any are found, so it doubles as a check. It never
+// blocks or alters anything — it only looks.
 //
 //   node index.mjs [<mcp-url>]              scan an MCP server's tools/list
-//   node index.mjs --card <agent-card-url>  scan an A2A Agent Card
+//   node index.mjs --card <agent-card-url>  scan an A2A Agent Card (poisoning +
+//                                           inter-agent abuse)
+//   node index.mjs --call <tool> '<json>'   validate a tools/call request
+//                                           (schema violation + tool abuse);
+//                                           set CALL_TOOLS_JSON to the
+//                                           tools/list array to check against
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { scan, scanAgentCard, scanPrompts, scanResources } from './scanner.mjs';
+import { scan, scanAgentAbuse, scanAgentCard, scanPrompts, scanResources, validateToolCall } from './scanner.mjs';
 
 function report(kindLabel, count, findings, distrust) {
   console.log(`[scanner] scanned ${count} ${kindLabel}\n`);
@@ -29,9 +35,37 @@ async function scanCard(url) {
     console.error(`[scanner] could not fetch Agent Card at ${url}: ${e.message}`);
     process.exit(2);
   }
-  const findings = scanAgentCard(card);
+  const findings = [...scanAgentCard(card), ...scanAgentAbuse(card)];
   report(`Agent Card "${card.name || 'agent'}" (${(card.skills || []).length} skill(s)) at ${url}`, 1, findings,
     'This card reaches a delegating agent unfiltered — do not trust this specialist.');
+}
+
+function scanCall(toolName, jsonArgs) {
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonArgs);
+  } catch (e) {
+    console.error(`[scanner] --call arguments must be JSON: ${e.message}`);
+    process.exit(2);
+  }
+  // Offline surface: the caller supplies the tool schema via CALL_TOOLS_JSON
+  // (a tools/list array). Falls back to the hostile server's live tools/list
+  // when reachable.
+  let tools;
+  if (process.env.CALL_TOOLS_JSON) {
+    try {
+      tools = JSON.parse(process.env.CALL_TOOLS_JSON);
+    } catch (e) {
+      console.error(`[scanner] CALL_TOOLS_JSON is not valid JSON: ${e.message}`);
+      process.exit(2);
+    }
+  } else {
+    console.error('[scanner] set CALL_TOOLS_JSON to a tools/list array to validate against (offline, no server needed)');
+    process.exit(2);
+  }
+  const findings = validateToolCall(tools, toolName, parsed);
+  report(`tools/call ${toolName} ${JSON.stringify(parsed)}`, 1, findings,
+    'This call was checked client-side only — a real defense enforces the same checks at the gateway.');
 }
 
 async function scanMcp(url) {
@@ -70,7 +104,10 @@ async function scanMcp(url) {
 
 const args = process.argv.slice(2);
 const cardIdx = args.indexOf('--card');
-if (cardIdx !== -1) {
+const callIdx = args.indexOf('--call');
+if (callIdx !== -1) {
+  scanCall(args[callIdx + 1], args[callIdx + 2] || '{}');
+} else if (cardIdx !== -1) {
   const url = args[cardIdx + 1] || process.env.AGENT_CARD_URL || 'http://127.0.0.1:8898/.well-known/agent-card.json';
   scanCard(url);
 } else {
