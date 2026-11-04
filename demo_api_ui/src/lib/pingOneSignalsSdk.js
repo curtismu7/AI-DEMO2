@@ -49,7 +49,17 @@ export async function collectPingOneSignals() {
   const sdk = window._pingOneSignals;
   if (!sdk?.init || !sdk?.getData) throw new Error("PingOne Signals SDK is unavailable");
   if (!window.__protectAuthSignalsInit) {
-    const initPromise = timeout(sdk.init({ isIAFDetectionEnabled: true }), "initialization");
+    // Protect AI-agent identification (native): `isIAFDetectionEnabled` turns on
+    // the Bot Detection AI-agent rules (660-674: ChatGPT, Manus, Claude, Skyvern,
+    // Anchor, Muse, ...); `agentIdentification` asks the SDK to identify the
+    // specific agent TYPE in the evaluation response. Both require Signals SDK
+    // 5.6.10+ (the Muse rule 674 needs Web SDK 5.6.0+); the loader pins the
+    // `latest` channel, so the flags are safe to send unconditionally — an older
+    // SDK ignores unknown init options.
+    const initPromise = timeout(
+      sdk.init({ isIAFDetectionEnabled: true, agentIdentification: true }),
+      "initialization",
+    );
     window.__protectAuthSignalsInit = initPromise;
     initPromise.catch(() => {
       if (window.__protectAuthSignalsInit === initPromise) delete window.__protectAuthSignalsInit;

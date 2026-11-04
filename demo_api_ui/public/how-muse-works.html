@@ -112,6 +112,7 @@ a { color: var(--accent); }
       <li><strong>MEDIUM asks for MFA.</strong> Muse has a PingOne MFA switch. With it off, the flow skips MFA for that sign-in.</li>
       <li><strong>The flow recognizes Muse by its app id.</strong> Protect only receives that id as the target. It does not know Muse is an agent. The flow makes that call.</li>
       <li><strong>An "AI agent detected" screen comes first.</strong> It shows what the flow knows about the requester, then Sam gives consent.</li>
+      <li><strong>Native detection is the target design.</strong> With Signals SDK 5.6.10+ collecting on the sign-on page and the SDK's <code>isIAFDetectionEnabled</code> and <code>agentIdentification</code> opt-ins set, Protect's Bot Detection predictor names the agent type itself — rule 674, "AI agent - Muse detected" (660 generic AI agent; 661 ChatGPT cloud browser; 663 Manus; 664 Claude; 665 Skyvern; 666 Anchor). The tenant's flow can then key the "AI agent detected" screen on Protect's own answer instead of the app id.</li>
     </ul>
     <div class="wide">
       <table>

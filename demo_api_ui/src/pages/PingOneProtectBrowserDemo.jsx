@@ -108,7 +108,7 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
           <div><dt>Recommended action</dt><dd>{risk.recommendedAction || "Not returned"}</dd></div>
           {risk.botDetection?.level && <div><dt>Bot detection level</dt><dd>{risk.botDetection.level}</dd></div>}
           {risk.botDetection?.status && <div><dt>Bot detection status</dt><dd>{risk.botDetection.status}</dd></div>}
-          {risk.botDetection?.detectedRuleId && <div><dt>Detected rule</dt><dd>{risk.botDetection.detectedRuleId}</dd></div>}
+          {risk.botDetection?.detectedRuleId && <div><dt>Detected rule</dt><dd>{risk.botDetection.detectedRuleName ? `${risk.botDetection.detectedRuleId} — ${risk.botDetection.detectedRuleName}` : risk.botDetection.detectedRuleId}</dd></div>}
         </dl>
         <button type="button" className="p1p-auth__secondary" onClick={() => { setStage("ready"); setRisk(null); setError(""); }}>Run another evaluation</button>
       </section>}

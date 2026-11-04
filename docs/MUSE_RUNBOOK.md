@@ -42,6 +42,16 @@ Wire facts (verified 2026-10-08, see
    answers 401 with a `WWW-Authenticate: Bearer resource_metadata=...` challenge.
 3. Keep the dashboard open on the second screen — the token chain, HITL and
    audit panels are the audience's view; the agent runs on yours.
+4. Protect agent detection (optional, tenant-side): the "AI agent detected"
+   screen currently keys on Muse's PingOne app id — Protect only sees that id
+   as the target. To let Protect identify the agent NATIVELY, in the PingOne
+   environment: use Signals SDK 5.6.10+ on the sign-on page and set the SDK's
+   `isIAFDetectionEnabled` and `agentIdentification` opt-in flags to `true`,
+   then key the DaVinci flow's agent screen on the Bot Detection predictor's
+   AI-agent rules (674 = "AI agent - Muse detected"; 660 generic AI agent,
+   661 ChatGPT cloud browser, 663 Manus, 664 Claude, 665 Skyvern, 666 Anchor).
+   The in-repo Protect browser demo (`/protect-auth-demo`) already sends both
+   opt-ins and surfaces `detectedRuleId` + `detectedRuleName`.
 
 ## Demo steps (map to demo use cases)
 
