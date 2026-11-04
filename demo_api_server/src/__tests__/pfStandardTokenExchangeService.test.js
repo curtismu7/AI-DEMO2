@@ -134,6 +134,18 @@ describe('PF standard token-exchange provider adapter', () => {
       userSub: 'user-123', audience: 'https://wrong.example/mcp',
       scopes: ['airlines:read', 'mcp:invoke'], agentActorToken: agentActor, mcpActorToken: mcpActor,
     })).toThrow(/final audience mismatch/i);
+    // Node-gateway lane: PF's policy mints ONE fixed output resource regardless
+    // of the destination gateway, so the Node-lane call passes the PingGateway
+    // resource aud as an accepted alternate. A token audienced to the alternate
+    // passes; an unknown one still fails closed.
+    expect(() => service.validateFinalToken(final, {
+      userSub: 'user-123', audience: 'mcpgateway.ping.demo', acceptedAudiences: ['https://api.ping.demo:3036/mcp'],
+      scopes: ['airlines:read', 'mcp:invoke'], agentActorToken: agentActor, mcpActorToken: mcpActor,
+    })).not.toThrow();
+    expect(() => service.validateFinalToken(final, {
+      userSub: 'user-123', audience: 'mcpgateway.ping.demo', acceptedAudiences: ['https://other.example/mcp'],
+      scopes: ['airlines:read', 'mcp:invoke'], agentActorToken: agentActor, mcpActorToken: mcpActor,
+    })).toThrow(/final audience mismatch/i);
   });
 
   describe('claims the chain depends on', () => {
