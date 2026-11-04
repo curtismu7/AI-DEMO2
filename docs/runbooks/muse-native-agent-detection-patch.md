@@ -47,3 +47,17 @@ Applied live via pingcli 1.1.0 + worker-token curl; every step verified against 
   Authorization header" — a pingcli custom-request auth bug, not a tenant issue.
 - Deploy via curl POST `/flows/{id}/deploy` 403s; use `pingcli davinci flows deploy`
   (its unmarshal failure is response-parsing only — the deploy succeeds).
+
+## v83 addendum (same day): IAF flag on the sign-on form
+
+- `isIAFDetectionEnabled: {value: true}` added to the Sign On showForm node
+  (`1azylcnorz`, form 6ce9b9fb…) of the main flow → **v83 deployed**.
+- Full real Muse flow re-verified live on v83: 401 → sign-in → heuristic
+  "AI agent detected" screen (predictor museAgentClient = HIGH, evaluation
+  c63dfbcf-52ff-4299-8c85-e2698a18a324) → consent → both token exchanges 200.
+  The parallel native branch did not double-trigger for a human browser.
+- Rule 674 firing still requires a REAL Muse CUA agent session (the native
+  rules key on agent TTPs, not just the app id); the branch is armed and will
+  route to the same agent screen when Protect natively names the agent.
+- Note: risk-evaluation reads via the worker token 403 (Protect-scoped
+  token needed) — server-side evaluation introspection was not possible.
