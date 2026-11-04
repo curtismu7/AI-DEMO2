@@ -18,6 +18,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-11-04 — Node-only tools 503 through the Node gateway: BANKING_RESOURCE_SERVER_BASE_URL unset
+
+**What's wrong.** `demo_show_accounts`, `demo_show_transactions` and `user_profile_card` dispatched to the Node Demo Agent Gateway route to the `bankingdata`/`dualtoken` backend via `bankingResourceServerBaseUrl` (`demo_mcp_gateway/src/config.ts:437`, default `http://localhost:3001` — the gateway's own loopback). `BANKING_RESOURCE_SERVER_BASE_URL` is set NOWHERE in `docker-compose.yml`, so inside the gateway container every such call lands on itself, gets a connection error, and the BFF surfaces `gateway_upstream_error (HTTP 503)`. Found while live-verifying the Web Bot Auth verifier via the Node lane (PR #1968): the lane itself works (verified with the `rate-limit-burst` sim's `get_branch_hours`), but these three tools cannot complete on it.
+
+**Why it wasn't fixed now.** Wiring the env is a topology decision: the banking_resource_server base the gateway needs (`http://banking-api-resource-server:…`? the BFF's resource-server port?) differs per deployment lane, and it is unclear whether these three tools are meant to run on the Node gateway at all — they may be PingGateway-lane-only by design, in which case the Node gateway should refuse them with a clear `not_served_here` instead of a confusing 503 loopback dial.
+
+**What the real fix looks like.** Decide the lane: either set `BANKING_RESOURCE_SERVER_BASE_URL` for the `ai-demo-mcp-gateway` compose service to the real banking resource server and verify the three tools end-to-end through the Node gateway (including their WBA-signed request), or add these tools to the Node gateway's refusal list with an explicit error naming the serving lane.
+
 ### [ ] 2026-10-20 — pf-pf playground mode cannot work on SE while PF_ISSUER points at the SE PingFederate
 
 **What's wrong.** The pf-pf ID-JAG playground mode needs a LOCAL PingFederate as the resource authorization server. On SE, `create-secrets.sh` (`override_pf_for_se`, opt-in via `SE_PF_ISSUER`) points `PF_ISSUER` at the SE PF, so the mode asks the SE PF for an ID-JAG whose audience is that PF's own issuer and gets `invalid_target`. oauth-mcp mode (via `SE_OAUTH_MCP_URL`) is unaffected. `PF_IDJAG_ISSUER_PF_URL` and the pf-pf settings are deliberately left alone by the override.
