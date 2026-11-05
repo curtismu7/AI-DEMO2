@@ -333,6 +333,7 @@
     "/pingone-authorize-capabilities": "public",
     "/pingfederate-config": "public",
     "/pingone-authorize-config": "public",
+    "/pingone-platform-config": "public",
     "/pingone-mcp-inspector": "public",
     "/pingone-setup": "public",
     "/pingone-test": "public",
