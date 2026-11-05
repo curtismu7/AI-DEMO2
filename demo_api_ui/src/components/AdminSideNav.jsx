@@ -192,7 +192,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "aic", paths: ["/aic-token-exchange"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
-  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/pingone-authorize-config", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
+  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "administration", paths: ["/admin", "/admin/pingone", "/users", "/accounts", "/transactions", "/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage", "/configure", "/settings", "/client-registration"] },
   { id: "observability", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/telemetry", "/tracing", "/transaction-trace", "/mcp-observability", "/check"] },
 ];
@@ -850,12 +850,6 @@ export default function AdminSideNav({
           : []),
         { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
-          label: "Authorize Config by Use Case",
-          path: "/pingone-authorize-config",
-          icon: "pol",
-          searchAlias: "PingOne Authorize P1AZ configuration trust framework attributes conditions policies snapshot what we configured step-up HITL tier RAR actor chain",
-        },
-        {
           label: "Policy Decision Trace",
           path: "/policy-decision-trace",
           icon: "flw",
@@ -1499,11 +1493,6 @@ export default function AdminSideNav({
             searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG XAA cross app access third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD client metadata tester DCR dynamic client registration RFC 7591 CIBA DPoP pi.flow authentication API act claim",
           },
           {
-            label: "PingFederate Config by Use Case",
-            path: "/pingfederate-config",
-            searchAlias: "PingFederate configuration provisioning scripts ID-JAG A2A SAML RAR CIMD CIBA token exchange processor policy access token manager SP connection clients what we configured",
-          },
-          {
             label: "Protocol Playground (PingFederate)",
             path: "/protocol-playground?idp=pingfederate",
             icon: "dbg",
@@ -1537,20 +1526,6 @@ export default function AdminSideNav({
             searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent federated identity",
           },
           { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
-        ],
-      },
-      // Every "what did we configure and why" explainer in one sub-group, so one tag shows the whole story.
-      {
-        label: "How with Ping Products",
-        icon: "doc",
-        searchAlias: "how with ping products configuration explainer what we configured pingfederate pingone authorize platform setup",
-        children: [
-          {
-            label: "PingOne Platform Config",
-            path: "/pingone-platform-config",
-            icon: "cfg",
-            searchAlias: "PingOne platform configuration apps resource servers scopes populations users groups DaVinci Protect Verify bootstrap what we configured",
-          },
         ],
       },
     ], "pol"),
