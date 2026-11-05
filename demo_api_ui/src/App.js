@@ -127,6 +127,7 @@ const PingFederateConfigByUseCasePage = lazyWithRetry(() => import("./pages/Ping
 const PingOneAuthorizeConfigByUseCasePage = lazyWithRetry(() => import("./pages/PingOneAuthorizeConfigByUseCasePage"));
 const PingOnePlatformConfigPage = lazyWithRetry(() => import("./pages/PingOnePlatformConfigPage"));
 const McpScopeTopologyPage = lazyWithRetry(() => import("./pages/McpScopeTopologyPage"));
+const PingGatewayRoutesPage = lazyWithRetry(() => import("./pages/PingGatewayRoutesPage"));
 const PolicyDecisionTracePage = lazyWithRetry(() => import("./components/PolicyDecisionTracePage"));
 const PostmanCollectionsPage = lazyWithRetry(() => import("./components/PostmanCollectionsPage"));
 const Profile = lazyWithRetry(() => import("./components/Profile"));
@@ -2226,6 +2227,8 @@ function AppWithAuth() {
                             <Route
                               path="/mcp-scope-topology"
                               element={<McpScopeTopologyPage />}
+                              path="/pinggateway-routes"
+                              element={<PingGatewayRoutesPage />}
                             />
                             <Route
                               path="/policy-decision-trace"
