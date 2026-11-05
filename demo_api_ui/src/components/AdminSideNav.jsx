@@ -185,7 +185,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams"] },
-  { id: "how-with-ping-products", paths: ["/pingfederate-config", "/pingone-authorize-config", "/pingone-platform-config"] },
+  { id: "how-with-ping-products", paths: ["/pingfederate-config", "/pingone-authorize-config", "/pingone-platform-config", "/mcp-scope-topology"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
@@ -1528,6 +1528,20 @@ export default function AdminSideNav({
           { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
         ],
       },
+      // Every "what did we configure and why" explainer in one sub-group, so one tag shows the whole story.
+      {
+        label: "How with Ping Products",
+        icon: "doc",
+        searchAlias: "how with ping products configuration explainer what we configured pingfederate pingone authorize platform setup",
+        children: [
+          {
+            label: "Scope Topology & MCP Gateway",
+            path: "/mcp-scope-topology",
+            icon: "mcp",
+            searchAlias: "scope topology MCP gateway tool scopes mirroredScopes token exchange audience allowlist consent step-up tools topology verify auth requirements what we configured",
+          },
+        ],
+      },
     ], "pol"),
     // Every "what did we configure and why" explainer in one group, so one tag shows the whole story.
     productGroup("How with Ping Products", [
@@ -1547,6 +1561,12 @@ export default function AdminSideNav({
         path: "/pingone-platform-config",
         icon: "cfg",
         searchAlias: "PingOne platform configuration apps resource servers scopes populations users groups DaVinci Protect Verify bootstrap what we configured",
+      },
+      {
+        label: "Scope Topology & MCP Gateway",
+        path: "/mcp-scope-topology",
+        icon: "mcp",
+        searchAlias: "scope topology MCP gateway tool scopes mirroredScopes token exchange audience allowlist consent step-up tools topology verify auth requirements what we configured",
       },
     ], "doc"),
     productGroup("Identity Journeys", [
