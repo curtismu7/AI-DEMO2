@@ -164,14 +164,27 @@ async function createDemoReadinessProviderLoginClient({ provider, dedicatedBffUr
         assertLive();
         const target = new URL(path, bff);
         sameOrigin(target, bff.origin);
-        if (headers) throw new Error('Custom session headers are unavailable.');
+        // Only Authorization is overridable: the A2A wire-gate probes replay a
+        // bearer of their own construction, which is the surface under test.
+        // Everything else stays session-owned.
+        const override = headers ? { Authorization: headers.Authorization } : null;
+        if (override && !override.Authorization) {
+          throw new Error('Only Authorization headers can be overridden.');
+        }
         // Object bodies are JSON route payloads (the login flow's own posts pass
         // contentType explicitly). Same-origin writes also need this BFF's
         // frontend origin on Origin, or its CSRF gate refuses them.
         if (body !== undefined && (typeof body === 'object' && body !== null && !(body instanceof URLSearchParams))) {
-          return send(method, target.href, JSON.stringify(body), 'application/json', { Origin: bff.origin });
+          return send(method, target.href, JSON.stringify(body), 'application/json', { Origin: bff.origin, ...(override || {}) });
         }
-        return send(method, target.href, body);
+        return send(method, target.href, body, null, override);
+      },
+      // The signed-in lane identity's provider subject (a function, so a
+      // serialised handle never carries it). A feature probe's subject evidence
+      // must name the user the lane actually signed in, not a manifest label.
+      subject() {
+        assertLive();
+        return expectedSubject;
       },
       // The signed-in session's cookies for the lane BFF only, so a headless
       // browser can load pages as the same identity. Provider cookies stay here.

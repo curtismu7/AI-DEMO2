@@ -79,6 +79,7 @@ function createLaneSessionFactory(settings, { loginClient = createDemoReadinessP
         request: (path, options) => handle.request(path, options),
         provider,
         expectedIssuer: settings.expectedIssuer,
+        subject: handle.subject(),
         page: settings.browserWsUrl ? {
           load: (pagePath) => loadPage({ wsEndpoint: settings.browserWsUrl, origin: settings.bffUrl, cookies: handle.sessionCookies(), path: pagePath }),
           freshness: () => uiBuildFreshness(settings.uiRoot),

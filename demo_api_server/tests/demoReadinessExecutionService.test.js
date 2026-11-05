@@ -58,18 +58,18 @@ const familyEvidenceFixtures = [
   // direct /api/a2a/message act-less bearer request in the same E2E source.
   {
     id: 'A2A-FM1', provider: 'pingone',
-    feature: { family: 'a2a-fm1', route: '/api/agent/invoke', request: { prompt: 'show my invoices' }, allowlist: { refused: true, reason: 'tool-not-allowlisted' }, exchangeReached: false, toolReached: false },
+    feature: { family: 'a2a-fm1', route: '/api/a2a/message', request: { prompt: 'show my invoices' }, allowlist: { refused: true, reason: 'tool-not-allowlisted' }, exchangeReached: false, toolReached: false },
     negatives: [
-      ['changed route', (f) => { f.route = '/api/a2a/message'; }, /direct A2A route/],
+      ['changed route', (f) => { f.route = '/api/agent/invoke'; }, /direct A2A route/],
       ['missing refusal reason', (f) => { delete f.allowlist.reason; }, /named allowlist refusal/],
       ['exchange reached', (f) => { f.exchangeReached = true; }, /reached exchange/],
     ],
   },
   {
     id: 'A2A-FM2', provider: 'pingone',
-    feature: { family: 'a2a-fm2', route: '/api/a2a/message', bearer: { hasAct: false }, response: { status: 401 }, toolDataExposed: false },
+    feature: { family: 'a2a-fm2', route: '/api/a2a/message', actlessBearer: { hasAct: false }, response: { status: 401 }, toolDataExposed: false },
     negatives: [
-      ['missing act claim evidence', (f) => { delete f.bearer.hasAct; }, /act-less bearer/],
+      ['missing act claim evidence', (f) => { delete f.actlessBearer.hasAct; }, /act-less bearer/],
       ['changed status', (f) => { f.response.status = 500; }, /source-declared outcomes/],
       ['tool data exposed', (f) => { f.toolDataExposed = true; }, /exposed specialist tool data/],
     ],

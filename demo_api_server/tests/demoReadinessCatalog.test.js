@@ -235,12 +235,24 @@ describe('demo readiness catalog', () => {
         familyContract: expect.any(Object),
       }));
       if (check.providers.includes('pingfederate') && contract.exchangeService === 'token-exchange') {
-        expect(contract.pfExchangeContract).toMatchObject({
-          status: 'blocked',
-          issuer: { configurationKey: 'pf_issuer' },
-          endpoint: { configurationKey: 'pf_token_endpoint' },
-          sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
-        });
+        // The PF exchange contract is exact-or-blocked: either a ready contract
+        // with the committed issuer/endpoint readback and profile-resolved roles,
+        // or a blocked one with a named, actionable source gap. Never neither.
+        if (contract.pfExchangeContract.status === 'ready') {
+          expect(contract.pfExchangeContract.sourceGap).toBeNull();
+          expect(typeof contract.pfExchangeContract.issuer).toBe('string');
+          expect(typeof contract.pfExchangeContract.issuerSourceRef).toBe('string');
+          expect(typeof contract.pfExchangeContract.endpoint).toBe('string');
+          expect(typeof contract.pfExchangeContract.endpointSourceRef).toBe('string');
+          expect(typeof contract.pfExchangeContract.readback).toBe('string');
+        } else {
+          expect(contract.pfExchangeContract).toMatchObject({
+            status: 'blocked',
+            issuer: { configurationKey: 'pf_issuer' },
+            endpoint: { configurationKey: 'pf_token_endpoint' },
+            sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+          });
+        }
         expect(contract.pfExchangeContract.credentialRoles.length).toBeGreaterThan(0);
       }
       if (check.providers.includes('pingfederate') && contract.exchangeService !== 'token-exchange') {
