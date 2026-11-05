@@ -184,7 +184,8 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
   { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
-  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/pingfederate-config", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams", "/pingone-authorize-config"] },
+  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams"] },
+  { id: "how-with-ping-products", paths: ["/pingfederate-config", "/pingone-authorize-config"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
@@ -1532,20 +1533,15 @@ export default function AdminSideNav({
           { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
         ],
       },
-      // Every "what did we configure and why" explainer in one sub-group, so one tag shows the whole story.
-      {
-        label: "How with Ping Products",
-        icon: "doc",
-        searchAlias: "how with ping products configuration explainer what we configured pingfederate pingone authorize platform setup",
-        children: [
-          {
-            label: "PingFederate Config by Use Case",
-            path: "/pingfederate-config",
-            searchAlias: "PingFederate configuration provisioning scripts ID-JAG A2A SAML RAR CIMD CIBA token exchange processor policy access token manager SP connection clients what we configured",
-          },
-        ],
-      },
     ], "pol"),
+    // Every "what did we configure and why" explainer in one group, so one tag shows the whole story.
+    productGroup("How with Ping Products", [
+      {
+        label: "PingFederate Config by Use Case",
+        path: "/pingfederate-config",
+        searchAlias: "PingFederate configuration provisioning scripts ID-JAG A2A SAML RAR CIMD CIBA token exchange processor policy access token manager SP connection clients what we configured",
+      },
+    ], "doc"),
     productGroup("Identity Journeys", [
       "Self-Service Registration",
       "User Registration",
