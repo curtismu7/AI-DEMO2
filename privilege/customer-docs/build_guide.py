@@ -474,8 +474,19 @@ P("Verify with the log line "
 # =====================================================================
 H1("7", "Deploying the integrated load balancer")
 P("The load balancer is part of the Helm chart "
-  "(<font name='PlexMono' size='8'>templates/loadbalancer.yaml</font>) and is enabled on "
-  "the primary gateway release. It provides:")
+  "(<font name='PlexMono' size='8'>templates/loadbalancer.yaml</font>) and is "
+  "<b>optional</b>. It is needed when you run multiple gateway nodes and want the "
+  "chart to handle client pinning and failover; a single-node deployment does not "
+  "need it. Three modes, selected by chart values:")
+table(["Mode", "Configuration", "Behavior"], [
+    ["Integrated (default off)", "loadBalancer.enabled: true on the primary node only",
+     "A 2-replica mcpgw-lb Deployment + Service is created; the ingress routes to it. Built-in pinning, callback routing, health checks and stats page."],
+    ["Direct (no LB)", "loadBalancer.enabled: false (chart default)",
+     "No mcpgw-lb is created; the ingress routes to the gateway Service directly. Use for single-node deployments."],
+    ["Bring your own", "loadBalancer.enabled: false + frontService: <your-service> (or route your LB to the node Services directly)",
+     "The ingress routes to your load balancer. See sections 7.2-7.4 for HAProxy, Kong and F5 BIG-IP examples."],
+])
+P("When enabled, the integrated load balancer provides:")
 bullets([
     "<b>Consistent-hash pinning</b> — the routing key is the client address plus the first path segment (the application). One client's calls to one application always reach the same node while that node is healthy.",
     "<b>Callback routing by state tag</b> — OAuth callbacks carry a tag identifying the issuing node, so sign-in completes on the node that started it.",
@@ -485,7 +496,7 @@ bullets([
 code("""helm upgrade agentless-mcpgw <chart>.tgz -n privilege-gw --reuse-values \\
   -f sidecars.values.yaml -f lb.values.yaml""")
 table(["Value", "Purpose"], [
-    ["loadBalancer.enabled", "Enables the load balancer; the ingress routes to it automatically"],
+    ["loadBalancer.enabled", "Enables the integrated load balancer (optional; primary node only when multi-node)"],
     ["loadBalancer.failTimeout", "How long a failed node is held out of rotation (default 600s)"],
     ["loadBalancer.peers[*].parked", "Removes a node from rotation (maintenance); restore with parked: false"],
     ["loadBalancer.ownParked", "Parks the local node (used to test the remaining nodes)"],
@@ -506,10 +517,11 @@ callout("note",
         "sidecar containers and routing to chart defaults.")
 
 H3("7.1  Routing requirements for any load balancer")
-P("If you front the gateways with your own load balancer instead of the integrated one, "
-  "it must implement the following behavior. A conventional round-robin HTTP load balancer "
-  "is not sufficient: each gateway node holds issued access tokens in memory, so a client's "
-  "sign-in, token exchange and MCP calls must all reach the same node.")
+P("The integrated load balancer is optional. If you front the gateways with your own load "
+  "balancer instead — Kong, F5, a standalone HAProxy — it must implement the following "
+  "behavior. A conventional round-robin HTTP load balancer is not sufficient: each gateway "
+  "node holds issued access tokens in memory, so a client's sign-in, token exchange and MCP "
+  "calls must all reach the same node.")
 table(["Requirement", "Why"], [
     ["Pin by client address + application path (first path segment)",
      "Sign-in state and tokens are per node. One client's /&lt;App&gt;/register, /authorize, /token and /mcp calls must land on the same node while it is healthy."],
