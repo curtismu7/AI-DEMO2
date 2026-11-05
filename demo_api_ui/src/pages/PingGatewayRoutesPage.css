@@ -7,9 +7,9 @@
 .pg-routes__section {
   margin: 32px 0;
   padding: 20px;
-  border: 1px solid var(--border-subtle, #e0e2e4);
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-lg, 12px);
-  background: var(--surface-primary, #fcfcfc);
+  background: var(--th-bg-card);
 }
 
 .pg-routes h2 {
@@ -25,7 +25,7 @@
 
 .pg-routes p {
   margin: 0 0 6px;
-  color: var(--text-secondary, #263746);
+  color: var(--th-text-body);
 }
 
 .pg-routes__rows {
@@ -44,7 +44,7 @@
 .pg-routes__path,
 .pg-routes__ref {
   font-size: var(--font-size-sm, 13px);
-  color: var(--text-tertiary, #5c646b);
+  color: var(--th-text-muted);
 }
 
 .pg-routes__uc {
@@ -53,7 +53,7 @@
 
 .pg-routes code {
   font-family: var(--font-mono);
-  background: var(--surface-muted, #eff0f1);
+  background: var(--th-bg-inset);
   padding: 1px 5px;
   border-radius: var(--radius-sm, 4px);
 }
