@@ -1,0 +1,93 @@
+.pfconfig {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 var(--space-4, 16px) 64px;
+}
+
+.pfconfig__intro {
+  margin: 16px 0 8px;
+  color: var(--th-text-body);
+}
+
+.pfconfig__group {
+  margin: 32px 0;
+  padding: 20px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--th-bg-card);
+}
+
+.pfconfig__group h2 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-lg, 20px);
+}
+
+.pfconfig__why {
+  margin: 0 0 8px;
+  color: var(--th-text-body);
+}
+
+.pfconfig__script {
+  margin: 0 0 16px;
+  font-size: var(--font-size-sm, 13px);
+  color: var(--th-text-muted);
+}
+
+.pfconfig__script code {
+  font-family: var(--font-mono);
+  background: var(--th-bg-inset);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.pfconfig__objects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.pfconfig__object {
+  border-left: 3px solid var(--ping-red, #d20e0f);
+  padding: 8px 0 8px 14px;
+}
+
+.pfconfig__object h3 {
+  margin: 0 0 4px;
+  font-size: var(--font-size-md, 15px);
+  font-weight: 700;
+}
+
+.pfconfig__object p {
+  margin: 0;
+  color: var(--th-text-body);
+}
+
+.pfconfig__caveats {
+  margin-top: 32px;
+  padding: 16px 20px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--th-bg-inset);
+}
+
+.pfconfig__caveats h2 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-lg, 20px);
+}
+
+.pfconfig__caveats ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.pfconfig__secondary {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--ping-red, #d20e0f);
+  border-radius: var(--btn-radius, 8px);
+  color: var(--ping-red, #d20e0f);
+  font-weight: var(--btn-weight, 600);
+  text-decoration: none;
+}

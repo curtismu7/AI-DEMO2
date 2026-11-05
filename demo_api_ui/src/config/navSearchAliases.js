@@ -159,6 +159,7 @@ export const NAV_SEARCH_ALIASES = {
   "/pingfederate-id-jag/playground/diagram/oauth-mcp": "oauth-mcp calls in this step every call pingfederate trusted idps",
   "/pingone-authorize": "policy decision point pdp tree trace evaluate endpoints recent decisions abac",
   "/pingone-authorize-capabilities": "contextual runtime authorization least-privilege fail-closed obligations policy tree audit trail attribute-driven agent tool calls",
+  "/pingfederate-config": "pf provisioning scripts processor policy token exchange actor chain sp connection atm id-jag a2a saml ciba cimd rar",
   "/pingone-mcp-inspector": "tools/call tools/list elicitation resources prompts json-rpc mcp client test tool scopes",
   "/pingone-setup": "worker app credentials environment id client secret admin roles hosted remote mcp ide",
   "/pingone-test": "integration worker token management api resource servers scopes applications pkce client credentials agent",
