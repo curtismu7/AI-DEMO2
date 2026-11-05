@@ -52,7 +52,7 @@ test('loadLaneSettings rejects a BFF URL that is not plain HTTPS origin', () => 
 
 test('session factory logs in with lane credentials and returns a contract-shaped, distinct-id session', async () => {
   const dispose = jest.fn();
-  const loginClient = jest.fn(async () => ({ authenticated: true, provider: 'pingone', dispose }));
+  const loginClient = jest.fn(async () => ({ authenticated: true, provider: 'pingone', subject: () => 'private-subject', dispose }));
   const settings = loadLaneSettings({ env: ENV, readSecret });
   const createSession = createLaneSessionFactory(settings, { loginClient });
   const session = await createSession({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1-local', runId: 'run-1' });

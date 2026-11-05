@@ -25,7 +25,7 @@
       ],
       "featureFamily": "a2a-fm1",
       "familyContract": {
-        "route": "/api/agent/invoke",
+        "route": "/api/a2a/message",
         "prompt": "show my invoices",
         "refusalReason": "tool-not-allowlisted"
       },
@@ -158,15 +158,9 @@
         "tool": "sensitive_passenger_record"
       },
       "pfExchangeContract": {
-        "status": "blocked",
-        "issuer": {
-          "configurationKey": "pf_issuer",
-          "sourceRef": "demo_api_server/services/oauthEndpointResolver.js#issuer"
-        },
-        "endpoint": {
-          "configurationKey": "pf_token_endpoint",
-          "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js#resolveConfig"
-        },
+        "status": "ready",
+        "issuer": "https://local.ping-devops.com:9031",
+        "endpoint": "https://pingfederate:9031/as/token.oauth2",
         "credentialRoles": [
           {
             "roleId": "standard-agent-exchanger",
@@ -191,12 +185,18 @@
             ]
           }
         ],
-        "sourceGap": {
-          "code": "pf_exact_exchange_contract_source_gap",
-          "reason": "No committed PF provisioner or supported PF Admin API readback records the literal issuer, token endpoint, and A2A credential registrations.",
-          "remediation": "Record the PF readback in demoReadinessPingFederateProfiles.json and mark the roles resolved before enabling this lane."
-        }
-      }
+        "sourceGap": null,
+        "issuerSourceRef": "https://local.ping-devops.com:9031/.well-known/openid-configuration#issuer",
+        "endpointSourceRef": "PF_TOKEN_ENDPOINT, which readiness-bff-pingfederate inherits from demo-api-server (docker-compose.readiness.yml extends)",
+        "endpointAlias": "https://pingfederate:9031",
+        "readback": "2026-11-05, local PingFederate (demo_api_server/config/demoReadinessPingFederateProfiles.json#exchangeContract readback, live Admin API re-verified 2026-11-05): issuer https://local.ping-devops.com:9031 (read from /.well-known/openid-configuration), token endpoint https://pingfederate:9031/as/token.oauth2 (in-Docker alias of the same issuer), and the registered exchanger clients re-read from /pf-admin-api/v1/oauth/clients: ai-demo-pf-standard-agent-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE, aiDemoPfAgentGwJwtAtm, restricted), ai-demo-pf-standard-mcp-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE), and the A2A specialist SP connections matching the a2a-specialist role readback of 2026-10-31."
+      },
+      "audienceMirrors": [
+        "mcpserver.ping.demo",
+        "mcp-invest.ping.demo",
+        "mcpgateway.ping.demo",
+        "agentgateway.ping.demo"
+      ]
     },
     "PRIV-TOOL-ABUSE": {
       "providerFlows": {
@@ -229,15 +229,9 @@
         "boundary": "authorization-or-resource-owner"
       },
       "pfExchangeContract": {
-        "status": "blocked",
-        "issuer": {
-          "configurationKey": "pf_issuer",
-          "sourceRef": "demo_api_server/services/oauthEndpointResolver.js#issuer"
-        },
-        "endpoint": {
-          "configurationKey": "pf_token_endpoint",
-          "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js#resolveConfig"
-        },
+        "status": "ready",
+        "issuer": "https://local.ping-devops.com:9031",
+        "endpoint": "https://pingfederate:9031/as/token.oauth2",
         "credentialRoles": [
           {
             "roleId": "standard-agent-exchanger",
@@ -254,12 +248,17 @@
             ]
           }
         ],
-        "sourceGap": {
-          "code": "pf_exact_exchange_contract_source_gap",
-          "reason": "No committed PF readback records the literal standard exchange endpoint and registered exchanger roles.",
-          "remediation": "Commit the PF standard-exchange registration readback before enabling this lane."
-        }
-      }
+        "sourceGap": null,
+        "issuerSourceRef": "https://local.ping-devops.com:9031/.well-known/openid-configuration#issuer",
+        "endpointSourceRef": "PF_TOKEN_ENDPOINT, which readiness-bff-pingfederate inherits from demo-api-server (docker-compose.readiness.yml extends)",
+        "endpointAlias": "https://pingfederate:9031",
+        "readback": "2026-11-05, local PingFederate (demo_api_server/config/demoReadinessPingFederateProfiles.json#exchangeContract readback, live Admin API re-verified 2026-11-05): issuer https://local.ping-devops.com:9031 (read from /.well-known/openid-configuration), token endpoint https://pingfederate:9031/as/token.oauth2 (in-Docker alias of the same issuer), and the registered exchanger clients re-read from /pf-admin-api/v1/oauth/clients: ai-demo-pf-standard-agent-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE, aiDemoPfAgentGwJwtAtm, restricted), ai-demo-pf-standard-mcp-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE), and the A2A specialist SP connections matching the a2a-specialist role readback of 2026-10-31."
+      },
+      "audienceMirrors": [
+        "mcpserver.ping.demo",
+        "mcp-invest.ping.demo",
+        "agentgateway.ping.demo"
+      ]
     },
     "PRIV-TOOL-POISONING": {
       "providerFlows": {
@@ -293,15 +292,9 @@
         "responseStatus": 428
       },
       "pfExchangeContract": {
-        "status": "blocked",
-        "issuer": {
-          "configurationKey": "pf_issuer",
-          "sourceRef": "demo_api_server/services/oauthEndpointResolver.js#issuer"
-        },
-        "endpoint": {
-          "configurationKey": "pf_token_endpoint",
-          "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js#resolveConfig"
-        },
+        "status": "ready",
+        "issuer": "https://local.ping-devops.com:9031",
+        "endpoint": "https://pingfederate:9031/as/token.oauth2",
         "credentialRoles": [
           {
             "roleId": "standard-agent-exchanger",
@@ -318,12 +311,17 @@
             ]
           }
         ],
-        "sourceGap": {
-          "code": "pf_exact_exchange_contract_source_gap",
-          "reason": "No committed PF readback records the literal standard exchange endpoint and registered exchanger roles.",
-          "remediation": "Commit the PF standard-exchange registration readback before enabling this lane."
-        }
-      }
+        "sourceGap": null,
+        "issuerSourceRef": "https://local.ping-devops.com:9031/.well-known/openid-configuration#issuer",
+        "endpointSourceRef": "PF_TOKEN_ENDPOINT, which readiness-bff-pingfederate inherits from demo-api-server (docker-compose.readiness.yml extends)",
+        "endpointAlias": "https://pingfederate:9031",
+        "readback": "2026-11-05, local PingFederate (demo_api_server/config/demoReadinessPingFederateProfiles.json#exchangeContract readback, live Admin API re-verified 2026-11-05): issuer https://local.ping-devops.com:9031 (read from /.well-known/openid-configuration), token endpoint https://pingfederate:9031/as/token.oauth2 (in-Docker alias of the same issuer), and the registered exchanger clients re-read from /pf-admin-api/v1/oauth/clients: ai-demo-pf-standard-agent-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE, aiDemoPfAgentGwJwtAtm, restricted), ai-demo-pf-standard-mcp-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE), and the A2A specialist SP connections matching the a2a-specialist role readback of 2026-10-31."
+      },
+      "audienceMirrors": [
+        "mcpserver.ping.demo",
+        "mcp-invest.ping.demo",
+        "agentgateway.ping.demo"
+      ]
     },
     "PRIV-SCHEMA-VIOLATION": {
       "providerFlows": {
@@ -492,7 +490,12 @@
         "registrySource": "agent-registry",
         "lifecycleStatus": "active",
         "delegatedExchange": true
-      }
+      },
+      "audienceMirrors": [
+        "mcpserver.ping.demo",
+        "mcp-invest.ping.demo",
+        "agentgateway.ping.demo"
+      ]
     },
     "PF-CIMD-VALID": {
       "providerFlows": {
@@ -1010,6 +1013,11 @@
         ],
         "sourceGap": null,
         "readback": "2026-11-05, local PingFederate (demo_api_server/config/demoReadinessPingFederateProfiles.json#exchangeContract readback, live Admin API re-verified 2026-11-05): issuer https://local.ping-devops.com:9031 (read from /.well-known/openid-configuration), token endpoint https://pingfederate:9031/as/token.oauth2 (in-Docker alias of the same issuer), and the registered clients re-read from /pf-admin-api/v1/oauth/clients: ai-demo-pf-standard-agent-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE, aiDemoPfAgentGwJwtAtm, restricted), ai-demo-pf-standard-mcp-exchanger (CLIENT_CREDENTIALS, TOKEN_EXCHANGE), ai-demo-pf-user (AUTHORIZATION_CODE, REFRESH_TOKEN, TOKEN_EXCHANGE, enabled, aiDemoPfJwtAtm), and the A2A specialist SP connections matching the a2a-specialist role readback of 2026-10-31."
+      },
+      "sourceGap": {
+        "code": "uc2_passenger_invalid_target_source_gap",
+        "reason": "No lane route produces an RFC 8707 invalid_target refusal on the passenger delegation path: /api/a2a/message either delegates (audience configured) or declines to delegate; it never returns invalid_target. The refusal the check asserts lives only in the RFC error mapping (rfcCompliantErrorHandler.js) and the PF wrong-aud exchange path.",
+        "remediation": "Add a lane probe that requests a delegation naming a resource the passenger token is not valid for and records the invalid_target refusal before Exchange #3, then re-point this contract at it."
       }
     },
     "UC-LEARN11-PROMPT-INJECTION": {

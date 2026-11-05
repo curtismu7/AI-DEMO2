@@ -815,12 +815,14 @@ describe('feature-family adapters', () => {
   test('A2A FM1 reports the allowlist refusal with no exchange or tool reached', async () => {
     const request = jest.fn(async (path) => path === '/api/verticals/active'
       ? { status: 204, body: null }
-      : ok({ success: false, reply: 'The Airlines Specialist can only run: sensitive_passenger_record.', toolsCalled: [], tokenEvents: [] }));
-    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+      : path === '/api/a2a/init'
+        ? ok({ initialized: true })
+        : ok({ success: false, reply: 'Message does not indicate need for specialist delegation', toolsCalled: [], tokenEvents: [] }));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER, subject: 'lane-subject' });
     const result = await operations.executeA2aFm1();
     expect(result.observed).toBe('clear_allowlist_refusal_before_exchange');
     expect(result.evidence.feature).toMatchObject({
-      route: '/api/agent/invoke',
+      route: '/api/a2a/message',
       allowlist: { refused: true, reason: 'tool-not-allowlisted' },
       exchangeReached: false,
       toolReached: false,

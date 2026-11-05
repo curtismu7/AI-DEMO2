@@ -181,7 +181,7 @@ function validateFeatureFamilyEvidence(failures, evidence, contract, provider) {
       break;
     case 'a2a-fm2':
       require(sameRoute(feature.route, expected.route), 'A2A FM2 did not invoke the declared direct A2A route');
-      require(feature.bearer?.hasAct === false, 'A2A FM2 did not use an act-less bearer');
+      require(feature.actlessBearer?.hasAct === false, 'A2A FM2 did not use an act-less bearer');
       require((expected.allowedStatusCodes || []).includes(feature.response?.status), 'A2A FM2 response status is outside the source-declared outcomes');
       require(feature.toolDataExposed === false, 'A2A FM2 exposed specialist tool data');
       break;
@@ -488,7 +488,7 @@ function featureContract(check, provider) {
     authorizationContractByVertical: {
       feature: exchangeBacked ? {
         primaryTool: contract.selectedTool, resourceServer: contract.resourceServer, expectedDecision: contract.expectedDecision,
-        requiredScopes: contract.requiredScopes, scopeResources: contract.audiences.map((audience) => ({ audience })),
+        requiredScopes: contract.requiredScopes, scopeResources: contract.audiences.map((audience) => ({ audience, mirrorAudiences: contract.audienceMirrors || [] })),
         authorizeToolGroup: contract.authorizeToolGroup,
       } : { primaryTool: null, resourceServer: contract.resourceServer, expectedDecision: contract.expectedDecision, gateway: contract.gateway, authorize: contract.authorize },
     },
