@@ -2214,7 +2214,6 @@ function AppWithAuth() {
                               element={<PingOneAuthorizeCapabilitiesPage />}
                             />
                             <Route
-<<<<<<< HEAD
                               path="/pingfederate-config"
                               element={<PingFederateConfigByUseCasePage />}
                             />
