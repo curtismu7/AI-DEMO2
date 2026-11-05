@@ -1,0 +1,80 @@
+.p1azconfig {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--space-4, 16px) 64px;
+}
+
+.p1azconfig__section,
+.p1azconfig__policy {
+  margin: 32px 0;
+  padding: 20px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--th-bg-card);
+}
+
+.p1azconfig h2 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-lg, 20px);
+}
+
+.p1azconfig p {
+  margin: 0 0 8px;
+  color: var(--th-text-body);
+}
+
+.p1azconfig__why {
+  font-weight: 600;
+}
+
+.p1azconfig__ref {
+  font-size: var(--font-size-sm, 13px);
+  color: var(--th-text-muted);
+}
+
+.p1azconfig__ref code {
+  font-family: var(--font-mono);
+  background: var(--th-bg-inset);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.p1azconfig__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.p1azconfig__table th,
+.p1azconfig__table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--th-border);
+  vertical-align: top;
+}
+
+.p1azconfig__table th {
+  font-size: var(--font-size-sm, 13px);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--th-text-muted);
+}
+
+.p1azconfig__rule {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.p1azconfig__caveats {
+  background: var(--th-bg-inset);
+}
+
+.p1azconfig__secondary {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--ping-red, #d20e0f);
+  border-radius: var(--btn-radius, 8px);
+  color: var(--ping-red, #d20e0f);
+  font-weight: var(--btn-weight, 600);
+  text-decoration: none;
+}
