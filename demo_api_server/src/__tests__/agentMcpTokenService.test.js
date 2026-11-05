@@ -327,6 +327,9 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       }));
       const finalClaims = JSON.parse(Buffer.from(result.token.split('.')[1], 'base64url').toString('utf8'));
       expect(finalClaims.act).toEqual({ sub: 'pf-mcp-actor', act: { sub: 'commerce-agent' } });
+      // The built-in AI agent did not act, so its readiness role is not claimed.
+      expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token').pfExchange.credentialRoles)
+        .toEqual(['standard-agent-exchanger', 'standard-mcp-exchanger', 'mcp-service-actor']);
     } finally {
       getRegistration.mockRestore();
       decrypt.mockRestore();
@@ -352,6 +355,43 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
     ]));
     expect(mockPerformTokenExchange).not.toHaveBeenCalled();
     expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
+    // Readiness evidence: the endpoint both exchanges used and the four
+    // configured clients that filled the PF roles.
+    expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token').pfExchange).toEqual({
+      endpoint: 'https://pf.example.test/as/token.oauth2',
+      credentialRoles: ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'],
+    });
+  });
+
+  it('a workload run never replays a token cached for the same tool by another agent', async () => {
+    const pfClients = require('../../services/pingFederateClientService');
+    jest.spyOn(pfClients, 'isConfigured').mockReturnValue(true);
+    jest.spyOn(pfClients, 'ensureAgentClient').mockResolvedValue({ clientId: 'wl-agent', created: false });
+    const base = { ...makeReq(sampleJwtUserAccessToken), sessionID: 'replay-workload-key' };
+    await resolveMcpAccessTokenWithEvents(base, 'get_weather');
+    const workloadReq = { ...base, workloadAgentRuntime: { clientId: 'wl-agent', clientSecret: 'wl-secret', authMethod: 'post' } };
+    // Served from the base call's cache entry this would return at once and
+    // never ask for the agent's PingFederate client. The mock chain does not
+    // issue the agent's own actor token, so the live run itself may reject.
+    const workload = await resolveMcpAccessTokenWithEvents(workloadReq, 'get_weather').catch(() => null);
+    expect(workload?.cached).not.toBe(true);
+    expect(pfClients.ensureAgentClient).toHaveBeenCalledWith(expect.objectContaining({ clientId: 'wl-agent' }));
+    jest.restoreAllMocks();
+  });
+
+  it('a cached replay carries only the token chain, never the previous call\'s gateway events', async () => {
+    // The pipeline pushes each call's own gateway events (audit, filter chain)
+    // onto result.tokenEvents. The cache used to hold that same array, so the
+    // next call replayed them: UC31's DENY response carried UC30's PERMIT audit.
+    const req = { ...makeReq(sampleJwtUserAccessToken), sessionID: 'replay-own-events' };
+    const first = await resolveMcpAccessTokenWithEvents(req, 'get_weather');
+    first.tokenEvents.push({ id: 'gw-mcp-audit', mcpAudit: { how: { decision: 'PERMIT' } } });
+
+    const second = await resolveMcpAccessTokenWithEvents(req, 'get_weather');
+    expect(second.cached).toBe(true);
+    expect(second.tokenEvents[0].id).toBe('mcp-token-cache-replay');
+    expect(second.tokenEvents.map((event) => event.id)).not.toContain('gw-mcp-audit');
+    expect(second.tokenEvents.map((event) => event.id)).toEqual(expect.arrayContaining(['two-ex-final-token']));
   });
 
   it('uses Username as the subject when a PF user token has no sub', async () => {
@@ -1766,7 +1806,7 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     policySpy.mockRestore();
   });
 
-  it('rejects workload actor binding in PingFederate ID-JAG mode', async () => {
+  it('refuses a PingFederate workload run when its PingFederate client cannot be ensured', async () => {
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
     const req = makeReq(sampleJwtUserAccessToken);
     req.workloadAgentRuntime = {
@@ -1778,6 +1818,28 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     await expect(resolveMcpAccessTokenWithEvents(req, 'get_my_accounts')).rejects.toMatchObject({
       code: 'workload_actor_provider_unsupported', httpStatus: 409,
     });
+  });
+
+  it('ensures a PingFederate client for the workload agent before the PingFederate exchange', async () => {
+    const pfClients = require('../../services/pingFederateClientService');
+    jest.spyOn(pfClients, 'isConfigured').mockReturnValue(true);
+    const ensure = jest.spyOn(pfClients, 'ensureAgentClient').mockResolvedValue({ clientId: 'personal-agent-client', created: true });
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.workloadAgentRuntime = {
+      clientId: 'personal-agent-client',
+      clientSecret: 'personal-agent-secret',
+      authMethod: 'post',
+      agent: { name: 'My agent' },
+    };
+
+    // Whatever the rest of the PingFederate chain does with this mock config,
+    // it is no longer refused for want of a PingFederate client.
+    await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts').catch((err) => {
+      expect(err.code).not.toBe('workload_actor_provider_unsupported');
+    });
+    expect(ensure).toHaveBeenCalledWith({ clientId: 'personal-agent-client', clientSecret: 'personal-agent-secret', name: 'My agent' });
+    jest.restoreAllMocks();
   });
 
   // ── F4 — audMatches was computed and then discarded ───────────────────────

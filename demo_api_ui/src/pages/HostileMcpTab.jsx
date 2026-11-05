@@ -265,18 +265,30 @@ export default function HostileMcpTab() {
           ) : (
             <span className="hmc-pill hmc-pill--ok">✓ Connected to the malicious server</span>
           )}
-          {onHostileDoor && !authenticated ? (
-            <button type="button" className={`hmc-btn${nextCls('signIn')}`} disabled={busy} onClick={signIn}>
-              Step 2 — Sign in with Privilege
-            </button>
-          ) : null}
+          <button type="button" className={`hmc-btn${nextCls('signIn')}`} disabled={busy || !onHostileDoor || authenticated} onClick={signIn}>
+            Step 2 — Sign in with Privilege
+          </button>
           <button type="button" className={`hmc-btn${nextCls('load')}`} disabled={busy || !onHostileDoor || !authenticated} onClick={refreshTools}>
             Step 3 — Load the poisoned tools
           </button>
         </div>
       </header>
 
+      <p className="hmc-next" role="status">{nextStep}</p>
+
       {error ? <p className="hmc-error" role="alert">{error}</p> : null}
+
+      <p className="hmc-note hmc-shortcut">
+        <strong>Shortcut:</strong> the panel below skips the model. It fetches poisoned content
+        (a tool, a resource or a prompt), makes the harmful call itself, and shows Privilege&rsquo;s verdict.
+        Use it for a quick check; use Steps 1–4 to see a real model get tricked.
+      </p>
+
+      <HostileMcpDenialPanel
+        tools={tools}
+        onRequest={({ method, params }) => api('/request', { method: 'POST', body: { method, params } })}
+        onCall={({ name, arguments: args }) => api('/tools/call', { method: 'POST', body: { name, arguments: args } })}
+      />
 
       <section className="hmc-explain" aria-label="How this demo works">
         <h2 className="hmc-k">What is happening here</h2>
@@ -298,20 +310,7 @@ export default function HostileMcpTab() {
           but the Privilege gateway denies it (🛡 DENIED in the relay log). The gateway does not
           read or clean the poisoned text — it stops the harmful <em>action</em>.
         </p>
-        <p className="hmc-next" role="status">{nextStep}</p>
       </section>
-
-      <p className="hmc-note hmc-shortcut">
-        <strong>Shortcut:</strong> the panel below skips the model. It fetches poisoned content
-        (a tool, a resource or a prompt), makes the harmful call itself, and shows Privilege&rsquo;s verdict.
-        Use it for a quick check; use Steps 1–4 to see a real model get tricked.
-      </p>
-
-      <HostileMcpDenialPanel
-        tools={tools}
-        onRequest={({ method, params }) => api('/request', { method: 'POST', body: { method, params } })}
-        onCall={({ name, arguments: args }) => api('/tools/call', { method: 'POST', body: { name, arguments: args } })}
-      />
 
       <div className="hmc-body">
         <section className="hmc-pane" aria-label="Poisoned tools">

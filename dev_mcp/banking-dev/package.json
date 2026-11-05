@@ -19,8 +19,7 @@
     "axios": "^1.6.0",
     "dotenv": "^16.4.5",
     "lmdb": "^3.5.5",
-    "zod": "^3.23.8",
-    "zod-to-json-schema": "^3.23.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

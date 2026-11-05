@@ -64,10 +64,10 @@
 .ptt-scroll { overflow: auto; flex: 1; min-height: 0; }
 
 .ptt-table { width: 100%; border-collapse: collapse; }
+/* Not sticky: the table area is often ~170px tall, and a pinned header then paints over the expanded row's
+   Arguments box. It scrolls away with the rows instead; present mode (projected, roomy) keeps it pinned. */
 .ptt-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  position: static;
   text-align: left;
   font-size: var(--font-size-2xs);
   font-weight: 700;
@@ -197,7 +197,7 @@
 
 /* Present mode: larger type for projecting */
 .ptt--present .ptt-title { font-size: var(--font-size-h2); }
-.ptt--present .ptt-table thead th { font-size: var(--font-size-body); padding: 14px 18px; }
+.ptt--present .ptt-table thead th { position: sticky; top: 0; z-index: 1; font-size: var(--font-size-body); padding: 14px 18px; }
 .ptt--present .ptt-row td { font-size: var(--font-size-lg); padding: 16px 18px; }
 .ptt--present .ptt-name { font-size: 19px; }
 .ptt--present .ptt-param { font-size: var(--font-size-body); }

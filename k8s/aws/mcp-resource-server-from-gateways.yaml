@@ -1,0 +1,32 @@
+# Lets the Privilege gateway pods in ping-devops-curtismuir (behind mcpgw-lb) reach the MCP resource server in
+# ping-devops-cmuir. ai-demo-internal only admits same-namespace pods, so a door pointed at the resource server
+# timed out whenever mcpgw-lb sent the call to one of those pods (same cause as opensearch-mcp-noget.yaml).
+# Only adds access: port 8081, gateway pods to the resource server. Not applied by deploy.sh:
+#   kubectl --context us apply -f k8s/aws/mcp-resource-server-from-gateways.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-resource-server-from-gateways
+  namespace: ping-devops-cmuir
+spec:
+  podSelector: { matchLabels: { app: ai-demo, component: mcp-resource-server } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ping-devops-curtismuir } }
+          podSelector: { matchExpressions: [{ key: app, operator: In, values: [agentless-mcpgw, agentless-mcpgw3] }] }
+      ports: [{ port: 8081, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateways-to-mcp-resource-server
+  namespace: ping-devops-curtismuir
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [agentless-mcpgw, agentless-mcpgw3] }] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ping-devops-cmuir } }
+          podSelector: { matchLabels: { app: ai-demo, component: mcp-resource-server } }
+      ports: [{ port: 8081, protocol: TCP }]

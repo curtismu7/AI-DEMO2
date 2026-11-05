@@ -41,6 +41,7 @@ function Probe({ sourceKey }) {
       <button data-testid="exec" onClick={() => s.handleExecute({ tool: { name: 'get_my_accounts' }, params: {} })}>exec</button>
       <span data-testid="loginUrl">{s.banner?.loginUrl || ''}</span>
       <span data-testid="first">{s.tools[0]?.[s.config.toolKey] || ''}</span>
+      <span data-testid="toolsKey">{s.toolsKey ?? 'none'}</span>
       <span data-testid="selectedProfileId">{s.selectedProfileId}</span>
       <button data-testid="reload" onClick={() => s.loadProfiles('new-id')}>reload</button>
     </div>
@@ -233,5 +234,50 @@ describe('a refusal becomes a banner, not an empty list', () => {
     get.mockRejectedValue({ message: 'tools down' });
     renderSource('banking');
     await waitFor(() => expect(screen.getByTestId('toolsBanner')).toHaveTextContent('tools down'));
+  });
+});
+
+describe('hook order', () => {
+  // Tab switching re-renders ONE mounted component with a new sourceKey. A
+  // conditional hook anywhere in the hook fails here with React's
+  // "Should have a queue" / "Rendered more hooks" error.
+  it('survives switching through every source on a single mounted component', () => {
+    const keys = ['banking', 'pingone', 'api', 'custom', 'gateway', 'protocol'];
+    const { rerender } = render(<Probe sourceKey={keys[0]} />);
+    for (const k of [...keys.slice(1), ...keys.slice().reverse()]) {
+      expect(() => rerender(<Probe sourceKey={k} />)).not.toThrow();
+    }
+  });
+});
+
+describe('toolsKey: which source the loaded tools belong to', () => {
+  it('names the source once its tools have loaded, and not before', async () => {
+    get.mockResolvedValue({ data: { tools: [{ name: 'get_my_accounts' }] } });
+    renderSource('banking');
+    expect(screen.getByTestId('toolsKey')).toHaveTextContent('none');
+    await waitFor(() => expect(screen.getByTestId('toolsKey')).toHaveTextContent('banking:'));
+  });
+
+  it('after a source switch it keeps naming the OLD source until the new tools arrive (the page must not pick from stale tools)', async () => {
+    get.mockResolvedValue({ data: { tools: [{ name: 'get_my_accounts' }] } });
+    const { rerender } = renderSource('banking');
+    await waitFor(() => expect(screen.getByTestId('toolsKey')).toHaveTextContent('banking:'));
+
+    let release;
+    get.mockImplementation(() => new Promise((res) => { release = () => res({ data: { tools: [{ name: 'get_weather_summary' }] } }); }));
+    rerender(<Probe sourceKey="gateway" />);
+    // Rendered with the new source, still holding the previous source's tools and key.
+    expect(screen.getByTestId('toolsKey')).toHaveTextContent('banking:');
+    expect(screen.getByTestId('first')).toHaveTextContent('get_my_accounts');
+    await waitFor(() => expect(release).toBeTypeOf('function'));
+    release();
+    await waitFor(() => expect(screen.getByTestId('toolsKey')).toHaveTextContent('gateway:'));
+    expect(screen.getByTestId('first')).toHaveTextContent('get_weather_summary');
+  });
+
+  it('is set even when the load fails, so the page can tell an empty source from a stale one', async () => {
+    get.mockRejectedValue(new Error('boom'));
+    renderSource('gateway');
+    await waitFor(() => expect(screen.getByTestId('toolsKey')).toHaveTextContent('gateway:'));
   });
 });

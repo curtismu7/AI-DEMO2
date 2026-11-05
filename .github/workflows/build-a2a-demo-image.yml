@@ -8,10 +8,18 @@ name: Build A2A demo image
 # `docker buildx build ... --push` did. DEPLOYING stays manual:
 #   kubectl -n <ns> set image deploy/mainagentdemo '*=...:sha-<sha>'
 #   kubectl -n <ns> rollout restart deploy/workeragentdemo   (and mcpdemo if it changed)
-# then bump the pin in standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml.
+# then bump the pin in k8s/privilege-a2a/deployment.yaml.
+#
+# SOURCE: while k8s/privilege-a2a/LAB_REF holds the word "pending", the image is
+# built from standalone/privilege-a2a-anthropic-demo as before. Once it holds a
+# 40-character commit of ping-sandbox/privilege-a2a-anthropic-demo-LAB, the image
+# is built from that commit instead (same image name, so the cluster does not
+# change). Reading that repo needs ONE of two secrets: PRIVILEGE_A2A_LAB_DEPLOY_KEY (a
+# read-only SSH deploy key added to that repo; needs repo admin only) or
+# PRIVILEGE_A2A_LAB_READ_TOKEN (a fine-grained token with Contents: read on it).
 #
 # ONE-TIME SETUP (UI only, cannot be done from code): on
-# github.com/users/cmuir_pingcorp/packages/container/privilege-a2a-demo open
+# github.com/orgs/ping-sandbox/packages/container/ai-demo2-privilege-a2a-demo open
 # Package settings -> "Manage Actions access" and add this repository with the
 # Write role. Until then the push fails with "denied: permission_denied:
 # write_package" — same trap as build-images.yml documents. The Dockerfile's
@@ -22,6 +30,7 @@ on:
     branches: [main]
     paths:
       - 'standalone/privilege-a2a-anthropic-demo/**'
+      - 'k8s/privilege-a2a/LAB_REF'
       - '.github/workflows/build-a2a-demo-image.yml'
   workflow_dispatch:
 
@@ -35,39 +44,40 @@ permissions:
 jobs:
   build:
     name: Build and push privilege-a2a-demo (arm64)
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v7
-      # Same job-scoped Docker config and live-socket steps as build-images.yml;
-      # see the comments there for why each one exists (launchd runners cannot
-      # use the keychain, and an OrbStack runner's default socket can be dead).
-      - name: Use a job-scoped Docker config (no keychain)
+      - name: Pick the source (standalone folder or the LAB repo at a pinned commit)
+        id: src
         run: |
           set -euo pipefail
-          cfg="$RUNNER_TEMP/docker-config"
-          mkdir -p "$cfg"
-          ln -s "$HOME/.docker/cli-plugins" "$cfg/cli-plugins"
-          echo '{"auths":{"placeholder.invalid":{}}}' > "$cfg/config.json"
-          echo "DOCKER_CONFIG=$cfg" >> "$GITHUB_ENV"
-      - name: Use a live Docker socket
-        run: |
-          set -euo pipefail
-          if docker info >/dev/null 2>&1; then
-            echo "default Docker socket is live"
-            exit 0
+          ref="$(tr -d '[:space:]' < k8s/privilege-a2a/LAB_REF)"
+          if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "lab_ref=$ref" >> "$GITHUB_OUTPUT"
+            echo "building from the LAB repo at $ref"
+          else
+            echo "lab_ref=" >> "$GITHUB_OUTPUT"
+            echo "LAB_REF is not a commit (${ref}); building from standalone/privilege-a2a-anthropic-demo"
           fi
-          for s in "$HOME/.orbstack/run/docker.sock" "$HOME/.docker/run/docker.sock"; do
-            if [ -S "$s" ] && DOCKER_HOST="unix://$s" docker info >/dev/null 2>&1; then
-              echo "DOCKER_HOST=unix://$s" >> "$GITHUB_ENV"
-              echo "default Docker socket is dead; using $s"
-              exit 0
-            fi
-          done
-          echo "no live Docker socket found (is OrbStack running on this runner?)" >&2
-          exit 1
+      - name: Check out the LAB repo at the pinned commit
+        if: steps.src.outputs.lab_ref != ''
+        uses: actions/checkout@v7
+        with:
+          repository: ping-sandbox/privilege-a2a-anthropic-demo-LAB
+          ref: ${{ steps.src.outputs.lab_ref }}
+          # Either secret works. With the deploy key set the checkout uses SSH; otherwise it uses the token.
+          ssh-key: ${{ secrets.PRIVILEGE_A2A_LAB_DEPLOY_KEY }}
+          token: ${{ secrets.PRIVILEGE_A2A_LAB_READ_TOKEN || github.token }}
+          path: lab-source
+          persist-credentials: false
+      # The SE cluster nodes are Graviton (arm64) and ubuntu-latest is amd64, so
+      # QEMU emulates arm64 for the buildx build below (see build-images.yml).
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -79,11 +89,19 @@ jobs:
         # manual build did; the SE cluster nodes are Graviton (arm64).
         run: |
           set -euo pipefail
-          BASE="ghcr.io/${{ github.repository_owner }}/privilege-a2a-demo"
+          BASE="ghcr.io/${{ github.repository_owner }}/ai-demo2-privilege-a2a-demo"
+          CONTEXT=standalone/privilege-a2a-anthropic-demo
+          EXTRA=()
+          if [ -n "${{ steps.src.outputs.lab_ref }}" ]; then
+            CONTEXT=lab-source
+            # Keep the package linked to this repo (the LAB Dockerfile labels its own repo).
+            EXTRA=(--label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" --label "io.ping.lab.ref=${{ steps.src.outputs.lab_ref }}")
+          fi
           docker buildx build \
             --platform linux/arm64 \
             --provenance=false \
+            ${EXTRA[@]+"${EXTRA[@]}"} \
             -t "$BASE:sha-${{ github.sha }}" \
             -t "$BASE:latest" \
             --push \
-            standalone/privilege-a2a-anthropic-demo
+            "$CONTEXT"

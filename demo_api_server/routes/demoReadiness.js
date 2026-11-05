@@ -19,11 +19,19 @@ function sendJobError(res, error) {
   return res.status(500).json({ error: 'demo_readiness_job_failed', message: 'The readiness job request could not be completed.' });
 }
 
+// The literal `admin` scope is granted only to the readiness CLI's client-credentials app.
+const hasLiteralAdminScope = (user) => Array.isArray(user?.scopes) && user.scopes.includes('admin');
+
 function verifiedAdminAssertion(user) {
+  const scopes = Array.isArray(user?.scopes) ? user.scopes.filter((scope) => scope === 'admin') : [];
+  // A client-credentials token has no user subject. The app holding the `admin` scope is then
+  // identified by its client id, which still binds each job to one owner.
+  const clientSubject = scopes.length > 0 && typeof user?.clientId === 'string' && user.clientId.trim()
+    ? 'client:' + user.clientId.trim()
+    : null;
   const subject = typeof user?.sub === 'string' && user.sub.trim()
     ? user.sub.trim()
-    : typeof user?.id === 'string' && user.id.trim() ? user.id.trim() : null;
-  const scopes = Array.isArray(user?.scopes) ? user.scopes.filter((scope) => scope === 'admin') : [];
+    : typeof user?.id === 'string' && user.id.trim() ? user.id.trim() : clientSubject;
   if (!subject || (user.role !== 'admin' && scopes.length === 0)) return null;
   return Object.freeze({
     subject,
@@ -40,7 +48,11 @@ function unavailableGuard(name) {
 function createDemoReadinessRouter({ store = defaultStore, authenticateToken: injectedAuthentication = authenticateToken } = {}) {
   const router = express.Router();
   const authenticationGuard = typeof injectedAuthentication === 'function' ? injectedAuthentication : unavailableGuard('Authentication');
-  const adminGuard = typeof requireAdmin === 'function' ? requireAdmin : unavailableGuard('Administrator authorization');
+  // requireAdmin takes role admin or admin:read. This route also takes the literal `admin` scope, so
+  // the readiness CLI's app passes here and nowhere else: other admin routes still use requireAdmin.
+  const adminGuard = typeof requireAdmin === 'function'
+    ? (req, res, next) => (hasLiteralAdminScope(req.user) ? next() : requireAdmin(req, res, next))
+    : unavailableGuard('Administrator authorization');
   const configuredAdminScopeGuard = typeof requireScopes === 'function' ? requireScopes(['admin']) : null;
   const adminScopeGuard = typeof configuredAdminScopeGuard === 'function'
     ? configuredAdminScopeGuard
@@ -51,7 +63,17 @@ function createDemoReadinessRouter({ store = defaultStore, authenticateToken: in
     try {
       const assertion = verifiedAdminAssertion(req.user);
       if (!assertion) return res.status(403).json({ error: 'admin_identity_required', message: 'A verified administrator identity is required.' });
-      return res.status(202).json(store.start({ subject: assertion.subject }));
+      // An empty body (Admin sidebar Reset Demo) runs both targets and both
+      // providers; the CLI may name one of either.
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      if (Object.keys(body).some((key) => key !== 'targets' && key !== 'providers')) {
+        return res.status(400).json({ error: 'invalid_start_body', message: 'Starting a job accepts only targets and providers.' });
+      }
+      return res.status(202).json(store.start({
+        subject: assertion.subject,
+        ...(body.targets === undefined ? {} : { targets: body.targets }),
+        ...(body.providers === undefined ? {} : { providers: body.providers }),
+      }));
     } catch (error) {
       return sendJobError(res, error);
     }

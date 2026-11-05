@@ -20,8 +20,10 @@ export const DIAGRAMS_INDEX = [
     items: [
       D("Token Flow", "/architecture/token-flow", "Interactive token flow."),
       D("Token Chain Architecture", "/architecture/token-chain", "How tokens are exchanged and chained, step by step."),
+      D("P1 Third-Party Token Exchange", "/p1-third-party-exchange", "PingOne accepting an Okta, Auth0, Microsoft, PingFederate or other-PingOne JWT as actor token, with trusted issuer checks and claim mapping. Simulated."),
       D("Interactive Flow", "/architecture/flow", "Step through the end-to-end flow."),
       D("Sequence Diagram", "/sequence-diagram", "Sequence view of a run."),
+      D("POC flow", "/poc-flow", "The customer POC pattern: one agent token exchange, Authorize deciding each tool call, and CIBA approval for writes. 24 steps in nine groups."),
       D("Canvas Diagram", "/architecture/canvas", "Editable canvas for drawing your own diagram."),
       D("Delegated Access Proof", "/academy/delegation/guided", "Guided proof of delegated access."),
       D("A2A Architecture", "/a2a-architecture", "Agent-to-agent delegation and Agent Card discovery."),
@@ -31,7 +33,10 @@ export const DIAGRAMS_INDEX = [
   {
     section: "Agent Privilege and Privilege",
     items: [
-      D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, and auth flow."),
+      D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, auth flow, and how a PingFederate identity reaches a Cedar policy."),
+      D("PingFederate Token demo", "/privilege-pf-token", "A PingFederate-issued JWT accepted by the Privilege gateway: identity, agent key, grant, and the tools that come back, with a live run."),
+      D("Gateway v1.261024, v1.261027, v1.261028, v1.261029, v1.261030 and v1.261102: claims", "/gateway-claims", "How a PingFederate act.sub claim is matched by a Privilege rule, plus the AgentCore posture fields the gateway binary hints at, what v1.261029, v1.261030 and v1.261102 changed, and the 2026-11-02 release features not yet measured. Verified and unverified parts are labelled."),
+      D("AI Policies demo", "/privilege-ai-policies", "Privilege deciding agent tool calls with Cedar inside the gateway: allowed, refused or held, with a diagram of where this page and PingFederate fit."),
       D("Privilege-First Gateway", "/privilege-first-gateway", "How the gateway enforces access, in two figures."),
       D("Gateway vs P1AZ Enforcement", "/gateway-enforcement-map", "Where the gateway and PingOne Authorize each enforce."),
       D("Resource Server Placement", "/resource-server-placement", "Where the resource server sits relative to the gateway."),
@@ -44,6 +49,10 @@ export const DIAGRAMS_INDEX = [
       D("Personal Agent Design", "/personal-agent-design", "Agent Gateway only."),
       D("Personal Agent Dual Gateway", "/personal-agent-dual-gateway", "Privilege first."),
       D("Personal Agent Design Review", "/personal-agent-review", "Review of the design."),
+      D("United: a member's agent meets the MCP door", "/united-personal-agent-flow", "Sequence of the personal-agent design: discover, register, consent, per-call exchange, gateway, decision, approval, audit."),
+      D("ChatGPT to UHG Digital Front Door", "/uhg-chatgpt-mcp-flow", "Sequence of the proposed MCP authorization: HSID authenticates, PingFederate authorizes, RFC 8693 OBO downstream."),
+      D("Personal Agent Request Flow", "/personal-agent-flow", "How one Studio request is governed: MFA, gateway, PingOne Authorize, approval."),
+      D("Poppy: Personal Agent Protocol", "/poppy", "How a person's own agent discovers the Company, signs in with a client metadata URL and calls the API with a signed Poppy-Session."),
     ],
   },
   {
@@ -78,5 +87,6 @@ export const DIAGRAMS_MORE = [
   D("AIC Token Exchange", "/aic-token-exchange", "User token, agent token and the RFC 8693 exchange against AIC."),
   D("Delegated Commerce", "/delegation", "Register, consent, protected call, approval and revoke for a delegated agent."),
   D("Delegation Chain Value", "/delegation-chain-value", "Two-agent token chain with nested act claims, and the identity-mismatch probe."),
+  D("Session Lab", "/session-lab", "How a flow's Return Success Response writes the PingOne session and Check Session reads it."),
   D("Personal Agent Studio", "/personal-agent", "How a request is governed: three gates, MFA step-up and human approval detours."),
 ];

@@ -62,6 +62,8 @@ export default function PingOneAuthorizeConsoleClean({
   recent = [], onIncludeRecent, onRan,
   // Lifted to the page so calls survive a trip to the "More tools" tabs.
   records, setRecords,
+  // Mock is the default; tests and callers can open the console on 'live'.
+  defaultMode,
 }) {
   const [pickedId, setPickedId] = useState(null);
   const [includeRecent, setIncludeRecent] = useState(false);
@@ -90,7 +92,7 @@ export default function PingOneAuthorizeConsoleClean({
   const h = usePingOneAuthorizeConsole({
     endpointId, autoPreset: txTypes.length ? 'transaction' : 'mcp',
     defaultToolName: vertical.authorize.toolName, defaultAmount: String(vertical.authorize.amount),
-    pendingTest, onClearPendingTest, onEvaluated,
+    pendingTest, onClearPendingTest, onEvaluated, defaultMode,
   });
   // An edited call keeps its own preset and type even when this vertical has neither.
   const presets = PRESETS.filter((p) => p.value !== 'transaction' || txTypes.length || h.preset === 'transaction');
@@ -137,6 +139,10 @@ export default function PingOneAuthorizeConsoleClean({
   const send = (
     <div className="insp-send-body">
       <div className="insp-send-row">
+        <div className="insp-seg" role="group" aria-label="Engine">
+          <button type="button" aria-pressed={h.mode === 'mock'} onClick={() => h.setMode('mock')} title="Built-in simulated engine, no PingOne call">Mock</button>
+          <button type="button" aria-pressed={h.mode === 'live'} onClick={() => h.setMode('live')} title="Send to PingOne Authorize">Real P1AZ</button>
+        </div>
         {verticalField}
         <div className="insp-seg" role="group" aria-label="Decision type">
           {presets.map((p) => (
@@ -175,7 +181,7 @@ export default function PingOneAuthorizeConsoleClean({
           </React.Fragment>
         ))}
         {h.preset !== 'custom' && field('User ID', h.userId, h.setUserId)}
-        <button type="button" className="insp-btn" onClick={h.run} disabled={h.running || !endpointId}>{h.running ? 'Sending…' : 'Send'}</button>
+        <button type="button" className="insp-btn" onClick={h.run} disabled={h.running || (h.mode === 'live' && !endpointId)}>{h.running ? 'Sending…' : 'Send'}</button>
       </div>
       <details>
         <summary>{`Policies on this endpoint · ${countKind(policies, 'POLICY')} policies, ${countKind(policies, 'RULE')} rules`}</summary>
@@ -196,9 +202,9 @@ export default function PingOneAuthorizeConsoleClean({
     <InspectorLayout
       eyebrow="PingOne Authorize · Inspector"
       title="Authorize Inspector"
-      lede="Every decision PingOne Authorize made for this demo: the parameters sent, the verdict and statements returned, the token used, and the API calls behind it."
+      lede="Every decision for this demo: the parameters sent, the verdict and statements returned, the token used, and the API calls behind it. Mock (the default) answers from a built-in policy with no PingOne call; Real P1AZ sends to PingOne Authorize."
       related={RELATED}
-      mode={loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : ok('Live')}
+      mode={h.mode === 'mock' ? ok('Mock') : loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : ok('Real P1AZ')}
       source={{
         label: 'Endpoint',
         value: endpointId,

@@ -551,3 +551,28 @@
 
 /* The A2A page hides the global agent button: its own agent column is the agent (see PrivilegeA2aPage). */
 body.privilege-a2a-route > .banking-agent-float-root { display: none; }
+
+/* The A2A exchange: client sends, remote agent works, reply returns, client answers. */
+.cur-ide .privilege-a2a__exchange { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cur-ide .privilege-a2a__exchange li button {
+  width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 0 8px; text-align: left;
+  border: 1px solid var(--a2a-border); border-radius: var(--radius-md); padding: 6px 10px;
+  background: transparent; color: var(--a2a-ink); font-size: var(--font-size-sm); cursor: pointer;
+}
+.cur-ide .privilege-a2a__exchange li button:disabled { cursor: default; }
+.cur-ide .privilege-a2a__exchange li button span { grid-column: 1; color: var(--a2a-muted); font-size: var(--font-size-xs); }
+.cur-ide .privilege-a2a__exchange li button em { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-style: normal; font-size: var(--font-size-xs); color: var(--a2a-muted); }
+.cur-ide .privilege-a2a__exchange li.is-done button { border-color: var(--a2a-accent); }
+.cur-ide .privilege-a2a__exchange li.is-working button { border-color: var(--a2a-accent); border-style: dashed; }
+.cur-ide .privilege-a2a__exchange li.is-stopped button { border-color: var(--a2a-error); }
+
+/* Request / response of one step, shown under the step itself. */
+.cur-ide .privilege-a2a__wire { margin-top: 4px; font-size: var(--font-size-xs); }
+.cur-ide .privilege-a2a__wire summary { cursor: pointer; color: var(--a2a-muted); }
+.cur-ide .privilege-a2a__wire h4 { margin: 6px 0 2px; font-size: var(--font-size-xs); color: var(--a2a-muted); }
+.cur-ide .privilege-a2a__wire pre { margin: 0; padding: 6px 8px; max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--a2a-border); border-radius: var(--radius-md); }
+
+/* What is happening right now, under the request path. */
+.cur-ide .privilege-a2a__path-wrap { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.cur-ide .privilege-a2a__now { margin: 0; max-width: 460px; text-align: right; font-size: var(--font-size-body); color: var(--a2a-ink); }
+.cur-ide .privilege-a2a__start .privilege-a2a__chips { margin-top: 8px; }

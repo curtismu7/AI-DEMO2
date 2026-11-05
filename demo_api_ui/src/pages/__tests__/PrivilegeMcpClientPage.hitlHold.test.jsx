@@ -3,12 +3,12 @@
 // policy, verified live 2026-10-13 on the opensearch-hitl door: the gateway
 // answers the tools/call with a pending_approval hold carrying an instruction
 // id, and the call proceeds only after someone approves and the client
-// retries). The RESULTS panel must say that in human terms — not show the raw
+// retries). The response pane must say that in human terms — not show the raw
 // hold JSON as if it were tool output — and offer the Retry that passes once
 // the approval exists.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import PrivilegeMcpClientPage from '../PrivilegeMcpClientPage';
 
 const state = {
@@ -43,6 +43,15 @@ const SEARCH_TOOL = {
   },
 };
 
+// Run is disabled until the required arguments are filled in, so type them before pressing it.
+const ARGS = JSON.stringify({ index: 'gateway-events', query_dsl: { query: { match_all: {} } } });
+function runSearch() {
+  fireEvent.change(screen.getByLabelText(/arguments \(json\)/i), { target: { value: ARGS } });
+  fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+}
+
+afterEach(() => { state.config.mcpUrl = 'https://gateway.example/mcp'; });
+
 beforeEach(() => {
   vi.restoreAllMocks();
   global.EventSource = class { addEventListener() {} close() {} };
@@ -73,8 +82,8 @@ test('a held tool call renders a waiting-for-approval card with the instruction 
   fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
 
   // Run the SearchIndexTool row → the BFF relays the gateway's hold.
-  const runButtons = await screen.findAllByRole('button', { name: /run/i });
-  fireEvent.click(runButtons[0]);
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
 
   // The hold is announced in human terms, with the instruction id to approve,
   // not shown as if the search had returned data.
@@ -111,9 +120,145 @@ test('a normal tool result does not render the hold card', async () => {
   render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
   fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
-  const runButtons = await screen.findAllByRole('button', { name: /run/i });
-  fireEvent.click(runButtons[0]);
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
 
   await screen.findAllByText(/Search results from gateway-events/);
   expect(screen.queryByText(/waiting for human approval/i)).not.toBeInTheDocument();
+});
+
+test('the result has a Copy button that puts the raw JSON on the clipboard', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+  await screen.findByText(/waiting for human approval/i);
+
+  fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /copy SearchIndexTool result view as json/i }));
+
+  await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+  expect(JSON.parse(writeText.mock.calls[0][0])).toEqual(HOLD_RESPONSE);
+});
+
+// A policy that holds a tool is announced before anyone runs it, and the hold can be walked through in a popup.
+const HITL_DOOR = 'https://mcpgw.example/opensearch-hitl/mcp';
+
+test('on the HITL door the held tool is badged and says why before it is run', async () => {
+  state.config.mcpUrl = HITL_DOOR;
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+
+  expect(await screen.findByRole('tab', { name: /SearchIndexTool.*HITL/ })).toBeInTheDocument();
+  expect(screen.getByTestId('hitl-tool-note')).toHaveTextContent(/hitl-opensearch/);
+});
+
+test('the mock approver turns a hold into a labelled sample result without calling the gateway again', async () => {
+  state.config.mcpUrl = HITL_DOOR;
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+
+  // The card sends people to Privilege first.
+  expect(await screen.findByText(/go to privilege to approve this/i)).toBeInTheDocument();
+  fireEvent.click(await screen.findByRole('button', { name: /mock the approval/i }));
+  expect(await screen.findByText(/mock approver — simulated/i)).toBeInTheDocument();
+  const callsBefore = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length;
+  fireEvent.click(screen.getByRole('button', { name: /approve \(mock\)/i }));
+
+  expect((await screen.findAllByText(/sample, SearchIndexTool/)).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/waiting for human approval/i)).not.toBeInTheDocument();
+  expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length).toBe(callsBefore);
+});
+
+test('a hold announced as a JSON-RPC error still shows the waiting-for-approval card', async () => {
+  const base = global.fetch;
+  global.fetch = vi.fn(async (url, options = {}) => {
+    if (String(url).endsWith('/tools/call')) {
+      return new Response(JSON.stringify({ error: 'MCP RPC error: action requires human approval' }), { status: 502 });
+    }
+    return base(url, options);
+  });
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+  expect(await screen.findByText(/waiting for human approval/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /retry after approval/i })).toBeInTheDocument();
+});
+
+test('the raw hold JSON folds under the card and is gone once a retry gets through', async () => {
+  let held = true;
+  const base = global.fetch;
+  global.fetch = vi.fn(async (url, options = {}) => {
+    if (String(url).endsWith('/tools/call') && !held) {
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: 4, result: { content: [{ type: 'text', text: 'Search results: 3 hits' }] } }));
+    }
+    return base(url, options);
+  });
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+  await screen.findByText(/waiting for human approval/i);
+  expect(document.querySelector('details.cur-hitl-raw')).not.toBeNull();
+
+  held = false;
+  fireEvent.click(screen.getByRole('button', { name: /retry after approval/i }));
+  await screen.findAllByText(/Search results: 3 hits/);
+  expect(document.querySelector('details.cur-hitl-raw')).toBeNull();
+});
+
+test('SearchIndexTool opens with arguments that can run, on an index that exists', async () => {
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  const box = await screen.findByLabelText(/arguments \(json\)/i);
+  expect(JSON.parse(box.value)).toEqual({ index: 'gateway-events', query_dsl: { query: { match_all: {} } }, size: 3 });
+  expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
+});
+
+test('badges come from the console hold rules when /state carries them, for any door', async () => {
+  state.config.mcpUrl = 'https://mcpgw.example/hostile-mcp-governed/mcp';
+  state.hitlTools = { 'hostile-mcp-governed': { create_transfer: 'hitl' } };
+  const base = global.fetch;
+  global.fetch = vi.fn(async (url, options = {}) => {
+    if (String(url).endsWith('/state')) return new Response(JSON.stringify(state));
+    if (String(url).endsWith('/tools/list')) {
+      return new Response(JSON.stringify({ tools: [{ name: 'create_transfer', inputSchema: { type: 'object', properties: {} } }, { name: 'list_accounts', inputSchema: { type: 'object', properties: {} } }] }));
+    }
+    return base(url, options);
+  });
+  try {
+    render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+    fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+    expect(await screen.findByRole('tab', { name: /create_transfer.*HITL/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'list_accounts' })).toBeInTheDocument();
+  } finally {
+    delete state.hitlTools;
+  }
+});
+
+test('with console hold rules present, the old hard-coded opensearch badge is not shown for a tool they do not name', async () => {
+  state.config.mcpUrl = HITL_DOOR;
+  state.hitlTools = {};
+  try {
+    render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+    fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+    await screen.findByRole('tab', { name: 'SearchIndexTool' });
+    expect(screen.queryByTestId('hitl-tool-note')).not.toBeInTheDocument();
+  } finally {
+    delete state.hitlTools;
+  }
 });

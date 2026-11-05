@@ -167,7 +167,6 @@ Gives the agent-side hop emitter (sibling prompt-flow plan) a
 correlation ID to attach to every agent.step hop, closing the last
 gap in the Agent -> LLM -> Gateway -> P1AZ -> Backend trace chain.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```

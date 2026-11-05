@@ -392,7 +392,6 @@ git branch --show-current   # must print feat/pingone-admin-live-mcp
 git add demo_api_server/config/verticals/pingone-admin/tools.js demo_api_server/tests/oas/pingone-admin.test.js
 git commit -m "feat(pingone-admin): live hosted-MCP executor with labeled mock fallback
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -524,7 +523,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pingone-admin-live-mcp
 git add demo_api_server/config/verticals/pingone-admin/index.js demo_api_server/tests/oas/pingone-admin.test.js demo_api_server/tests/adminChipDeadends.test.js
 git commit -m "feat(pingone-admin): heuristics and system prompt target live hosted-MCP tools
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -686,7 +684,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pingone-admin-live-mcp
 git add demo_api_server/config/verticals/pingone-admin/manifest.json demo_api_server/tests/oas/verticalDispatch.oas.test.js
 git commit -m "feat(pingone-admin): manifest chips, renders, and story for live MCP with Source row
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -735,7 +732,6 @@ Expected: topology verify OK; MCP server suite PASS. (If root `node_modules` is 
 git add demo_mcp_server/src/tools/handlers/verticalTools.generated.ts <other-generated-files-from-git-status>
 git commit -m "chore(pingone-admin): regenerate vertical tool catalog for renamed live-MCP tools
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -781,7 +777,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pingone-admin-live-mcp
 git add demo_api_ui/src/components/OASDemoPage.jsx
 git commit -m "feat(pingone-admin): OAS demo launch message targets live MCP tool discovery
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---

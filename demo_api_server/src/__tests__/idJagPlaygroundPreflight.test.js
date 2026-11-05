@@ -110,11 +110,19 @@ describe('preflight — host, provider, sign-in, config', () => {
     expect(check(res, 'origin').status).toBe('fail');
   });
 
-  it('fails oauth-mcp when the login provider is PingOne', async () => {
+  it('with a PingOne login provider oauth-mcp does not fail on the provider: it signs in on the page itself', async () => {
     configStore.getOAuthProvider.mockReturnValue('pingone');
-    const res = await pre(pfSession(), { step: 'issue' });
-    expect(check(res, 'provider')).toEqual(expect.objectContaining({ status: 'fail' }));
-    expect(check(res, 'provider').fix).toMatch(/PingFederate/);
+    const res = await pre({}, { step: 'signin' });
+    expect(check(res, 'provider')).toBeUndefined();
+    expect(check(res, 'issuer-sign-in')).toEqual(expect.objectContaining({ status: 'pass', detail: expect.stringContaining('/api/id-jag-playground/issuer/callback') }));
+    expect(check(res, 'redirect-host').status).toBe('pass');
+    const signedIn = await pre({ idJagIssuer: { refreshToken: 'rt-secret', issuer: PF } }, { step: 'issue' });
+    expect(check(signedIn, 'signed-in').status).toBe('pass');
+    expect(JSON.stringify(signedIn.body)).not.toContain('rt-secret');
+  });
+
+  it('with a PingFederate login provider oauth-mcp still reports the provider check as pass', async () => {
+    expect(check(await pre(pfSession(), { step: 'issue' }), 'provider').status).toBe('pass');
   });
 
   it('fails when not signed in, and names the missing refresh token when that is the gap', async () => {

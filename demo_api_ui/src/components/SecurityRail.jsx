@@ -8,15 +8,24 @@ const STATUS_COLORS = {
   deny:     { bg: 'rgba(239,68,68,0.15)',   color: '#ef4444', iconBg: 'rgba(239,68,68,0.15)' },
 };
 
-const EVENT_DOT_COLORS = { success: '#22c55e', permit: '#22c55e', error: '#ef4444', acquiring: '#4f8ef7', exchanged: '#fca5a5', indeterminate: '#f59e0b' };
-
-export default function SecurityRail({ gates = [], actClaim = null, tokenEvents = [], onReplay }) {
+// The token chain is shown once, by the movie reel (TokenChainFilmstrip) under the studio.
+// This rail used to list the same events as a dotted column, which duplicated the reel and
+// rendered a blank row for every event without a label.
+export default function SecurityRail({ gates = [], actClaim = null, onReplay }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface, #1a1d27)', borderLeft: '1px solid var(--border, #2e3347)', overflow: 'hidden', minWidth: 320 }}>
       {/* Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border, #2e3347)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #e2e8f0)' }}>Security Gates</span>
         <span style={{ fontSize: 11, color: 'var(--muted, #8892a4)', marginLeft: 'auto' }}>We don't control the agent — we control the gates</span>
+        {onReplay && (
+          <button
+            onClick={onReplay}
+            style={{ fontSize: 11, color: '#4f8ef7', cursor: 'pointer', padding: '3px 8px', border: '1px solid rgba(79,142,247,0.3)', borderRadius: 4, background: 'rgba(79,142,247,0.08)' }}
+          >
+            Replay
+          </button>
+        )}
       </div>
 
       {/* Gates */}
@@ -45,33 +54,6 @@ export default function SecurityRail({ gates = [], actClaim = null, tokenEvents 
           <pre style={{ fontSize: 11, fontFamily: "'SF Mono','Fira Mono',monospace", color: '#fca5a5', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(actClaim, null, 2)}</pre>
         </div>
       )}
-
-      {/* Token events */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted, #8892a4)' }}>Token Events</span>
-          <button
-            onClick={onReplay}
-            style={{ marginLeft: 'auto', fontSize: 11, color: '#4f8ef7', cursor: 'pointer', padding: '3px 8px', border: '1px solid rgba(79,142,247,0.3)', borderRadius: 4, background: 'rgba(79,142,247,0.08)' }}
-          >
-            Replay
-          </button>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {tokenEvents.map((ev) => (
-            <div key={ev.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: EVENT_DOT_COLORS[ev.status] || '#8892a4', marginTop: 4, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text, #e2e8f0)' }}>{ev.label}</div>
-                {ev.description && <div style={{ fontSize: 11, color: 'var(--muted, #8892a4)', marginTop: 1, fontFamily: 'monospace' }}>{ev.description}</div>}
-              </div>
-            </div>
-          ))}
-          {tokenEvents.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--muted, #8892a4)', fontStyle: 'italic', paddingTop: 4 }}>Waiting for agent activity…</div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

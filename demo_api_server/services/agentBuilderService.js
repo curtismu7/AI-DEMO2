@@ -25,6 +25,7 @@ const { getCanonicalPublicOrigin } = require('./vercelPublicUrl');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const agentLifecycleEvents = require('./agentLifecycleEvents');
 const personalAgentCimdService = require('./personalAgentCimdService');
+const pingFederateClientService = require('./pingFederateClientService');
 
 const BUILDER_MARKER = 'Created by Agent Builder for ';
 
@@ -310,6 +311,13 @@ async function deleteAgentForUser(user, agentType = 'personal') {
     throw Object.assign(new Error('Refusing to delete: app was not created by Agent Builder for this user'), { code: 'forbidden' });
   }
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
+  // A workload agent may have been given a PingFederate client on its first
+  // PingFederate run; remove it with the registration.
+  if (pingFederateClientService.isConfigured()) {
+    await pingFederateClientService.deleteClient(raw.clientId || raw.id).catch((err) => {
+      console.warn('[agentBuilder] PingFederate client cleanup failed after delete:', err?.message || String(err));
+    });
+  }
   try {
     if (agentType === 'personal') {
       await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);

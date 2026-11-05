@@ -26,7 +26,7 @@ Stop with `docker compose down`. Saved config/profiles for mcp-inspector and ai-
 
 ## Option 2: Local (clone + npm, no Docker)
 
-**Prerequisites:** Node.js 22+, npm, git.
+**Prerequisites:** Node.js 26+, npm, git.
 
 ```bash
 git clone https://github.com/cmuir_pingcorp/mcp-toolkit.git

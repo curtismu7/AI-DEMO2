@@ -1342,7 +1342,9 @@ const _mcpTokenCache = new Map(); // key: `${sessionID}|${tool}` → { result, t
 function resetMcpTokenCacheForTests() { _mcpTokenCache.clear(); }
 
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
-  const sessionKey = `${req?.sessionID || 'anon'}|${tool || 'default'}`;
+  // A workload run mints its own actor chain; a token cached for the same tool
+  // by the built-in agent (or another workload agent) must not stand in for it.
+  const sessionKey = `${req?.sessionID || 'anon'}|${tool || 'default'}${req?.workloadAgentRuntime?.clientId ? `|workload:${req.workloadAgentRuntime.clientId}` : ''}`;
   const cached = _mcpTokenCache.get(sessionKey);
   const now = Date.now();
   if (cached && (now - cached.ts) < MCP_TOKEN_CACHE_TTL_MS && !opts?.skipCache) {
@@ -1357,7 +1359,11 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   const result = await _resolveMcpAccessTokenWithEventsUncached(req, tool, opts);
   if (result?.token && !opts?.skipCache) {
-    _mcpTokenCache.set(sessionKey, { result, ts: now });
+    // Cache a copy of the chain as resolved. The caller keeps pushing this
+    // call's own events (the gateway's audit, filter chain, backend exchange)
+    // onto result.tokenEvents; caching that same array replayed them on the
+    // next call, so a denied call showed the previous call's PERMIT audit.
+    _mcpTokenCache.set(sessionKey, { result: { ...result, tokenEvents: [...(result.tokenEvents || [])] }, ts: now });
   } else if (result?.token && opts?.skipCache) {
     _mcpTokenCache.delete(sessionKey); // a deliberate live run refreshes the window
   }
@@ -1578,16 +1584,31 @@ async function _resolveMcpAccessTokenWithEventsUncached(req, tool, opts = {}) {
     await resolveMcpTokenEnterpriseManaged(req, tokenEvents, { runScoped: runScopedEnterpriseDemo });
   }
 
-  // PingFederate's ID-JAG path currently has no input for the verified
-  // Agent Builder actor runtime. Do not return a user-scoped token while the
-  // Workload Agents UI claims that runtime supplied act.
+  // A workload agent is a PingOne application, so PingFederate has no client for
+  // it and could not issue the actor token that carries `act`. Give it a
+  // PingFederate client with the same id and secret (cloned from the built-in
+  // actor client); the two-exchange path below then takes its actor token from
+  // that client instead of the built-in one. Never fall back to the built-in
+  // actor: that would record the run under the wrong agent.
   if (req?.workloadAgentRuntime?.clientId && configStore.getOAuthProvider?.() === 'pingfederate') {
-    throwTokenResolutionError(
-      tokenEvents,
-      'workload_actor_provider_unsupported',
-      'Workload Agent actor binding currently requires the PingOne two-exchange path; PingFederate ID-JAG does not bind the selected agent.',
-      409,
-    );
+    const pfClientService = require('./pingFederateClientService');
+    try {
+      if (!pfClientService.isConfigured()) {
+        throw Object.assign(new Error('PingFederate Admin API is not configured.'), { code: 'pf_admin_not_configured' });
+      }
+      await pfClientService.ensureAgentClient({
+        clientId: req.workloadAgentRuntime.clientId,
+        clientSecret: req.workloadAgentRuntime.clientSecret,
+        name: req.workloadAgentRuntime.agent?.name || 'Workload agent',
+      });
+    } catch (err) {
+      throwTokenResolutionError(
+        tokenEvents,
+        'workload_actor_provider_unsupported',
+        `The workload agent has no PingFederate client and one could not be created (${err.code || 'error'}), so PingFederate cannot issue its actor token.`,
+        409,
+      );
+    }
   }
 
   // ── ff_skip_token_exchange — deny raw user-token forwarding ───────────────
@@ -3122,8 +3143,14 @@ async function _performTwoExchangeDelegation(
     const apikeyToolScopes = isApikeyTool
       ? effectiveToolScopes.filter((s) => s !== 'mcp:invoke')
       : [];
+    // PingFederate scopes are global (no per-resource exclusivity), so the coarse-path token can also carry the
+    // tool's own scope(s). Without it the Node gateway's per-tool check denies (missing [code:search]). PingOne
+    // keeps the single coarse scope: its one-scope-per-app-per-resource rule forbids the extra scopes here.
+    const pfToolScopes = configStore.getOAuthProvider?.() === 'pingfederate' && !isApikeyTool
+      ? effectiveToolScopes.filter((s) => s !== 'mcp:invoke' && s !== gatewayInvokeScope)
+      : [];
     const ex2Scopes = usePingGatewayForExchange
-      ? (isApikeyTool ? [apikeyInvokeScope, ...apikeyToolScopes] : [gatewayInvokeScope])
+      ? (isApikeyTool ? [apikeyInvokeScope, ...apikeyToolScopes] : [gatewayInvokeScope, ...pfToolScopes])
       : exchange2RequestedScopes;
     finalToken = provider
       ? await provider.performExchange(providerConfig, 'mcp', agentExchangedToken, mcpActorToken, finalAudiences, ex2Scopes)
@@ -3132,8 +3159,28 @@ async function _performTwoExchangeDelegation(
       );
     const finalDecoded = decodeJwtClaims(finalToken);
     const finalClaims  = finalDecoded?.claims;
+    // PF's exchange policy derives the output resource from the granted scope
+    // set (measured live 2026-11-04): gateway:mcp:invoke → the PingGateway
+    // resource (https://api.ping.demo:3036/mcp); read+mcp:invoke → the Demo MCP
+    // Server resource (mcpserver.ping.demo). performExchange sends no audience
+    // parameter to PF (omitAudience), so the minted aud is the POLICY's choice,
+    // not the destination lane's. Accept the full set of auds the destination
+    // gateway itself accepts (the MCP_GW_RESOURCE_URI comma list) plus the
+    // PingGateway resource, so validation checks "bound to a resource the
+    // destination honors" instead of guessing PF's mapping per scope set.
+    let pfAlternateFinalAuds;
+    if (provider) {
+      const accepted = new Set();
+      const nodeAuds = String(process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
+        || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '')
+        .split(',').map((part) => part.trim()).filter(Boolean);
+      for (const a of nodeAuds) if (a !== finalAudTarget) accepted.add(a);
+      const pgAud = configuredPingGatewayAudience(opts.tool);
+      if (pgAud && pgAud !== finalAudTarget) accepted.add(pgAud);
+      if (accepted.size) pfAlternateFinalAuds = [...accepted];
+    }
     if (provider) provider.validateFinalToken(finalToken, {
-      userSub, audience: finalAudTarget, scopes: ex2Scopes,
+      userSub, audience: finalAudTarget, acceptedAudiences: pfAlternateFinalAuds, scopes: ex2Scopes,
       issuer: providerConfig.issuer, agentActorToken, mcpActorToken,
     });
     // Preserve exchangeRequest across splice so TraceRail's exchange step keeps
@@ -3142,7 +3189,10 @@ async function _performTwoExchangeDelegation(
     const ex2ExchangeRequest = ex2Idx !== -1 ? (tokenEvents[ex2Idx].exchangeRequest || null) : null;
     if (ex2Idx !== -1) tokenEvents.splice(ex2Idx, 1);
     const mcpTokenAud = finalClaims?.aud;
-    const audMatches  = mcpTokenAud === finalAudTarget || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget));
+    const audMatches  = mcpTokenAud === finalAudTarget
+      || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget))
+      || (Array.isArray(pfAlternateFinalAuds) && pfAlternateFinalAuds.some((a) => mcpTokenAud === a
+        || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(a))));
     const nestedActOk = !!finalClaims?.act?.sub && !!finalClaims?.act?.act?.sub;
     // audMatches used to be computed here and then only REPORTED (in the event
     // text and metadata), so a token minted for the wrong audience was sent
@@ -3181,7 +3231,20 @@ async function _performTwoExchangeDelegation(
         audienceNarrowed: finalAudTarget, audMatches,
         audExpected: finalAudTarget, audActual: mcpTokenAud,
         scopeNarrowed: ex2Scopes.join(' '),
-        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
+        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}),
+        // PingFederate only: the token endpoint both exchanges were sent to, and
+        // which configured PF client filled each readiness role. A role is named
+        // only when its own configured client was the one used (a registered
+        // agent acting as itself replaces the built-in actor).
+        ...(provider ? { pfExchange: {
+          endpoint: providerConfig.tokenEndpoint || null,
+          credentialRoles: [
+            exchange1Client === opts.providerConfig?.agentExchangeClientId && 'standard-agent-exchanger',
+            exchange2Client === opts.providerConfig?.mcpExchangeClientId && 'standard-mcp-exchanger',
+            aiAgentClientId === opts.providerConfig?.agentActorClientId && 'ai-agent-actor',
+            mcpExchangerClient === opts.providerConfig?.mcpActorClientId && 'mcp-service-actor',
+          ].filter(Boolean),
+        } } : {}) }
     ));
     // JWKS verify the final MCP token (result of Exchange #2)
     await pushJwksVerifyEvent(finalToken, tokenEvents, 'two-ex-final-token-verified', 'Final MCP Token (#2 result)');

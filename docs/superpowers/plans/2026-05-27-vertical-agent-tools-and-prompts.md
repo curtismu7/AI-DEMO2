@@ -152,7 +152,6 @@ cd /Users/curtismuir/Development/AI-Demo
 git add demo_api_server/services/verticalConfigService.js demo_api_server/tests/verticalConfigService.test.js
 git commit -m "fix(verticals): exclude admin from listVerticals() switcher; keep internal-only verticals set
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -256,7 +255,6 @@ git add demo_api_server/config/verticals/retail.json \
         demo_api_server/config/verticals/workforce.json
 git commit -m "feat(verticals): rewrite systemPromptFlavor — professional personas, no meta-commentary
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -473,7 +471,6 @@ git add demo_api_server/services/bankingAgentLangGraphService.js \
         demo_api_server/tests/bankingAgentToolSchemas.test.js
 git commit -m "feat(verticals): BFF injects per-vertical tool description overrides for shared MCP tools
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -669,7 +666,6 @@ git commit -m "feat(verticals): inject vertical systemPromptFlavor into BFF reas
 - agentOrchestrator prepends system message when present
 - BFF injects manifest.agent.systemPromptFlavor on every agent call
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---
@@ -816,7 +812,6 @@ git add langchain_agent/src/agent/langchain_mcp_agent.py \
         langchain_agent/src/api/websocket_handler.py
 git commit -m "feat(verticals): LangChain agent reads vertical_flavor from session_init; prepends to system prompt
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 Also commit any BFF file changes from Step 13.2:
@@ -825,7 +820,6 @@ Also commit any BFF file changes from Step 13.2:
 git add demo_api_server/ -u
 git commit -m "feat(verticals): BFF sends vertical_flavor in session_init to LangChain agent
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 ---

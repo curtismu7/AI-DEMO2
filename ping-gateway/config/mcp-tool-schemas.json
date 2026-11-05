@@ -1243,15 +1243,6 @@
         "additionalProperties": false
       }
     },
-    "list_anf_orders": {
-      "source": "olb",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      }
-    },
     "list_appointments": {
       "source": "olb",
       "inputSchema": {
@@ -1402,6 +1393,15 @@
       }
     },
     "list_verticals": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_walbuy_orders": {
       "source": "olb",
       "inputSchema": {
         "type": "object",

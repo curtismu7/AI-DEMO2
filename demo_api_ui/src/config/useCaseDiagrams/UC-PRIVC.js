@@ -6,18 +6,19 @@
  * REQUEST header, never in the client-visible list.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_PRIVC as steps } from "../ucBatch3Steps";
 
 const NODES = [
-  { id: "client", group: "agent", label: "MCP client", sub: ["sees the union"], x: 40, y: 150, detail: "Its tools/list shows 3 tools — the deduplicated union, with the shared tool appearing once." },
-  { id: "gw", group: "gateway", label: "Agent Privilege gateway", sub: ["union + dedup"], x: 340, y: 150, detail: "Policies add; delivery dedupes — the gateway computes the union at discovery and echoes per-policy contributions upstream." },
-  { id: "policy1", group: "pingone", label: "Policy #1", sub: ["grants A, B"], x: 640, y: 150, detail: "The first policy on the app: tools A and B." },
-  { id: "policy2", group: "pingone", label: "Policy #2", sub: ["grants B, C"], x: 940, y: 150, detail: "A second, new policy on the same identity — deliberately overlapping on B. Creating it adds to the effective grant." },
-  { id: "backend", group: "resource", label: "MCP backend", sub: ["source catalog"], x: 1240, y: 150, detail: "Serves the tool catalog both policies cut from." },
+  { id: "client", group: "agent", label: "MCP client", sub: ["sees the union"], x: 40, y: 330, detail: "Its tools/list shows 3 tools — the deduplicated union, with the shared tool appearing once." },
+  { id: "gw", group: "gateway", label: "Agent Privilege gateway", sub: ["union + dedup"], x: 470, y: 330, detail: "Policies add; delivery dedupes — the gateway computes the union at discovery and echoes per-policy contributions upstream." },
+  { id: "policy1", group: "pingone", label: "Policy #1", sub: ["grants A, B"], x: 40, y: 110, detail: "The first policy on the app: tools A and B." },
+  { id: "policy2", group: "pingone", label: "Policy #2", sub: ["grants B, C"], x: 470, y: 110, detail: "A second, new policy on the same identity — deliberately overlapping on B. Creating it adds to the effective grant." },
+  { id: "backend", group: "resource", label: "MCP backend", sub: ["source catalog"], x: 940, y: 330, detail: "Serves the tool catalog both policies cut from." },
 ];
 
 const EDGES = [
   ["policy1", "gw", "grant {A, B}", { detail: "Policy #1 contributes A and B." }],
-  ["policy2", "gw", "grant {B, C}", { detail: "Policy #2 contributes B and C — the same identity, a second policy." }],
+  ["policy2", "gw", "grant {B, C}", { vertical: true, detail: "Policy #2 contributes B and C — the same identity, a second policy." }],
   ["gw", "gw", "union = {A, B, C}", { detail: "The effective grant is the union of all non-expired policies applying to the identity — a set, applied at discovery." }],
   ["gw", "backend", "cap header echoes both", { detail: "The X-Procyon-Mcp-Cap REQUEST header carries the per-policy contributions upstream — duplicates live there, not in the client list." }],
   ["gw", "client", "3 tools, deduplicated", { detail: "The client-visible tools/list is the deduplicated union: 3 entries, the shared tool once." }],
@@ -59,8 +60,10 @@ const walk = [
 export default {
   id: "UC-PRIVC",
   result: { label: "UNION", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

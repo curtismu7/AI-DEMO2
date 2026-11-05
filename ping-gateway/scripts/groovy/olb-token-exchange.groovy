@@ -271,9 +271,9 @@ if (isPfSubject && (!pfExchangeConfigValid()
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
 def exClientId  = isPfSubject ? pfTeClientId : teClientId
 def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
-// The local PF scope registry differs from PingOne: read/write are registered,
-// but code:search is not. Keep the PingOne scope contract intact and use PF's
-// narrower provider-specific scope list only for PF-issued subjects. The
+// PF has its own scope list (PG_OLB_SCOPE_PF), kept separate from PingOne's so the
+// two scope contracts can differ. Both must carry every tool scope the gateway forwards
+// (scripts/pingfederate/ensure-tool-scopes.sh registers them in PF, incl. code:search). The
 // PG_OLB_SCOPE setting is PingOne-specific; PG_OLB_SCOPE_PF configures PF.
 def requestedOlbScope = isPfSubject ? pfOlbScope : olbScope
 // Least privilege: of the configured scopes, ask only for the ones this tool

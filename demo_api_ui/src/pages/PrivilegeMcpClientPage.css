@@ -2,7 +2,10 @@
 
 /* Fit the space left by the app chrome (top nav + main-content padding +
    footer). A flat 100vh made the document taller than the viewport, so the
-   page loaded already scrolled and the terminal/logs pane fell below the fold. */
+   page loaded already scrolled and the terminal/logs pane fell below the fold.
+   160px is measured with the compact footer below (it was 216px with the full one): nav and title area above the panel (it varies by about 11px with
+   the banners shown), main-content bottom padding and the footer below it. 176px left
+   the footer 30 to 40px under the fold. */
 .cur-ide {
   --cur-prompt-surface: #252526;
   --cur-prompt-ink: #d4d4d4;
@@ -10,7 +13,7 @@
   --cur-prompt-border: #454545;
   --cur-prompt-error: #f87171;
   --cur-prompt-accent: #3794ff;
-  height: calc(100vh / var(--app-zoom, 1) - 176px);
+  height: calc(100vh / var(--app-zoom, 1) - 160px);
   min-height: 520px;
   display: flex;
   flex-direction: column;
@@ -20,6 +23,14 @@
   font-size: var(--font-size-base);
   overflow: hidden;
 }
+
+/* The IDE panel needs every pixel, so the global footer becomes one thin line and the page's bottom padding shrinks.
+   The brand text and logo carry inline sizes, hence !important. */
+body:has(.cur-ide) .footer { padding: 3px 0; }
+body:has(.cur-ide) .footer .footer-logo { height: 16px !important; width: 16px !important; }
+body:has(.cur-ide) .footer .footer-brand-text { font-size: 12px !important; }
+body:has(.cur-ide) .footer .footer-copyright { font-size: 11px !important; }
+body:has(.cur-ide) .main-content { padding-bottom: 8px; }
 
 /* Title bar */
 .cur-titlebar {
@@ -1632,6 +1643,11 @@ select.cur-input { cursor: pointer; }
   max-height: 260px;
   overflow: auto;
 }
+/* The Results dock is short (~110px). Let the one result fill it and scroll inside its own box, rather than a 400px box
+   that the dock clips with no way to reach the bottom. */
+.cur-terminal-results .cur-result-item { flex: 1 1 0; min-height: 90px; display: flex; flex-direction: column; }
+.cur-terminal-results .cur-result-item > .cur-formview,
+.cur-terminal-results .cur-result-item > .cur-code-output { flex: 1 1 0; min-height: 0; max-height: none; overflow: auto; }
 .cur-ide[data-cur-theme="light"] .cur-result-item { border-color: #e0e0e0; background: #ffffff; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #12538d; }
@@ -2404,12 +2420,21 @@ select.cur-input { cursor: pointer; }
   /* Right padding clears the app's floating agent button, which sits over the corner and hid Send. */
   padding: 10px 76px 12px 18px;
   gap: 6px 12px;
-  /* The composer scrolls with the column. It used to be pinned (position: sticky), but at 340 to 500px tall it
-     sat over the walkthrough and the Break-it rows whatever the window height. */
 }
 /* Many suggestions scroll inside their own box instead of growing the composer. */
-.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 112px; overflow-y: auto; }
-.cur-ide .cur-a2a-main .privilege-a2a__composer textarea { min-height: 48px; }
+.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 96px; overflow-y: auto; }
+.cur-ide .cur-a2a-main .privilege-a2a__composer textarea { height: 56px; min-height: 48px; }
+/* The hint takes its own row, so Reset, Cancel, Calls and Send keep their width in a narrow column. */
+.cur-ide .cur-a2a-main .privilege-a2a__actions { flex-wrap: wrap; row-gap: 6px; }
+.cur-ide .cur-a2a-main .privilege-a2a__actions > span { flex: 1 1 100%; }
+.cur-ide .cur-a2a-main .privilege-a2a__composer {
+  background: var(--cur-prompt-surface);
+}
+/* The composer is a fixed row at the foot of the column; the conversation (or the suggested questions before the first
+   run) takes what is left and scrolls inside itself, so nothing is ever hidden behind the question box. */
+.cur-ide .cur-a2a-main .privilege-a2a__conversation { overflow: hidden; }
+.cur-ide .cur-a2a-main .privilege-a2a__conversation > .privilege-a2a__start,
+.cur-ide .cur-a2a-main .privilege-a2a__conversation > .privilege-a2a__turns { flex: 1 1 0; min-height: 80px; overflow-y: auto; }
 /* The suggestion chips above already offer every question the select lists. */
 .cur-ide .cur-a2a-main .privilege-a2a__composer label[for="privilege-a2a-demo-question"],
 .cur-ide .cur-a2a-main #privilege-a2a-demo-question { display: none; }
@@ -2442,6 +2467,11 @@ select.cur-input { cursor: pointer; }
   .cur-ide .cur-a2a-main .privilege-a2a__composer textarea { min-height: 36px; }
   /* On short windows the floating "AI Agent" pill rides up over this row too. */
   .cur-ide .cur-a2a-main .privilege-a2a__composer { padding-right: 160px; }
+}
+/* Very short windows: the Calls menu lists the same questions as the chips, so the chips give way to the question box. */
+@media (max-height: 640px) {
+  .cur-ide .cur-a2a-main .privilege-a2a__chips { display: none; }
+  .cur-ide .cur-a2a-main .privilege-a2a__composer textarea { height: 40px; min-height: 36px; }
 }
 
 /* ── Inspect drawer ─────────────────────────────────────────────────────── */
@@ -2517,9 +2547,20 @@ select.cur-input { cursor: pointer; }
 /* The empty chat now carries the guide: start at the top and scroll, rather than centring (which clipped the first line). */
 .cur-ide .cur-chat-empty { justify-content: flex-start; min-height: 0; overflow-y: auto; padding: 16px 12px; }
 .cur-ide .cur-chat-empty .cur-chat-empty-icon { display: none; }
-/* The dock opens short so the chat/tools above keep their height at 1440x900; drag the handle to enlarge it. */
-.cur-ide .cur-terminal { height: 150px; }
+/* The dock opens at 180px: 150px left the Results pane ~110px, too short to read one tool result. The compact footer pays for it. */
+.cur-ide .cur-terminal { height: 180px; }
+/* On the Tools tab the response sits beside the request, so the dock only needs to hold the trace; the request/response pair gets the room. */
+.cur-ide .cur-terminal--short { height: 110px; }
 .cur-ide .cur-start-guide { color: var(--cur-prompt-ink, #d4d4d4); }
 .cur-ide .cur-chat-empty { gap: 4px; padding: 10px 12px; }
 .cur-ide .cur-start-guide { margin-top: 6px; gap: 4px; }
 .cur-ide .cur-chat-empty .cur-chat-hint { display: none; }  /* the guide below says what to try; this line cost the third step its room */
+
+/* Simulated approver popup: left-aligned request details, not the sign-in modal's centred note. */
+.cur-ide .cur-approver { text-align: left; }
+.cur-ide .cur-approver .cur-denial-note { text-align: left; }
+.cur-ide .cur-approver__args { margin: 8px 0; padding: 8px; border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); white-space: pre-wrap; word-break: break-all; text-align: left; font-weight: 400; }
+
+.cur-ide .cur-hitl-raw > summary { cursor: pointer; margin: 4px 0; font-size: var(--font-size-xs, 11px); opacity: 0.7; }
+.cur-ide .cur-hitl-hold__steps { margin: 4px 0 8px; padding-left: 20px; font-size: var(--font-size-sm, 12px); line-height: 1.5; }
+.cur-ide .cur-hitl-hold__retry--quiet { opacity: 0.75; border-style: dashed; }

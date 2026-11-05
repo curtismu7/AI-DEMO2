@@ -41,6 +41,8 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_mcp_token_exchanger_client_id', 'pingone_mcp_token_exchanger_client_secret',
   'pingone_token_exchanger_client_id', 'pingone_token_exchanger_client_secret',
   'pingone_mcp_gateway_client_id', 'pingone_mcp_gateway_client_secret',
+  // Muse personal-agent app (PingOne app id + secret are env-specific)
+  'pingone_muse_client_id', 'pingone_muse_client_secret',
   'mcp_gw_client_id', 'mcp_gw_client_secret',
   'gw_introspection_client_id', 'gw_introspection_client_secret',
   // a2a specialists (FIELD_DEFS uses pingone_a2a_ prefix)
@@ -221,6 +223,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_id_jag_scope', 'pf_id_jag_subject_token_type',
   'pf_id_jag_redemption_token_endpoint', 'pf_id_jag_redemption_client_id',
   'pf_id_jag_redemption_client_secret', 'pf_id_jag_redemption_auth_method',
+  'id_jag_playground_step4_enabled',
   'pf_ai_cimd_enabled', 'pf_ai_cross_domain_enabled',
   'pf_ai_cross_domain_client_id', 'pf_ai_cross_domain_client_secret',
   'pf_ai_cross_domain_token_endpoint_auth_method', 'pf_ai_cross_domain_audience',
@@ -231,6 +234,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_ai_rar_client_id', 'pf_ai_rar_dpop_client_id', 'pf_ai_rar_lookup_secret', 'pf_ai_third_party_mock_enabled', 'pf_ai_ciba_mock_enabled',
   'pf_ai_ciba_enabled', 'pf_ai_ciba_client_id', 'pf_ai_ciba_client_secret',
   'pf_ai_ciba_web_approver_enabled', 'pf_ai_ciba_approver_secret',
+  'pf_ai_dcr_enabled', 'pf_ai_dcr_iat_client_id', 'pf_ai_dcr_iat_client_secret',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

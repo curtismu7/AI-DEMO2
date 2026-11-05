@@ -11,3 +11,7 @@
 .mgof-page--ping.mgof-page--ping a:any-link { color: var(--th-status-info); }
 .mgof-page--ping.mgof-page--ping code { color: var(--th-text); }
 .mgof-page--ping .efd h3 { color: var(--th-text); font-size: var(--font-size-lg); }
+
+/* "Why we care" note under the dual-path header. */
+.pmd-page--ping .mgof-why, .mgof-page--ping .mgof-why { margin: 12px 0 0; padding: 10px 14px; border-left: 4px solid var(--th-status-info); background: var(--th-bg-card); color: var(--th-text-body); font-size: var(--font-size-sm); line-height: 1.55; }
+.pmd-page--ping .mgof-why b, .mgof-page--ping .mgof-why b { color: var(--th-text); }

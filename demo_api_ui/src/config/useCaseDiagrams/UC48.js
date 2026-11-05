@@ -7,13 +7,14 @@
  * user, agent and tool.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, MCP, AUTHZ, EXCHANGE } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (traveler)", sub: ["$800 cap"], x: 40, y: 150, detail: "Asks for a flight under $800. The $346 fare is hers to approve — the pause exists so the human decides, not the agent." },
-  { id: "agent", group: "agent", label: "Consumer agent", sub: ["book_airline_flight", "$346 fare"], x: 340, y: 150, detail: "Searches, picks a $346 fare under the cap, and proposes the booking — but cannot complete a consequential write on its own." },
-  { id: "gw", group: "gateway", label: "Agent gateway / BFF", sub: ["holds the write"], x: 640, y: 150, detail: "Holds the booking while the obligation is unsatisfied — nothing reaches the reservations database until a verified receipt arrives." },
-  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["transaction policy", "HITL obligation"], x: 940, y: 150, detail: "Evaluates the booking price against the transaction policy; $346 lands in the HITL consent band and the answer is an obligation." },
-  { id: "db", group: "resource", label: "Reservations DB", sub: ["the real write"], x: 1240, y: 150, detail: "The booking write lands here only after the receipt discharges the gate — 'show my reservations' then lists the trip it booked." },
+  { id: "agent", group: "agent", label: "Consumer agent", sub: ["book_airline_flight", "$346 fare"], x: 440, y: 150, detail: "Searches, picks a $346 fare under the cap, and proposes the booking — but cannot complete a consequential write on its own." },
+  { id: "gw", group: "gateway", label: "Agent gateway / BFF", sub: ["holds the write"], x: 840, y: 150, detail: "Holds the booking while the obligation is unsatisfied — nothing reaches the reservations database until a verified receipt arrives." },
+  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["transaction policy", "HITL obligation"], x: 1240, y: 150, detail: "Evaluates the booking price against the transaction policy; $346 lands in the HITL consent band and the answer is an obligation." },
+  { id: "db", group: "resource", label: "Reservations DB", sub: ["the real write"], x: 1640, y: 150, detail: "The booking write lands here only after the receipt discharges the gate — 'show my reservations' then lists the trip it booked." },
 ];
 
 const EDGES = [
@@ -67,11 +68,122 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values. The -32002 error mirrors demo_mcp_gateway/src/index.ts (HITL branch);
+// the consent-challenge routes are in routes/transactions.js.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: `Agent chat (airlines vertical chip)
+
+{ "prompt": "Book a flight from San Francisco to Paris for me under $800" }
+
+BFF session cookie only; the agent's authority is minted on the next hop.`,
+      tokens: [],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: `POST {token endpoint}   (RFC 8693 exchange, then the governed call)
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+subject_token=<user access token>
+actor_token=<agent token>
+audience=<gateway>
+
+POST /gateway/mcp
+Authorization: Bearer <delegated access token>
+
+{ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": { "name": "book_airline_flight", "arguments": { "fare": 346, "flight": "<selected SFO-Paris option>" } } }`,
+      tokens: [
+        {
+          note: "MOCK subject token · Alice's user token",
+          header: { alg: "RS256", typ: "at+jwt" },
+          claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://bff.ping.demo", scope: "openid", exp: 1790000000 },
+        },
+        {
+          note: "MOCK delegated token · user subject, agent in act",
+          header: { alg: "RS256", typ: "at+jwt" },
+          claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", act: { sub: "agent-0001" }, exp: 1790000000 },
+        },
+      ],
+      refs: [EXCHANGE[0], EXCHANGE[1], RFC(6750, "Bearer token usage")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: `PingOne Authorize decision request (from the gateway)
+
+subject: alice-0001, actor: agent-0001
+resource: tool book_airline_flight
+attributes: { fare: 346 }
+
+policy: fare in consent band (>= 250, < 500) -> obligation HITL  (not PERMIT, not DENY)
+
+{ "jsonrpc": "2.0", "id": 1,
+  "error": { "code": -32002, "message": "Human approval required",
+    "data": { "hitl": true, "tool": "book_airline_flight", "challengeId": "{challengeId}" } } }`,
+      tokens: [
+        {
+          note: "MOCK delegated token the decision is made on",
+          claims: { sub: "alice-0001", act: { sub: "agent-0001" }, aud: "https://mcp.ping.demo", scope: "banking:transactions:write" },
+        },
+      ],
+      refs: [AUTHZ[0], AUTHZ[3], MCP[0]],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: `POST /api/transactions/consent-challenge
+Cookie: <BFF session cookie>
+Content-Type: application/json
+
+{ "type": "transfer", "amount": 346, "fromAccountId": "{fromAccountId}", "toAccountId": "{toAccountId}" }
+
+-> 201 { "challengeId": "{challengeId}", "expiresAt": "<ISO time>" }
+
+POST /api/transactions/consent-challenge/{challengeId}/confirm
+-> 200 { "consentOnly": true, "confirmExpiresAt": "<ISO time>" }`,
+      tokens: [
+        {
+          note: "MOCK approval receipt · bound to user, agent and tool; single use",
+          claims: { sub: "alice-0001", act: { sub: "agent-0001" }, tool: "book_airline_flight", amount: 346, challengeId: "{challengeId}", singleUse: true },
+        },
+      ],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: `POST /gateway/mcp
+Authorization: Bearer <delegated access token>
+Content-Type: application/json
+
+{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+  "params": { "name": "book_airline_flight", "arguments": { "fare": 346, "_hitl_challenge_id": "{challengeId}" } } }
+
+Receipt verified (user + agent + tool bound) -> Authorize re-evaluates -> PERMIT -> reservations DB write.`,
+      tokens: [
+        {
+          note: "MOCK delegated token carried on the retry",
+          claims: { sub: "alice-0001", act: { sub: "agent-0001" }, aud: "https://mcp.ping.demo", scope: "banking:transactions:write" },
+        },
+      ],
+      refs: [AUTHZ[0], RFC(8693, "act claim: who is acting for whom")],
+    },
+  },
+];
+
 export default {
+  pingStyle: true,
   id: "UC48",
   result: { label: "HITL REQUIRED", tone: "warn" },
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

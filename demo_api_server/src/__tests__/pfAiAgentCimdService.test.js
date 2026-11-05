@@ -36,6 +36,7 @@ describe('PF AI Agent CIMD service', () => {
     expect(metadataDocument(config)).toEqual({
       client_id: 'https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json',
       client_name: 'AI Demo PingFederate Agent',
+      client_uri: 'https://local.ping-devops.com:4000',
       redirect_uris: ['https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/callback'],
       grant_types: ['authorization_code'],
       response_types: ['code'],

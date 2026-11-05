@@ -14,9 +14,13 @@ const { exchangeForThirdPartyAccessToken, cimdPingFederateToken } = require('../
 const hasUsablePfToken = (req) => Boolean(cimdPingFederateToken(req));
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
-const { startCiba, pollCiba, mockDecideCiba, decideCiba } = require('../services/pfAiAgentCibaService');
+const { startCiba, pollCiba, mockDecideCiba, decideCiba, emailDecide, emailStatus, emailChannelEnabled } = require('../services/pfAiAgentCibaService');
+const cibaEmailSmtp = require('../services/cibaEmailSmtp');
 const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 const pfTokenExchangeDemo = require('../services/pfTokenExchangeDemoService');
+const pfDcr = require('../services/pfAiAgentDcrService');
+const cimdTester = require('../services/pfAiAgentCimdTesterService');
+const pfPiFlow = require('../services/pfAiAgentPiFlowService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -56,6 +60,8 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       sessionProvider: sessionProvider(req) || 'none',
       features: getFeatureStatus(store),
       nativeIdJagPath: '/pingfederate-id-jag/demo',
+      // The PingFederate ID-JAG demo (playground PingFederate -> PingFederate lane) is on: the page's ID-JAG section points there.
+      idJagDemoEnabled: String(store.getEffective('pf_id_jag_enabled') || '').toLowerCase() === 'true',
       // True once this session has signed in at PingFederate through the CIMD flow and holds a usable PF token.
       pfSignedIn: hasUsablePfToken(req),
       // Safe metadata of this session's last RAR run (outcome, token type, DPoP key thumbprint);
@@ -75,6 +81,35 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       return res.status(error.httpStatus || 503).json({ error: errorCode(error, 'pf_ai_cimd_config_invalid') });
     }
   });
+
+  // Documents that each break one CIMD rule, fetched by PingFederate (its CIMD policy lists these exact URLs)
+  // during the tester's probe. Public, like the real document: PingFederate fetches with no session.
+  router.get('/cimd/negative/:name.json', (req, res) => {
+    try {
+      if (!getFeatureStatus(store).cimd) return res.status(404).json({ error: 'pf_ai_cimd_not_enabled' });
+      const document = cimdTester.negativeDocument(req.params.name, { store });
+      if (!document) return res.status(404).json({ error: 'not_found' });
+      res.set('Cache-Control', 'no-store');
+      return res.json(document);
+    } catch (error) {
+      return res.status(error.httpStatus || 503).json({ error: errorCode(error, 'pf_ai_cimd_config_invalid') });
+    }
+  });
+
+  const testerReply = (run) => async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await run(req));
+    } catch (error) {
+      const code = errorCode(error, 'pf_ai_cimd_tester_failed');
+      return res.status(error.httpStatus || 502).json({ error: code, ...(error.message && /^PF_AI_/.test(code) ? { detail: error.message } : {}) });
+    }
+  };
+  // CIMD tester (after client.dev): the document against the draft's rules, PingFederate's discovery, and
+  // PingFederate's own verdict on good and bad documents.
+  router.post('/cimd/tester/client', requireApplicationSession, testerReply((req) => cimdTester.checkClient(req.body, { store })));
+  router.post('/cimd/tester/server', requireApplicationSession, testerReply(() => cimdTester.checkServer({ store, fetchImpl })));
+  router.post('/cimd/tester/probe', requireApplicationSession, testerReply(() => cimdTester.probePf({ store, fetchImpl })));
 
   router.get('/cimd/start', requireApplicationSession, async (req, res) => {
     try {
@@ -189,6 +224,93 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
    * @step 2
    */
   router.post('/token-exchange/mcp', requireApplicationSession, exchangeReply(pfTokenExchangeDemo.mcpHop));
+
+  const dcrReply = (run) => async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await run(req, { store, fetchImpl }));
+    } catch (error) {
+      const code = errorCode(error, 'pf_ai_dcr_failed');
+      return res.status(error.httpStatus || 502).json({
+        error: code,
+        // Our own sentence plus PingFederate's OAuth error code; never a secret or a token.
+        ...(/^PF_AI_(DCR|PIFLOW)_/.test(String(code)) ? { detail: error.message } : {}),
+      });
+    }
+  };
+
+  /**
+   * The client allowed to register others asks PingFederate for an initial access token
+   * (client credentials, scope dcr:register). PingFederate refuses any registration without one.
+   *
+   * @flow dcr-pf
+   * @name Dynamic Client Registration (PingFederate)
+   * @idp pingfederate
+   * @rfc https://datatracker.ietf.org/doc/html/rfc7591 RFC 7591
+   * @why Dynamic Client Registration (RFC 7591) lets software enrol itself as an OAuth client at run time instead of an administrator creating it by hand; RFC 7592 lets that client later read, update or delete its own registration with the registration access token it gets back. PingFederate requires an initial access token, so registration is not open to anyone who can reach the endpoint, and limits what a self-registered client may ask for.
+   * @example A visitor badge desk: a host signs you in, you get a badge with limited access, and you hand it back on the way out.
+   * @ai An agent platform can mint one OAuth client per agent instance on demand, with narrow scopes, and delete it when the agent is retired, so no long-lived shared client is left behind.
+   * @title Get an initial access token
+   * @actor client-app
+   * @to pingfederate
+   * @step 1
+   */
+  router.post('/dcr/initial-token', requireApplicationSession, dcrReply(pfDcr.initialToken));
+
+  /**
+   * Register a client: once with no initial access token (refused), then with it. PingFederate
+   * answers with the new client_id, its secret and a registration access token.
+   *
+   * @flow dcr-pf
+   * @title Register a client
+   * @actor client-app
+   * @to pingfederate
+   * @step 2
+   */
+  router.post('/dcr/register', requireApplicationSession, dcrReply(pfDcr.register));
+
+  /**
+   * Use the new client: a token for the scope it registered for, then a scope PingFederate's
+   * DCR settings do not allow (refused).
+   *
+   * @flow dcr-pf
+   * @title Get a token as the new client
+   * @actor client-app
+   * @to pingfederate
+   * @step 3
+   */
+  router.post('/dcr/token', requireApplicationSession, dcrReply(pfDcr.useClient));
+
+  /**
+   * The client deletes its own registration with its registration access token (RFC 7592);
+   * a token request with its credentials then fails.
+   *
+   * @flow dcr-pf
+   * @title Delete the client
+   * @actor client-app
+   * @to pingfederate
+   * @step 4
+   */
+  router.post('/dcr/delete', requireApplicationSession, dcrReply(pfDcr.remove));
+
+  /**
+   * Open a PingFederate Authentication API flow: the same authorization request a browser would make, with
+   * response_mode=pi.flow, comes back as JSON (status and the actions the client may take) rather than a login
+   * page. Then read the flow back from /pf-ws/authn/flows/{id}. No credential is sent.
+   *
+   * @flow piflow-pf
+   * @name Authentication API (pi.flow, PingFederate)
+   * @idp pingfederate
+   * @rfc https://docs.pingidentity.com/pingfederate/latest/developers_reference_guide/pf_authn_api.html PingFederate Authentication API
+   * @why A browser redirect to a hosted login page does not suit a native app, a CLI or an agent. With response_mode=pi.flow PingFederate returns the sign-in as a JSON state machine: each response names its status (for example USERNAME_PASSWORD_REQUIRED) and the actions the client may post next, and the authorization code arrives in the final response. The app renders every screen itself; PingFederate still runs the policy.
+   * @example A self-checkout till: the shop's rules decide every step, but you press the buttons on the till instead of queuing for a cashier.
+   * @ai An agent or a native assistant can sign a person in without opening a browser window, and every step is an API call it can log.
+   * @title Open a pi.flow and read it back
+   * @actor client-app
+   * @to pingfederate
+   * @step 1
+   */
+  router.post('/piflow/open', requireApplicationSession, dcrReply(pfPiFlow.openFlow));
 
   // Called by the PingFederate banking_transaction processor after sign-in, not
   // by a browser: it has no session, so it presents a shared credential.
@@ -314,6 +436,51 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
     }
   };
+
+  // Email channel (PingFederate path): start needs a session; the emailed link does not.
+  // Send the approval email: a real SMTP round trip to the in-process sink, whose body
+  // carries the one-time link. The URL uses the canonical frontend origin (no localhost).
+  router.post('/ciba/email/send', requireApplicationSession, async (req, res) => {
+    try {
+      const pending = req.session?.pfAiAgent?.cibaPending;
+      if (!pending?.emailChannel) return res.status(409).json({ error: 'pf_ai_ciba_nothing_pending' });
+      const entry = emailStatus(pending.emailToken);
+      if (entry.state !== 'waiting') return res.status(409).json({ error: 'pf_ai_ciba_email_not_waiting' });
+      const confirmUrl = `${getFrontendOrigin()}/ciba-email-approve?token=${encodeURIComponent(pending.emailToken)}`;
+      const binding = pending.bindingMessage || 'approval';
+      await cibaEmailSmtp.sendApprovalEmail({
+        to: pending.loginHint,
+        subject: `CIBA approval: ${binding}`,
+        text: `A request is waiting for your approval.\n\nBinding message: ${binding}\n\nOpen this one-time link to approve or deny:\n${confirmUrl}\n\nThe link expires when the request does.`,
+        html: `<p>A request is waiting for your approval.</p><p>Binding message: <strong>${binding}</strong></p><p><a href="${confirmUrl}">Open the one-time approval link</a></p><p>The link expires when the request does.</p>`,
+      });
+      res.set('Cache-Control', 'no-store');
+      return res.json({ ok: true, sentTo: pending.loginHint });
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_email_send_failed') });
+    }
+  });
+
+  // The emailed link's click-to-confirm page API: read status, then decide. No session —
+  // the one-time 256-bit token in the URL is the authority. Mail-client prefetch of the
+  // page URL is harmless: only POST /decide records an answer, and it is single-use.
+  router.get('/ciba/email/link/:token', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      return res.json(emailStatus(req.params.token));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+  router.post('/ciba/email/link/:token/decide', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      return res.json(emailDecide({ token: req.params.token, decision: req.body?.decision }));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+
   router.post('/ciba/web-approver/requests', (req, res) => approverReply(res,
     () => cibaWebApprover.register({ headers: req.headers, body: req.body, store })));
   router.get('/ciba/web-approver/requests/:transactionId', (req, res) => approverReply(res,

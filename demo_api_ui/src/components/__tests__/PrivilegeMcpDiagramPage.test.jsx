@@ -83,4 +83,25 @@ describe('PrivilegeMcpDiagramPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to the Ping-style diagram' }));
     expect(screen.getByTestId('pmd-seq')).toBeInTheDocument();
   });
+
+  it('the AI Policies tab draws the diagram with Simulate, Reset and speed, and no Mermaid export bar', () => {
+    render(<PrivilegeMcpDiagramPage />);
+    expect(screen.getByText(/Download \.mmd/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'AI Policies' }));
+    const d = screen.getByTestId('pmd-aipolicies');
+    expect(within(d).getByText('AI Policies = Cedar (aipolicys)')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Simulate' })).toBeTruthy();
+    expect(within(d).getByRole('button', { name: /Reset/ })).toBeTruthy();
+    expect(screen.queryByText(/Download \.mmd/i)).toBeNull();
+  });
+
+  it('the PF Token tab draws the PingFederate path with Simulate and Reset', () => {
+    render(<PrivilegeMcpDiagramPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'PF Token' }));
+    const d = screen.getByTestId('pmd-pftoken');
+    expect(within(d).getByText('Identity PFtoken')).toBeInTheDocument();
+    expect(within(d).getByText('Agent key pftoken-agent')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Simulate' })).toBeTruthy();
+    expect(within(d).getByRole('button', { name: /Reset/ })).toBeTruthy();
+  });
 });

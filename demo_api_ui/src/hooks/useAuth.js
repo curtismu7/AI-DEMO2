@@ -388,9 +388,9 @@ export function useAuth() {
 
     // Store current path before clearing storage so LogoutPage can redirect there
     try {
-      const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
-      if (pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
-        sessionStorage.setItem("logoutReturnTo", pathname);
+      const { pathname, search } = typeof window !== "undefined" ? window.location : { pathname: "/", search: "" };
+      if (!pathname.endsWith("/logout")) {
+        sessionStorage.setItem("logoutReturnTo", `${pathname}${search || ""}`);
       }
     } catch (e) {
       // ignore storage errors

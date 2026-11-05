@@ -6,18 +6,19 @@
  * user, agent and tool. The flag is verified, not trusted.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, AUTHZ, MCP } from "../pingStyleStandards";
 
 const NODES = [
   { id: "agent", group: "agent", label: "Banking agent", sub: ["$600 transfer"], x: 40, y: 150, detail: "Carries the request — and any claim that consent was already given. The claim changes nothing." },
-  { id: "gw", group: "gateway", label: "Agent gateway / BFF", sub: ["receipt required"], x: 340, y: 150, detail: "Requires a real, verifiable receipt from the HITL service; a client-supplied consentGiven flag cannot satisfy it." },
-  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["HITL boundary"], x: 640, y: 150, detail: "$600 sits above the HITL boundary: without a verified receipt the answer is HITL_REQUIRED, not PERMIT." },
-  { id: "user", group: "user", label: "Alice (user)", sub: ["must approve"], x: 940, y: 150, detail: "The only path past the gate is a fresh challenge she actually approves — consent is forged by no one." },
+  { id: "gw", group: "gateway", label: "Agent gateway / BFF", sub: ["receipt required"], x: 440, y: 150, detail: "Requires a real, verifiable receipt from the HITL service; a client-supplied consentGiven flag cannot satisfy it." },
+  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["HITL boundary"], x: 840, y: 150, detail: "$600 sits above the HITL boundary: without a verified receipt the answer is HITL_REQUIRED, not PERMIT." },
+  { id: "user", group: "user", label: "Alice (user)", sub: ["must approve"], x: 1240, y: 150, detail: "The only path past the gate is a fresh challenge she actually approves — consent is forged by no one." },
 ];
 
 const EDGES = [
   ["agent", "gw", "transfer $600", { detail: "A transfer above the HITL boundary — presented as if consent were already given." }],
   ["gw", "p1", "verify consent", { detail: "The BFF checks for a verified receipt bound to user, agent and tool — not a caller-set flag." }],
-  ["p1", "gw", "HITL_REQUIRED", { detail: "No real receipt exists: the call stops and a fresh challenge is required." }],
+  ["p1", "gw", "HITL_REQUIRED", { dashed: true, detail: "No real receipt exists: the call stops and a fresh challenge is required." }],
   ["gw", "user", "consent challenge", { detail: "The transfer waits until Alice approves — nothing runs on a claim alone." }],
 ];
 
@@ -48,11 +49,54 @@ const walk = [
   },
 ];
 
+const DELEGATED = {
+  note: "MOCK decoded delegated token · valid, but it proves identity, not consent",
+  header: { alg: "RS256", typ: "at+jwt" },
+  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", act: { sub: "agent-0001" }, exp: 1790000000 },
+};
+
+// Per-step detail. Forms mirror the 428 envelope of services/mcpToolPipeline.js and POST /api/transactions/consent-challenge.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /gateway/mcp\nAuthorization: Bearer <delegated access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\",\n             \"arguments\": { \"amount\": 600, \"from_account_id\": \"{fromAccountId}\", \"to_account_id\": \"{toAccountId}\", \"consentGiven\": true } } }\n\nconsentGiven is the attacker's claim. It is not in the tool schema (additionalProperties:false), so a strict gateway rejects it at schema validation; on the BFF path it is simply never read.",
+      tokens: [DELEGATED],
+      refs: [RFC(6750, "Bearer token usage"), ...MCP.filter((r) => r.id === "MCP authorization 2025-11-25")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "BFF receipt check (services/mcpToolPipeline.js)\n\nrequired: a server-issued HITL receipt bound to { user, agent, tool }\nfound:    none (a client-set flag is not a receipt)\nresult:   HitlApproved absent (the BFF omits the key unless true)\n\nPingOne Authorize is asked with amount=600 and no HitlApproved.",
+      tokens: [],
+      refs: AUTHZ.filter((r) => r.id === "OpenID AuthZEN"),
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "HTTP/1.1 428\n\n{ \"error\": \"mcp_hitl_required\",\n  \"error_description\": \"This transaction requires human approval. Confirm it on the dashboard to continue.\",\n  \"hitl\": { \"type\": \"consent\" } }\n\n(on the gateway path the same obligation arrives as a JSON-RPC error; the tool is not dispatched)",
+      tokens: [],
+      refs: [RFC(6585, "Additional HTTP Status Codes (428 Precondition Required)")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST /api/transactions/consent-challenge\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"type\": \"transfer\", \"amount\": 600, \"fromAccountId\": \"{fromAccountId}\", \"toAccountId\": \"{toAccountId}\" }\n\n-> 201 { \"challengeId\": \"{challengeId}\", \"expiresAt\": \"<ISO time>\" }\n\nThe transfer waits until Alice approves this challenge; only then does a receipt exist.",
+      tokens: [],
+    },
+  },
+];
+
 export default {
   id: "UC27",
   result: { label: "HITL REQUIRED", tone: "warn" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

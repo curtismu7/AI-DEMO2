@@ -104,6 +104,12 @@ def SCOPE_FOR_TOOL = [
 def tokenEndpoint  = System.getenv('PINGONE_TOKEN_ENDPOINT') ?: ''
 def teClientId     = System.getenv('TE_CLIENT_ID') ?: ''
 def teClientSecret = System.getenv('TE_CLIENT_SECRET') ?: ''
+// sensitive_airline_bookings requests sensitive:read on the invest resource, but the client above already holds
+// sensitive:read from the banking resource, and PingOne will not give one application the same scope name from two
+// resources, so that exchange fails with HTTP 400. A dedicated client with a grant only on the invest resource carries it.
+// Unset = the client above (the previous behaviour).
+def investSensTeClientId     = System.getenv('INVEST_SENSITIVE_TE_CLIENT_ID') ?: ''
+def investSensTeClientSecret = System.getenv('INVEST_SENSITIVE_TE_CLIENT_SECRET') ?: ''
 // PingFederate secondary issuer (2026-09-22 A2A-under-PF): PF-issued subject
 // tokens cannot be exchanged by PingOne. Route Exchange #3 to PF when the
 // subject's iss matches PF_ISSUER_URI.
@@ -112,6 +118,11 @@ def pfTokenEndpoint = System.getenv('PF_TOKEN_ENDPOINT') ?: ''
 def pfTeClientId    = System.getenv('PF_TE_CLIENT_ID') ?: ''
 def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
 def pfTeAuthMethod  = (System.getenv('PF_TE_AUTH_METHOD') ?: 'basic').toLowerCase()
+// The PF token-exchange policy requires an actor token (actorTokenRequired); same actor as olb-token-exchange.groovy.
+def pfMcpActorClientId = System.getenv('PF_MCP_ACTOR_CLIENT_ID') ?: ''
+def pfMcpActorClientSecret = System.getenv('PF_MCP_ACTOR_CLIENT_SECRET') ?: ''
+def pfMcpActorAuthMethod = (System.getenv('PF_MCP_ACTOR_AUTH_METHOD') ?: 'basic').toLowerCase()
+def pfMcpActorScope = System.getenv('PF_MCP_ACTOR_SCOPE') ?: ''
 def pfExchangeConfigValid = {
     if (!pfIssuer || !pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret) return false
     if (!(pfTeAuthMethod in ['basic', 'client_secret_basic', 'post', 'client_secret_post'])) return false
@@ -126,7 +137,15 @@ def pfExchangeConfigValid = {
     }
 }
 def investAudience = System.getenv('PG_MCP_RESOURCE_SERVER_URI') ?: ''
-def investBaseUrl  = System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081'
+// Readiness lanes (docker-compose.readiness.yml) share this gateway but run their
+// own resource server, which reads its own lane BFF's data: the presenter's BFF
+// rejects a lane's token (UC2 banking 401'd on the PingFederate lane, 2026-10-31).
+// A lane BFF names itself in X-Readiness-Lane; only a lane with a configured
+// backend is honoured, and the header travels no further.
+def readinessLane = (request.headers.getFirst('X-Readiness-Lane') ?: '').toLowerCase()
+request.headers.remove('X-Readiness-Lane')
+def laneBackendUrl = (readinessLane ==~ /[a-z]+/) ? System.getenv('PG_INVEST_BACKEND_URL_' + readinessLane.toUpperCase()) : null
+def investBaseUrl  = laneBackendUrl ?: (System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081')
 def investMcpUrl   = investBaseUrl.replaceAll('/+$', '') + '/mcp'
 
 // ── Read the JSON-RPC envelope ────────────────────────────────────────────────
@@ -261,9 +280,83 @@ try {
     }
 } catch (Exception ignored) {}
 def isPfSubject = pfIssuer && subjectIss == pfIssuer
-if (isPfSubject && !pfExchangeConfigValid()) {
+if (isPfSubject && (!pfExchangeConfigValid()
+        || !pfMcpActorClientId || !pfMcpActorClientSecret || !pfMcpActorScope
+        || !(pfMcpActorAuthMethod in ['basic', 'post']))) {
     logger.warn('[InvestDispatch] PF Exchange #3 is not configured')
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'pf_exchange_not_configured'))
+}
+
+def pfActorToken = null
+if (isPfSubject) {
+    def actorParams = [
+        'grant_type': 'client_credentials',
+        'scope': pfMcpActorScope.trim(),
+    ]
+    def actorHeaders = [:]
+    if (pfMcpActorAuthMethod == 'post') {
+        actorParams['client_id'] = pfMcpActorClientId
+        actorParams['client_secret'] = pfMcpActorClientSecret
+    } else {
+        def actorCredentials = pfMcpActorClientId + ':' + pfMcpActorClientSecret
+        def encodedActorCredentials = java.util.Base64.getEncoder().encodeToString(actorCredentials.getBytes('UTF-8'))
+        actorHeaders['Authorization'] = 'Basic ' + encodedActorCredentials
+    }
+    def actorFormBody = actorParams.collect { k, v ->
+        java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
+    }.join('&')
+    logger.info('[InvestDispatch] PF MCP actor-token request scope=' + pfMcpActorScope.trim())
+    def actorResp = httpPostForm(pfTokenEndpoint, actorFormBody, actorHeaders)
+    if (actorResp.code != 200) {
+        logger.warn('[InvestDispatch] PF MCP actor-token request failed HTTP ' + actorResp.code)
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    try {
+        pfActorToken = new JsonSlurper().parseText(actorResp.body ?: '{}')?.access_token as String
+    } catch (Exception ignored) {}
+    if (!pfActorToken) {
+        logger.warn('[InvestDispatch] PF MCP actor-token response omitted access_token')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    // Match the BFF's PF actor checks before forwarding this token: require a
+    // JWT access token for the configured actor client with every requested scope.
+    def actorTokenValid = false
+    try {
+        def actorJwtParts = pfActorToken.split('\\.', -1)
+        if (actorJwtParts.length != 3) throw new IllegalArgumentException('malformed actor JWT')
+        def actorHeader = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[0]), 'UTF-8'))
+        def actorClaims = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[1]), 'UTF-8'))
+        if ((actorHeader?.typ ?: '').toString().toLowerCase().contains('id-jag')) {
+            throw new IllegalArgumentException('actor token is an ID-JAG')
+        }
+        def actorIdentity = actorClaims.client_id ?: actorClaims.sub
+        if (actorIdentity?.toString() != pfMcpActorClientId) {
+            throw new IllegalArgumentException('actor identity mismatch')
+        }
+        def actorScopes = [] as Set
+        if (actorClaims.scope instanceof Collection) {
+            actorScopes.addAll(actorClaims.scope.collect { it?.toString() })
+        } else {
+            actorScopes.addAll((actorClaims.scope ?: '').toString().split(/\s+/).findAll { it })
+        }
+        def expectedActorScopes = pfMcpActorScope.trim().split(/\s+/).findAll { it }
+        actorTokenValid = expectedActorScopes && expectedActorScopes.every { actorScopes.contains(it) }
+    } catch (Exception ignored) {}
+    if (!actorTokenValid) {
+        logger.warn('[InvestDispatch] PF MCP actor token failed identity/scope/format validation')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
 }
 
 if (!isPfSubject && (!tokenEndpoint || !teClientId || !teClientSecret || !investAudience)) {
@@ -276,6 +369,10 @@ if (!isPfSubject && (!tokenEndpoint || !teClientId || !teClientSecret || !invest
 // TE client holds grants on several; `audience=` alone is silently ignored and
 // the issued token keeps the gateway aud, which the backend then rejects.
 def wantScope = SCOPE_FOR_TOOL[toolName]
+// The A2A Passenger Records tool needs pnr:read on the backend token (the resource server
+// answers -32005 without it). PingOne's exchange grants it from the A2A delegation; PF only
+// issues what is requested, so ask for it explicitly.
+if (isPfSubject && toolName == 'sensitive_passenger_record') wantScope = 'read pnr:read'
 logger.info('[InvestDispatch] provider=' + (isPfSubject ? 'pingfederate' : 'pingone') + ' subject_typ=' + (subjectTyp ?: '(unset)'))
 // Only an exactly typed PF ID-JAG subject uses id-jag typing. All other
 // subjects, including ordinary PF ATM access tokens, use access_token.
@@ -285,6 +382,12 @@ def subjectType = (isPfSubject && subjectTyp == 'oauth-id-jag+jwt')
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
 def exClientId  = isPfSubject ? pfTeClientId : teClientId
 def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
+// Override only for the sensitive airline tool on the PingOne path (PF keeps its own credentials above).
+def useSensitiveTe = !isPfSubject && toolName == 'sensitive_airline_bookings' && investSensTeClientId && investSensTeClientSecret
+if (useSensitiveTe) {
+    exClientId = investSensTeClientId
+    exClientSecret = investSensTeClientSecret
+}
 def params = [
     'grant_type'          : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'       : subjectToken,
@@ -299,6 +402,10 @@ def params = [
     'client_secret'       : exClientSecret,
 ]
 if (wantScope) params['scope'] = wantScope
+if (isPfSubject) {
+    params['actor_token'] = pfActorToken
+    params['actor_token_type'] = 'urn:ietf:params:oauth:token-type:access_token'
+}
 
 def exchangeHeaders = [:]
 if (isPfSubject && pfTeAuthMethod in ['basic', 'client_secret_basic']) {
@@ -333,6 +440,31 @@ try { issuedToken = new JsonSlurper().parseText(exchangeResp.body ?: '{}')?.acce
 if (!issuedToken) {
     logger.warn('[InvestDispatch] No access_token in exchange response')
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'No access_token in exchange response'))
+}
+
+// Report what Exchange #3 issued, as olb-token-exchange.groovy does for the OLB
+// hop: audience and scope read from the token itself, never the token, so
+// p1az-decision.groovy puts it on X-Gw-Audit-Trail as `backend` and the BFF
+// records the gw-backend-exchange event. Without it every airlines and invest
+// call's gateway-to-backend hop was invisible. FAIL-SAFE: reporting must never
+// break the tool call.
+try {
+    def issuedParts = issuedToken.split('\\.', -1)
+    def issuedClaims = issuedParts.length == 3
+        ? new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(issuedParts[1]), 'UTF-8'))
+        : [:]
+    def issuedAud = issuedClaims.aud instanceof Collection ? issuedClaims.aud.collect { it?.toString() } : [issuedClaims.aud?.toString()].findAll { it }
+    def issuedScope = issuedClaims.scope instanceof Collection ? issuedClaims.scope.collect { it?.toString() }.join(' ') : (issuedClaims.scope ?: '').toString()
+    attributes['backendExchange'] = [
+        target   : 'resource-server',
+        audience : issuedAud.join(' '),
+        scope    : issuedScope,
+        exchanged: true,
+        cached   : false,
+    ]
+} catch (Exception e) {
+    // No exception text: this script never logs e.message (it can carry token data).
+    logger.warn('[InvestDispatch] could not describe the issued token for the audit trail')
 }
 
 // ── Forward the original JSON-RPC envelope to the resource server ─────────────

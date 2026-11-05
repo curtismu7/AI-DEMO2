@@ -227,7 +227,9 @@ async function main() {
     let permitDecision = null;
     if (denied && rule.permit) {
       await sleep(1400);
-      const ok = await decide(token, { ...p, ...rule.permit });
+      // The signed-in user has consented to this agent acting for them (MayActSub). Consent
+      // tools are denied no_user_consent without it, so a permit case must send it.
+      const ok = await decide(token, { ...p, MayActSub: p.ActClientId, ...rule.permit });
       permitDecision = ok.decision;
       discriminates = ok.decision === 'PERMIT';
     }

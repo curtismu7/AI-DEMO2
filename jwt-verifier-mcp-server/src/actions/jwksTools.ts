@@ -90,7 +90,7 @@ export const jwtFetchJwksToolDefinition = {
 
 const JwtInspectKeyInputSchema = z.object({
   key: z
-    .record(z.unknown())
+    .record(z.string(), z.unknown())
     .describe("A JWKS key object (JWK) from a JWKS response"),
 });
 

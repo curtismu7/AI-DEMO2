@@ -52,10 +52,10 @@ const PARAM_EXAMPLES = {
 // actually exist; a real name is date-stamped and rotates daily, so it is
 // only ever a today-accurate seed, not a promise.
 const PARAM_EXAMPLES_BY_NAME = {
-  index: ['_all', '*', 'top_queries-2026.09.05-04062'],
+  index: ['gateway-events', '_all', '*'],
 };
 
-function paramsOf(tool) {
+export function paramsOf(tool) {
   const props = tool.inputSchema?.properties || {};
   const required = new Set(tool.inputSchema?.required ?? []);
   return Object.entries(props).map(([name, schema]) => ({
@@ -70,7 +70,7 @@ function paramsOf(tool) {
 // Best-effort JSON.parse for the args textarea — mid-edit it can be invalid
 // JSON, so every caller treats a parse failure as "no known values" rather
 // than throwing.
-function tryParseArgs(args) {
+export function tryParseArgs(args) {
   try {
     const parsed = JSON.parse(args || '{}');
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -83,14 +83,14 @@ function tryParseArgs(args) {
 // call this file's own executeToolCall will send has a param that will
 // come through as '' server-side, which is rarely what's intended (see
 // ToolsTable's "Missing required" warning below).
-function missingRequiredParams(params, args) {
+export function missingRequiredParams(params, args) {
   const parsed = tryParseArgs(args);
   return params.filter((p) => p.required && (parsed[p.name] === undefined || parsed[p.name] === null || parsed[p.name] === ''));
 }
 
 // Prefill an args object with one empty entry per property, so the box shows the
 // shape the tool expects instead of a bare {}.
-function seedArgs(tool) {
+export function seedArgs(tool) {
   const props = tool.inputSchema?.properties || {};
   const keys = Object.keys(props);
   if (keys.length === 0) return '{}';
@@ -110,7 +110,7 @@ export function normalizeTools(raw) {
       : { ...t, description: JSON.stringify(t.description) }));
 }
 
-export default function ToolsTable({ tools: rawTools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0 }) {
+export default function ToolsTable({ tools: rawTools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0, resultInline = true }) {
   const tools = useMemo(() => normalizeTools(rawTools), [rawTools]);
   const [filter, setFilter] = useState('');
   const [expanded, setExpanded] = useState('');
@@ -235,6 +235,7 @@ export default function ToolsTable({ tools: rawTools, presentMode = false, onExe
                   args={argsByTool[t.name] ?? '{}'}
                   onArgs={(v) => setArgsByTool((m) => ({ ...m, [t.name]: v }))}
                   result={resultByTool[t.name]}
+                  resultInline={resultInline}
                   busy={Boolean(busyTools[t.name])}
                   onRun={() => run(t.name, t)}
                 />
@@ -247,10 +248,20 @@ export default function ToolsTable({ tools: rawTools, presentMode = false, onExe
   );
 }
 
-function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onToggle, args, onArgs, result, busy, onRun }) {
+function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onToggle, args, onArgs, result, resultInline = true, busy, onRun }) {
+  const rowRef = useRef(null);
+  // The table area is short, so opening a row would otherwise leave its Arguments and Execute below the fold with
+  // the tool's own row scrolled away. Bring the row to the top of the table area when it opens.
+  useEffect(() => {
+    const row = rowRef.current;
+    const box = row?.closest('.ptt-scroll');
+    // Scroll the table's own box only: scrollIntoView would also move the page behind it.
+    if (isOpen && !presentMode && box) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top;
+  }, [isOpen, presentMode]);
+
   return (
     <>
-      <tr data-tool-row={tool.name} className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${selected ? ' ptt-row--selected' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
+      <tr ref={rowRef} data-tool-row={tool.name} className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${selected ? ' ptt-row--selected' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
         <td className="ptt-col-tool"><span className="ptt-name">{tool.name}</span></td>
         <td className="ptt-col-desc">{tool.description || ''}</td>
         <td className="ptt-col-res">
@@ -319,11 +330,15 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
               >
                 {busy ? 'Executing...' : 'Execute'}
               </button>
-              {result !== undefined && (
+              {result !== undefined && resultInline && (
                 <>
                   <div className="ptt-result-label">Result</div>
                   <pre className="ptt-result jh-dark"><JsonHighlight value={result} deep /></pre>
                 </>
+              )}
+              {/* The page shows the output once, in its Results tab; saying so beats a second, cramped copy here. */}
+              {result !== undefined && !resultInline && (
+                <div className="ptt-result-label">Result is in the Results tab</div>
               )}
             </div>
           </td>
@@ -339,7 +354,7 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
 // risk of the two disagreeing. A real schema enum is the only valid set; an
 // example list is just a shortcut; the textarea always accepts anything.
 // Nothing renders when the tool has neither.
-function EnumParamFields({ params, args, onArgs }) {
+export function EnumParamFields({ params, args, onArgs }) {
   const quickFillParams = params.filter((p) => p.enumValues || p.examples);
   if (quickFillParams.length === 0) return null;
   const parsed = tryParseArgs(args);

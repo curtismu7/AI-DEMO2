@@ -1,0 +1,4 @@
+# The checkout embeds a GitHub auth header in .git/config (actions/checkout@v5); gitleaks --no-git
+# scans it and reports the credential. The tree itself is clean; history is scanned by the git pass.
+[allowlist]
+  paths = ['''\.git/.*''']

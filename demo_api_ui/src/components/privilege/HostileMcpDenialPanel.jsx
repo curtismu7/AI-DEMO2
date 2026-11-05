@@ -44,8 +44,16 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
       } else if (onRequest) {
         const request = { method: scenario.source.method, params: scenario.source.params };
         sourceRequest = { method: 'POST', path: '/api/privilege-mcp/request', body: request };
-        sourceResponse = await onRequest(request);
-        payload = sourceResponse?.result || sourceResponse;
+        try {
+          sourceResponse = await onRequest(request);
+          payload = sourceResponse?.result || sourceResponse;
+        } catch (sourceError) {
+          // A 403 here is Privilege denying the read itself: that is the verdict, not a failure.
+          // Record it and carry on so the induced call is still decided and shown.
+          if (sourceError.status !== 403) throw sourceError;
+          sourceResponse = { status: 403, error: sourceError.message };
+          payload = null;
+        }
       }
       setSourceExchange({ request: sourceRequest, response: sourceResponse });
       setSourcePayload(payload);

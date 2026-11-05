@@ -506,35 +506,6 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   font-size: var(--font-size-2xs);
 }
 
-.tcfs-empty-preview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 10px 12px;
-}
-
-.tcfs-empty-chip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 96px;
-  padding: 10px 12px;
-  border: 1px dashed;
-  border-radius: var(--radius-md);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--th-text-muted);
-}
-
-.tcfs-empty-chip-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
 /* 16 steps are kept, not collapsed to lanes — horizontal scroll is accepted,
    because the demo is about the detail. */
 .tcfs-track {
@@ -690,6 +661,64 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
     grid-template-columns: 1fr;
     grid-template-areas: "toggle" "chain" "spotlight";
   }
+}
+
+/* Stacked variant (personal-agent studio): reel on top, the token-chain detail under it at full
+   width, so long token strings read across the page instead of a 380px side column. */
+.tcfs-float-host--stacked {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "toggle" "chain" "spotlight";
+  max-height: 50%; /* of the studio shell, which has a definite height */
+}
+.tcfs-float-host--stacked .tcfs-spotlight { border-left: 0; border-top: 1px solid var(--th-border); }
+
+/* The empty-state intro ("What this panel shows") is ~430px tall in its narrow side-column form,
+   but the stacked host is capped to half the page, so the Token Chain panel often gets 120-180px and
+   the intro was cut off (overflow:hidden, no scroll). At full width lay it out in two columns so it is
+   short, and let it scroll when it still does not fit. flex-start because centring would cut the TOP
+   off once the content overflows. */
+.tcfs-float-host--stacked .tcfs-spotlight-empty {
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: auto;
+  text-align: left;
+  padding: 16px 20px;
+}
+
+.tcfs-float-host--stacked .tcfs-spotlight-intro {
+  max-width: none;
+  width: 100%;
+  display: grid;
+  /* title + hint | the three bullets | the explanation: one short row instead of a tall column */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0 24px;
+  align-items: start;
+}
+
+.tcfs-float-host--stacked .tcfs-spotlight-intro-title { grid-column: 1; grid-row: 1; margin-bottom: 4px; }
+.tcfs-float-host--stacked .tcfs-spotlight-intro-cta { grid-column: 1; grid-row: 2; }
+
+.tcfs-float-host--stacked .tcfs-spotlight-intro-list {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-bottom: 0;
+  gap: 6px;
+  font-size: var(--font-size-body);
+}
+
+.tcfs-float-host--stacked .tcfs-spotlight-intro-value {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  margin-bottom: 0;
+  font-size: var(--font-size-body);
+}
+
+@media (max-width: 900px) {
+  .tcfs-float-host--stacked .tcfs-spotlight-intro { grid-template-columns: minmax(0, 1fr); }
+  .tcfs-float-host--stacked .tcfs-spotlight-intro-title,
+  .tcfs-float-host--stacked .tcfs-spotlight-intro-list,
+  .tcfs-float-host--stacked .tcfs-spotlight-intro-value,
+  .tcfs-float-host--stacked .tcfs-spotlight-intro-cta { grid-column: 1; grid-row: auto; }
 }
 
 /* Collapsed: only the toggle bar remains, still pinned to the bottom. The 40vh

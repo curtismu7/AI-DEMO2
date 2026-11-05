@@ -119,4 +119,4 @@ function imageBuilds(runs, { workflowName = 'Build images', limit = 5 } = {}) {
     }));
 }
 
-module.exports = { groupServices, imageBuilds, parseRestartLog, parseServedCheckout, pidAlive, readDeployState };
+module.exports = { groupServices, imageBuilds, parseRestartLog, parseServedCheckout, pidAlive, readDeployState, run };

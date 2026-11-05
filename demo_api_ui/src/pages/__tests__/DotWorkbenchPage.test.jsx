@@ -103,12 +103,23 @@ describe('DotWorkbenchPage', () => {
     await waitFor(() => expect(invokes()).toBe(2));
   });
 
-  it('chips send their prompt and disappear after the first message', async () => {
+  it('a chip sends its prompt and goes away; the other prompts stay as "Try next"', async () => {
     mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'My claims' }));
     await screen.findByText('ok');
-    expect(screen.queryByRole('group', { name: 'Suggested prompts' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'My claims' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Find a doctor' })).toBeTruthy();
+    expect(screen.getByText('Try next:')).toBeTruthy();
+  });
+
+  it('a typed prompt that matches a chip also retires that chip', async () => {
+    mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
+    renderPage();
+    send('show my open claims');
+    await screen.findByText('ok');
+    expect(screen.queryByRole('button', { name: 'My claims' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Find a doctor' })).toBeTruthy();
   });
 
   it('the page theme IS the app theme: it follows a flip from the main top bar', () => {
@@ -160,6 +171,43 @@ describe('DotWorkbenchPage', () => {
     renderPage();
     send('alwys book me a aisle seat');
     expect(await screen.findByText(/model/i, { selector: '.dot-m--error' })).toHaveTextContent(/Heuristics/);
+  });
+
+  it('renders the diagram OUTSIDE the fixed-height IDE sheet (it would be clipped by its overflow:hidden)', async () => {
+    mockFetch(() => json(200, {}));
+    const { container } = renderPage();
+    expect(await screen.findByText('ag-9')).toBeTruthy();
+    const sheet = container.querySelector('.cur-ide');
+    expect(sheet).toBeTruthy();
+    expect(container.querySelector('.efd')).toBeTruthy();
+    expect(sheet.contains(container.querySelector('.efd'))).toBe(false);
+  });
+
+  it('bare /full variant: sheet drops the chrome-height subtraction (no dead band below)', () => {
+    mockFetch(() => json(200, {}));
+    const { container } = render(
+      <MemoryRouter>
+        <DotWorkbenchPage user={{ email: 'sam@x.com' }} bare />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('.cur-ide.dot-wb--bare')).toBeTruthy();
+  });
+
+  it('chrome route does not get the bare class', () => {
+    mockFetch(() => json(200, {}));
+    const { container } = renderPage();
+    expect(container.querySelector('.dot-wb--bare')).toBeNull();
+  });
+
+  it('signed out: the persona card has a Sign in button that returns to the current page; signed in: none', () => {
+    mockFetch(() => json(200, {}));
+    openSignIn.mockClear();
+    const { unmount } = render(<MemoryRouter><DotWorkbenchPage user={null} bare /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(openSignIn).toHaveBeenCalledWith({});
+    unmount();
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull();
   });
 
   it('skin tabs link to the Studio', () => {

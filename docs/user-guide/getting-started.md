@@ -6,7 +6,7 @@ Get the multi-vertical AI-agent-security demo running locally in 5 minutes. (The
 
 ## Prerequisites
 
-- **Node.js 22 or newer**
+- **Node.js 26 or newer**
 - **Git** (to clone the repository)
 - **mkcert** (for local HTTPS certificates) — `brew install mkcert` on macOS
 - **sudo access** (to add a line to `/etc/hosts`)
@@ -18,7 +18,7 @@ node --version    # Should show v22.x or newer
 npm --version     # Should show 9 or newer
 ```
 
-If you don't have Node 22+ installed, follow the [Node.js setup](#node-version-setup) section below before proceeding.
+If you don't have Node 26+ installed, follow the [Node.js setup](#node-version-setup) section below before proceeding.
 
 ## Node Version Setup
 

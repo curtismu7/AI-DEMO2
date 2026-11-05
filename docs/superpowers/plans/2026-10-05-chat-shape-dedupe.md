@@ -14,7 +14,6 @@
 - Work only in `/Users/cmuir/Development/AI-DEMO2/.claude/worktrees/chat-shape-dedupe` (branch `worktree-chat-shape-dedupe`); never `cd` to the main checkout. `demo_api_ui/node_modules` is already symlinked.
 - **Git is broken on this machine** (`/usr/bin/git` needs the Xcode license). Run EVERY git command through the wrapper `/private/tmp/claude-502/-Users-cmuir-Development-AI-DEMO2/3d5609b9-139e-4e3f-baf6-adfa42e5196c/scratchpad/xgit.sh <git args>` (e.g. `…/xgit.sh status --short`). One git invocation per Bash call; no `$VAR` git forms. Stage files explicitly (`add <files>`), never `add -A`; check `…/xgit.sh rev-parse --abbrev-ref HEAD` prints `worktree-chat-shape-dedupe` before each commit.
 - **Run tests with the project's own vitest, not the npm wrapper** (its memory guard dies on `ps` here): `cd demo_api_ui && ./node_modules/.bin/vitest run <paths relative to demo_api_ui>`. Redirect output to a file and read it; never conclude from a piped exit status.
-- Commit trailer must be LITERALLY `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` whatever model you are.
 - `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` is protected (REGRESSION_PLAN §0-§1): behaviour-preserving edits only, each in its own commit, no drive-by cleanup, every existing `PrivilegeMcpClientPage.*` test passes UNMODIFIED.
 - Emoji allowlist only (`⚠️` and `❌` are allowed). No new CSS in this plan.
 - Super Sports is the default vertical for any manual validation.

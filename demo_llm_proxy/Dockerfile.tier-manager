@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:26-alpine
 
 # Links this package to the repo on push. Without it GHCR refuses the push with
 # "denied: permission_denied: write_package" — identical to the error you get

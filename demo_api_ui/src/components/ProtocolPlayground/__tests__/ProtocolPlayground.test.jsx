@@ -146,6 +146,25 @@ describe('ProtocolPlayground wiring', () => {
     expect(screen.getByRole('button', { name: 'PingFederate' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('?idp= in the URL picks the provider and wins over the session', async () => {
+    window.history.pushState({}, '', '/protocol-playground?idp=pingone');
+    mockGet.mockResolvedValue({ data: { sessionProvider: 'pingfederate' } });
+    render(<ProtocolPlayground />);
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'PingOne' })).toHaveAttribute('aria-pressed', 'true');
+    window.history.pushState({}, '', '/');
+  });
+
+  test('?idp=pingfederate opens on the PingFederate flows with no session', () => {
+    window.history.pushState({}, '', '/protocol-playground?idp=pingfederate');
+    render(<ProtocolPlayground />);
+
+    expect(screen.getByTitle('dpop-pf')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PingFederate' })).toHaveAttribute('aria-pressed', 'true');
+    window.history.pushState({}, '', '/');
+  });
+
   describe('theme', () => {
     afterEach(() => { document.documentElement.removeAttribute('data-theme'); window.localStorage.removeItem('ba_dark_mode'); });
 

@@ -25,10 +25,18 @@ export function isNoChromeRoute(pathNorm) {
     pathNorm === "/protect-auth-demo/popout" ||
     // UC22 CIBA approve popup: bare modal page — no sidebar / agent FAB.
     pathNorm === "/ciba-approve" ||
+    // CIBA email-channel approve page (opened from the one-time emailed link).
+    pathNorm === "/ciba-email-approve" ||
     // Personal-agent pop-out client window: bare route, no nav shell (App.js
     // route comment) — was missing from this list, so signed-in users got the
     // full global sidebar inside the popup.
     pathNorm === "/personal-agent/client" ||
+    // Bare/full-page variants of the personal-agent pages for sharing from the
+    // handoff page: no side nav, no header, no footer, no FAB — the page only.
+    pathNorm === "/personal-agent/dot/full" ||
+    pathNorm === "/personal-agent/learn" ||
+    pathNorm === "/personal-agent/full" ||
+    pathNorm === "/group-policy/full" ||
     // Embedded movie reel opened from an external MCP client's reel_url (LM
     // Studio link / LibreChat iframe): bare page, no chrome, no FAB.
     pathNorm.startsWith("/transaction-trace/embed/") ||
@@ -69,5 +77,6 @@ export function appRendersSideNav({ pathname }) {
 export function shellRendersSideNav({ pathname, user }) {
   const pathNorm = normalizePath(pathname);
   if (pathNorm === "/ciba-approve") return false;
+  if (pathNorm === "/ciba-email-approve") return false;
   return !appRendersSideNav({ pathname, user });
 }

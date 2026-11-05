@@ -5,10 +5,11 @@
  * Two different credentials for two different layers.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "card", group: "agent", label: "Agent Card", sub: ["discovery"], x: 40, y: 150, detail: "The specialist publishes what it can do and where to call it. Discovery needs no credential." },
-  { id: "rpc", group: "gateway", label: "JSON-RPC endpoint", sub: ["bearer-gated"], x: 340, y: 150, detail: "message/send without a bearer is refused — the wire protocol itself is credential-gated." },
+  { id: "rpc", group: "gateway", label: "JSON-RPC endpoint", sub: ["bearer-gated"], x: 340, y: 150, detail: "SendMessage without a bearer is refused — the wire protocol itself is credential-gated." },
   { id: "cc", group: "pingone", label: "client_credentials", sub: ["machine identity"], x: 640, y: 150, detail: "Each agent first authenticates itself — who the agent is, not who it acts for." },
   { id: "ex", group: "pingone", label: "RFC 8693 x2", sub: ["act nests"], x: 940, y: 150, detail: "Then each hop exchanges for the delegated token: act nests, scopes narrow." },
   ];
@@ -26,13 +27,13 @@ const walk = [
     title: "Agent Card", label: "Discovery, no credential",
     nodes: ["card", "rpc"], edges: [0],
     lines: [{ who: "Specialist", text: "The card names capabilities and endpoint — that is the discovery layer." }],
-    tech: [{ t: "A2A", c: "GET /.well-known/agent.json -> capabilities + endpoint" }],
+    tech: [{ t: "A2A", c: "GET /a2a/specialists/:vertical/.well-known/agent-card.json -> capabilities + endpoint" }],
   },
   {
     title: "No bearer -> 401", label: "The wire gate",
     nodes: ["rpc"], edges: [1],
-    lines: [{ who: "Endpoint", text: "A JSON-RPC message/send without a bearer is refused. Shown live, not asserted." }],
-    tech: [{ t: "API", c: "POST /a2a message/send (no Authorization) -> 401" }],
+    lines: [{ who: "Endpoint", text: "A JSON-RPC SendMessage without a bearer is refused. Shown live, not asserted." }],
+    tech: [{ t: "API", c: "POST /a2a/specialists/:vertical SendMessage (no Authorization) -> 401" }],
   },
   {
     title: "Machine identity", label: "client_credentials x2",
@@ -57,8 +58,10 @@ const walk = [
 export default {
   id: "UC2.7",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC2.7"],
 };

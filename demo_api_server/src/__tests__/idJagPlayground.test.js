@@ -20,7 +20,7 @@ const router = require('../../routes/idJagPlayground');
 const PF = 'https://pf.test';
 const AS = 'https://mcp-as.test';
 const CONFIG = {
-  pf_issuer: PF, pf_jwks_uri: `${PF}/pf/JWKS`, pf_token_endpoint: `${PF}/as/token.oauth2`, pf_user_client_id: 'ai-demo-pf-user',
+  pf_issuer: PF, pf_jwks_uri: `${PF}/pf/JWKS`, pf_token_endpoint: `${PF}/as/token.oauth2`, pf_user_client_id: 'ai-demo-pf-user', pf_user_client_secret: 'user-secret',
   pf_id_jag_enabled: 'true', pf_id_jag_audience: AS, pf_id_jag_resource: `${AS}/mcp`, pf_id_jag_scope: 'mcp:invoke',
   pf_id_jag_redemption_token_endpoint: `${AS}/token`, pf_id_jag_redemption_client_id: 'demo-bff-mcp-client',
   pf_id_jag_redemption_client_secret: 'redeem-secret',
@@ -86,11 +86,11 @@ describe('ID-JAG playground — spec inspector', () => {
 });
 
 describe('ID-JAG playground — gating', () => {
-  it('refuses when the login provider is not PingFederate (there is no PingOne ID-JAG)', async () => {
+  it('with a non-PingFederate login provider, oauth-mcp needs the playground\'s own issuer sign-in (not the app session)', async () => {
     configStore.getOAuthProvider.mockReturnValue('pingone');
     const res = await post(appWith(pfSession()), '/pg/issue');
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('id_jag_provider_required');
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('pf_sign_in_required');
   });
 
   it('requires a PingFederate sign-in', async () => {
@@ -150,6 +150,16 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
     }
   });
 
+  it.each([401, 403])('a gateway %i is reported as 502 with the gateway status in the body, never as the BFF\'s own %i', async (code) => {
+    const session = pfSession();
+    session.idJagPlayground = { idJag: goodIdJag(), redeemed: true, accessToken };
+    callToolViaGateway.mockRejectedValue(Object.assign(new Error('Gateway answered HTTP ' + code), {
+      code: 'TOKEN_INACTIVE', httpStatus: code, gatewayStatus: code, gatewayErrorCode: 'TOKEN_INACTIVE', gatewayMessage: 'login_required' }));
+    const res = await post(appWith(session), '/pg/call');
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual(expect.objectContaining({ error: 'TOKEN_INACTIVE', gatewayStatus: code, gatewayErrorCode: 'TOKEN_INACTIVE', gatewayMessage: 'login_required', request: expect.any(Object) }));
+  });
+
   it('refuses a redeem scope that is not in the ID-JAG, before calling the resource AS', async () => {
     const session = pfSession();
     const app = appWith(session);
@@ -176,7 +186,7 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
       code: 'gateway_policy_denied', httpStatus: 403, gatewayStatus: 403, gatewayErrorCode: 'intent_mismatch', gatewayMessage: 'Tool transfer_funds does not match intent read_accounts',
     }));
     const res = await post(appWith(session), '/pg/call', { tool: 'transfer_funds', arguments: {} });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(502); // the gateway's 403 is in the body, not ours
     expect(res.body).toEqual(expect.objectContaining({ error: 'gateway_policy_denied', gatewayStatus: 403, gatewayErrorCode: 'intent_mismatch', gatewayMessage: expect.stringContaining('read_accounts') }));
     expect(res.body.request.body.params.name).toBe('transfer_funds');
   });
@@ -341,5 +351,129 @@ describe('ID-JAG playground — PingFederate on both ends (pf-pf)', () => {
     expect(rUrl).toBe(`${PF}/as/token.oauth2`);
     expect(new URLSearchParams(rForm).get('client_id')).toBe('ai-demo-pf-idjag-redeemer');
     expect(rOpts.headers.Authorization).toBe(`Basic ${Buffer.from('ai-demo-pf-idjag-redeemer:redeemer-secret').toString('base64')}`);
+  });
+});
+
+describe('ID-JAG playground — oauth-mcp signed in through the issuer mechanism (login provider is not PingFederate)', () => {
+  beforeEach(() => {
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    Object.assign(CONFIG, { pf_user_client_secret: 'user-secret' });
+  });
+  const issuerSession = () => ({ idJagIssuer: { refreshToken: 'is-rt', issuer: PF, email: 'u@x.test' }, save: (cb) => cb() });
+
+  it('config says the sign-in goes through the issuer and is available without the SE pf-pf settings', async () => {
+    const res = await request(appWith({})).get('/pg/config');
+    expect(res.body.signIn).toEqual({ via: 'issuer', reason: null });
+  });
+
+  it('with the app provider on PingFederate the app session is still used', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const res = await request(appWith(pfSession())).get('/pg/config');
+    expect(res.body.signIn.via).toBe('app');
+    expect(res.body.signedIn).toBe(true);
+  });
+
+  it('issuer login targets the oauth-mcp IdP and the callback stores the session under that issuer', async () => {
+    const session = { save: (cb) => cb() };
+    const app = appWith(session);
+    const login = await request(app).get('/pg/issuer/login?return_to=/pingfederate-id-jag/playground');
+    const to = new URL(login.headers.location);
+    expect(to.origin + to.pathname).toBe(`${PF}/as/authorization.oauth2`);
+    expect(to.searchParams.get('client_id')).toBe('ai-demo-pf-user');
+    axios.post.mockResolvedValue({ status: 200, data: { refresh_token: 'is-rt', id_token: jwt({ alg: 'RS256' }, { sub: 'demouser', email: 'u@x.test' }) } });
+    const cb = await request(app).get(`/pg/issuer/callback?code=c1&state=${to.searchParams.get('state')}`);
+    expect(cb.headers.location).toBe('/pingfederate-id-jag/playground');
+    expect(axios.post.mock.calls[0][0]).toBe(`${PF}/as/token.oauth2`);
+    expect(session.idJagIssuer).toEqual({ refreshToken: 'is-rt', sub: 'demouser', email: 'u@x.test', issuer: PF });
+    expect((await request(app).get('/pg/config')).body.signedIn).toBe(true);
+  });
+
+  it('a session from another issuer does not count as signed in here', async () => {
+    const session = { idJagIssuer: { refreshToken: 'x', issuer: 'https://other.test' } };
+    expect((await request(appWith(session)).get('/pg/config')).body.signedIn).toBe(false);
+  });
+
+  it('issues the ID-JAG with the issuer-side refresh token at the oauth-mcp IdP', async () => {
+    axios.post.mockResolvedValueOnce({ status: 200, data: { access_token: goodIdJag(), issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' } });
+    const res = await post(appWith(issuerSession()), '/pg/issue');
+    expect(res.status).toBe(200);
+    expect(oauthService.performIdJagExchange).not.toHaveBeenCalled();
+    expect(axios.post.mock.calls[0][0]).toBe(`${PF}/as/token.oauth2`);
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('subject_token')).toBe('is-rt');
+    expect(JSON.stringify(res.body)).not.toContain('is-rt');
+  });
+});
+
+describe('ID-JAG playground — pf-pf redeemer separate from the app login PingFederate', () => {
+  const SE = 'https://se-pf.test';
+  const ACME = 'https://acme-pf.test';
+  const KEYS = ['PF_IDJAG_ISSUER_PF_URL', 'PF_IDJAG_PF_REDEEMER_CLIENT_SECRET', 'PF_IDJAG_PF_REDEEMER_ISSUER',
+    'PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT', 'PF_IDJAG_PF_REDEEMER_CLIENT_ID', 'PF_IDJAG_PF_RESOURCE'];
+  beforeEach(() => {
+    process.env.PF_IDJAG_ISSUER_PF_URL = SE;
+    process.env.PF_IDJAG_PF_REDEEMER_CLIENT_SECRET = 'redeemer-secret';
+  });
+  afterEach(() => { KEYS.forEach((k) => delete process.env[k]); });
+  const pfPf = () => router._settings('pf-pf');
+
+  it('falls back to the app PingFederate when no redeemer settings exist (local Docker unchanged)', () => {
+    expect(pfPf().resourceAs).toEqual(expect.objectContaining({ issuer: PF, tokenEndpoint: `${PF}/as/token.oauth2`, clientId: 'ai-demo-pf-idjag-redeemer' }));
+    expect(pfPf().request.audience).toBe(PF);
+    expect(pfPf().request.resource).toBe('https://api.ping.demo:3036/mcp');
+  });
+
+  it('uses the redeemer issuer as audience and derives its token endpoint', () => {
+    process.env.PF_IDJAG_PF_REDEEMER_ISSUER = `${ACME}/`;
+    expect(pfPf().resourceAs).toEqual(expect.objectContaining({ issuer: ACME, tokenEndpoint: `${ACME}/as/token.oauth2` }));
+    expect(pfPf().request.audience).toBe(ACME);
+  });
+
+  it('honours an explicit redeemer token endpoint, client id and resource', () => {
+    process.env.PF_IDJAG_PF_REDEEMER_ISSUER = ACME;
+    process.env.PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT = 'http://acme-internal:9031/as/token.oauth2';
+    process.env.PF_IDJAG_PF_REDEEMER_CLIENT_ID = 'other-client';
+    process.env.PF_IDJAG_PF_RESOURCE = 'https://res.test/mcp';
+    expect(pfPf().resourceAs).toEqual(expect.objectContaining({ issuer: ACME, tokenEndpoint: 'http://acme-internal:9031/as/token.oauth2', clientId: 'other-client' }));
+    expect(pfPf().request.resource).toBe('https://res.test/mcp');
+  });
+
+  it('issues for the redeemer audience and redeems at the redeemer token endpoint', async () => {
+    process.env.PF_IDJAG_PF_REDEEMER_ISSUER = ACME;
+    const app = appWith({ idJagPlaygroundMode: 'pf-pf', idJagIssuer: { refreshToken: 'se-rt' } });
+    const idJag = goodIdJag({ iss: SE, aud: ACME, client_id: 'ai-demo-pf-idjag-redeemer' });
+    axios.post
+      .mockResolvedValueOnce({ status: 200, data: { access_token: idJag, issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' } })
+      .mockResolvedValueOnce({ status: 200, data: { access_token: accessToken } });
+    expect((await post(app, '/pg/issue')).status).toBe(200);
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('audience')).toBe(ACME);
+    expect((await post(app, '/pg/redeem')).status).toBe(200);
+    expect(axios.post.mock.calls[1][0]).toBe(`${ACME}/as/token.oauth2`);
+  });
+
+  it('is unavailable, with a plain reason, when the redeemer is the issuer PingFederate itself', async () => {
+    process.env.PF_IDJAG_PF_REDEEMER_ISSUER = SE;
+    const res = await request(appWith({})).get('/pg/config');
+    const m = res.body.modes.find((x) => x.id === 'pf-pf');
+    expect(m.available).toBe(false);
+    expect(m.reason).toMatch(/same PingFederate/i);
+    expect(m.reason).toContain('PF_IDJAG_PF_REDEEMER_ISSUER');
+  });
+
+  it('is unavailable when no redeemer settings exist and the app PingFederate is the issuer (SE as deployed today)', async () => {
+    process.env.PF_IDJAG_ISSUER_PF_URL = PF;
+    const res = await request(appWith({})).get('/pg/config');
+    expect(res.body.modes.find((x) => x.id === 'pf-pf')).toEqual(expect.objectContaining({ available: false }));
+  });
+});
+
+describe('ID-JAG playground — the subject token is shown masked', () => {
+  it('shows the first 6 and last 4 characters, the length and the kind, never the token', async () => {
+    const refreshToken = 'RTabcdefghijklmnopqrstuvwxyz0123456789WXYZ';
+    const session = { oauthProvider: 'pingfederate', oauthTokens: { refreshToken, idToken: 'idt' } };
+    oauthService.performIdJagExchange.mockResolvedValue(goodIdJag());
+    const issued = await post(appWith(session), '/pg/issue');
+    expect(issued.status).toBe(200);
+    expect(issued.body.request.body.subject_token).toBe(`RTabcd…WXYZ [masked, ${refreshToken.length} chars, opaque]`);
+    expect(JSON.stringify(issued.body)).not.toContain(refreshToken);
   });
 });

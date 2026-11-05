@@ -1,0 +1,114 @@
+/* Personal Agent Studio — standalone learning page (/personal-agent/learn).
+   Surfaces, lines and ink are the app's --th-* tokens (THEMING.md), so the page flips with the app theme;
+   radii and font sizes use the shared tokens. The agent window keeps its own skin look (AgentClientSkin). */
+.pal { --pal-red: #d20e0f; min-height: 100vh; line-height: 1.5; background: var(--th-bg-page); color: var(--th-text); font-family: var(--font-primary); }
+.pal-wrap { max-width: 1360px; margin: 0 auto; padding: 0 24px 40px; box-sizing: border-box; }
+.pal h1, .pal h2, .pal h3, .pal p { margin: 0; }
+
+.pal .pal-ghost, .pal a.pal-ghost { background: rgba(255, 255, 255, 0.12); border: 0; color: var(--th-text-on-emphasis, #fff); border-radius: var(--radius-pill); padding: 7px 14px; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; text-decoration: none; }
+.pal .pal-ghost:hover, .pal a.pal-ghost:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* ── your path ── */
+.pal-path { padding-top: 22px; }
+.pal-path-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.pal-path-head h2 { font-size: var(--font-size-md); font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.pal-prog { font-size: var(--font-size-sm); color: var(--th-text-muted); font-weight: 600; }
+.pal-bar { flex: 1; min-width: 120px; max-width: 260px; height: 6px; border-radius: var(--radius-pill); background: var(--th-border); overflow: hidden; }
+.pal-bar i { display: block; height: 100%; background: var(--pal-red); transition: width 0.5s; }
+.pal .pal-learn-toggle { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: var(--font-size-sm); font-weight: 600; color: var(--th-text-body); }
+.pal .pal-sw { position: relative; flex: none; box-sizing: border-box; min-width: 0; width: 40px; height: 23px; border-radius: var(--radius-pill); border: 0; background: var(--th-border-strong); padding: 0; cursor: pointer; }
+.pal .pal-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: var(--th-bg-card); transition: transform 0.2s; }
+.pal .pal-sw[aria-checked="true"] { background: var(--pal-red); }
+.pal .pal-sw[aria-checked="true"]::after { transform: translateX(17px); }
+.pal-signin { margin-bottom: 12px; padding: 10px 14px; border-radius: var(--radius-lg); background: var(--th-status-info-bg); color: var(--th-status-info-text); font-size: var(--font-size-sm); }
+.pal .pal-link { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+.pal-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pal .pal-lesson { position: relative; text-align: left; background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-xl); padding: 16px 16px 14px; color: var(--th-text); font: inherit; cursor: pointer; transition: border-color 0.15s; }
+.pal .pal-lesson:hover:not(:disabled) { border-color: var(--pal-red); }
+.pal .pal-lesson:disabled { cursor: progress; opacity: 0.7; }
+.pal-n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--th-status-info-bg); color: var(--th-status-info-text); font-weight: 800; font-size: var(--font-size-sm); margin-bottom: 8px; }
+.pal .pal-lesson.is-done .pal-n { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.pal .pal-lesson h3 { font-size: var(--font-size-base); font-weight: 700; margin-bottom: 4px; }
+.pal .pal-lesson p { font-size: var(--font-size-sm); line-height: 1.55; color: var(--th-text-body); margin-bottom: 12px; }
+.pal-go { position: absolute; top: 14px; right: 14px; font-size: var(--font-size-2xs); font-weight: 700; color: var(--th-status-error-text); }
+.pal .pal-lesson.is-done .pal-go { color: var(--th-status-success-text); }
+.pal-prompt { display: block; font-family: var(--font-mono); font-size: var(--font-size-2xs); background: var(--th-bg-inset); border: 1px dashed var(--th-border-strong); border-radius: var(--radius-lg); padding: 7px 10px; color: var(--th-text); }
+
+/* ── cards + main grid ── */
+.pal-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; padding-block: 18px; }
+.pal-card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-xl); margin-bottom: 20px; display: flex; flex-direction: column; min-width: 0; }
+.pal-grid .pal-card { margin-bottom: 0; }
+.pal-card-h { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--th-border); flex-wrap: wrap; }
+.pal-card-h h2 { font-size: var(--font-size-base); font-weight: 700; }
+.pal-sub { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.pal .pal-pills { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.pal .pal-pill { border: 1px solid var(--th-border); background: var(--th-bg-card); color: var(--th-text-body); border-radius: var(--radius-pill); padding: 5px 12px; font: inherit; font-size: var(--font-size-2xs); font-weight: 600; cursor: pointer; }
+.pal .pal-pill[aria-pressed="true"] { background: var(--th-bg-emphasis); border-color: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
+
+/* the chat keeps the skin's own look; the wrapper just gives it a stable, scrollable height */
+.pal-client { margin: 16px 18px 18px; height: 460px; display: flex; flex-direction: column; border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--th-border); }
+.pal-client > * { min-height: 0; }
+
+/* ── what just happened ── */
+.pal-says { margin: 16px 18px 0; padding: 14px 16px; border-radius: var(--radius-xl); background: var(--th-status-info-bg); color: var(--th-status-info-text); font-size: var(--font-size-body); line-height: 1.6; }
+.pal-says--empty { background: var(--th-bg-inset); color: var(--th-text-body); }
+.pal-says--permit { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.pal-says--deny { background: var(--th-status-error-bg); color: var(--th-status-error-text); }
+.pal-says--held { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.pal-gates { list-style: none; margin: 14px 18px 6px; padding: 0; position: relative; }
+.pal-gates::before { content: ""; position: absolute; left: 17px; top: 18px; bottom: 30px; width: 2px; background: var(--th-border); }
+.pal-gate { position: relative; display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 8px 0; }
+.pal-ic { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--th-bg-card); border: 2px solid var(--th-border-strong); font-weight: 800; font-size: var(--font-size-body); color: var(--th-text-muted); }
+.pal-gate[data-s="checking"] .pal-ic { border-color: var(--th-status-info); color: var(--th-status-info-text); }
+.pal-gate[data-s="permit"] .pal-ic { background: var(--th-status-success-bg); border-color: var(--th-status-success); color: var(--th-status-success-text); }
+.pal-gate[data-s="deny"] .pal-ic { background: var(--th-status-error-bg); border-color: var(--th-status-error); color: var(--th-status-error-text); }
+.pal-gate[data-s="held"] .pal-ic { background: var(--th-status-warning-bg); border-color: var(--th-status-warning); color: var(--th-status-warning-text); }
+.pal-gate h3 { font-size: var(--font-size-body); font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pal-q { line-height: 1.5; font-size: var(--font-size-sm); color: var(--th-text-body); margin-top: 1px; }
+.pal-res { font-size: var(--font-size-sm); font-weight: 600; margin-top: 4px; min-height: 1.3em; }
+.pal-why { display: none; line-height: 1.55; margin-top: 6px; font-size: var(--font-size-2xs); color: var(--th-text-muted); border-left: 3px solid var(--th-border-strong); padding-left: 10px; }
+.is-learn .pal-why { display: block; }
+.pal-badge { font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--th-bg-inset); color: var(--th-text-muted); border: 1px solid var(--th-border); }
+.pal-badge--permit { background: var(--th-status-success-bg); color: var(--th-status-success-text); border-color: var(--th-status-success-border); }
+.pal-badge--deny { background: var(--th-status-error-bg); color: var(--th-status-error-text); border-color: var(--th-status-error-border); }
+.pal-badge--held { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); border-color: var(--th-status-warning-border); }
+.pal-badge--checking { background: var(--th-status-info-bg); color: var(--th-status-info-text); border-color: var(--th-status-info-border); }
+.pal-rail-foot { margin: auto 18px 16px; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+/* ── reel + token chain (the real filmstrip, stacked, not pinned) ── */
+.pal-intro { padding: 14px 18px 0; font-size: var(--font-size-sm); color: var(--th-text-body); }
+.pal-reel.tcfs-float-host { position: static; max-height: none; overflow: visible; margin: 12px 0 0; border-top: 0; }
+
+/* ── who owns what ── */
+.pal-own { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pal-own > div { padding: 18px; border-right: 1px solid var(--th-border); }
+.pal-own > div:last-child { border-right: 0; }
+.pal-own h3 { font-size: var(--font-size-body); font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.pal-own p { font-size: var(--font-size-sm); color: var(--th-text-body); }
+.pal-chip { font-size: var(--font-size-xs); font-weight: 700; border-radius: var(--radius-md); padding: 2px 8px; letter-spacing: 0.04em; text-transform: uppercase; }
+.pal-chip--client { background: var(--th-status-info-bg); color: var(--th-status-info-text); }
+.pal-chip--ping { background: var(--th-status-error-bg); color: var(--th-status-error-text); }
+.pal-chip--tools { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border); }
+.pal-deeper { display: flex; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--th-border); font-size: var(--font-size-sm); }
+.pal-deeper strong { color: var(--th-text-muted); font-weight: 600; }
+
+@media (max-width: 1020px) {
+  .pal-grid, .pal-steps, .pal-own { grid-template-columns: 1fr; }
+  .pal-own > div { border-right: 0; border-bottom: 1px solid var(--th-border); }
+}
+@media (prefers-reduced-motion: reduce) { .pal * { transition: none !important; } }
+
+/* Held action: the gateway needs a yes or no before the prompt runs again. */
+.pal .pal-approval { margin: 12px 0; padding: 14px 16px; border: 1px solid var(--th-border-strong); border-left: 4px solid var(--th-status-warning); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-sm); }
+.pal .pal-approval p { margin: 0 0 8px; }
+.pal .pal-approval-note { color: var(--th-text-muted); font-size: var(--font-size-xs); }
+.pal .pal-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pal .pal-approval-actions button { border-radius: var(--radius-pill); padding: 7px 14px; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); }
+.pal .pal-approval-actions .pal-approve { background: var(--th-status-success-bg); border-color: var(--th-status-success); color: var(--th-status-success-text); }
+
+/* Approval over the whole page: a held action must not be missed at the bottom of the chat. */
+.pal .pal-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.55); }
+.pal .pal-approval--modal { width: min(480px, 100%); margin: 0; padding: 22px 24px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
+.pal .pal-approval--modal h2 { margin: 0 0 8px; font-size: var(--font-size-lg); color: var(--th-text); }
+.pal .pal-approval-prompt { margin: 0 0 12px; padding: 10px 12px; border-left: 3px solid var(--th-status-warning); background: var(--th-bg-inset); color: var(--th-text); font-style: normal; }

@@ -1418,7 +1418,7 @@ function parseHeuristic(
         // return kind:'vertical',vertical:'admin' even when the active vertical is
         // 'banking'. Derive the admin tool name set from the plugin's own getTools()
         // (the authoritative list) rather than relying on a per-heuristic marker field.
-        // delegate_to_specialist is an A2A overlay action — always kind:'vertical'.
+        // delegate_to_specialist and a2a_generalist_mismatch are A2A overlay actions — always kind:'vertical'.
         const _adminPlugin = verticalDispatch.resolvePlugin("admin");
         const _adminToolNames = _adminPlugin
           ? new Set(_adminPlugin.getTools().map((t) => t.name))
@@ -1428,6 +1428,7 @@ function parseHeuristic(
         if (
           (vertical === "banking" || _isCrossVerticalBanking) &&
           h.action !== "delegate_to_specialist" &&
+          h.action !== "a2a_generalist_mismatch" &&
           !_isAdminAction
         ) {
           const banking = { action: h.action };

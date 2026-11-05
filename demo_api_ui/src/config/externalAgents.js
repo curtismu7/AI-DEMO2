@@ -2,6 +2,12 @@
 // docs/superpowers/plans/2026-10-08-muse-user-agent-demo.md (Agent families,
 // coverage matrix, runbook setup) and docs/MUSE_RUNBOOK.md. The drift-guard
 // test keeps the three in sync.
+//
+// path: 'directory' = a consumer assistant. The customer connects only from the
+//   assistant's app directory, so `setup` never holds a URL or a paste step.
+//   The URL lives in `rehearsal`, which the page shows as "Presenter only".
+// path: 'developer' = a CLI or self-hosted client with no directory. Its setup
+//   keeps the URL steps and the page labels it "Developer path".
 export const STANDARD_DOOR = 'https://cmuir-mcp.ping-devops.com/mcp';
 export const AI_GATEWAY_DOOR = '/mcp-facade/privilege-gateway/mcp';
 
@@ -12,20 +18,27 @@ export const EXTERNAL_AGENTS = [
     name: 'Muse (consumer app)',
     vendor: 'Meta',
     runsWhere: "Meta's cloud — iOS, Android, web, iPad. Cannot reach the local stack; demos against the SE host.",
+    path: 'directory',
+    assistant: 'Muse',
     setup: [
       {
-        title: 'Ask Muse for the connector',
-        body: 'Prompt: "Build a custom integration. Its MCP server is https://cmuir-mcp.ping-devops.com/mcp, transport streamable HTTP. Connect, inspect the tools, request credentials through the secure credential flow, and keep approval required for anything that writes or spends."',
+        title: 'The bank lists its connector once',
+        body: "The bank publishes its connector once in Muse's app directory. Every customer finds the same listing.",
       },
       {
-        title: 'Complete the login',
-        body: "The OAuth browser step opens on the phone/web. Sign in with the demo customer (PingOne). Muse's Sentinel handles credential custody — Muse never sees raw secrets.",
+        title: 'Find the bank and click Connect',
+        body: "The customer opens Muse's apps directory, finds the bank, and clicks Connect. The customer never types a server address.",
+      },
+      {
+        title: 'Sign in at PingOne',
+        body: "The browser opens on the phone or web. The customer signs in at PingOne and approves the consent. Muse's Sentinel holds the credentials, so Muse never sees raw secrets.",
       },
       {
         title: 'Run the read',
-        body: '"Show my checking account balance." Watch the dashboard token-chain panel: sub=user, act=Muse.',
+        body: '"Show my checking account balance." Watch the token chain on the dashboard: sub=user, act=agent.',
       },
     ],
+    rehearsal: 'The bank is not really listed in the Muse directory. To rehearse, the presenter adds it by URL. Prompt Muse: "Build a custom integration. Its MCP server is https://cmuir-mcp.ping-devops.com/mcp, transport streamable HTTP. Connect, inspect the tools, request credentials through the secure credential flow, and keep approval required for anything that writes or spends."',
     doors: { standard: STANDARD_DOOR, aiGateway: null },
     coverage: ['onboard', 'read', 'audit'],
     stepUp: 'Login MFA only (the phone demo is read-path).',
@@ -36,6 +49,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'muse-code',
+    path: 'developer',
     verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — rehearse it before presenting and paste observed behavior into the verification matrix.
     name: 'Muse Code (CLI)',
     vendor: 'Meta',
@@ -73,20 +87,27 @@ export const EXTERNAL_AGENTS = [
     name: 'Grok (custom connector)',
     vendor: 'xAI',
     runsWhere: 'xAI cloud — Grok web/desktop/mobile. Public URL required; demos against the SE host.',
+    path: 'directory',
+    assistant: 'Grok',
     setup: [
       {
-        title: 'Create the connector',
-        body: 'Grok → Connectors → New Connector → Custom. Paste the MCP URL: https://cmuir-mcp.ping-devops.com/mcp. Complete the auth flow (browser OAuth).',
+        title: 'The bank lists its connector once',
+        body: "The bank publishes its connector once in Grok's connector directory. Every customer finds the same listing.",
       },
       {
-        title: 'If DCR is unsupported',
-        body: "xAI does not document RFC 7591 DCR. Fallback: pre-register a client (curl -X POST https://cmuir-mcp.ping-devops.com/register ...) and use the fixed credentials if the UI accepts them, or mint a Bearer from a pre-registered client and use xAI's Remote MCP API shape (authorization: \"Bearer ...\").",
+        title: 'Find the bank and click Connect',
+        body: "The customer opens Grok's connectors directory, finds the bank, and clicks Connect. The customer never types a server address.",
+      },
+      {
+        title: 'Sign in at PingOne',
+        body: 'The browser opens the PingOne sign-in. The customer signs in and approves the consent.',
       },
       {
         title: 'Run the read',
-        body: '"Show my checking account balance." Token chain on the dashboard.',
+        body: '"Show my checking account balance." Watch the token chain on the dashboard: sub=user, act=agent.',
       },
     ],
+    rehearsal: "The bank is not really listed in the Grok directory. To rehearse, the presenter adds it by URL: Grok → Connectors → New Connector → Custom, with https://cmuir-mcp.ping-devops.com/mcp. xAI does not document RFC 7591 DCR. If registration fails, pre-register a client (curl -X POST https://cmuir-mcp.ping-devops.com/register ...) and use its fixed credentials, or mint a Bearer from that client and use xAI's Remote MCP API shape (authorization: \"Bearer ...\").",
     doors: { standard: STANDARD_DOOR, aiGateway: null },
     coverage: ['onboard', 'read', 'audit'],
     stepUp: 'Login MFA only.',
@@ -97,6 +118,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'grok-cli',
+    path: 'developer',
     verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — rehearse it before presenting.
     name: 'Grok CLI',
     vendor: 'xAI',
@@ -120,6 +142,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'lm-studio',
+    path: 'developer',
     verification: 'expected', // The facade-door path has a 2026-09-11 precedent, but this flow is not yet re-verified on the current build — rehearse before presenting.
     name: 'LM Studio',
     vendor: 'Local app',
@@ -143,6 +166,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'librechat',
+    path: 'developer',
     verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — rehearse it before presenting.
     name: 'LibreChat',
     vendor: 'Open source (in-repo)',
@@ -170,16 +194,27 @@ export const EXTERNAL_AGENTS = [
     name: 'ChatGPT (connectors)',
     vendor: 'OpenAI',
     runsWhere: 'OpenAI cloud — connector dev mode. Publicly reachable URL required; the local stack needs the SE host or a tunnel.',
+    path: 'directory',
+    assistant: 'ChatGPT',
     setup: [
       {
-        title: 'Add the MCP connector',
-        body: 'Settings → Connectors → add the MCP URL (SE host). Complete OAuth in the browser.',
+        title: 'The bank lists its connector once',
+        body: "The bank publishes its connector once in ChatGPT's app directory. Every customer finds the same listing.",
+      },
+      {
+        title: 'Find the bank and click Connect',
+        body: "The customer opens ChatGPT's apps directory, finds the bank, and clicks Connect. The customer never types a server address.",
+      },
+      {
+        title: 'Sign in at PingOne',
+        body: 'The browser opens the PingOne sign-in. The customer signs in and approves the consent.',
       },
       {
         title: 'Run the read',
-        body: '"Show my checking account balance." Token chain on the dashboard.',
+        body: '"Show my checking account balance." Watch the token chain on the dashboard: sub=user, act=agent.',
       },
     ],
+    rehearsal: 'The bank is not really listed in the ChatGPT directory. To rehearse, the presenter adds it by URL in connector developer mode: Settings → Connectors → add https://cmuir-mcp.ping-devops.com/mcp (the SE host), then complete OAuth in the browser.',
     doors: { standard: STANDARD_DOOR, aiGateway: null },
     coverage: ['onboard', 'read', 'audit'],
     stepUp: 'Login MFA only.',

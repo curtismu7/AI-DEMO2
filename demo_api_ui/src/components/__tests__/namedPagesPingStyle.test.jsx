@@ -7,7 +7,6 @@ import PersonalAgentReviewPage from '../personalAgent/PersonalAgentReviewPage';
 import Phase266ArchitecturePage from '../Phase266ArchitecturePage';
 import EmbeddedFlowDiagram from '../EmbeddedFlowDiagram';
 import OrchestrationSdkExplainerPage from '../../pages/OrchestrationSdkExplainerPage';
-import * as studio from '../../config/personalAgentStudioDiagram';
 import * as dot from '../../config/dotWorkbenchDiagram';
 
 afterEach(cleanup);
@@ -45,7 +44,6 @@ describe('Ping-style diagrams on the named pages', () => {
   });
 
   it.each([
-    ['Personal Agent Studio', { GROUPS: studio.PERSONAL_AGENT_GROUPS, NODES: studio.PERSONAL_AGENT_NODES, EDGES: studio.PERSONAL_AGENT_EDGES, STEPS: studio.PERSONAL_AGENT_STEPS }],
     ['Dot workbench', { GROUPS: dot.DOT_WORKBENCH_GROUPS, NODES: dot.DOT_WORKBENCH_NODES, EDGES: dot.DOT_WORKBENCH_EDGES, STEPS: dot.DOT_WORKBENCH_STEPS }],
   ])('%s config renders as a pingStyle embedded diagram', (title, config) => {
     const { container } = render(<EmbeddedFlowDiagram testId="x" title={title} lede="l" config={config} pingStyle />);

@@ -9,10 +9,15 @@
   },
   "dependencies": {
     "@lmstudio/sdk": "^1.5.0",
-    "zod": "3.24.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.14.8",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "@lmstudio/sdk": {
+      "zod": "^4.6.7"
+    }
   }
 }

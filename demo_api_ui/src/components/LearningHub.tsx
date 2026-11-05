@@ -44,6 +44,8 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "PingOne Authorize": { status: "LIVE / CONFIG", keywords: ["P1AZ", "policy", "permit", "deny", "step-up", "decision"] },
   "MCP Protocol": { status: "LIVE", keywords: ["tools/list", "tools/call", "MCP Inspector", "tool invocation"] },
   "Agent-to-Agent (A2A)": { status: "LIVE", keywords: ["agent card", "nested act", "specialist", "delegation"] },
+  "PingFederate AI Agent": { status: "LIVE / CONFIG", keywords: ["pingfederate", "id-jag", "cimd", "dcr", "dynamic client registration", "rar", "ciba", "dpop", "pi.flow", "token exchange"] },
+  "P1 Third-Party Token Exchange": { status: "SIMULATED", keywords: ["third party", "trusted issuer", "actor token", "jwt", "okta", "auth0", "microsoft", "rfc 8693"] },
   "On behalf of the user (OBO)": { status: "LIVE", keywords: ["obo", "on behalf of", "delegation", "act claim", "token exchange"] },
   "Jev: Decision Model": { status: "LIVE / CONFIG", keywords: ["System One", "guardrail", "intent routing", "confidence", "threshold", "Von", "bake-off"] },
   "Agent Gateway Authorization": { status: "LIVE", keywords: ["P1AZ", "delegated access", "MCP policy", "PERMIT", "DENY", "STEP-UP", "audit"] },
@@ -56,6 +58,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "RAR (RFC 9396)": { status: "SIMULATED", keywords: ["authorization_details", "transaction", "amount", "payee"], lab: "rar" },
   "JWT Client Auth (RFC 7523)": { status: "SIMULATED", keywords: ["private_key_jwt", "client assertion", "token endpoint"], lab: "jwt-client-auth" },
   "Group Policy Board": { status: "LIVE" },
+  "Session Lab": { status: "SIMULATED", keywords: ["session", "cookie", "return success response", "check session", "idle timeout", "authentication methods", "davinci"] },
   "Transaction Consent": { status: "LIVE" },
   "CIBA Approval Link": { status: "LIVE" },
   "Device-First Sign-In": { status: "LIVE" },
@@ -69,6 +72,8 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "Delegation Chain Value": { status: "LIVE" },
   "Hosted Access Registration": { status: "LIVE" },
   "Step-up MFA": { status: "SIMULATED", keywords: ["strong authentication", "challenge", "sensitive action"], lab: "step-up" },
+  "Digital Worker: live run": { status: "LIVE" },
+  "Authorization Flow: six moments": { status: "SIMULATED" },
 };
 
 const RECOMMENDED_PATH = [
@@ -272,8 +277,18 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC43" },
       },
       {
+        label: "Gateway Nested Claims",
+        description: "What gateway v1.261024, v1.261027, v1.261028, v1.261029, v1.261030 and v1.261102 added: act.sub matching, the Cedar scope gate, scope tiers, the PingFederate resource= trap, the AgentCore posture fields and the v1.261028 AgentCore governance checks, and what v1.261029, v1.261030 and v1.261102 changed and which 2026-11-02 release features are not yet measured (verified vs inferred vs unverified)",
+        icon: "🔑",
+      },
+      {
         label: "Group Policy Board",
         description: "One PingOne Authorize decision per vertical, and how flipping group membership flips it",
+        icon: "",
+      },
+      {
+        label: "Session Lab",
+        description: "How a DaVinci flow writes the PingOne session and Check Session reads it: your real session, then a simulated one you change",
         icon: "",
       },
       {
@@ -413,6 +428,16 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         description: "Two-agent token chain with nested act claims, and the identity-mismatch probe",
         icon: "",
       },
+      {
+        label: "Digital Worker: live run",
+        description: "Assistant vs worker on one page: a governed protected-action run plus an unattended arm-fire-approve cycle",
+        icon: "",
+      },
+      {
+        label: "Authorization Flow: six moments",
+        description: "A scripted walkthrough of an assistant acting without becoming the authority: tokens, requests, responses and refusals at every step, per vertical",
+        icon: "",
+      },
     ],
   },
   {
@@ -450,6 +475,16 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC46" },
       },
       {
+        label: "PingFederate AI Agent",
+        description: "ID-JAG, CIMD (with a client.dev-style tester), DCR, RAR, CIBA, DPoP, token exchange and pi.flow, each run against real PingFederate",
+        icon: "🛡",
+      },
+      {
+        label: "P1 Third-Party Token Exchange",
+        description: "PingOne trusts a JWT from Okta, Auth0, Microsoft or PingFederate as actor token and maps its claims into the issued token",
+        icon: "🔄",
+      },
+      {
         label: "On behalf of the user (OBO)",
         description: "An agent acts for the signed-in user through RFC 8693 delegation, never as the user",
         icon: "🔗",
@@ -461,6 +496,21 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         // UC17 = JIT/ephemeral credentials, the MCP-privilege live run; UC13 is
         // the confused-deputy attack, a different story.
         demoStep: { useCaseId: "UC17" },
+      },
+      {
+        label: "Federated agents: PingFederate token",
+        description: "An agent's own PingFederate token on a P1 Privilege Agent App: tools by scope, the token passed through, and what Privilege can't do yet",
+        icon: "🔑",
+      },
+      {
+        label: "AI policies: Cedar in the gateway",
+        description: "Privilege deciding agent tool calls with Cedar: allowed, refused or held for a human, and where in the path it happens",
+        icon: "🛠",
+      },
+      {
+        label: "Privilege documentation index",
+        description: "Every Privilege guide in one list: gateway, sensor, AI protection and demos",
+        icon: "📚",
       },
     ],
   },
@@ -650,6 +700,7 @@ export default function LearningHub() {
       "Device-First Sign-In": () => navigate("/mfa-test#signin-diagram"),
       "Push Approval (simulated phone)": () => navigate("/mfa-test#push-diagram"),
       "Group Policy Board": () => navigate("/group-policy"),
+      "Session Lab": () => navigate("/session-lab"),
       "Auth Code + PKCE": () => openEdu(EDU.LOGIN_FLOW, "what"),
       "PKCE Deep Dive": () => openEdu(EDU.LOGIN_FLOW, "pkce"),
       "CIBA (OOB)": () =>
@@ -666,6 +717,7 @@ export default function LearningHub() {
       "RAR (RFC 9396)": () => navigate(`/learning-lab/${LESSON_REGISTRY["RAR (RFC 9396)"].lab}`),
       "JWT Client Auth (RFC 7523)": () => navigate(`/learning-lab/${LESSON_REGISTRY["JWT Client Auth (RFC 7523)"].lab}`),
       "OAuth: CIMD": () => navigate("/cimd-privilege"),
+      "Gateway Nested Claims": () => navigate("/gateway-claims"),
     },
     "mcp-agents": {
       "Delegation Chain Value": () => navigate("/delegation-chain-value"),
@@ -690,6 +742,8 @@ export default function LearningHub() {
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
       "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
       "Shadow AI Detector": () => navigate("/ai-gateway/shadow-ai-detector"),
+      "Digital Worker: live run": () => navigate("/digital-worker"),
+      "Authorization Flow: six moments": () => navigate("/authorization-flow"),
     },
     "ping-ai-products": {
       "Agent IAM Core": () => navigate("/ai-products/core"),
@@ -698,7 +752,12 @@ export default function LearningHub() {
       "Privilege for AI — LLM": () => navigate("/ai-products/privilege-llm"),
       "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
       "On behalf of the user (OBO)": () => navigate("/obo-demo"),
+      "PingFederate AI Agent": () => navigate("/pingfederate-ai-agent"),
+      "P1 Third-Party Token Exchange": () => navigate("/p1-third-party-exchange"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
+      "Federated agents: PingFederate token": () => navigate("/privilege-pf-token"),
+      "AI policies: Cedar in the gateway": () => navigate("/privilege-ai-policies"),
+      "Privilege documentation index": () => navigate("/privilege-docs-index"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),

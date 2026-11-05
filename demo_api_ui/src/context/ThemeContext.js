@@ -8,9 +8,10 @@ export const FONT_SCALE_STORAGE_KEY = 'ba_font_scale';
 
 // The dial TopNav cycles through. The shipped default is 1.125 (matches the
 // inline index.html zoom — the app's baseline type is one notch above stock).
-// Each step ≈ one browser "larger" notch: presenters step up on a projector,
-// step back down after.
-export const FONT_SCALES = [1, 1.125, 1.25, 1.375];
+// Each step ≈ one browser "larger" notch (then bigger jumps up to 200% for a
+// far-away screen): presenters step up on a projector, step back down after.
+// The click after 200% wraps to 100%. index.html's boot script must list every value here.
+export const FONT_SCALES = [1, 1.125, 1.25, 1.375, 1.5, 1.75, 2];
 export const FONT_SCALE_DEFAULT = 1.125;
 
 function readStoredDarkMode() {

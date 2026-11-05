@@ -1,0 +1,792 @@
+<title>Unofficial: Privilege documentation index</title>
+<!--
+  Design plan — Confluence source doc for the PingOne Privilege docs index.
+  Same design family as skills-confluence-page.html (consistent when both paste into Confluence).
+  Color: --bg Gray 100 #fcfcfc, --fg ink #1b2733, --accent Ping Red #d20e0f→#aa0005,
+         --surface white, --border cool hairline. Dark theme flips to Core Dark #051727.
+  Type:  Montserrat display/headings, Source Sans 3 body, IBM Plex Mono for file names.
+  Layout: single-column document, red masthead rule, section tables (Document | PDF | What it covers)
+         in scroll wrappers, TOC chips, fixed "Copy for Confluence" action.
+  Links: document names → GitHub blob/main (URL-encoded, same convention as the in-app index);
+         "In repo" PDF chips → GitHub PDF; "Drive (SE)" is intentionally a plain label (no public URL).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #fcfcfc;
+  --surface: #ffffff;
+  --fg: #1b2733;
+  --muted: #5b6b7a;
+  --border: #e3e7eb;
+  --accent: #d20e0f;
+  --accent-deep: #aa0005;
+  --accent-soft: #fdeaea;
+  --code-bg: #f3f5f7;
+  --code-fg: #14324a;
+  --heading: #d20e0f;
+  --row-alt: #f3f6f8;
+  --th-bg: #000000;
+  --th-fg: #ffffff;
+  --chip-repo-bg: #fdeaea;
+  --chip-repo-fg: #aa0005;
+  --chip-repo-br: #f0b9b9;
+  --chip-drive-bg: #eef2f5;
+  --chip-drive-fg: #5b6b7a;
+  /* Section identity hues — text-grade steps (>=4.5:1 on this surface),
+     validated as a fixed-order categorical sequence (CVD ΔE >= 8 adjacent). */
+  --sec-customer: #b01716;
+  --sec-start: #1c5cab;
+  --sec-gw-setup: #c24d1d;
+  --sec-gw-a2a: #0e7a52;
+  --sec-gw-ai: #8a6200;
+  --sec-gw-obs: #3a2d85;
+  --sec-sensor: #005c00;
+  --sec-secrets: #b23d68;
+  --sec-demos: #0072ad;
+  --sec-neutral: #5b6b7a;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #051727;
+    --surface: #0b2436;
+    --fg: #dfe7ee;
+    --muted: #93a7b8;
+    --border: rgba(255,255,255,0.14);
+    --accent: #f2554b;
+    --accent-deep: #ff7b72;
+    --accent-soft: rgba(210,14,15,0.16);
+    --code-bg: #062033;
+    --code-fg: #bcd6ea;
+    --heading: #f2554b;
+    --row-alt: rgba(255,255,255,0.045);
+    --th-bg: #000000;
+    --th-fg: #eaf2f8;
+    --chip-repo-bg: rgba(210,14,15,0.22);
+    --chip-repo-fg: #ff9d97;
+    --chip-repo-br: rgba(242,85,75,0.5);
+    --chip-drive-bg: rgba(255,255,255,0.08);
+    --chip-drive-fg: #a9bccb;
+    --sec-customer: #f2554b;
+    --sec-start: #3987e5;
+    --sec-gw-setup: #d95926;
+    --sec-gw-a2a: #199e70;
+    --sec-gw-ai: #c98500;
+    --sec-gw-obs: #9085e9;
+    --sec-sensor: #1e9e1e;
+    --sec-secrets: #d55181;
+    --sec-demos: #2f9db8;
+    --sec-neutral: #93a7b8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #051727;
+  --surface: #0b2436;
+  --fg: #dfe7ee;
+  --muted: #93a7b8;
+  --border: rgba(255,255,255,0.14);
+  --accent: #f2554b;
+  --heading: #f2554b;
+  --accent-deep: #ff7b72;
+  --accent-soft: rgba(210,14,15,0.16);
+  --code-bg: #062033;
+  --code-fg: #bcd6ea;
+  --row-alt: rgba(255,255,255,0.045);
+  --th-bg: #000000;
+  --th-fg: #eaf2f8;
+  --chip-repo-bg: rgba(210,14,15,0.22);
+  --chip-repo-fg: #ff9d97;
+  --chip-repo-br: rgba(242,85,75,0.5);
+  --chip-drive-bg: rgba(255,255,255,0.08);
+  --chip-drive-fg: #a9bccb;
+  --sec-customer: #f2554b;
+  --sec-start: #3987e5;
+  --sec-gw-setup: #d95926;
+  --sec-gw-a2a: #199e70;
+  --sec-gw-ai: #c98500;
+  --sec-gw-obs: #9085e9;
+  --sec-sensor: #1e9e1e;
+  --sec-secrets: #d55181;
+  --sec-demos: #2f9db8;
+  --sec-neutral: #93a7b8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  font-size: 15.5px;
+  line-height: 1.55;
+  padding: 0 20px 96px;
+}
+main { max-width: 960px; margin: 0 auto; }
+.masthead { padding-block: 36px 8px; }
+.eyebrow {
+  font-family: Montserrat, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+h1 {
+  font-family: Montserrat, sans-serif;
+  font-weight: 800;
+  font-size: clamp(26px, 4.5vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  color: var(--heading);
+  text-wrap: balance;
+}
+.subtitle {
+  font-family: Montserrat, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.masthead-rule {
+  height: 4px;
+  border: 0;
+  margin: 0 0 18px;
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  border-radius: 2px;
+  max-width: 220px;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0 0 26px;
+}
+.meta strong { color: var(--fg); font-weight: 600; }
+h2 {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  margin: 44px 0 6px;
+  text-wrap: balance;
+  color: var(--heading);
+  padding-bottom: 6px;
+  border-bottom: 3px solid var(--sec, var(--accent));
+  color: var(--accent);
+}
+/* Per-section hue: the wrapping <section> sets --sec; h2 underline, table top
+   border, striped rows, doc links, and the TOC chip all pick it up. Identity
+   is still carried by the heading text — hue is reinforcement, never the
+   only channel. */
+section[id="customer"]  { --sec: var(--sec-customer); }
+section[id="start"]     { --sec: var(--sec-start); }
+section[id="gw-setup"]  { --sec: var(--sec-gw-setup); }
+section[id="gw-a2a"]    { --sec: var(--sec-gw-a2a); }
+section[id="gw-ai"]     { --sec: var(--sec-gw-ai); }
+section[id="gw-obs"]    { --sec: var(--sec-gw-obs); }
+section[id="sensor"]    { --sec: var(--sec-sensor); }
+section[id="secrets"]   { --sec: var(--sec-secrets); }
+section[id="demos"]     { --sec: var(--sec-demos); }
+section[id="reference"] { --sec: var(--sec-neutral); }
+h2 .count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  vertical-align: middle;
+  margin-left: 8px;
+}
+p { margin: 10px 0; max-width: 72ch; }
+a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+.note {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 14.5px;
+}
+.note p { margin: 6px 0; }
+.unofficial {
+  background: #d20e0f;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 18px;
+  text-align: center;
+  padding: 14px 18px;
+  margin: 16px 0 0;
+  text-transform: uppercase;
+}
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; align-items: center; }
+.legend .lbl { font-size: 13px; color: var(--muted); font-weight: 600; }
+.chip {
+  display: inline-block;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--chip-repo-br);
+  background: var(--chip-repo-bg);
+  color: var(--chip-repo-fg);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.chip.plain {
+  font-family: "Source Sans 3", sans-serif;
+  border: 1px solid var(--border);
+  background: var(--chip-drive-bg);
+  color: var(--chip-drive-fg);
+}
+.chip.dash { color: var(--muted); background: none; border: none; }
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.toc .tocitem {
+  display: inline-block;
+  font-family: Montserrat, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px 13px;
+  border-left: 4px solid var(--sec-neutral);
+}
+/* Chip hue matches its target section (same order as the tables). */
+.toc .tocitem[data-sec="customer"]  { border-left-color: var(--sec-customer); color: var(--sec-customer); }
+.toc .tocitem[data-sec="start"]     { border-left-color: var(--sec-start);    color: var(--sec-start); }
+.toc .tocitem[data-sec="gw-setup"]  { border-left-color: var(--sec-gw-setup); color: var(--sec-gw-setup); }
+.toc .tocitem[data-sec="gw-a2a"]    { border-left-color: var(--sec-gw-a2a);   color: var(--sec-gw-a2a); }
+.toc .tocitem[data-sec="gw-ai"]     { border-left-color: var(--sec-gw-ai);    color: var(--sec-gw-ai); }
+.toc .tocitem[data-sec="gw-obs"]    { border-left-color: var(--sec-gw-obs);   color: var(--sec-gw-obs); }
+.toc .tocitem[data-sec="sensor"]    { border-left-color: var(--sec-sensor);   color: var(--sec-sensor); }
+.toc .tocitem[data-sec="secrets"]   { border-left-color: var(--sec-secrets);  color: var(--sec-secrets); }
+.toc .tocitem[data-sec="demos"]     { border-left-color: var(--sec-demos);    color: var(--sec-demos); }
+.tablewrap { overflow-x: auto; margin: 12px 0 6px; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  min-width: 620px;
+  border-top: 3px solid var(--sec, var(--accent));
+}
+th {
+  font-family: Montserrat, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--th-fg);
+  background: var(--th-bg);
+  border-bottom: 2px solid var(--border);
+  padding: 9px 12px 9px 10px;
+  white-space: nowrap;
+}
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 12px 9px 0;
+  vertical-align: top;
+}
+/* Section-colored stripes replace the gray alt row — 5% of the section hue
+   over the surface keeps 14:1+ with body ink in light, 11.7:1+ in dark. */
+section[id] tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--sec) 5%, var(--surface));
+}
+td.doc { min-width: 220px; }
+td.doc a {
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--sec, var(--accent));
+  border-bottom: 1px solid color-mix(in srgb, var(--sec, var(--accent)) 35%, transparent);
+}
+td.pdf { white-space: nowrap; font-size: 13px; }
+td.pdf a { text-decoration: none; }
+td.pdf .dash { color: var(--muted); }
+td.covers { color: var(--fg); min-width: 340px; }
+td .warn { color: var(--accent); font-weight: 600; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.92em; }
+.assets {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+.assets ul { margin: 8px 0 0; padding-left: 20px; }
+.assets li { margin: 4px 0; }
+.planned-empty { color: var(--muted); font-size: 13.5px; font-style: italic; }
+.footer-meta {
+  margin-top: 52px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.copybar {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+}
+.copybar button {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #fff;
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(210, 14, 15, 0.35);
+}
+.copybar button:focus-visible { outline: 3px solid var(--accent-deep); outline-offset: 2px; }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 9px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 11;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+@media (max-width: 480px) {
+  body { font-size: 15px; padding: 0 16px 96px; }
+}
+</style>
+
+<main>
+  <header class="masthead">
+    <p class="eyebrow">Ping Identity · AI-DEMO2 · SE Engineering</p>
+    <h1>Unofficial: PingOne Privilege documentation index</h1>
+    <p class="subtitle">Every Privilege doc we own, in one place</p>
+    <hr class="masthead-rule">
+    <div class="meta">
+      <span>Last updated <strong>27 October 2026</strong></span>
+      <span><strong>74 docs</strong> · 10 sections</span>
+      <span>Source: <a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd">privilege/ in AI-DEMO2 (public)</a></span>
+      <span>In-app copy at <span class="mono">/privilege-docs-index</span></span>
+    </div>
+  </header>
+
+  <div class="unofficial">Unofficial — not official Ping documentation</div>
+  <div class="note">
+    <p>These are my documents from building out Agent Privilege features.  They are not intended to replace documentation.  This is meant to help SE’s with details and in the short term, while we wait for documentation.</p>
+  </div>
+
+  <p>The MD link on each row is the source file in the repo (public on GitHub). PDF exports of the SE guides ship through the shared Google Drive folder; the two PDFs that live in the repo link directly below. An in-app copy of this index is served at <span class="mono">/privilege-docs-index</span> in the demo UI (Learning Hub → Ping AI Products → Privilege Docs Index).</p>
+
+  <div class="note">
+    <p><strong>PDF column legend:</strong> <span class="chip">In repo</span> links straight to the PDF on GitHub · <a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a> means the PDF ships through the shared Google Drive folder (no public link) · <span class="chip dash">—</span> means no PDF export.</p>
+  </div>
+
+  <ul class="toc">
+    <li><span class="tocitem" data-sec="customer">Customer deliverables</span></li>
+    <li><span class="tocitem" data-sec="start">Start here</span></li>
+    <li><span class="tocitem" data-sec="gw-setup">Gateway · setup &amp; clients</span></li>
+    <li><span class="tocitem" data-sec="gw-a2a">Gateway · A2A</span></li>
+    <li><span class="tocitem" data-sec="gw-ai">Gateway · AI protection</span></li>
+    <li><span class="tocitem" data-sec="gw-obs">Gateway · observability</span></li>
+    <li><span class="tocitem" data-sec="sensor">Sensor</span></li>
+    <li><span class="tocitem" data-sec="secrets">Secrets Hub</span></li>
+    <li><span class="tocitem" data-sec="demos">Demos &amp; environments</span></li>
+    <li><span class="tocitem" data-sec="reference">Reference &amp; records</span></li>
+  </ul>
+
+  <section id="customer">
+  <h2 id="customer">Customer deliverables<span class="count">2</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="doc"><a href="https://drive.google.com/file/d/1RSLH0KBchNb1dXXMIknnT5YrDrS2Az6l/view?usp=sharing">On users' personal agent design</a></td>
+          <td class="pdf"><a href="https://drive.google.com/file/d/1RSLH0KBchNb1dXXMIknnT5YrDrS2Az6l/view?usp=sharing">In repo</a></td>
+          <td class="covers">The personal-agent security architecture, built on an airline loyalty-program review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams. Working draft, 2026-10-09, prepared for the customer's AI team.</td>
+        </tr>
+        <tr>
+          <td class="doc"><a href="https://drive.google.com/file/d/1SAxqFy96HcXVi_iP-CbQII-UU5XEsfBS/view?usp=sharing">Request Header Size (HTTP 431) Guidance</a></td>
+          <td class="pdf"><a href="https://drive.google.com/file/d/1SAxqFy96HcXVi_iP-CbQII-UU5XEsfBS/view?usp=sharing">In repo</a></td>
+          <td class="covers">Investigating and mitigating HTTP 431 "Request Header Fields Too Large" in a browser-based headless Ping SDK / DaVinci flow on a custom domain: cookie-scope and intermediary causes, five remediation options (BFF/proxy, cookie scope, credentialed-request limits, intermediary stripping, eTLD+1 domain), and the HAR-capture diagnostic sequence.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="start">
+  <h2 id="start">Start here<span class="count">11</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1XkUyTB8RDXH3ZAqe98Qhe6Ebue1yaH5S/view?usp=sharing">Orientation &amp; map</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">One-screen orientation to the whole Privilege effort: the two deployment modes, where the code lives, what to read first.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1Dd8ZdNNiPtLDENBV5Hl7Ye_ApwrMkm-L/view?usp=sharing">Canonical investigation record</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Architecture, protocol on every hop, every blocker and how it was ruled out, dated newest-last. The trap list at the end of each section is what saves the time.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1ifXedMnNGj6pBZyBh3Q5bHKhLT2jwF6I/view?usp=sharing">Lessons learned</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Behaviors that cost real time and aren't in Ping's docs: policy union, entry-path pinning, DCR statelessness, hosted-vs-self-hosted auth. Read before authoring a policy or debugging a 403/404.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1zAfEjE4bSnljwAetMp4xV0o3gKv36H0r/view?usp=sharing">Console steps</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">The console-side steps that cannot be automated or tested from the repo.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/19yN7F_23oO1rz_nWa9wH-jhvNWGpz7aG/view?usp=sharing">Agentless configuration</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Operating the live Agentless (OAuth/PKCE) gateway in <span class="mono">ping-devops-cmuir</span>: current source of truth for OAuth, routing and image values.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1iw6T87jgJXEOKmvcbvpa-ajErNVk_o4f/view?usp=sharing">Agent configuration</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers"><span class="warn">⚠ Stale-bannered 2026-10-10:</span> describes the removed <span class="mono">cm-mcpgw</span> deployment — kept for the console-side operating method. Current state in <a href="https://drive.google.com/file/d/10oribAOVkel4dH7wsE8XQWN0XZUCk9xL/view?usp=sharing">Agent mode end to end</a>.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1wZjiJOEEtyXked3_J64yfmoq1x0n1WCQ/view?usp=sharing">Current configuration index</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Choosing between Agentless and Agent modes, and comparing their current values side by side.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1P_LcdOJhB1YyOKoLyaG8XK2vEHLHZNMx/view?usp=sharing">Tag policies in depth</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">What tag policies are and what they are not: name-regex → tag-set rules that do NOT auto-tag (measured), the CTags PUT that actually applies tags, per-resource quirks (namespaced agent-key PUT, MCP-app display bug), and the live demo-map-* set with its maintenance rule (with console screenshots).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1mGOwgmhl8anWYIws-31xvV9DVSbRuBHf/view?usp=sharing">Official Ping config reference</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Ping's own configuration checklist (received 2026-08-12). First doc to call out K8s ingress 443→8623 and the 8690 mesh port; the repo's K8s setup was audited against it.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1df-Ac7bq8gzZuxgJjcLXOL67lSHxGblV/view?usp=sharing">Technical summary v3</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd">In repo</a></td><td class="covers">Ping's own summary of the MCP gateway feature. PDF only; v1/v2 exports remain outside the repo.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1P_LcdOJhB1YyOKoLyaG8XK2vEHLHZNMx/view?usp=sharing">Tag policies in depth</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">What tag policies are and what they are not: name-regex → tag-set rules that do NOT auto-tag (measured), the CTags PUT that actually applies tags, per-resource quirks (namespaced agent-key PUT, MCP-app display bug), and the live <span class="mono">demo-map-*</span> set with its maintenance rule</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="gw-setup">
+  <h2 id="gw-setup">Gateway — setup &amp; clients<span class="count">7</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1Xm-OD0VwI3T6g8-1Si8fybOkGX5SODyC/view?usp=sharing">Registering an MCP server</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">App fields, entry path, Auth Mode, policy — and what was tested live on the Agent Privilege (2026-10-02).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1_QYrvIIJJ4eTwB83LWhY3F9KsFwurPdd/view?usp=sharing">Sidecar MCP servers</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Running an MCP server as a sidecar in the Agent Privilege pod: ports, secrets, registering, verifying (tested live 2026-10-02).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1eA4Z473bFZJ8iygCOoURI9YpIdZKAKoR/view?usp=sharing">Connecting an MCP client</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The app URL, discovery, self-registration, PKCE sign-in, tokens, client setup (tested live 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1KZYzmQwWbRIcRbZVUug6cDuSR74hB8qS/view?usp=sharing">Setting up a calling agent</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Registering an agent that calls the gateway with a key: scopes, model limits, granting remote agents and tool servers, the custodian, runtime protection, refusals (tested live 2026-10-03/04).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1WaL9IxvSQwYJFHtw8BTkbxtw1mwh3sVQ/view?usp=sharing">Aggregate apps</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Many MCP servers behind one address: the <span class="mono">&lt;member&gt;__&lt;tool&gt;</span> prefix, granting tools, the two layers of access, the errors an aggregate returns (tested live 2026-10-04).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1J9JM-0l_nRZzCOzZKQYOlUaTecef799a/view?usp=sharing">Load balancer &amp; second gateway</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Two gateways as nodes of one mesh cluster: one app registration serves both, a shared token store, and the failover behavior after the fix.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1v4pxJG0cvVsD1VH5juabtdtR-bxELAb6/view?usp=sharing">Building an agent the gateway can front</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The agent's side of A2A: the card, the JSON-RPC endpoint, which credential each auth mode delivers, refusing other paths, error codes, the direct door (tested live 2026-10-03).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="gw-a2a">
+  <h2 id="gw-a2a">Gateway — agent-to-agent (A2A)<span class="count">3</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1VC5izsf-iLCPp4p_vXvx80AUZNQkaRh2/view?usp=sharing">Agent-to-agent (A2A)</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">A2A direct and through the Agent Privilege: agent card, Remote Agent setup, calling agents and their keys, auth modes, Static Token, AIGuard and NeMo (tested live 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1FcrPXlMxyYAzZO-KZpq7DAiu1eU98o4c/view?usp=sharing">A2A auth modes compared</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">None, Static Token, User Token and Pass Agent Token on a Remote Agent: what each delivers, which one the gateway refuses, how to choose and verify (tested live 2026-10-03/04).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1TjsyKa7JnVkzYL5KbMmyw1T2HHEs5WNQ/view?usp=sharing">Guardrails for A2A</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">AIGuard on agent-to-agent calls: where it sits, the JSON-RPC block, which message parts are inspected, the <span class="mono">a2a_request_*</span> records, what is not covered (tested live 2026-10-03).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="gw-ai">
+  <h2 id="gw-ai">Gateway — AI protection<span class="count">8</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1tCYHMY4mi-Nr5eFHG_pQmppmhDTAmS-f/view?usp=sharing">AIGuard (console walkthrough)</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">The Add Agent wizard's Runtime Protection step: four detector groups and eleven detectors, Enable and Fail Closed, External Inspection and the ML Sidecar (console walkthrough with screenshots, 2026-10-08).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/17GuTgR5a6Bj8P9VzINmL0zyExLmuP7SJ/view?usp=sharing">Guardrails &amp; the external detector</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">AIGuard on the model route: per-key detectors and thresholds, what a block looks like and its logs, the <span class="mono">/inspect</span> contract, Block Agreement, NeMo rails, what is and is not inspected (tested live 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1LUig8J6_eSWgmWyCHTUiGy6tURCuoU_F/view?usp=sharing">LLM routing &amp; virtual keys</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The <span class="mono">/llm/&lt;provider&gt;/v1</span> route and virtual keys: key settings, order of checks, allowed models, rate limits, refusals, the <span class="mono">LLM request</span> log line (tested live 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1ZN6EB9wxJEBwabBkcCP3domapKPyxXO-/view?usp=sharing">LLM protection in the demo stack</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">How LLM protection is wired into the AI-DEMO2 BFF: secrets into <span class="mono">ai-demo-secrets</span>, gateway route, what the demo shows.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1dGQbWJ__e8oKlnvxO-Ds9OBlZaLq4DOE/view?usp=sharing">ML sidecar rollout across Agent Registry</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Wiring the demo sidecar into every registry key: the five-setting recipe, per-key state, the expired-key renewal catch, a2a-only keys get AIGuard too, Block Agreement <span class="mono">off</span> as the provable mode (tested live 2026-10-12)</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1C9tG5GMxGxXI8ScKYyY3eEPl7ODiRiQ0/view?usp=sharing">Gateway release v1.261009</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Release inventory for the 9 Oct 2026 gateway image: bedrock-mantle provider, the OpenAI-compat Bedrock deployments route, model catalog refresh, <span class="mono">llm_policy_response_denied</span>, and the imageID-vs-index-digest gotcha (static analysis, 2026-10-12)</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1ZHHnDOxq0KApzgjmn4k7UKIYGhdYxywN/view?usp=sharing">Gateway release v1.261009 — demo runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Every release claim converted to a tested demo step: catalog dropdowns live, the response-side policy denial end to end (<span class="mono">llm_policy_response_denied</span> + the 400/UpstreamStatus:200 pairing), llama.cpp through <span class="mono">/llm/custom/v1</span>, mantle confirmed as a key provider, Bedrock block blocked-with-reason; AIGuard-sanitize vs policy-withhold demo switch (tested live 2026-10-12)</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1RYt7lQNDe7gNI-Sm5x0kg6h9CnQehQ4z/view?usp=sharing">Setting guardrail thresholds</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">How alert/block thresholds decide, where to set them on a key, choosing the value from the logged score, and a worked jailbreak 0.9 → 0.8 change on an a2a-only key that turned two alerted jailbreaks into 400s (tested live 2026-10-14)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="gw-obs">
+  <h2 id="gw-obs">Gateway — observability<span class="count">4</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1yi8RZnzfJdZIKZgqPsDTFxOOW-oSj_sP/view?usp=sharing">Logging with Elasticsearch</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">What reaches Elasticsearch (console audit events only), where model calls and guardrail verdicts are recorded, shipping them, Kibana searches, the secrets both feeds contain (read live 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1WdZIqT0_QGSZ2rujQlh-wCK-dio7w5li/view?usp=sharing">Reading gateway errors</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">What each status code can mean, the log lines behind it, tracing one request, backend and guardrail errors (reproduced live 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/15G8yCS61W9ZC-MdBHpRprnYG9WpZx4mQ/view?usp=sharing">Elasticsearch &amp; Kibana runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Sending Privilege SIEM events to Elasticsearch and viewing them in Kibana, using Kibana's port-forward as the endpoint.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1NQhIiD9riXpqS0iiXVq4VxAtbnsLRhlr/view?usp=sharing">Audit evidence &amp; compliance mappings</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">What the gateway actually emits for the audit close: the three verdict/denial event types with their live-verified MITRE ATLAS / NIST AI RMF / OWASP LLM mappings (catalog aigw-compliance-v1.1.0, measured 2026-10-13), where to show each piece, and what remains unverified (the deck's slide-7 framework, the SIEM index's current state)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="sensor">
+  <h2 id="sensor">Sensor<span class="count">5</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1cdcGS8uFbT0j7wegByq5uDlp-qk0xr8R/view?usp=sharing">Sensor on Docker (guide)</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The Privilege node sensor on any Docker host: setup, how it works, identity, logging, failure modes.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/15zgRZJL74ms_xn644HQsIrCErLqt3gmy/view?usp=sharing">Sensor on Docker (our environment)</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Our Docker→local-gateway→Docker loop, our values, and the 2026-10-01 sensor failure and fix.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/15fmUP31U3SiQZZC_pYNcZ2si0pdLxyrS/view?usp=sharing">Sensor on Kubernetes (guide)</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The sensor on any Kubernetes cluster: Helm install, ServiceAccount-token identity, chart values.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1-qMdsmDoyC6G-Np3-yktMvwGqJXkvXP6/view?usp=sharing">Sensor on Kubernetes (our environment)</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Our values, how <span class="mono">k8s/deploy.sh</span> installs the sensor, open questions.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/18X6Um5umVvhBLOk3h-s5luolcA3Wg4OL/view?usp=sharing">Sensor enforcement policies</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">How a policy reaches the sensor, off/audit/enforce, what a rule contains, scope, what termination looks like, the tier, and a safe local test (tested live 2026-10-03).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="secrets">
+  <h2 id="secrets">Secrets Hub<span class="count">1</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1p6rokSWgf99Yff_FvS9GeegAXNgIUkkj/view?usp=sharing">Secrets Hub with Google Secret Manager</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Connecting GSM as a Privilege Secrets Hub: project setup, the API the form leaves out, what sync and view read, policies, and the service-account key landing in the audit log (tested live 2026-10-04).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="demos">
+  <h2 id="demos">Demos &amp; environments<span class="count">29</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/15cp1HVZIG9ujHDJIk1MvQcQOe-dHAm2A/view?usp=sharing">A2A demo &amp; setup</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Runbook for both A2A demos through the Agent Privilege: the pre-demo check, both demo scripts with what to say, setup from scratch with our values, symptom-to-fix table and known limits.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1rDb09nO8qnQN9tu6C-29iWUiazDSjqpm/view?usp=sharing">New demo environment</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">A separate demo environment from scratch (own PingOne env, gateway, apps, agents): parameter table, what is verified, enrolling with the right Host IP, token and CPU traps, order of steps.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1GFHF00TIkAXqr72kLUAxQNUNvBpTr0A4/view?usp=sharing">Deploying &amp; upgrading on Kubernetes</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Helm install/upgrade/re-enroll/teardown of an Agentless gateway: first-install sequence, the Host-IP and token-whitespace traps, extraContainers and floating-tag upgrade rules, the PV-destruction teardown deadlock, and what is verified vs from notes (2026-10-09).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1RbgXksFZT2_D64KdsPt_8vZswAo7duTi/view?usp=sharing">Running the gateway locally (Docker)</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The <span class="mono">profile: mcpgw</span> compose stack: start/stop, enrollment token + <span class="mono">pingone.env</span> + <span class="mono">/etc/hosts</span> + console app, the post-swap port map (settle by probing), nginx front door, verification incl. the smoke script, and the CA-wall status of the currently stopped local gateway (2026-10-09).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1jRXKjKSORGx8UW1Cr7rleoFit3Ry8TVc/view?usp=sharing">Workload identity for agent callers</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">What Pass Agent Token demands (<span class="mono">token-pass</span>), the SPIFFE→PingFederate actor-token path verified live 2026-09-26, and the documented gap: no caller has yet presented a workload token to the gateway, with the experiment that would close it (2026-10-09).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1zk0pk9AVLTMXxcNtB9sRd1Ak4Qu5j6DQ/view?usp=sharing">Red team: a hostile A2A agent</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The poisoned-Agent-Card attack end to end: <span class="mono">standalone/hostile-a2a-agent</span>, the deployed instance, what the gateway blocked vs alerted vs passed (measured 2026-10-03/06), the three properties of an A2A block, and what the demo does not claim (2026-10-09).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1SoRX0SBAOSTUH1n5yesnqAp0mZREJNBd/view?usp=sharing">Auth modes for MCP backends</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">What each mode sends the backend (None, Static Token, User Token, Pass Agent Token, OAuth), the header pass-through + <span class="mono">X-Procyon-Mcp-Cap</span> behavior, the verified instances in this stack, the OAuth warning (breaks discovery on v1.260906), and a choosing guide (2026-10-09).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1ZBNDYhXYcF1VE03Qppmf1rOtxuxvLo6e/view?usp=sharing">SE1 shared demo</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Setting up the shared Privilege demo in the SE1 environment.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1gP3ZKhmMjd7MPotVihDLzYhHV1SqysPn/view?usp=sharing">Privilege Agent setup — Mac</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Agent-based persona onboarding for the shared Demo Engineering environment, run on your own Mac instead of Windows 11 VMs.</td></tr>
+                <tr><td class="doc"><a href="https://drive.google.com/file/d/1jChSDZBpzhhcJbji5yDXvgg8ulfzyRxp/view?usp=sharing">CIMD client documents</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1B3liPeN57KSnNCICrAs56WixNx3J6zWM/view?usp=sharing">MCP discovery-gating demo</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">SE demo script: an agent's <span class="mono">tools/list</span> returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/10hTWWOaHpl9CCip_GjxQgnYX9-sAFaAa/view?usp=sharing">Ping's reference demo, explained</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The two-agent demo (<span class="mono">aigwdemo</span>) from the source up: three processes, the six legs and which cross the gateway, the four ADK traps the demo solves (A2A bearer, card object, <span class="mono">transportOptions</span>, <span class="mono">GatewayGemini</span>), the seeded findings, the UI's eight detector groups, and the runbook condensed (source-verified 2026-10-09, not yet run).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1L5Bcgb4ZbbyG2LYAYtcuk7ZQQM6-OwV1/view?usp=sharing">Policies in depth</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees "denied", the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a "policy problem" isn't one — every step measured live 2026-10-10.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/10oribAOVkel4dH7wsE8XQWN0XZUCk9xL/view?usp=sharing">Agent mode end to end</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">The Privilege Agent on a Mac, measured: device-bound identity in the Secure Enclave, pairing and re-pairing order, the local console, the cloud frontend's 403 gate — and the reframe: the agent is an identity anchor, not an MCP transport (<span class="mono">cm-mcpgw</span> is gone; MCP runs through the agentless gateways). Stale-agent-doc corrections included; paired live 2026-10-10.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1K1ZZK_y3ffs0tzIwYlmeALd56C6EgTgb/view?usp=sharing">Agent approvals — the demo that works today</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">HITL via native <span class="mono">agentapprovals</span>: the console-fallback demo script (ApprovalReq → HITL Requests → human decision → terminal auditable state), and the recorded Slack/Mattermost notification failure (dispatcher never fires on an agentless tenant — Ping support report on the Desktop) with the do-not-promise rule</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1BqWJGPKK_NjAlTEylEKZGtuNe-meKNHm/view?usp=sharing">Running our demo on the shared env</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Gap analysis for pointing our stack (UC45–47, LLM virtual keys, the MCP-client door) at the shared SE1 environment: what breaks and why, what we would add there, the 15-minute console probe for the open gateway question, and how to read each outcome (2026-10-11)</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1UQIhaV4DJm3spYWBwp8FjnE5jASNF9tc/view?usp=sharing">Agent features master index</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">The ten agent-facing Privilege features in demo arc order, each with a description and links to the detailed docs; names the three coverage gaps (rug-pull matrix, agentapprovals doc, compliance mapping)</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/19KrYOtibbWxTvbfGyNjRV8TI29OiOd_T/view?usp=sharing">Privilege Agent Field Guide</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Trainer's page: the top 10 agent features in demo arc order (identity → policy → LLM → MCP → HITL → proof), each with what/show/say presenter rows, the model-allowlist verified table, and the pre-session caveats (Google lane misconfigured, Slack/Teams approvals unverified). Standalone HTML, grounded in <span class="mono">docs/privilege-llm-protection.md</span> and <span class="mono">docs/privilege-aiguard-training.md</span></td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1N4aM3TdCICD7R_l96lXho419dJwfWRac/view?usp=sharing">Hostile MCP side-by-side</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Governed vs ungoverned twin hostile-MCP servers: the measured ALLOW/DENY matrix (verified live 2026-10-11, v1.261009), the permit-selection policy model, no-policy = DENY ALL, the RefID triple-@@ trap, owner reaping, the 4-min propagation, and what NOT to claim (metadata sanitizer, rug-pull detection)</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/17m8vd-0qICniVskX3L8p8D4YNZHxFymw/view?usp=sharing">Sensor enforcement — demo runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Verified live 2026-10-13 on OrbStack: a throwaway container plus a second sensor, first in audit mode (would_kill=1, exit 0) then enforce mode (Killed, exit 137). Reading raw sensor logs through the Docker API socket; console-pushed policy is not proven.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/18-SA78UBRXl3jrEcOOvN2oenMIfQsluD/view?usp=sharing">A2A guardrails — demo runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">A seven-message ladder through the A2A hop: the plain injection is blocked (400 in 0.56 s) while reworded attacks, PII and exfiltration pass; the threshold table, the poisoned tool result on the worker's MCP leg, and the live-run notes of 2026-10-13 (alert status unconfirmed).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1eCPMx6jG9roZAoNqQjr6AGzUHQG0C2Nn/view?usp=sharing">Backend auth modes — demo runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">The same call with three outcomes — None, Static Token, Pass Agent Token (a 403 from the gateway) — using the worker's bearer gate; User Token and a successful Pass Agent Token are not demoable. From code and the measured guides, not run live.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1IXTXbY4sFRZ6VWlpandLxyp28X9LcygK/view?usp=sharing">Aggregate apps — demo runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">One address, many MCP servers: the four aggregate doors (aggregate, banking-aggregate, aggregate-limited, aggregate-none), prefixed tool names and the two access layers. Door inventory read live 2026-10-13; tool calls were not run (the demo keys lack mcp scope).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1TjszmNC0pDJjlUGT-itf5p5_cvJ5Xc9w/view?usp=sharing">Secrets Hub — demo runbook</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">The connected Google hub (GCP-hub-secrets, Synced, 2 secrets) verified 2026-10-13, with the setup, View and policy-grant steps from the guide and the caveats: Secret Manager Admin role, the extra API, and the service-account key written to the audit log in clear text.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1J-_ZCfzv_PipGTmZNnhpKJNANyTYVL6I/view?usp=sharing">PF identity in Cedar policies</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Can a PingFederate token claim drive a Cedar AI policy? Measured 2026-10-20: the door trusts only itself, PF is not registered in Privilege, Cedar reads a fixed attribute set (token scopes, group, tool, args, app) and no raw claims, act or ID-JAG. Route A (PF behind PingOne, people), route C (native workload identity + RequiredClaims, agents), the rule templates, Candidate vs Active, measured vs untested. Diagram: AI Agent Gateway diagrams, AI Policies tab; live demo: AI Policies Demo</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1gC-UEP3MI97j0Ys0M8LFomidvKoB7E8Z/view?usp=sharing">PF token on Privilege: status and restart checklist</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Where the PingFederate token test stands on 2026-10-22: NHI audience and token-manager audience now match the pftoken door, the gateway accepts the token and refuses it on policy (no grant), console discovery finds no tools on pftoken, grant deletions unexplained. Checklist for when it is fixed</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1KWMjHmX3E8GVFlfPFip7ECDk0vQt-TAd/view?usp=sharing">PF token exchange into Privilege, with Pass Agent Token</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Federated agents: step-by-step setup (parts A–I, with console screenshots) for an agent that presents its own PingFederate token to a P1 Privilege Agent App. What Privilege does and can't do here; tools by scope (grant RequiredClaims tiers); the token passed through to the MCP server (whoami); Cedar blocking a tool by token scope; every failure and its log line. Measured 2026-10-26/27. Live demo: /privilege-pf-token</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="reference">
+  <h2 id="reference">Reference &amp; records<span class="count">5</span></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Document</th><th>PDF</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1jXiRintP8gNC2V5W4lNnMNicUJxsPZ-H/view?usp=sharing">OpenAPI MCP on Kubernetes</a></td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd">In repo</a></td><td class="covers">Working patterns for OpenAPI-based MCP on Kubernetes and the remaining gap (2026-10-01, updated 2026-10-03).</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/1gigXkklTnMUB7ahkDR-M_zL-s2GgeT3i/view?usp=sharing">Fix Privilege MCP guide — status</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Status split from the raw punch list of the ai-demo.ping-devops.com guide fix; original numbering kept for traceability.</td></tr>
+        <tr><td class="doc"><a href="https://drive.google.com/file/d/15wkOi4rbwA0t3M-QSzcQ0hagVSnju8O5/view?usp=sharing">Status snapshot 2026-08-02</a></td><td class="pdf"><span class="dash">—</span></td><td class="covers">Point-in-time snapshot, superseded by the canonical record. Kept as historical evidence only.</td></tr>
+        <tr><td class="doc">Ping decks &amp; exports</td><td class="pdf"><a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd"><span class="chip plain">Drive (SE)</span></a></td><td class="covers">Ping-provided decks and older exports: Privilege-AIGuard, Privilege-AI-Gateway, Privilege+Shared Demo, Instructional Demo Setup (Confluence export + SE1), Technical Summary v1/v2.</td></tr>
+        <tr><td class="doc">SE enablement storyboards</td><td class="pdf"><span class="dash">—</span></td><td class="covers">Ping's SE storyboards (HTML, ~13 MB of embedded images, not committed): architecture, flows, troubleshooting order. The older deck's EvaluateHost routing model is disproven on build v1.260726.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="assets">
+  <h2 id="assets">Assets in the repo</h2>
+  <div class="assets">
+    <ul>
+      <li><span class="mono">privilege/design/</span> — gateway + tools-table design specs</li>
+      <li><span class="mono">privilege/diagrams/</span> — the Agentic Trust Control Plane slide (Agent Privilege = discover &amp; register, steps 2–5 IAM Core / AI Gateway / Agent Authorize / Agent Governance) + four rendered flows (SVG/PNG) + mermaid source</li>
+      <li><span class="mono">privilege/postman/</span> — Gateway, Gateway-SE, Simple, Debug, Client-Docker/K8s collections</li>
+      <li><span class="mono">privilege/runbooks/</span> — ping-mcpgw, renew-token, mcpgw-nginx</li>
+      <li><span class="mono">.claude/skills/privilege-*</span> — condensed operator skills (the docs win on disagreement)</li>
+    </ul>
+  </div>
+  </section>
+
+  <section id="planned">
+  <h2 id="planned">Planned</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Guide</th><th>What it covers</th><th>Testable now?</th></tr></thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+  <p class="planned-empty">Nothing queued — new guides land here first, then get tested before they move up.</p>
+
+  <div class="footer-meta">
+    <p>Last updated: 11 October 2026 — 56 docs across 10 sections. All links point at <a href="https://drive.google.com/drive/u/0/folders/13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd">the shared Google Drive folder</a> ("PingOne Privilege - SE &amp; Architecture Docs") — no Ping GitHub access needed. Docs without a Drive copy yet link to the folder root. Repo sources stay in AI-DEMO2 for maintainers. New docs: write the doc, update both indexes (this page's source <span class="mono">privilege/DOCUMENTATION-INDEX.md</span> and the Learning Hub page), then export.</p>
+  </div>
+  </section>
+</main>
+
+<div class="copybar">
+  <button id="copyBtn" type="button">Copy for Confluence</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var btn = document.getElementById('copyBtn');
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  // Confluence's editor keeps only inline styles, so bake the light-theme
+  // colors onto every element as copy-time inline styles.
+  // Section hue map — same fixed order as the stylesheet tokens (light steps,
+  // all >=4.5:1 on white as link text, >=4.68:1 as 3px borders).
+  var SEC = {
+    customer:  { ink: '#b01716', stripe: '#fdf3f3' },
+    start:     { ink: '#1c5cab', stripe: '#f4f8fd' },
+    'gw-setup':{ ink: '#c24d1d', stripe: '#fef7f5' },
+    'gw-a2a':  { ink: '#0e7a52', stripe: '#f4fbf8' },
+    'gw-ai':   { ink: '#8a6200', stripe: '#fefaf2' },
+    'gw-obs':  { ink: '#3a2d85', stripe: '#f6f5fb' },
+    sensor:    { ink: '#005c00', stripe: '#f2f9f2' },
+    secrets:   { ink: '#b23d68', stripe: '#fef8fa' },
+    demos:     { ink: '#0072ad', stripe: '#f2f8fb' },
+    reference: { ink: '#5b6b7a', stripe: '#f3f6f8' },
+    assets:    { ink: '#5b6b7a', stripe: '#f3f6f8' },
+    planned:   { ink: '#5b6b7a', stripe: '#f3f6f8' }
+  };
+  function secOf(el) {
+    var s = el.closest('section[id]');
+    return s ? SEC[s.id] : null;
+  }
+  var INLINE = [
+    ['h1', 'color:#d20e0f;font-size:28px;font-weight:bold;margin:0 0 6px;'],
+    ['h2', 'color:#d20e0f;font-size:20px;font-weight:bold;border-bottom:2px solid #d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
+    ['h3', 'color:#d20e0f;font-size:15px;font-weight:bold;margin:22px 0 6px;'],
+    ['p', 'font-size:14px;color:#1b2733;margin:8px 0;'],
+    ['table', 'border:1px solid #d7dde3;font-size:13px;color:#1b2733;margin:10px 0;border-collapse:collapse;width:100%;'],
+    ['th', 'background-color:#051727;color:#ffffff;border:1px solid #d7dde3;font-size:11px;font-weight:bold;text-align:left;padding:8px 12px;'],
+    ['td', 'border:1px solid #d7dde3;color:#1b2733;padding:8px 12px;'],
+    ['a', 'color:#d20e0f;text-decoration:none;'],
+    ['td a', 'color:#d20e0f;font-weight:bold;'],
+    ['.chip', 'background-color:#fdeaea;color:#aa0005;border:1px solid #f0b9b9;font-size:11px;font-weight:bold;padding:2px 8px;'],
+    ['.chip.plain', 'background-color:#eef2f5;color:#5b6b7a;border:1px solid #d7dde3;'],
+    ['.chip.dash', 'color:#8a99a8;'],
+    ['span.mono, code', 'background-color:#f3f5f7;color:#14324a;font-size:12px;'],
+    ['tbody tr:nth-child(even) td', 'background-color:#f3f6f8;'],
+    ['.note', 'background-color:#fdeaea;border-left:3px solid #d20e0f;padding:10px 14px;margin:14px 0;font-size:13.5px;'],
+    ['.assets', 'border:1px solid #d7dde3;background-color:#ffffff;padding:12px 16px;font-size:13px;'],
+    ['.footer-meta, .retired, .planned-empty', 'color:#5b6b7a;font-size:12.5px;'],
+    ['.count', 'color:#5b6b7a;font-size:12px;'],
+    ['.eyebrow', 'color:#5b6b7a;font-size:10.5px;font-weight:bold;'],
+    ['.subtitle', 'color:#5b6b7a;font-size:15px;font-weight:bold;'],
+    ['.meta', 'color:#5b6b7a;font-size:12.5px;'],
+    ['.meta strong', 'color:#051727;'],
+    ['.unofficial', 'background-color:#d20e0f;color:#ffffff;font-weight:bold;font-size:17px;text-align:center;padding:12px 16px;margin:14px 0 0;'],
+    ['.warn', 'color:#d20e0f;font-weight:bold;']
+  ];
+  function bakeInline(root) {
+    var clone = root.cloneNode(true);
+    INLINE.forEach(function (rule) {
+      var sel = rule[0], css = rule[1];
+      var nodes;
+      if (sel === 'span.mono, code') nodes = clone.querySelectorAll('span.mono, code');
+      else nodes = clone.querySelectorAll(sel);
+      nodes.forEach(function (el) { el.style.cssText += css; });
+    });
+    // Confluence's paste sanitizer keeps bgcolor attributes even where it strips
+    // style properties — mirror th/td background-color onto bgcolor.
+    function hex(n) { return ('0' + parseInt(n, 10).toString(16)).slice(-2); }
+    clone.querySelectorAll('th, td').forEach(function (el) {
+      var bg = el.style.backgroundColor, m = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(bg);
+      if (m) el.setAttribute('bgcolor', '#' + hex(m[1]) + hex(m[2]) + hex(m[3]));
+      else if (/^#[0-9a-fA-F]{3,6}$/.test(bg)) el.setAttribute('bgcolor', bg);
+    });
+    // Per-section color, second pass (needs the section ancestor of each node):
+    // h2 underline + ink, table top border, striped rows in the section tint,
+    // doc links in the section ink, TOC chips.
+    clone.querySelectorAll('section[id]').forEach(function (sec) {
+      var c = SEC[sec.id];
+      if (!c) return;
+      sec.querySelectorAll('h2').forEach(function (h) {
+        h.style.cssText += 'border-bottom:3px solid ' + c.ink + ';';
+      });
+      sec.querySelectorAll('table').forEach(function (t) {
+        t.style.cssText += 'border-top:3px solid ' + c.ink + ';';
+      });
+      var tbodies = sec.querySelectorAll('tbody');
+      Array.prototype.forEach.call(tbodies, function (tb) {
+        Array.prototype.forEach.call(tb.children, function (tr, i) {
+          if (i % 2 === 1) tr.querySelectorAll('td').forEach(function (td) {
+            td.style.cssText += 'background:' + c.stripe + ';';
+          });
+        });
+      });
+      sec.querySelectorAll('td a').forEach(function (a) {
+        a.style.cssText += 'color:' + c.ink + ';font-weight:600;text-decoration:none;';
+      });
+    });
+    // TOC chips: color by target section
+    clone.querySelectorAll('ul.toc .tocitem').forEach(function (el) {
+      var id = el.getAttribute('data-sec');
+      var c = SEC[id];
+      if (c) el.style.cssText += 'color:' + c.ink + ';border-left:4px solid ' + c.ink + ';';
+    });
+    return clone;
+  }
+
+  btn.addEventListener('click', function () {
+    var source = document.querySelector('main');
+    var baked = bakeInline(source);
+    var html = baked.outerHTML;
+    var text = source.innerText;
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+      var item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      navigator.clipboard.write([item]).then(function () {
+        toast('Copied with colors — paste into Confluence');
+      }).catch(function () { fallbackText(text); });
+    } else {
+      fallbackText(html, text);
+    }
+  });
+  function fallbackText(html, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(html).then(function () {
+        toast('Copied styled HTML — paste into Confluence source view');
+      }).catch(function () { fallbackSelect(); });
+    } else {
+      fallbackSelect();
+    }
+  }
+  function fallbackSelect() {
+    var range = document.createRange();
+    range.selectNodeContents(document.querySelector('main'));
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    toast('Clipboard blocked — page selected, press Cmd/Ctrl+C');
+  }
+})();
+</script>

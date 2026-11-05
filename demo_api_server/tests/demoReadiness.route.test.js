@@ -19,6 +19,9 @@ function authFixture() {
     'admin-a': { sub: 'subject-admin-a', id: 'subject-admin-a', role: 'admin', scopes: [], tokenType: 'oauth', username: 'admin-a', email: 'private@example.test' },
     'admin-b': { sub: 'subject-admin-b', id: 'subject-admin-b', role: 'user', scopes: ['admin'], tokenType: 'oauth', username: 'admin-b' },
     customer: { sub: 'subject-customer', id: 'subject-customer', role: 'user', scopes: ['read'], tokenType: 'oauth' },
+    // Client-credentials tokens: no user subject, identified by client id.
+    'readiness-cli': { sub: undefined, id: undefined, clientId: 'readiness-cli-app', role: 'user', scopes: ['admin'], tokenType: 'oauth' },
+    'admin-read-service': { sub: undefined, id: undefined, clientId: 'other-app', role: 'user', scopes: ['admin:read'], tokenType: 'oauth' },
   };
   return (req, res, next) => {
     const bearer = req.get('authorization')?.replace(/^Bearer\s+/i, '');
@@ -91,6 +94,71 @@ describe('admin demo readiness job routes', () => {
       : request(app).post(path).send(body);
     const response = await call.set('Authorization', 'Bearer customer');
     expect(response.status).toBe(403);
+    expect(runner).not.toHaveBeenCalled();
+  });
+
+  test('a client-credentials token with the admin scope starts and polls its own job by client id', async () => {
+    const { app, runner, previewReady } = fixture();
+    const started = await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer readiness-cli').expect(202);
+    await previewReady.promise;
+    expect(runner).toHaveBeenCalledTimes(1);
+    await request(app).get('/api/admin/demo-readiness/jobs/' + started.body.jobId)
+      .set('Authorization', 'Bearer readiness-cli').expect(200);
+    // Another administrator cannot read the client's job.
+    await request(app).get('/api/admin/demo-readiness/jobs/' + started.body.jobId)
+      .set('Authorization', 'Bearer admin-a').expect(403);
+  });
+
+  test('a client-credentials token with only admin:read is refused', async () => {
+    const { app, runner } = fixture();
+    const response = await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-read-service');
+    expect(response.status).toBe(403);
+    expect(runner).not.toHaveBeenCalled();
+  });
+
+  test('verifiedAdminAssertion uses the client id only for an admin-scoped token without a subject', () => {
+    const { verifiedAdminAssertion } = require('../routes/demoReadiness');
+    expect(verifiedAdminAssertion({ clientId: 'app-1', scopes: ['admin'], role: 'user' }).subject).toBe('client:app-1');
+    expect(verifiedAdminAssertion({ sub: 'user-1', clientId: 'app-1', scopes: ['admin'], role: 'user' }).subject).toBe('user-1');
+    expect(verifiedAdminAssertion({ clientId: 'app-1', scopes: ['admin:read'], role: 'user' })).toBeNull();
+    expect(verifiedAdminAssertion({ clientId: 'app-1', scopes: [], role: 'admin' })).toBeNull();
+  });
+
+  test('a start body may name one target, which the runner receives', async () => {
+    const { app, runner, previewReady } = fixture();
+    await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a')
+      .send({ targets: ['local'] }).expect(202);
+    await previewReady.promise;
+    expect(runner.mock.calls[0][0].targets).toEqual(['local']);
+  });
+
+  test('a start body may name one provider, which the runner receives; omitted means both', async () => {
+    const named = fixture();
+    await request(named.app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a')
+      .send({ providers: ['pingfederate'] }).expect(202);
+    await named.previewReady.promise;
+    expect(named.runner.mock.calls[0][0].providers).toEqual(['pingfederate']);
+    const omitted = fixture();
+    await request(omitted.app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a').send({}).expect(202);
+    await omitted.previewReady.promise;
+    expect(omitted.runner.mock.calls[0][0].providers).toEqual(['pingone', 'pingfederate']);
+  });
+
+  test.each([
+    [{ targets: [] }, 'invalid_targets'],
+    [{ targets: ['local', 'local'] }, 'invalid_targets'],
+    [{ targets: ['prod'] }, 'invalid_targets'],
+    [{ targets: 'local' }, 'invalid_targets'],
+    [{ targets: ['local'], digest: 'x' }, 'invalid_start_body'],
+    [{ providers: [] }, 'invalid_providers'],
+    [{ providers: ['okta'] }, 'invalid_providers'],
+    [{ providers: ['pingone', 'pingone'] }, 'invalid_providers'],
+    [{ providers: 'pingone' }, 'invalid_providers'],
+  ])('rejects start body %j', async (body, error) => {
+    const { app, runner } = fixture();
+    const response = await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a').send(body);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe(error);
     expect(runner).not.toHaveBeenCalled();
   });
 

@@ -13,16 +13,16 @@
 #   ./se-update-code.sh brave         # rebuild only mcp-brave + redeploy
 #
 # SERVICE shortcuts → docker-compose service → GHCR image → k8s deployment:
-#   bff       demo_api_server     → ai-demo-demo-api-server → demo-api-server
-#   frontend  demo_api_ui         → ai-demo-frontend           → frontend
-#   mcp       oauth-mcp           → ai-demo-mcp-server         → mcp-server
-#   gateway   demo_mcp_gateway    → ai-demo-mcp-gateway        → mcp-gateway
-#   agent     langchain_agent     → ai-demo-langchain-agent    → langchain-agent
-#   agentsvc  demo_agent_service  → ai-demo-agent-service      → agent-service
-#   authz     demo_authz_server   → ai-demo-authz-server       → mcp-gateway (sidecar)
-#   hitl      demo_hitl_service   → ai-demo-hitl-service       → hitl-service
-#   invest    demo_mcp_resource_server     → ai-demo-mcp-resource-server         → mcp-resource-server
-#   mortgage  demo_api_resource_server → ai-demo-api-resource-server → api-resource-server
+#   bff       demo_api_server     → ai-demo2-demo-api-server → demo-api-server
+#   frontend  demo_api_ui         → ai-demo2-frontend           → frontend
+#   mcp       oauth-mcp           → ai-demo2-mcp-server         → mcp-server
+#   gateway   demo_mcp_gateway    → ai-demo2-mcp-gateway        → mcp-gateway
+#   agent     langchain_agent     → ai-demo2-langchain-agent    → langchain-agent
+#   agentsvc  demo_agent_service  → ai-demo2-agent-service      → agent-service
+#   authz     demo_authz_server   → ai-demo2-authz-server       → mcp-gateway (sidecar)
+#   hitl      demo_hitl_service   → ai-demo2-hitl-service       → hitl-service
+#   invest    demo_mcp_resource_server     → ai-demo2-mcp-resource-server         → mcp-resource-server
+#   mortgage  demo_api_resource_server → ai-demo2-api-resource-server → api-resource-server
 #   llm       demo_llm_proxy      → ai-demo-llm-proxy          → llm-proxy
 
 set -euo pipefail
@@ -57,18 +57,18 @@ compose_svc() {
 
 ghcr_img() {
   case "$1" in
-    bff)      echo "ai-demo-demo-api-server" ;;
-    frontend) echo "ai-demo-frontend" ;;
-    mcp)      echo "ai-demo-mcp-server" ;;
-    gateway)  echo "ai-demo-mcp-gateway" ;;
-    agent)    echo "ai-demo-langchain-agent" ;;
-    agentsvc) echo "ai-demo-agent-service" ;;
-    authz)    echo "ai-demo-authz-server" ;;
-    hitl)     echo "ai-demo-hitl-service" ;;
-    invest)   echo "ai-demo-mcp-resource-server" ;;
-    mortgage) echo "ai-demo-api-resource-server" ;;
+    bff)      echo "ai-demo2-demo-api-server" ;;
+    frontend) echo "ai-demo2-frontend" ;;
+    mcp)      echo "ai-demo2-mcp-server" ;;
+    gateway)  echo "ai-demo2-mcp-gateway" ;;
+    agent)    echo "ai-demo2-langchain-agent" ;;
+    agentsvc) echo "ai-demo2-agent-service" ;;
+    authz)    echo "ai-demo2-authz-server" ;;
+    hitl)     echo "ai-demo2-hitl-service" ;;
+    invest)   echo "ai-demo2-mcp-resource-server" ;;
+    mortgage) echo "ai-demo2-api-resource-server" ;;
     llm)      echo "ai-demo-llm-proxy" ;;
-    brave)    echo "ai-demo-mcp-brave" ;;
+    brave)    echo "ai-demo2-mcp-brave" ;;
     *)        echo "" ;;
   esac
 }

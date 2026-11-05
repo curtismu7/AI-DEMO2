@@ -14,7 +14,6 @@
 - Content must be factually consistent with this repo: Weaviate is **bring-your-own-vectors** (`DEFAULT_VECTORIZER_MODULE: none`), does **no** embedding itself; embeddings come from the llama.cpp `nomic-embed-text-v1.5` service; Weaviate is **internal-only** (no host port), reachable at `http://weaviate:8080`. Do **not** imply a hosted/OpenAI vectorizer.
 - Education panels are static content components using the shared `EducationDrawer` (see `demo_api_ui/src/components/education/GleanPanel.js` as the reference pattern). The real `EducationDrawer` API is `{ isOpen, onClose, title, tabs, initialTabId }` where each tab is `{ id, label, content: <JSX> }`; it returns `null` when `!isOpen` and renders only the active tab.
 - **Frontend tests run under vitest, NOT jest.** Run with `cd demo_api_ui && CI=true npx vitest run <path>`. Use `vi.mock` / `vi.fn` (not `jest.*`); `vi`, `test`, `expect` are globals (no import needed). Any `npx jest` in a step is a typo for `npx vitest run`.
-- Commit messages end with: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 ---
 
@@ -62,7 +61,6 @@ Expected: the new line prints.
 git add demo_api_ui/src/components/education/educationIds.js
 git commit -m "feat(edu): add VECTOR_RAG education id
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -242,7 +240,6 @@ Expected: PASS. If it fails because `EducationDrawer` only renders the active ta
 git add demo_api_ui/src/components/education/WeaviateRagPanel.js demo_api_ui/src/components/education/__tests__/WeaviateRagPanel.test.js
 git commit -m "feat(edu): add Weaviate/vector-search education panel
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -283,7 +280,6 @@ Expected: both the import and the registry entry print.
 git add demo_api_ui/src/components/education/EducationPanelsHost.js
 git commit -m "feat(edu): register WeaviateRagPanel in education host
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -358,7 +354,6 @@ Expected: PASS.
 git add demo_api_ui/src/components/LearningHub.tsx demo_api_ui/src/components/__tests__/LearningHub.vectorrag.test.tsx
 git commit -m "feat(edu): add Vector Search & RAG card to Learning Hub
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -465,7 +460,6 @@ Expected: existing guide tests (if any) still pass; the compliance panel tolerat
 git add demo_api_ui/src/components/AgentDemoGuide.jsx demo_api_ui/src/components/__tests__/AgentDemoGuide.codesearch.test.jsx
 git commit -m "feat(guide): add semantic code-search scenario to Agent Demo Guide
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -556,7 +550,6 @@ Stops the once-per-second 'attempting to join' spam (CLUSTER_HOSTNAME +
 RAFT_JOIN=node1 + RAFT_BOOTSTRAP_EXPECT=1) and exposes LOG_LEVEL via
 WEAVIATE_LOG_LEVEL so verbosity/cadence is tunable, not hard-silenced.
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

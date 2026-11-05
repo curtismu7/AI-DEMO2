@@ -1,0 +1,170 @@
+/* ToolSafetyScannerPanel — themed via --th-* tokens (THEMING.md §1.2; layout and
+   category colour accents stay literal — Ping Red family per brand rules). */
+
+.tss {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin: 16px 0;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: var(--font-primary);
+}
+
+.tss-head h3 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.tss-sub {
+  margin: 0 0 12px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.tss-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tss-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.tss-mode select,
+.tss-mode select:focus-visible {
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-family: var(--font-primary);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.tss-mode select:focus-visible {
+  outline: 2px solid var(--th-focus, #12538d);
+  outline-offset: 1px;
+}
+
+.tss-run {
+  background: #d20e0f;
+  color: #fff;
+  border: 1px solid #aa0005;
+  border-radius: var(--btn-radius);
+  font-weight: var(--btn-weight, 600);
+  padding: 7px 16px;
+  cursor: pointer;
+  font-family: var(--font-primary);
+}
+
+.tss-run:hover { background: #aa0005; }
+
+.tss-run:focus-visible {
+  outline: 2px solid var(--th-text);
+  outline-offset: 2px;
+}
+
+.tss-run:disabled { cursor: default; opacity: 0.6; }
+
+.tss-payload {
+  margin: 8px 0 12px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.tss-payload h4 { margin: 10px 0 4px; color: var(--th-text); }
+
+.tss-payload pre,
+.tss-details pre {
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.tss-idle {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.tss-summary { font-size: var(--font-size-sm); margin-top: 0; color: var(--th-text); }
+
+.tss-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.tss-cell {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--th-bg-inset);
+}
+
+.tss-cell--finding { background: var(--th-status-danger-bg, #fee2e2); border-color: var(--th-status-danger-border, #d20e0f); }
+
+.tss-cell h4 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--th-text);
+}
+
+.tss-count {
+  background: #d20e0f;
+  color: #fff;
+  border-radius: var(--radius-pill, 999px);
+  padding: 0 8px;
+  font-size: var(--font-size-xs);
+}
+
+.tss-cell--clean .tss-count { background: #5c646b; }
+
+.tss-findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tss-finding {
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  color: var(--th-text);
+}
+
+.tss-finding__kind { font-weight: 700; color: #d20e0f; }
+.tss-finding__target { font-family: var(--font-mono); }
+.tss-finding__detail { color: var(--th-text-muted); }
+
+.tss-clean { color: var(--th-text-muted); font-size: var(--font-size-xs); margin: 0; }
+
+.tss-details { font-size: var(--font-size-sm); color: var(--th-text); }
+.tss-details h4 { margin: 10px 0 4px; color: var(--th-text); }
+
+.tss-attribution {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  margin: 12px 0 0;
+}

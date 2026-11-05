@@ -6,6 +6,7 @@ const path = require('node:path');
 const { readDeployState } = require('./deploy-state');
 const { createGitHubReader } = require('./github');
 const { readHostLoad } = require('./host-load');
+const { readSeDeploy } = require('./se-deploy');
 const { createControlLog } = require('./insights');
 const { createRunnerController } = require('./runner-control');
 
@@ -293,7 +294,9 @@ function startDashboard({ port = DEFAULT_DASHBOARD_PORT, log = console.log, erro
     const state = await reader.getControlState();
     return {
       ...state,
-      runners: await runnerController.inspect(state.repository, state.runners),
+      runners: state.runnersUnavailable
+        ? await runnerController.listLocal(state.repository)
+        : await runnerController.inspect(state.repository, state.runners),
       workflowLog: controlLog.observe(state.workflows),
     };
   };
@@ -301,8 +304,8 @@ function startDashboard({ port = DEFAULT_DASHBOARD_PORT, log = console.log, erro
     getSnapshot: reader.getSnapshot,
     getControlState,
     getInsights: async () => {
-      const [insights, host, deploy] = await Promise.all([reader.getInsights(), readHostLoad(), readDeployState()]);
-      return { ...insights, host, deploy };
+      const [insights, host, deploy, se] = await Promise.all([reader.getInsights(), readHostLoad(), readDeployState(), readSeDeploy()]);
+      return { ...insights, host, deploy, se };
     },
     performAction: async (input) => {
       const result = await reader.performAction(input);

@@ -190,7 +190,6 @@ Expected: PASS, same counts as before this task (this file's `require.main === m
 git add demo_api_server/scripts/refresh-service-envs.js demo_api_server/tests/refreshServiceEnvsWorkerVaultFirst.test.js
 git commit -m "fix(secret-rotation): worker-token resolution is vault-first in refresh-service-envs
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -325,7 +324,6 @@ Expected: PASS, every suite green.
 git add demo_api_server/scripts/refresh-service-envs.js demo_api_server/routes/secretRotation.js demo_api_server/tests/refreshServiceEnvsRotatableKeys.test.js demo_api_server/tests/routes/secretRotation.test.js
 git commit -m "feat(secret-rotation): the worker app is rotatable, flagged isWorker for the UI
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -431,7 +429,6 @@ Expected: exit 0 for both.
 git add demo_api_ui/src/pages/SecretRotationPage.jsx demo_api_ui/src/pages/__tests__/SecretRotationPage.test.jsx
 git commit -m "feat(secret-rotation): name the worker's repo-wide blast radius in the confirm modal
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---

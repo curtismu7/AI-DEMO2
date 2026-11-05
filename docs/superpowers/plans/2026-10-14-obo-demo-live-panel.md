@@ -29,7 +29,6 @@
 - Live events are delivered only to the user whose `sub` they were published under; an unauthenticated or token-less session gets 401.
 - UI standards (REGRESSION_PLAN.md section 0, THEMING.md): no inline `style={{ }}` for colour/background/font-size; font sizes from the `--font-size-*` scale (floor `--font-size-3xs`, 10px); colours via `--th-*` tokens, never a literal mixed with a token in one rule; dark mode via `:root[data-theme="dark"]` only; emoji only from the allowlist in `demo_api_ui/CLAUDE.md` (do not add any emoji not on it).
 - UI tests are vitest (`cd demo_api_ui && npx vitest run <path>`), never jest. BFF tests: `cd demo_api_server && CI=true ALLOW_TEST_NETWORK=1 npx jest <path> --forceExit`.
-- Stage files explicitly; never `git add -A`; verify `git branch --show-current` before each commit; commits end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - Existing `OboDemoPage` behavior must keep working: the checks list keeps `aria-label="Delegation checks"` and each item renders as `PASS <label>` / `FAIL <label>`; the button is "Run the delegation"; errors render in `role="alert"`.
 - `/obo-demo` stays signed-in-only (`"user"` in `demo_api_server/config/auth-requirements.json`; unchanged by this plan, `npm run authz:verify` must still pass).
 
@@ -253,7 +252,6 @@ git branch --show-current
 git add demo_api_server/services/oboEventHub.js demo_api_server/services/oboConfig.js demo_api_server/routes/obo.js demo_api_server/src/__tests__/services/oboEventHub.test.js demo_api_server/src/__tests__/routes/obo.test.js
 git commit -m "feat(obo): session SSE events and setup info routes; harden the event hub
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -506,7 +504,6 @@ git branch --show-current
 git add demo_api_ui/src/components/obo
 git commit -m "feat(obo-ui): evidence card (user vs delegated claims) and live events hook
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -625,7 +622,6 @@ git branch --show-current
 git add demo_api_ui/src/components/obo/OboSwapDiagram.jsx demo_api_ui/src/components/obo/OboSwapDiagram.css demo_api_ui/src/components/obo/__tests__/OboSwapDiagram.test.jsx
 git commit -m "feat(obo-ui): ReactFlow diagram of the token swap
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -824,7 +820,6 @@ git branch --show-current
 git add demo_api_ui/src/pages/OboDemoPage.jsx demo_api_ui/src/pages/OboDemoPage.css demo_api_ui/src/pages/__tests__/OboDemoPage.test.jsx
 git commit -m "feat(obo-ui): live-from-Claude panel, setup command, evidence card and diagram on /obo-demo
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -893,7 +888,6 @@ git branch --show-current
 git add demo_api_ui/src/components/LearningHub.tsx demo_api_ui/src/components/__tests__/LearningHub.obo.test.tsx
 git commit -m "feat(obo-ui): Learning Hub entry for on-behalf-of delegation
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ---

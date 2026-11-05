@@ -302,10 +302,34 @@ test('createGitHubReader returns workflow and runner controls from repository Ac
 
   assert.deepEqual(await reader.getControlState(), {
     repository: 'cmuir_pingcorp/AI-DEMO2',
+    runnersUnavailable: false,
     workflows: [{ id: 7, name: 'CI', path: '.github/workflows/ci.yml', state: 'active', url: 'https://github.com/cmuir_pingcorp/AI-DEMO2/actions/workflows/ci.yml' }],
     runners: [{ id: 23, name: 'cmuir-dev-mac', status: 'online', busy: false, labels: ['self-hosted', 'macOS'] }],
   });
   assert.ok(calls.every((call) => call.options.shell === false));
+});
+
+test('getControlState keeps workflows and flags runners unavailable when GitHub denies the runner list', async () => {
+  const { spawn } = fakeSpawner(({ args }) => {
+    if (args[0] === 'repo') return { stdout: 'ping-sandbox/AI-DEMO2\n' };
+    if (args[1].includes('/actions/workflows')) return { stdout: JSON.stringify({ workflows: [] }) };
+    return { code: 1, stderr: 'gh: Not Found (HTTP 404)' };
+  });
+  const state = await createGitHubReader({ spawn }).getControlState();
+
+  assert.equal(state.runnersUnavailable, true);
+  assert.deepEqual(state.runners, []);
+  assert.deepEqual(state.workflows, []);
+});
+
+test('CI_DASHBOARD_REPO pins the repository without asking gh', async (t) => {
+  process.env.CI_DASHBOARD_REPO = 'ping-sandbox/AI-DEMO2';
+  t.after(() => { delete process.env.CI_DASHBOARD_REPO; });
+  const { spawn, calls } = fakeSpawner(({ args }) => ({ stdout: JSON.stringify({ workflows: [], runners: [] }) }));
+  const state = await createGitHubReader({ spawn }).getControlState();
+
+  assert.equal(state.repository, 'ping-sandbox/AI-DEMO2');
+  assert.ok(calls.every((call) => call.args[0] !== 'repo'));
 });
 
 test('performAction uses fixed GitHub Actions endpoints for run and workflow controls', async () => {

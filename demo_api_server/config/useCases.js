@@ -88,7 +88,7 @@ function chipOverrides(textByVertical, extraByVertical = {}) {
 const READ_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare: 'view_coverage',
   retail: 'list_orders',
-  'walbuy': 'list_anf_orders',
+  'walbuy': 'list_walbuy_orders',
   government: 'view_permits',
   university: 'view_courses',
   workforce: 'view_benefits',
@@ -503,7 +503,9 @@ const RAW_USE_CASES = [
       gw:    'Not involved in the probe leg — the probe calls the decision endpoint directly, same contract the gateway uses.',
       authz: 'Evaluates ActChainDepth and NestedActClientId; DENYs invalid_a2a_generalist when the actor does not match the registered generalist.',
     },
-    primaryTool: 'sensitive_holdings',
+    // Banking has no per-vertical override, so its base is UC2's: the Investment
+    // Advisor's default tool, not the investment vertical's sensitive_holdings.
+    primaryTool: 'get_portfolio_summary',
     perVertical: A2A_MISMATCH_PER_VERTICAL,
   },
   {
@@ -1598,7 +1600,7 @@ const RAW_USE_CASES = [
     title: 'Privilege A2A access review',
     buyerStory: 'Security analysts want to ask an agent to review access and follow how a delegated worker gathers evidence through Privilege-protected tools.',
     pingOneSolution: 'A MainAgent delegates the analyst request to a WorkerAgent over A2A; the worker uses MCP through PingOne Privilege Gateway and returns an evidence-backed answer.',
-    trigger: { type: 'link', path: '/privilege-mcp-client?view=demo&tab=a2a', label: 'Open A2A access review' },
+    trigger: { type: 'link', path: '/privilege-a2a', label: 'Open A2A access review' },
     expectedOutcome: 'A2A_ACCESS_REVIEW',
     evidence: { tokenChain: [], activity: ['a2a', 'mcp', 'llm'] },
     codeRefs: [
@@ -2444,7 +2446,7 @@ const RAW_USE_CASES = [
     // unless the amount IS the demo, and here it is: $600 crosses the
     // consent/step-up boundary. Same tier as UC7/UC9/UC22, not a new magic number.
     trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
-    expectedOutcome: 'HITL_REQUIRED',
+    expectedOutcome: 'STEP_UP',
     evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp', 'hitl'] },
     codeRefs: ['demo_api_server/services/agentPreflightService.js', 'demo_api_server/tests/hitlBypass.regression.test.js'],
     maturity: 'works',

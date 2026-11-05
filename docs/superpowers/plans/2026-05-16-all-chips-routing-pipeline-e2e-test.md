@@ -214,7 +214,6 @@ Expected: PASS (3 tests).
 git add demo_api_server/scripts/extractChips.js demo_api_server/src/__tests__/extractChips.test.js
 git commit -m "test(chips): chip extractor — single source of truth from BankingChips.jsx
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -324,7 +323,6 @@ Expected: PASS — one row per chip + the heuristic-chips assertion.
 git add demo_api_server/tests/routes/allChips.pipeline.integration.test.js
 git commit -m "test(chips): CI suite — every chip routes via heuristic in Heuristics-only mode
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -393,7 +391,6 @@ Expected: PASS — all rows from Task 2 + the no-token block.
 git add demo_api_server/tests/routes/allChips.pipeline.integration.test.js
 git commit -m "test(chips): CI suite — no-token pipeline hard-fail (401, pipeline never entered)
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -532,7 +529,6 @@ Expected: prints `ok` (module loads; `@playwright/test` resolvable as a dev dep)
 git add demo_api_ui/tests/e2e/helpers/chipPipeline.js
 git commit -m "test(chips): e2e helper — drive one chip + 4-stage skip-proof assertions
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -748,7 +744,6 @@ Expected: Conditions 1 & 3 green for heuristic chips with full trail; Condition 
 git add demo_api_ui/tests/e2e/all-chips-pipeline.real.spec.js
 git commit -m "test(chips): real e2e — 3 routing conditions x all chips, dual-session skip-proof
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -782,7 +777,6 @@ Expected: all green.
 git add demo_api_server/package.json
 git commit -m "test(chips): add test:chips alias for the deterministic chip CI suite
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

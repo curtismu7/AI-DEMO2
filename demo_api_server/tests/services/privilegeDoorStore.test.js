@@ -116,3 +116,12 @@ describe('privilegeDoorStore', () => {
     expect(store.getInventory()).toBeNull();
   });
 });
+
+describe('hold rules in the snapshot', () => {
+  test('survive the store when given, and are absent (not empty) when the caller could not read AI policies', () => {
+    store.saveInventory({ applications: APPS, policies: [], holdRules: [{ door: 'a', tool: 'x', policy: 'p1' }] });
+    expect(store.getInventory().holdRules).toEqual([{ door: 'a', tool: 'x', policy: 'p1' }]);
+    store.saveInventory({ applications: APPS, policies: [] });
+    expect(store.getInventory()).not.toHaveProperty('holdRules');
+  });
+});

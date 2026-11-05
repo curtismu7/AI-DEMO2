@@ -7,7 +7,7 @@ import DotPersonaCard from '../components/dot/DotPersonaCard';
 import DotGovernsPanel from '../components/dot/DotGovernsPanel';
 import { useDotPersona } from '../components/dot/useDotPersona';
 import { mapInvokeResult } from '../utils/dotChat';
-import { dotSuggestions } from '../config/dotSuggestions';
+import { dotSuggestions, unusedSuggestions } from '../config/dotSuggestions';
 import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
 import { openSignIn } from '../utils/signInService';
@@ -19,7 +19,11 @@ import '../components/dot/DotWorkbench.css';
 
 const SKINS = [['privilege', 'Privilege'], ['claude', 'Claude'], ['gpt', 'ChatGPT'], ['gemini', 'Gemini']];
 
-export default function DotWorkbenchPage({ user }) {
+export default function DotWorkbenchPage({ user, bare = false }) {
+  // Bare (/personal-agent/dot/full) renders with no app chrome around it, so
+  // the sheet must not subtract the chrome height; and the diagram is a
+  // sibling of the fixed-height overflow:hidden sheet — inside it, it gets
+  // clipped (it has no scroll of its own).
   const persona = useDotPersona();
   const { activeId, pageManifest } = useVertical();
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
@@ -61,8 +65,11 @@ export default function DotWorkbenchPage({ user }) {
   }
 
   const cards = items.filter((i) => i.kind === 'tool');
+  // Prompts not yet run stay clickable under the replies ("try next"); the first-message-only chips hid them all.
+  const nextPrompts = unusedSuggestions(dotSuggestions(pageManifest), items.filter((i) => i.kind === 'user').map((i) => i.text));
   return (
-    <div className="cur-ide dot-wb" data-cur-theme={theme} data-testid="dot-workbench-page" style={{ minHeight: 0 }}>
+    <>
+    <div className={`cur-ide dot-wb${bare ? ' dot-wb--bare' : ''}`} data-cur-theme={theme} data-testid="dot-workbench-page" style={{ minHeight: 0 }}>
       <header className="cur-titlebar">
         <div className="cur-titlebar-left"><span className="cur-titlebar-title">Digital Assistant</span></div>
         <nav className="cur-titlebar-center" aria-label="Agent skins">
@@ -77,7 +84,7 @@ export default function DotWorkbenchPage({ user }) {
 
       <main className="dot-wb__main">
         <div className="dot-wb__left">
-          <DotPersonaCard persona={persona} identity={identity} />
+          <DotPersonaCard persona={persona} identity={identity} onSignIn={() => openSignIn({})} />
           <div className="dot-card dot-chat">
             <div className="dot-msgs" aria-live="polite">
               {items.map((i, n) => {
@@ -97,12 +104,13 @@ export default function DotWorkbenchPage({ user }) {
               <div className="dot-signin" role="alert">
                 <h3>Sign in to use Dot</h3>
                 <p>Dot acts on your behalf under your own identity, so it needs you signed in first.</p>
-                <button type="button" className="dot-chip" onClick={() => openSignIn({ returnTo: '/personal-agent/dot' })}>Sign in</button>
+                <button type="button" className="dot-chip" onClick={() => openSignIn({})}>Sign in</button>
               </div>
             )}
-            {items.length === 0 && (
+            {nextPrompts.length > 0 && (
               <div className="dot-chips" role="group" aria-label="Suggested prompts">
-                {dotSuggestions(pageManifest).map(({ label, message }) => <button key={label} type="button" className="dot-chip" onClick={() => send(message)}>{label}</button>)}
+                {items.length > 0 && <span className="dot-muted">Try next:</span>}
+                {nextPrompts.map(({ label, message }) => <button key={label} type="button" className="dot-chip" onClick={() => send(message)}>{label}</button>)}
               </div>
             )}
             <form className="dot-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
@@ -116,13 +124,14 @@ export default function DotWorkbenchPage({ user }) {
           <DotGovernsPanel cards={cards} persona={persona} mode={agentMode} />
         </aside>
       </main>
-      <EmbeddedFlowDiagram
-        testId="dot-diagram"
-        pingStyle
-        title="How Dot handles a message"
-        lede="One message, end to end: the BFF route, the optional intent gate, the agent run, the governed tool call and what comes back to this page."
-        config={{ GROUPS: DOT_WORKBENCH_GROUPS, NODES: DOT_WORKBENCH_NODES, EDGES: DOT_WORKBENCH_EDGES, STEPS: DOT_WORKBENCH_STEPS }}
-      />
     </div>
+    <EmbeddedFlowDiagram
+      testId="dot-diagram"
+      pingStyle
+      title="How Dot handles a message"
+      lede="One message, end to end: the BFF route, the optional intent gate, the agent run, the governed tool call and what comes back to this page."
+      config={{ GROUPS: DOT_WORKBENCH_GROUPS, NODES: DOT_WORKBENCH_NODES, EDGES: DOT_WORKBENCH_EDGES, STEPS: DOT_WORKBENCH_STEPS }}
+    />
+    </>
   );
 }

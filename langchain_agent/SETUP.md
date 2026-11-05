@@ -6,7 +6,7 @@ This guide will walk you through setting up and running the LangChain MCP OAuth 
 
 ### System Requirements
 - **Python 3.11+** (recommended: 3.11 or 3.12)
-- **Node.js 18+** (for frontend)
+- **Node.js 26+** (for frontend)
 - **Git** (for cloning the repository)
 - **Docker & Docker Compose** (optional, for containerized deployment)
 

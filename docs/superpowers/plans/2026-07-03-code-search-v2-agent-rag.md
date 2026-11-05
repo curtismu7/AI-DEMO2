@@ -20,7 +20,6 @@
 - **Bounded embedder load.** The default indexer (A) and the agent (C) must cap work: curated source roots, per-file + total-file caps, batched embeds, one-time idempotent index, and a max-tool-iteration cap. No sustained embedder traffic at idle.
 - **Never index secrets or vendored/generated trees.** The A walker and B filter must exclude `.claude`, `node_modules`, `.git`, `dist`, `build`, `coverage`, `data`, `logs`, `.next`, `.env*`, `certs/`, `*.pem`, `*.key`, `*.p12`, lockfiles, and non-text/binary extensions.
 - **Landing note:** the new `.:/repo:ro` mount and the new `llamaindex-agent` service require `docker compose up -d --build` (a `node --watch` reload does not apply a new volume/service).
-- Commit messages end with: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 ---
 
@@ -90,7 +89,6 @@ Expected: `OK` (no YAML error).
 git add docker-compose.yml
 git commit -m "feat(code-search): mount repo read-only into BFF for default index
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -298,7 +296,6 @@ Expected: PASS (both tests).
 git add demo_api_server/services/defaultCodebaseIndexer.js demo_api_server/tests/defaultCodebaseIndexer.test.js
 git commit -m "feat(code-search): bounded idempotent default-codebase indexer
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -396,7 +393,6 @@ Expected: PASS.
 git add demo_api_server/routes/codeSearch.js demo_api_server/tests/codeSearch.defaultStatus.test.js
 git commit -m "feat(code-search): default-status route + gated background index kickoff
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -493,7 +489,6 @@ Expected: compiles with no error in `CodeSearchPage.jsx`.
 git add demo_api_ui/src/pages/CodeSearchPage.jsx
 git commit -m "feat(code-search): seed default codebase + poll index status in UI
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -604,7 +599,6 @@ Expected: PASS.
 git add demo_api_ui/src/services/codeSearchAPI.js demo_api_ui/src/services/codeSearchAPI.folder.test.js
 git commit -m "feat(code-search): client-side folder filter + folder upload helper
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -695,7 +689,6 @@ Expected: compiles.
 git add demo_api_ui/src/components/CodebaseUploader.jsx demo_api_ui/src/pages/CodeSearchPage.jsx
 git commit -m "feat(code-search): folder picker ingest with skipped-file reporting
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -798,7 +791,6 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8894"]
 git add llamaindex_agent/requirements.txt llamaindex_agent/Dockerfile llamaindex_agent/app.py llamaindex_agent/tests/test_app.py
 git commit -m "feat(llamaindex-agent): scaffold FastAPI service with health check
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -960,7 +952,6 @@ Expected: PASS — a known embedding-related query returns embedding-related fil
 git add llamaindex_agent/retriever.py llamaindex_agent/tests/test_retriever.py
 git commit -m "feat(llamaindex-agent): native WeaviateVectorStore retrieval over CodeChunk
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1140,7 +1131,6 @@ Expected: PASS (health + ask-shape, agent mocked).
 git add llamaindex_agent/agent.py llamaindex_agent/app.py llamaindex_agent/tests/test_app.py
 git commit -m "feat(llamaindex-agent): tool-calling agent + /ask with single-shot fallback
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1205,7 +1195,6 @@ Expected: `{"status":"ok"}`.
 git add docker-compose.yml
 git commit -m "feat(compose): add llamaindex-agent service on :8894
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1292,7 +1281,6 @@ Expected: PASS.
 git add demo_api_server/routes/codeSearch.js demo_api_server/tests/codeSearch.ask.test.js docker-compose.yml
 git commit -m "feat(code-search): BFF /ask proxy to the LlamaIndex agent
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1424,7 +1412,6 @@ Expected: compiles.
 git add demo_api_ui/src/components/CodeSearchAsk.jsx demo_api_ui/src/pages/CodeSearchPage.jsx
 git commit -m "feat(code-search): Ask/Search tabs with agent chat + Sources
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

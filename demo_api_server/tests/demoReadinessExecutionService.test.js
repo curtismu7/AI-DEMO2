@@ -270,6 +270,23 @@ describe('demo readiness execution service', () => {
     expect(executeReadinessCase).not.toHaveBeenCalled();
   });
 
+  // UC2/UC2.5 declare DELEGATE_AND_EXECUTE, which completes as a PERMIT once the
+  // specialist returns (useCaseConformance.outcomeConforms). Nothing looser passes.
+  test.each([
+    ['PERMIT', 'pass'],
+    ['DENY', 'fail'],
+    ['HITL_REQUIRED', 'fail'],
+  ])('a declared DELEGATE_AND_EXECUTE accepts an observed %s as %s', async (observed, status) => {
+    const delegating = { ...CASE, expectedBehaviorByVertical: { banking: { kind: 'a2a', expectedOutcome: 'DELEGATE_AND_EXECUTE', triggerText: 'delegate this' } } };
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
+      executeReadinessCase: async () => ({ observed, evidence: (await worker().executeReadinessCase()).evidence }),
+    })) });
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1' });
+    const result = await service.executeReadinessCase({ context, caseRow: delegating, vertical: 'banking', mode: 'agent-chip' });
+    expect(result.evidence.contractFailures || []).toEqual(status === 'pass' ? [] : expect.arrayContaining(['observed outcome does not match declared outcome']));
+    expect(result.status).toBe(status);
+  });
+
   test('fails mismatched outcome, provenance, and authorization evidence', async () => {
     const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
       executeReadinessCase: async () => ({ observed: 'PERMIT', evidence: { tokenIssuer: 'pingfederate', audiences: ['wrong'], scopes: ['write'], gateway: { verdict: 'PERMIT' }, authorize: { decision: 'PERMIT' } } }),
@@ -291,16 +308,19 @@ describe('demo readiness execution service', () => {
       { id: 'PRIV-TOOL-ABUSE', providers: ['pingone', 'pingfederate'], attackLab: true },
     ] });
     expect(service.deriveExecutionManifest({ targets: ['local', 'hosted'] }).counts).toEqual({ core: 6, variants: 0, feature: 6, attackLab: 4, total: 16 });
+    const pfOnly = service.deriveExecutionManifest({ targets: ['local', 'hosted'], providers: ['pingfederate'] });
+    expect(pfOnly.counts).toEqual({ core: 4, variants: 0, feature: 4, attackLab: 2, total: 10 });
+    expect([...pfOnly.core, ...pfOnly.feature, ...pfOnly.attackLab].every((row) => row.provider === 'pingfederate')).toBe(true);
   });
 
-  test('derives the full current inventory: 206 unexpanded, 190 groups, and 822 rows with required feature probes', () => {
+  test('derives the full current inventory: 204 unexpanded, 190 groups, and 818 rows with required feature probes', () => {
     const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
     const catalog = buildDemoReadinessCatalog();
     const unexpanded = catalog.reduce((count, row) => count + (row.providerFlows.pingone ? 2 : 0) + (row.providerFlows.pingfederate ? 2 : 0), 0);
-    expect(unexpanded).toBe(206);
+    expect(unexpanded).toBe(204);
     expect(catalog.reduce((count, row) => count + row.runtimeVerticalGroups.length, 0)).toBe(190);
     expect(createReadinessExecutionService({ catalog }).deriveExecutionManifest().counts)
-      .toEqual({ core: 758, variants: 4, feature: 40, attackLab: 20, total: 822 });
+      .toEqual({ core: 756, variants: 2, feature: 40, attackLab: 20, total: 818 });
   });
 
   test('executes every manifest category, preserves UC14b full-page behavior, and records report rows', async () => {
@@ -638,6 +658,28 @@ describe('demo readiness execution service', () => {
     })) });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'mocked-p1' });
     expect(await service.executeReadinessCase({ context, caseRow: actorCase, vertical: 'banking' })).toMatchObject({ status: 'pass' });
+  });
+
+  test('accepts a PF token endpoint on the recorded alias origin and refuses any other authority', async () => {
+    const endpoint = 'https://pf-internal:9031/as/token.oauth2';
+    const run = async (endpointAlias) => {
+      const pfCase = { ...CASE, providerFlows: { pingone: null, pingfederate: 'pingfederate-standard' }, pfExchangeContract: { status: 'ready', issuer: 'https://pf.example', endpoint, endpointAlias, credentialRoles: [{ roleId: 'pf-standard-role' }] } };
+      const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => ({
+        ...worker(), provider: 'pingfederate', runtime: {}, cookieJar: {}, sessionStore: {},
+        async executeReadinessCase() { return { observed: 'DENY', evidence: { ...(await worker().executeReadinessCase()).evidence, userSessionProvider: 'pingfederate', tokenIssuer: 'pingfederate', agentIdentityProvider: 'pingfederate', exchangeProvenance: 'pingfederate-standard', pfExchange: { issuer: 'https://pf.example', endpoint, credentialRoles: ['pf-standard-role'], configurationComplete: true, subjectTokenType: 'access_token', registeredToolResult: 'pass' } } }; },
+      })) });
+      const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'pf' });
+      return service.executeReadinessCase({ context, caseRow: pfCase, vertical: 'banking' });
+    };
+    const shape = /PF endpoint and issuer must use HTTPS on one authority/;
+    const aliased = await run('https://pf-internal:9031');
+    expect(aliased.evidence.contractFailures || []).not.toEqual(expect.arrayContaining([expect.stringMatching(shape)]));
+    expect(aliased.evidence.contractFailures || []).not.toEqual(expect.arrayContaining([expect.stringMatching(/PF endpoint or issuer does not match|credential role/)]));
+    for (const alias of [null, 'https://elsewhere:9031']) {
+      const refused = await run(alias);
+      expect(refused.status).toBe('fail');
+      expect(refused.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(shape)]));
+    }
   });
 
   test('fails a PF exchange with an incomplete endpoint, wrong token type, or no registered tool result', async () => {

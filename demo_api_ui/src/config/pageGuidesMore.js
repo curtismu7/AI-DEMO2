@@ -308,12 +308,12 @@ export const MORE_PAGE_GUIDES = {
   "/pingfederate-ai-agent": {
     title: "PingFederate AI Agent Guide",
     talkingPoints: [
-      "This page exercises three PingFederate paths: CIMD client metadata, third-party token exchange through an ID-JAG, and rich authorization requests (RAR) over PAR.",
+      "This page runs the PingFederate AI-agent features against real PingFederate: ID-JAG (third-party token exchange), CIMD with a client.dev-style tester, dynamic client registration, rich authorization requests (RAR) over PAR, CIBA, DPoP, RFC 8693 token exchange with act claims, and the Authentication API (pi.flow).",
       "Tokens stay in the BFF or PingFederate; the browser only receives status and safe details.",
       "A comparison table separates what PingOne Agent IAM Core does from what this PingFederate path does.",
     ],
     walkthrough: steps([
-      ["Check session and readiness", "Each flow is enabled only when PingFederate is configured, and the exchange needs a signed-in session as its subject.", "Read the Current session panel and the Ready / Not configured badges for Client metadata, Third-party exchange and Rich authorization, and the provider comparison table for context."],
+      ["Check session and readiness", "Each flow is enabled only when PingFederate is configured, and the exchange needs a signed-in session as its subject.", "Read the Current session panel and the Ready / Not configured badges for Client metadata, ID-JAG, Rich authorization, CIBA, DCR and DPoP, and the provider comparison table for context."],
       ["Run the third-party token exchange", "PingFederate issues an audience-bound ID-JAG and a downstream authorization server redeems it for its own access token, two explicit hops.", "Click 'Run third-party token exchange' and read the Exchange completed result (Subject, PF issuer, ID-JAG audience, Downstream resource, Granted scope)."],
       ["Read the sequence before the traffic", "Each proof panel now opens with a lifeline sequence diagram of the captured flow — who called whom, in order — with a movie reel that walks one message at a time; the raw request/response traffic stays beneath it.", "After any run, press Step on the bar above the sequence diagram (CIMD, exchange, RAR or CIBA) and read the reel card for each hop, then scroll to the ProtocolTrace below for the captured payloads."],
       ["Run allowed and denied RAR requests", "The banking_transaction authorization detail goes through PAR and PingFederate's custom policy permits or denies it.", "Confirm the PF user key field, optionally tick the DPoP checkbox if shown, click 'Run allowed RAR request' then 'Run out-of-policy RAR request' and compare the status banner (PF accepted / PF denied the RAR request); 'Start CIMD authorization' runs the client-metadata flow."],

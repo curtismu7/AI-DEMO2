@@ -98,6 +98,21 @@ const renderNavAsUser = (user, path = "/") =>
   );
 
 describe("AdminSideNav — best-of-breed pass", () => {
+  it("still finds the renamed DaVinci pages by their old nav labels", () => {
+    renderNav();
+    const search = screen.getByLabelText(/search navigation/i);
+    const cases = [
+      ["DaVinci SDK Login", "/davinci-sdk"],
+      ["DaVinci Login", "/davinci-widget"],
+      ["Orchestration SDK Guide", "/davinci-orchestration-sdk"],
+    ];
+    for (const [query, href] of cases) {
+      fireEvent.change(search, { target: { value: query } });
+      const link = document.querySelector(`nav a[href="${href}"]`);
+      expect(link, `${href} found by "${query}"`).toBeTruthy();
+    }
+  });
+
   it("opens the local CI dashboard in a separate tab", () => {
     const opened = vi.spyOn(window, "open").mockImplementation(() => null);
     try {
@@ -134,6 +149,23 @@ describe("AdminSideNav — best-of-breed pass", () => {
     }
   });
 
+  it("lists the AI Policies Demo under Agent Privilege, opening the in-app page, public and without an admin badge", () => {
+    renderNavAsUser(customerUser);
+    const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
+    const search = within(navigation).getByLabelText(/search navigation/i);
+    for (const query of ["AI Policies Demo", "cedar", "permit forbid"]) {
+      fireEvent.change(search, { target: { value: query } });
+      const link = within(navigation).getAllByRole("link").find((a) => a.getAttribute("href") === "/privilege-ai-policies");
+      expect(link, `/privilege-ai-policies appears for the search "${query}"`).toBeTruthy();
+      expect(link).toHaveTextContent("AI Policies Demo");
+      expect(link.querySelector(".admin-side-nav__badge")).toBeNull();
+    }
+    // The item belongs to the Agent Privilege group, not just somewhere in the tree.
+    const group = NAV_STRUCTURE_CATALOG.find((g) => g.label === "Agent Privilege");
+    expect(group.children).toContain("AI Policies Demo");
+    expect(authRouteRequirements["/privilege-ai-policies"]).toBe("public");
+  });
+
   it("labels the primary navigation landmark", () => {
     renderNav();
     expect(screen.getByRole("navigation", { name: /primary navigation/i })).toBeTruthy();
@@ -146,6 +178,16 @@ describe("AdminSideNav — best-of-breed pass", () => {
     const shortcuts = document.querySelectorAll(".admin-side-nav__quick-link");
     expect(Array.from(shortcuts, (shortcut) => shortcut.textContent.trim()))
       .toEqual(["Ag", "Ad", "S", "C", "D", "R"]);
+  });
+
+  it("pins the sidebar top and bottom so a zoomed page cannot push its last items off screen", () => {
+    const navCss = readFileSync(path.resolve(__dirname, "../AdminSideNav.css"), "utf8");
+    const block = (navCss.match(/\n\.admin-side-nav \{([\s\S]*?)\n\}/)?.[1] ?? "").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(block).toMatch(/position: fixed;/);
+    expect(block).toMatch(/top: 0;/);
+    expect(block).toMatch(/bottom: 0;/);
+    // 100vh is scaled by the html zoom the text-size control applies, which made the bar taller than the window.
+    expect(block).not.toMatch(/height: 100vh/);
   });
 
   it("keeps sidebar readability styles on the shared theme scale", () => {
@@ -185,17 +227,42 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("Ping products");
   });
 
+  it("gathers the Privilege pages in a Privilege info sub-group under Ping products", () => {
+    renderNav("/privilege-map");
+    // The sub-group opens on one of its own pages.
+    expect(screen.getByRole("button", { name: /^Privilege info/ })).toHaveAttribute("aria-expanded", "true");
+    const expected = [
+      ["Privilege shelf", "/privilege-shelf"],
+      ["Privilege Map", "/privilege-map"],
+      ["Agent Privilege Guide", "/privilege-mcp-learning"],
+      ["Agent Privilege Diagrams", "/privilege-mcp-diagrams"],
+      ["Agent Privilege Topologies", "/privilege-gateway-topologies"],
+      ["External Agent App Diagrams", "/external-door-diagrams"],
+    ];
+    for (const [name, href] of expected) {
+      const link = screen.getAllByRole("link", { name }).find((a) => a.closest(".admin-side-nav__group")?.textContent.includes("Privilege info"));
+      expect(link, name).toBeTruthy();
+      expect(link).toHaveAttribute("href", href);
+    }
+  });
+
+  it("no longer lists the moved pages under Agent Privilege", () => {
+    renderNav("/privilege-demo");
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Privilege/ }));
+    const group = screen.getAllByRole("button", { name: /^Agent Privilege/ })[0].closest(".admin-side-nav__group");
+    for (const name of ["Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"]) {
+      expect(within(group).queryByRole("link", { name }), name).toBeNull();
+    }
+  });
+
   it("keeps the DaVinci learning pages together in the DaVinci group", () => {
     renderNav();
     fireEvent.click(screen.getByRole("button", { name: /^DaVinci/ }));
     const group = screen.getByRole("button", { name: /^DaVinci/ }).closest(".admin-side-nav__group");
     expect(within(group).getByRole("link", { name: "DaVinci Widget" })).toHaveAttribute("href", "/davinci-widget");
-    expect(within(group).getByRole("link", { name: "DaVinci Login" })).toHaveAttribute("href", "/davinci-login-guide");
-    expect(within(group).getByRole("link", { name: "DaVinci SDK Login" })).toHaveAttribute("href", "/davinci-sdk-login");
-    expect(within(group).getByRole("link", { name: "DaVinci Orchestration" })).toHaveAttribute("href", "/davinci-orchestration");
+    expect(within(group).getByRole("link", { name: "DaVinci SDK Guide" })).toHaveAttribute("href", "/davinci-sdk");
     expect(within(group).getByRole("link", { name: "DaVinci Orchestration SDK" })).toHaveAttribute("href", "/davinci-orchestration-sdk");
-    expect(within(group).getByRole("link", { name: "Orchestration SDK Guide" })).toHaveAttribute("href", "/orchestration-sdk");
-    expect(within(group).getByRole("link", { name: "DaVinci Orchestration Overview" })).toHaveAttribute("href", "/davinci-orchestration");
+    expect(within(group).getByRole("link", { name: "PingFederate DaVinci Integration Kit" })).toHaveAttribute("href", "/pingfederate-davinci-kit");
   });
 
   it("exposes aria-expanded + aria-controls on expandable groups", () => {
@@ -298,7 +365,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
     for (const term of ["AI feature comparison", "ID-JAG", "third-party token exchange", "PAR", "RAR"]) {
       fireEvent.change(input, { target: { value: term } });
-      expect(screen.getByRole("link", { name: "CIMD, Token Exchange, and RAR" })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow" })).toHaveAttribute(
         "href",
         "/pingfederate-ai-agent",
       );
@@ -311,9 +378,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByRole("link", { name: "AIC Token Exchange" })).toHaveAttribute("href", "/aic-token-exchange");
   });
 
-  it("opens the PingFederate AI Agent sidebar group on its comparison page", () => {
+  it("opens the PingFederate sidebar group on the AI Agent comparison page", () => {
     renderNav("/pingfederate-ai-agent");
-    expect(screen.getByRole("button", { name: /^PingFederate AI Agent/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
@@ -334,7 +401,8 @@ describe("AdminSideNav — best-of-breed pass", () => {
   ])('searching "%s" finds %s and links to %s', (term, label, href) => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: term } });
-    expect(screen.getByText(label, { exact: true }).closest("a")).toHaveAttribute("href", href);
+    // A page listed in two groups (the PingFederate group repeats the DaVinci kit) shows twice; every copy links right.
+    screen.getAllByText(label, { exact: true }).forEach((el) => expect(el.closest("a")).toHaveAttribute("href", href));
   });
 
   it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {
@@ -544,6 +612,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     vi.unstubAllGlobals();
   });
 
+  it("honors a hide for a link inside the Privilege info sub-group, and hides the sub-group when all its links are hidden", async () => {
+    const stubHidden = (hiddenLabels) =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url) => {
+          if (String(url).includes("/api/user/nav-config")) {
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ hiddenLabels, activeConfigId: null, flagOn: true }) });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }),
+      );
+
+    stubHidden(["Agent Privilege Diagrams"]);
+    const first = renderNav("/privilege-map");
+    expect(await screen.findByRole("link", { name: "Privilege Map" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Agent Privilege Diagrams" })).toBeNull();
+    first.unmount();
+
+    stubHidden([
+      "Privilege shelf", "Privilege Map", "Agent Privilege Guide", "Agent Privilege Diagrams",
+      "Agent Privilege Topologies", "Gateway stats", "External Agent App Diagrams", "Privilege Docs Index",
+    ]);
+    renderNav("/privilege-demo");
+    expect(await screen.findByText("Observability")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Privilege info/ })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it("NAV_ITEM_CATALOG stays in sync with AdminSideNav's real top-level labels", () => {
     renderNavAsUser(customerUser);
     NAV_ITEM_CATALOG.forEach((label) => {
@@ -693,7 +789,8 @@ describe("diagram links open in a new tab", () => {
 
   it("opens the ID-JAG diagram and implementation entries in a new tab, but not the demo", () => {
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^PingFederate ID-JAG/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Ping products/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ }));
     expect(screen.getByRole("link", { name: "ID-JAG Diagram" })).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("link", { name: "ID-JAG Implementation (PF + Resource Server)" })).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("link", { name: "Run ID-JAG Demo" })).not.toHaveAttribute("target");
@@ -705,5 +802,64 @@ describe("Admin quick link", () => {
     renderNavAsUser(customerUser);
     fireEvent.click(screen.getByTitle("Admin View"));
     expect(openAdminSignIn).toHaveBeenCalledWith({ returnTo: "/admin" });
+  });
+});
+
+describe("AdminSideNav: the gateway claims and third-party exchange pages are searchable", () => {
+  // The menu search matches one contiguous phrase against a label or its search terms, so each phrase a person would type
+  // has to appear in one of them. Admin and a signed-in customer both see these diagram pages.
+  const searches = [
+    ["v1.261028", "/gateway-claims"], ["v1.261029", "/gateway-claims"], ["v1.261030", "/gateway-claims"], ["v1.261102", "/gateway-claims"], ["gateway release notes", "/gateway-claims"], ["what is new", "/gateway-claims"], ["gateway v1.261028", "/gateway-claims"], ["gateway v1.261027", "/gateway-claims"], ["gateway claims", "/gateway-claims"],
+    ["AgentCore governance", "/gateway-claims"], ["runtime bypass", "/gateway-claims"], ["caller access", "/gateway-claims"], ["RequiredClaims", "/gateway-claims"],
+    ["third party token exchange", "/p1-third-party-exchange"], ["third-party", "/p1-third-party-exchange"], ["p1 third party", "/p1-third-party-exchange"],
+    ["trusted issuer", "/p1-third-party-exchange"], ["Okta", "/p1-third-party-exchange"], ["RFC 8693", "/p1-third-party-exchange"],
+  ];
+  it.each(searches.flatMap(([q, h]) => [["admin", adminUser, q, h], ["customer", customerUser, q, h]]))("%s: %s finds %s", (_who, user, query, href) => {
+    renderNavAsUser(user);
+    const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
+    fireEvent.change(within(navigation).getByLabelText(/search navigation/i), { target: { value: query } });
+    expect(within(navigation).getAllByRole("link").map((a) => a.getAttribute("href"))).toContain(href);
+  });
+});
+
+describe("AdminSideNav: one PingFederate group holds every PF demo", () => {
+  it("lists the AI Agent page, the PF Playground, ID-JAG and the PF token and DaVinci pages", () => {
+    renderNav("/pingfederate-ai-agent");
+    const hrefs = [
+      "/pingfederate-ai-agent", "/protocol-playground?idp=pingfederate", "/pingfederate-id-jag/demo",
+      "/pingfederate-id-jag/playground", "/privilege-pf-token", "/pingfederate-davinci-kit",
+    ];
+    const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    hrefs.forEach((href) => expect(links).toContain(href));
+    expect(screen.queryByRole("button", { name: /^PingFederate (ID-JAG|AI Agent)/ })).toBeNull();
+  });
+});
+
+describe("AdminSideNav: PingFederate is a sub-group of Ping products", () => {
+  it("is not a top-level group, sits inside Ping products and opens itself on a PingFederate page", () => {
+    renderNav("/pingfederate-ai-agent");
+    const products = screen.getByRole("button", { name: /^Ping products/ });
+    expect(products).toHaveAttribute("aria-expanded", "true");
+    const pf = screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ });
+    expect(pf.closest(".admin-side-nav__group")).toContainElement(products);
+    expect(pf).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("group", { name: "PingFederate" })).toHaveTextContent("Protocol Playground (PingFederate)");
+  });
+
+  it("starts closed elsewhere and toggles without closing Ping products", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Ping products/ }));
+    const pf = screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ });
+    expect(pf).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "Run ID-JAG Demo" })).toBeNull();
+    fireEvent.click(pf);
+    expect(screen.getByRole("link", { name: "Run ID-JAG Demo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Ping products/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("search finds a page inside the sub-group", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "dynamic client registration" } });
+    expect(screen.getByRole("link", { name: /PingFederate AI Agent: ID-JAG/ })).toHaveAttribute("href", "/pingfederate-ai-agent");
   });
 });

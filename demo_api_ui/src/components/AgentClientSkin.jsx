@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { unusedSuggestions } from '../config/dotSuggestions';
 
 function ToolUseBlock({ toolName, toolInput, colors }) {
   return (
@@ -97,11 +98,11 @@ const SKIN_CONFIG = {
     dark: {
       bg: '#0b1929', headerBg: '#0d2040', headerBorder: '#1a3560',
       titleColor: '#d8e8ff', subtitleColor: '#8aa9d6',
-      agentBubbleBg: '#102040', agentBubbleColor: '#c8dcff',
+      agentBubbleBg: '#102040', agentBubbleColor: '#ffffff',
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
       toolBg: '#07121e', toolBorder: '#1a3560', toolColor: '#4a90d0',
-      toolResultBg: '#051020', toolResultColor: '#3a78b8',
+      toolResultBg: '#051020', toolResultColor: '#6ba3dd',
     },
     light: {
       bg: '#f5f8ff', headerBg: '#ffffff', headerBorder: '#dde8f7',
@@ -139,12 +140,12 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#1e1410', headerBg: '#231810', headerBorder: '#352010',
-      titleColor: '#ead6bc', subtitleColor: '#7a5a38',
+      titleColor: '#ead6bc', subtitleColor: '#a08058',
       agentBubbleBg: 'transparent', agentBubbleColor: '#ead6bc',
       userBubbleBg: '#2e1e0e', userBubbleColor: '#ead6bc',
       inputAreaBg: '#1e1410', inputBorder: '#352010', inputColor: '#ead6bc',
       toolBg: '#2a1c0c', toolBorder: '#4a2e18', toolColor: '#c07848',
-      toolResultBg: '#1c1408', toolResultColor: '#b06838',
+      toolResultBg: '#1c1408', toolResultColor: '#c98050',
     },
     light: {
       bg: '#fffdf8', headerBg: '#fffdf8', headerBorder: '#f0e6d0',
@@ -171,7 +172,7 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#0d1117', headerBg: '#0d1117', headerBorder: '#21262d',
-      titleColor: '#ffb454', subtitleColor: '#484f58',
+      titleColor: '#ffb454', subtitleColor: '#8b949e',
       agentBubbleBg: 'transparent', agentBubbleColor: '#c9d1d9',
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
@@ -180,7 +181,7 @@ const SKIN_CONFIG = {
     },
     light: {
       bg: '#0d1117', headerBg: '#0d1117', headerBorder: '#21262d',
-      titleColor: '#ffb454', subtitleColor: '#484f58',
+      titleColor: '#ffb454', subtitleColor: '#8b949e',
       agentBubbleBg: 'transparent', agentBubbleColor: '#c9d1d9',
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
@@ -244,11 +245,11 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#1c1c2e', headerBg: '#1c1c2e', headerBorder: '#2a2a4a',
-      titleColor: '#e0e0ff', subtitleColor: '#5a5a90',
+      titleColor: '#e0e0ff', subtitleColor: '#9c9cd0',
       agentBubbleBg: 'transparent', agentBubbleColor: '#e0e0ff',
       userBubbleBg: '#252545', userBubbleColor: '#e0e0ff',
       inputAreaBg: '#252545', inputBorder: '#3a3a60', inputColor: '#e0e0ff',
-      toolBg: '#1e1e38', toolBorder: '#3a3a60', toolColor: '#7878d8',
+      toolBg: '#1e1e38', toolBorder: '#3a3a60', toolColor: '#9e9ee8',
       toolResultBg: '#181830', toolResultColor: '#9898d8',
     },
     light: {
@@ -352,7 +353,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       );
     }
     return (
-      <div key={i} style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor }}>
+      <div key={i} style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: isUser ? colors.userBubbleColor : colors.agentBubbleColor }}>
         {prefix}{msg.text}
       </div>
     );
@@ -382,7 +383,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       {msg.typing ? (
         <TypingIndicator color={cfg.accentColor} />
       ) : (
-        <div style={{ padding: '10px 14px', borderRadius: isUser ? '12px 4px 12px 12px' : '4px 12px 12px 12px', background: isUser ? colors.userBubbleBg : colors.agentBubbleBg, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor, fontSize: 13, lineHeight: 1.6, maxWidth: '100%' }}>
+        <div style={{ padding: '10px 14px', borderRadius: isUser ? '12px 4px 12px 12px' : '4px 12px 12px 12px', background: isUser ? colors.userBubbleBg : colors.agentBubbleBg, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor, fontSize: 13, lineHeight: 1.6, maxWidth: '100%', whiteSpace: 'pre-wrap' }}>
           {msg.text}
           {/* What Ping decided for this reply: the Authorize verdict and the tools it covered. */}
           {!isUser && skin === 'dot' && msg.governance?.decision && (
@@ -432,6 +433,8 @@ export function readableAccent(accent, bg, fallback) {
 }
 
 export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', messages = [], onSend, showPopOutButton = false, onPopOut, suggestions = [] }) {
+  // Prompts not yet run stay clickable under the replies ("try next"), instead of vanishing after the first message.
+  const nextPrompts = unusedSuggestions(suggestions, messages.filter((m) => m.role === 'user').map((m) => m.text || ''));
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const cfg = SKIN_CONFIG[skin] || SKIN_CONFIG.privilege;
@@ -440,7 +443,10 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
   const isTerminal = !!cfg.isTerminal;
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll the message list itself. scrollIntoView() also scrolls every
+    // scrollable ancestor, so it dragged the whole page down to the chat on load.
+    const list = messagesEndRef.current?.parentElement;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [messages]);
 
   function handleKeyDown(e) {
@@ -458,7 +464,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
+    <div className="agent-client-skin" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
       <div style={{ background: colors.headerBg, borderBottom: `1px solid ${colors.headerBorder}`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <cfg.logo />
@@ -481,9 +487,10 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: isTerminal ? '16px 20px' : 20, display: 'flex', flexDirection: 'column', gap: isTerminal ? 8 : 16 }}>
         {messages.map((msg, i) => renderMessage(msg, i, cfg, colors, isTerminal, skin))}
-        {suggestions.length > 0 && messages.length <= 1 && (
-          <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {suggestions.map((s) => typeof s === 'string' ? { label: s, message: s } : s).map(({ label, message }) => (
+        {nextPrompts.length > 0 && (
+          <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            {messages.length > 1 && <span style={{ fontSize: 12, color: colors.inputColor, opacity: 0.7 }}>Try next:</span>}
+            {nextPrompts.map(({ label, message }) => (
               <button
                 key={label}
                 type="button"

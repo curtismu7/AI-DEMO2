@@ -63,6 +63,9 @@ services:
       - readiness-bff-pingone-data:/app/data/persistent
     environment:
       OAUTH_PROVIDER: pingone
+      # Names this lane to the shared PingGateway, which then sends its
+      # resource-server calls to readiness-resource-server-pingone.
+      DEMO_READINESS_LANE: pingone
       # The readiness workload agent holds its scopes on the workload resource
       # (scripts/provision-workload-agent-gateway.js), whose act claim names the
       # agent that presented the actor token. Only this lane uses it for now.
@@ -116,6 +119,7 @@ services:
       DEMO_READINESS_WORKER_PROVIDER: pingone
       DEMO_READINESS_WORKER_IDENTITY_REF: "${DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF:-readiness-pingone-local}"
       DEMO_READINESS_WORKER_BFF_URL: "https://readiness-bff-pingone:3001"
+      DEMO_READINESS_WORKER_BROWSER_WS_URL: "ws://readiness-browser:3000/"
       DEMO_READINESS_WORKER_EXPECTED_ISSUER: "${DEMO_READINESS_LOCAL_PINGONE_EXPECTED_ISSUER:-}"
       DEMO_READINESS_WORKER_TLS_CERT: /certs/api.ping.demo+2.pem
       DEMO_READINESS_WORKER_TLS_KEY: /certs/api.ping.demo+2-key.pem
@@ -153,6 +157,9 @@ services:
       - readiness-bff-pingfederate-data:/app/data/persistent
     environment:
       OAUTH_PROVIDER: pingfederate
+      # See readiness-bff-pingone: this lane's resource-server calls go to
+      # readiness-resource-server-pingfederate.
+      DEMO_READINESS_LANE: pingfederate
       # Both lanes share the presenter's PingGateway. Its introspection route
       # asks PingOne, which rejects a PingFederate-issued token (401
       # invalid_token on every tool step). Its JWKS route verifies the token
@@ -200,6 +207,7 @@ services:
       DEMO_READINESS_WORKER_PROVIDER: pingfederate
       DEMO_READINESS_WORKER_IDENTITY_REF: "${DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF:-readiness-pingfederate-local}"
       DEMO_READINESS_WORKER_BFF_URL: "https://readiness-bff-pingfederate:3001"
+      DEMO_READINESS_WORKER_BROWSER_WS_URL: "ws://readiness-browser:3000/"
       DEMO_READINESS_WORKER_EXPECTED_ISSUER: "${DEMO_READINESS_LOCAL_PINGFEDERATE_EXPECTED_ISSUER:-https://local.ping-devops.com:9031}"
       DEMO_READINESS_WORKER_TLS_CERT: /certs/api.ping.demo+2.pem
       DEMO_READINESS_WORKER_TLS_KEY: /certs/api.ping.demo+2-key.pem
@@ -210,6 +218,65 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # Headless browser for page steps, shared by both lane workers. Each page
+  # load opens its own browser context holding only that lane's BFF cookies,
+  # so the lanes never share a session. Not published: only the workers reach
+  # it, over the lane network. The image tag must match the playwright-core
+  # version in demo_api_server/package.json.
+  # Each lane's own investment/airlines resource server. The presenter's reads
+  # its data from the presenter BFF, which rejects a lane's token (UC2 banking
+  # got 401 on the PingFederate lane, 2026-10-31). PingGateway is shared: it
+  # picks these by the lane BFF's X-Readiness-Lane header
+  # (ping-gateway/scripts/groovy/invest-dispatch.groovy). Each keeps its own
+  # SQLite data, seeded from the image on first open.
+  readiness-resource-server-pingone:
+    extends:
+      file: docker-compose.yml
+      service: mcp-resource-server
+    container_name: ai-demo-readiness-resource-server-pingone
+    hostname: readiness-resource-server-pingone
+    ports: !reset []
+    networks: !override
+      ai-demo: {}
+    depends_on: !override []
+    volumes: !override
+      - ./scripts:/otel:ro
+      - ./certs:/certs:ro
+      - readiness-resource-server-pingone-data:/app/data
+    environment:
+      DEMO_API_BASE_URL: "https://readiness-bff-pingone:3001"
+      BFF_TRANSACTION_HOP_URL: "https://readiness-bff-pingone:3001/internal/transaction-hop"
+
+  readiness-resource-server-pingfederate:
+    extends:
+      file: docker-compose.yml
+      service: mcp-resource-server
+    container_name: ai-demo-readiness-resource-server-pingfederate
+    hostname: readiness-resource-server-pingfederate
+    ports: !reset []
+    networks: !override
+      ai-demo: {}
+    depends_on: !override []
+    volumes: !override
+      - ./scripts:/otel:ro
+      - ./certs:/certs:ro
+      - readiness-resource-server-pingfederate-data:/app/data
+    environment:
+      DEMO_API_BASE_URL: "https://readiness-bff-pingfederate:3001"
+      BFF_TRANSACTION_HOP_URL: "https://readiness-bff-pingfederate:3001/internal/transaction-hop"
+
+  readiness-browser:
+    image: mcr.microsoft.com/playwright:v1.59.1-noble
+    container_name: ai-demo-readiness-browser
+    hostname: readiness-browser
+    init: true
+    user: pwuser
+    working_dir: /home/pwuser
+    command: ["/bin/sh", "-c", "npx -y playwright@1.59.1 run-server --port 3000 --host 0.0.0.0"]
+    networks:
+      ai-demo: {}
+    restart: unless-stopped
 
 networks:
   # Attach to the presenter's EXISTING network without owning it. `external: true`
@@ -226,6 +293,8 @@ volumes:
   # Lane-private LMDB + sessions (never share the presenter's ai-demo-bff-data).
   readiness-bff-pingone-data:
   readiness-bff-pingfederate-data:
+  readiness-resource-server-pingone-data:
+  readiness-resource-server-pingfederate-data:
   # The lane BFFs `extends` the presenter, which mounts these named volumes.
   # Standalone (no docker-compose.yml merged) they are not declared elsewhere, so
   # reuse the presenter's existing volumes by their Docker names rather than

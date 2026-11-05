@@ -7,6 +7,7 @@
  */
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
+const { enrichCannedReply } = require('./replySummary');
 const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
 // Actions a signed-out visitor may run (config/auth-requirements.json — the
 // same list agentRun.js's PUBLIC_GUEST_ACTIONS mirrors and authz:verify holds
@@ -352,6 +353,46 @@ async function ensureAccountsForVertical(userId, verticalId) {
 }
 
 /**
+ * Chat reply for "decode my jwt token": the session access token's header and
+ * the claims worth reading, decoded locally (no signature check).
+ */
+function decodeSessionJwtReply(userToken) {
+  const envelope = (reply, success) => ({
+    reply, success, toolsCalled: [], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents: [],
+  });
+  const parts = typeof userToken === 'string' ? userToken.split('.') : [];
+  if (parts.length !== 3) {
+    return envelope('Your session token is not a JWT I can decode here (it is opaque or missing). Sign in again and retry.', false);
+  }
+  let header; let claims;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+    claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+  } catch (_) {
+    return envelope('I could not decode your session token — it is not valid base64url JSON.', false);
+  }
+  const when = (sec) => (Number.isFinite(sec) ? new Date(sec * 1000).toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : null);
+  const aud = Array.isArray(claims.aud) ? claims.aud.join(', ') : claims.aud;
+  const left = Number.isFinite(claims.exp) ? Math.round((claims.exp * 1000 - Date.now()) / 60000) : null;
+  const expired = left != null && left < 0;
+  const expires = when(claims.exp) && (left == null ? when(claims.exp) : expired ? `${when(claims.exp)} (expired)` : `${when(claims.exp)} (in ${left} min)`);
+  const section = (title, rows) => {
+    const lines = rows.filter(([, v]) => v != null && v !== '').map(([k, v]) => `   • ${k}: ${v}`);
+    return lines.length ? `${title}\n${lines.join('\n')}` : null;
+  };
+  const body = [
+    section('Who it is for', [['Subject', claims.sub], ['Client', claims.client_id]]),
+    section('Where it came from', [['Issuer', claims.iss], ['Audience', aud], ['Scopes', claims.scope]]),
+    section('Lifetime', [['Issued', when(claims.iat)], ['Expires', expires]]),
+    section('Signing', [['Algorithm', header.alg], ['Key id', header.kid], ['Delegation (act)', claims.act ? JSON.stringify(claims.act) : null]]),
+  ].filter(Boolean).join('\n\n');
+  const head = expired
+    ? '⚠️ Decoded, but this token has expired. Sign in again for a fresh one.'
+    : '✅ Success — your session token was decoded. This is the access token you are signed in with.';
+  return envelope(`${head}\n\n${body}\n\nDecoded locally; the signature was not verified.`, true);
+}
+
+/**
  * Dispatch a banking action based on parsed intent.
  * Reusable by both executeHeuristicBanking and banking plugin executeTool.
  * @param {string} action - The banking action (accounts, balance, transactions, transfer, deposit, withdraw, sensitive_account_details)
@@ -363,6 +404,9 @@ async function ensureAccountsForVertical(userId, verticalId) {
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
   const verticalId = ctx.vertical || 'banking';
+  // Cross-vertical chip ("decode my jwt token"): decode the caller's own session
+  // token here — no vertical data involved, and nothing is verified or exchanged.
+  if (action === 'jwt_decode_demo') return decodeSessionJwtReply(userToken);
   if (action === 'transfer' || action === 'transfer_600_test' || action === 'wire_transfer' || action === 'deposit' || action === 'withdraw') {
     await ensureAccountsForVertical(userId, verticalId);
   }
@@ -455,11 +499,18 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         toolName = 'get_account_nickname';
         toolArgs = params.accountId ? { account_id: params.accountId } : {};
       } else if (action === 'balance') {
-        if (params.accountId) {
+        // No account named: the vertical's primary account, by type name
+        // ("checking"), which the balance route resolves to the user's own
+        // account in whichever store answers. Listing every account here made
+        // "show my balance" call get_my_accounts while its use cases (UC1,
+        // UC17, UC20, UC25) declare get_account_balance.
+        const primaryType = verticalManifest.loader.get(verticalId)?.manifest?.terminology?.accountTypes?.[0];
+        const accountId = params.accountId || (primaryType ? String(primaryType).toLowerCase() : null);
+        if (accountId) {
+          params = { ...params, accountId };
           toolName = 'get_account_balance';
-          toolArgs = { account_id: params.accountId };
+          toolArgs = { account_id: accountId };
         } else {
-          // No specific account — show all accounts with balances
           toolName = 'get_my_accounts';
           toolArgs = {};
         }
@@ -911,7 +962,9 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // Unknown action — log and suggest fallback
     console.warn('[dispatchBankingAction] Unknown banking action:', action);
     return {
-      reply: `I don't recognize that action (${action}). Try "show my accounts", "my balance", or "transfer money".`,
+      reply: ctx?.catalogCtx
+        ? buildCatalogMessage(ctx.catalogCtx)
+        : `I don't recognize that action (${action}). Try "show my accounts", "my balance", or "transfer money".`,
       success: false,
       toolsCalled: [],
       tokensUsed: 0,
@@ -956,6 +1009,8 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
     // branches to every vertical. All other banking aliases keep 'banking' so
     // account seeding and MCP routing stay on the shared banking rails.
     vertical: action === 'branch_hours' ? (activeVerticalId || 'banking') : 'banking',
+    // Off-banking verticals get their own catalog, not banking example prompts.
+    catalogCtx: activeVerticalId && activeVerticalId !== 'banking' ? verticalCtx : null,
   };
 
   return dispatchBankingAction(action, params, userId, ctx);
@@ -1000,7 +1055,11 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
 // delegated and executed, just without a rendered card — text reply only.
 const A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' };
 
-async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId }) {
+// The investment tools that require an account_id; the orchestrator's coordinator
+// picks one without arguments, so the delegation fills the user's first portfolio.
+const INVEST_TOOLS_NEEDING_ACCOUNT = new Set(['get_portfolio_summary', 'get_investment_balance', 'get_investment_transactions']);
+
+async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId, hitlChallengeId = null }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
   const { sendA2aProtocolHandoff } = require('./a2aProtocolClient');
@@ -1020,13 +1079,16 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   // single portfolio per user, same "first held record" convention used elsewhere
   // (see applyAdminCustomerContext). Only get_portfolio_summary needs it today.
   const toolArgs = { ...((args && args.args) || {}) };
-  if (result.tool === 'get_portfolio_summary' && toolArgs.account_id == null) {
+  if (INVEST_TOOLS_NEEDING_ACCOUNT.has(result.tool) && toolArgs.account_id == null) {
     try {
       const plugin = verticalDispatch.resolvePlugin('investment');
       const portfolios = plugin?.getDataStore()?.get(req?.session?.user?.id)?.portfolios || [];
       if (portfolios[0]) toolArgs.account_id = portfolios[0].id;
     } catch (_) { /* best-effort default only */ }
   }
+  // Retry after the user approved the specialist's held call: the gateway
+  // verifies this receipt against the user, the specialist and the tool.
+  if (hitlChallengeId) toolArgs._hitl_challenge_id = hitlChallengeId;
 
   // The A2A wire hop (A2A v1.0 §7.3-7.5): the delegated token above IS the
   // bearer. The SPECIALIST performs Exchange #2, calls the tool, and applies the
@@ -1075,6 +1137,9 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     scopes: handoff.scopes && handoff.scopes.length ? handoff.scopes : result.scopes,
     result: toolResult,
     toolError: toolError || null,
+    // The gateway held the specialist's call for approval; the UI approves this
+    // challenge and resends with it.
+    hitlChallengeId: toolError === 'hitl_required' ? toolResult?.challengeId || null : null,
     render: !toolError && result.tool ? A2A_TOOL_RENDER[result.tool] || null : null,
     // The note must not claim more than happened. It previously asserted
     // "PingOne Authorize permitted the specialist to run X" UNCONDITIONALLY —
@@ -1099,13 +1164,14 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
  * to produce a genuine invalid_a2a_generalist DENY. See a2aDelegationService.
  * probeGeneralistMismatch for why this is a probe, not a second live exchange.
  */
-async function executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, sessionId }) {
+async function executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, sessionId, hitlChallengeId = null }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
-  const leg1Json = await executeA2aDelegation(activeId, args, { req, tokenEvents: events, sessionId });
+  const leg1Json = await executeA2aDelegation(activeId, args, { req, tokenEvents: events, sessionId, hitlChallengeId });
   let leg1;
   try { leg1 = JSON.parse(leg1Json); } catch (_) { leg1 = { delegated: false, error: leg1Json }; }
-  if (leg1.error || !leg1.tool) {
+  // A held leg 1 waits for the user's approval; the probe runs on the retry.
+  if (leg1.error || !leg1.tool || leg1.hitlChallengeId) {
     return JSON.stringify(leg1);
   }
   const mismatch = await a2a.probeGeneralistMismatch(req, {
@@ -1151,6 +1217,21 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
         reply += ` ❌ The unregistered-agent probe was NOT denied (${probe.decision || probe.error || 'no decision'}).`;
       }
     }
+  } else if (a2aResult.delegated && a2aResult.hitlChallengeId) {
+    // Same envelope as a held vertical tool, so the UI opens its approval prompt
+    // and resends with the challenge id.
+    return {
+      reply: `${a2aResult.specialist} needs your approval before it can run ${a2aResult.tool.replace(/_/g, ' ')}.`,
+      success: false,
+      toolsCalled: ['delegate_to_specialist'],
+      tokensUsed: 0,
+      requiresConsent: true,
+      agentConfigured: true,
+      tokenEvents,
+      error: 'hitl_required',
+      hitlChallengeId: a2aResult.hitlChallengeId,
+      action: a2aResult.tool,
+    };
   } else if (a2aResult.delegated) {
     reply = `❌ Delegated to ${a2aResult.specialist}, but ${a2aResult.tool || 'the tool call'} failed: ${a2aResult.toolError || 'no result returned'}.`;
   } else {
@@ -1267,7 +1348,74 @@ function resolveToolSchemas(activeId, activeManifest) {
 }
 
 // Build a meaningful reply string from vertical plugin result data, themed per vertical terminology.
+// "2026-08-15T08:40:00-05:00" -> "Aug 15, 08:40": the clock time exactly as written (the airport's local time),
+// never converted.
+const CLOCK_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function localClock(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(String(iso || ''));
+  return m ? `${CLOCK_MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[4]}` : '';
+}
+const usd = (n) => (n != null && n !== '' && Number.isFinite(Number(n)) ? '$' + Number(n).toFixed(2) : '');
+const miles = (n) => (Number.isFinite(Number(n)) ? Number(n).toLocaleString('en-US') : '');
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Reply text for the airlines tools. Each tool returns a result shaped for its own card, never the generic
+ * { items | points | balance } the noun fallback reads, so without this every one of them answered
+ * "Here are your <tool name>." or "Your <tool name> request is complete." with no data, and a failed write
+ * (paid:false, booked:false, cancelled:false, redeemed:false) was reported as complete. A failure passes the
+ * tool's own note through; nothing is invented, and nothing sensitive (passport, card, DOB) is repeated in chat.
+ * Returns undefined for any action that is not one of these.
+ */
+function airlineReply(action, data) {
+  const d = data || {};
+  switch (action) {
+    case 'get_airline_bookings':
+    case 'sensitive_airline_bookings': {
+      const trips = Array.isArray(d.bookings) ? d.bookings : [];
+      if (!trips.length) return d.note || 'You have no upcoming trips.';
+      const line = (b) => [b.flightNumber, b.route, localClock(b.departureTime)].filter(Boolean).join(', ') + (b.confirmationNumber ? ` (${b.confirmationNumber})` : '');
+      return `You have ${plural(trips.length, 'upcoming trip', 'upcoming trips')}: ${trips.slice(0, 3).map(line).join('; ')}${trips.length > 3 ? `; and ${trips.length - 3} more` : ''}.`;
+    }
+    case 'cancel_airline_reservation':
+      if (d.cancelled !== true) return d.note || "I couldn't cancel that reservation.";
+      return `Cancellation recorded for reservation ${d.confirmationNumber || ''}${d.flightNumber ? ` (${[d.flightNumber, d.route].filter(Boolean).join(', ')})` : ''}.`
+        + (d.refund && d.refund.status ? ` Refund ${d.refund.status} to the ${d.refund.method || 'original form of payment'}.` : '')
+        + (d.simulated ? ' Demo: the reservation is left in place so it can be replayed.' : '');
+    case 'pay_airline_fee':
+      if (d.paid !== true) return d.note || "The fee wasn't paid.";
+      return `Paid ${[usd(d.amount), d.feeType && `${d.feeType} fee`].filter(Boolean).join(' ') || 'the fee'}${d.receiptId ? ` — receipt ${d.receiptId}` : ''}.`;
+    case 'book_airline_flight':
+      if (d.booked !== true) return d.note || "I couldn't book that flight.";
+      return `Booked ${d.flightNumber || 'the flight'}${d.route ? ` (${d.route})` : ''}${localClock(d.departureTime) ? `, departing ${localClock(d.departureTime)}` : ''}`
+        + (d.confirmationNumber ? ` — confirmation ${d.confirmationNumber}` : '') + (d.cabin ? `, ${d.cabin}` : '') + (usd(d.amount) ? `, ${usd(d.amount)}` : '') + '.';
+    case 'check_seat_availability': {
+      if (!d.flightNumber) return d.note || "I couldn't read the seat map.";
+      const seats = Array.isArray(d.seats) ? d.seats : [];
+      const free = seats.filter((s) => s.available).length;
+      const count = d.availableOnly ? `${plural(d.seatCount != null ? d.seatCount : free, 'seat', 'seats')} available` : `${free} of ${seats.length} seats available`;
+      return `Seat map for ${d.flightNumber}${d.usedNextFlight ? ' (your next flight)' : ''}: ${count}.`;
+    }
+    case 'redeem_miles':
+      if (d.redeemed !== true) return d.note || "The upgrade didn't go through.";
+      return `Upgraded ${[d.confirmationNumber, d.flightNumber].filter(Boolean).join(' · ') || 'your reservation'} from ${d.previousCabin || 'your cabin'} to ${d.upgradedToCabin || 'the next cabin'}`
+        + (miles(d.pointsRedeemed) ? ` for ${miles(d.pointsRedeemed)} miles` : '') + (miles(d.pointsRemaining) ? `; ${miles(d.pointsRemaining)} miles remaining` : '') + '.';
+    case 'sensitive_passenger_record':
+      if (d.found !== true) return d.note || "I couldn't find a passenger record.";
+      return `Passenger record on file for ${d.name || 'you'}${d.loyalty && d.loyalty.tier ? ` (${d.loyalty.tier}${miles(d.loyalty.points) ? `, ${miles(d.loyalty.points)} miles` : ''})` : ''}. Sensitive fields are not repeated in chat.`;
+    default:
+      return undefined;
+  }
+}
+
+// The reply for a tool result. buildVerticalReplyBase is the per-tool logic; when it can only produce a
+// canned sentence built from the tool name ("Here are your permits."), the result's own data is used instead.
 function buildVerticalReply(action, data, render, verticalCtx) {
+  const base = buildVerticalReplyBase(action, data, render, verticalCtx);
+  return enrichCannedReply(base, action, data) || base;
+}
+
+function buildVerticalReplyBase(action, data, render, verticalCtx) {
   const term = verticalCtx && verticalCtx.terminology;
 
   if (render === 'list_gear' || render === 'list_rentals') {
@@ -1328,6 +1476,34 @@ function buildVerticalReply(action, data, render, verticalCtx) {
   // `render` — on a failed MCP round-trip `render` degrades to 'text', but the
   // confirmation copy must still hold (and degrade gracefully on empty data)
   // rather than fall through to the noun fallback ("...book appointment.").
+  const airline = airlineReply(action, data);
+  if (airline !== undefined) return airline;
+  // Airlines loyalty read. The tool returns { loyaltyTier, loyaltyPoints, name } or
+  // { found: false, note }, not the { points | balance } shape of the loyalty_balance
+  // render above, so it fell through to "Here are your loyalty status." with no data.
+  if (action === 'get_loyalty_status') {
+    if (data && data.found === false) return data.note || "I couldn't find a MileagePlus record for your account.";
+    const tier = data && data.loyaltyTier;
+    const pts = data && data.loyaltyPoints;
+    if (!tier && pts == null) return "I couldn't read your MileagePlus status.";
+    return `Your MileagePlus status${tier ? `: ${tier}` : ''}${pts != null ? ` · ${Number(pts).toLocaleString('en-US')} miles` : ''}.`;
+  }
+  // Airlines flight status. The tool returns { flightNumber, route, status, departureTime,
+  // gate, usedNextFlight } or { found: false, note }; with no render declared it fell through
+  // to "Here are your flight status." with no data. departureTime is an ISO string in the
+  // origin's local time, so it is shown as written rather than converted.
+  if (action === 'get_flight_status') {
+    if (data && data.found === false) return data.note || "I couldn't find that flight.";
+    const num = data && data.flightNumber;
+    const route = data && data.route;
+    const parts = [
+      data && data.status,
+      localClock(data && data.departureTime) && `departs ${localClock(data && data.departureTime)}`,
+      data && data.gate && `gate ${data.gate}`,
+    ].filter(Boolean);
+    if (!num || !parts.length) return "I couldn't read the flight status.";
+    return `${data.usedNextFlight ? 'Your next flight, ' : ''}${num}${route ? ` (${route})` : ''}: ${parts.join(' · ')}.`;
+  }
   if (action === 'book_appointment') {
     const provider = data && data.provider;
     const when = data && data.when;
@@ -1436,7 +1612,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   if (action !== 'delegate_to_specialist' && action !== 'a2a_generalist_mismatch') {
     const { isA2aDelegatedTool } = require('./scopeTopology');
     if (isA2aDelegatedTool(action)) {
-      const a2aJson = await executeA2aDelegation(vertical, { tool: action }, { req, tokenEvents, sessionId });
+      const a2aJson = await executeA2aDelegation(vertical, { tool: action }, { req, tokenEvents, sessionId, hitlChallengeId });
       let a2aResult;
       try { a2aResult = JSON.parse(a2aJson); } catch (_) { a2aResult = { delegated: false, error: a2aJson }; }
       return buildA2aReplyEnvelope(a2aResult, tokenEvents);
@@ -1565,14 +1741,14 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // not the normal MCP pipeline. Applies to every vertical with a specialist registered.
   // Banking reaches here because nlIntentParser exempts this action from kind:'banking'.
   if (action === 'delegate_to_specialist') {
-    const a2aJson = await executeA2aDelegation(vertical, params || {}, { req, tokenEvents, sessionId });
+    const a2aJson = await executeA2aDelegation(vertical, params || {}, { req, tokenEvents, sessionId, hitlChallengeId });
     let a2a;
     try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
     return buildA2aReplyEnvelope(a2a, tokenEvents);
   }
 
   if (action === 'a2a_generalist_mismatch') {
-    const a2aJson = await executeA2aGeneralistMismatch(vertical, params || {}, { req, tokenEvents, sessionId });
+    const a2aJson = await executeA2aGeneralistMismatch(vertical, params || {}, { req, tokenEvents, sessionId, hitlChallengeId });
     let a2a;
     try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
     return buildA2aReplyEnvelope(a2a, tokenEvents);
@@ -1668,7 +1844,8 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       success: false,
       action,
       requiresConsent: !isStepUp,
-      hitlChallengeId: parsed.hitlChallengeId || null,
+      // The gateway's held body names the challenge `challengeId` (mcpToolPipeline hitlBody); `hitlChallengeId` is the envelope name.
+      hitlChallengeId: parsed.hitlChallengeId || parsed.challengeId || null,
       toolsCalled: [action],
       tokensUsed: 0,
       agentConfigured: true,

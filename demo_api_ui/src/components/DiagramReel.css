@@ -115,3 +115,14 @@
 .dreel-ref--emerging { background: #ff8c00; color: #000000; }
 .dreel-ref--spec { background: #5a5f69; }
 .dreel-refs-note { margin: 6px 0 0; font-size: var(--font-size-3xs); opacity: .8; }
+
+/* JSON colours in the code boxes (white box, so fixed dark-enough hues; no purple) and the A-/A/A+ size buttons. */
+.dreel-json-key { color: #1f5fbf; }
+.dreel-json-str { color: #14732d; }
+.dreel-json-num { color: #a14b00; }
+.dreel-json-lit { color: #b42318; }
+.dreel-font { margin-left: auto; display: inline-flex; gap: 4px; }
+.dreel-font button { min-width: 32px; padding: 2px 8px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.dreel-font button[aria-pressed="true"] { background: var(--th-status-info-bg); border-color: var(--th-status-info); }
+.dreel-detail[data-font-size="small"] { zoom: 0.9; }
+.dreel-detail[data-font-size="large"] { zoom: 1.25; }

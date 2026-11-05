@@ -33,7 +33,13 @@ function navPaths() {
 // reached from another page, legacy redirects, dev/showcase pages, and admin sub-consoles opened from
 // their own hub. Keep this list short: a real page belongs in the nav.
 const EXEMPT = new Set([
+  // DaVinci legacy aliases: redirect-only, canonical paths are in the nav (config/davinciFamily.js)
+  '/orchestration-sdk',
+  '/davinci-orchestration',
+  '/davinci-sdk-login',
+  '/davinci-login-guide',
   '/pingfederate-id-jag/learn', // deep link from the ID-JAG Playground header
+  '/pingfederate-id-jag/inspect', // deep link from the ID-JAG Playground header and Learn
   '/activity',
   '/admin',
   '/admin/walbuy',
@@ -48,6 +54,7 @@ const EXEMPT = new Set([
   '/authz-server-rules',
   '/authz-test',
   '/ciba-approve',
+  '/ciba-email-approve',
   '/compliance-modal-popout',
   '/config',
   '/copilot',
@@ -58,7 +65,6 @@ const EXEMPT = new Set([
   '/demo-guide-popout',
   '/demo/footprint-mocks',
   '/demo/footprint-picks',
-  '/external-door-diagrams',
   '/feature-flags',
   '/intent-binding-learning',
   '/jev-demos',
@@ -77,6 +83,10 @@ const EXEMPT = new Set([
   '/path/dualtoken-info',
   '/path/feature',
   '/personal-agent/client',
+  '/personal-agent/dot/full',
+  '/personal-agent/learn',
+  '/group-policy/full',
+  '/personal-agent/full',
   '/pinggateway-inspector',
   '/pinggateway-test',
   '/profile',
@@ -90,7 +100,10 @@ const EXEMPT = new Set([
   '/security',
   '/servers',
   '/spinner-showcase',
+  '/privilege-cedar',
   '/standalone',
+  '/standalone/ai-policies',
+  '/standalone/cedar',
   '/standalone/runner/m2m',
   '/themes',
   '/user-accounts',

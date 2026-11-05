@@ -34,6 +34,47 @@ describe('externalAgents data module', () => {
     expect(EXTERNAL_AGENTS.every((a) => a.verification === 'expected')).toBe(true);
   });
 
+  it('consumer assistants connect only from the app directory (no URL, no paste in customer steps)', () => {
+    const directory = EXTERNAL_AGENTS.filter((a) => a.path === 'directory').map((a) => a.id);
+    expect(directory).toEqual(['muse-app', 'grok-app', 'chatgpt']);
+    for (const a of EXTERNAL_AGENTS.filter((x) => x.path === 'directory')) {
+      expect(a.assistant, a.id).toBeTruthy();
+      expect(a.setup.length, a.id).toBeGreaterThanOrEqual(4);
+      for (const step of a.setup) {
+        const text = `${step.title} ${step.body}`;
+        expect(text, a.id).not.toMatch(/https?:\/\//i);
+        expect(text, a.id).not.toMatch(/\/mcp\b|localhost/i);
+        expect(text, a.id).not.toMatch(/paste/i);
+        expect(text, a.id).not.toMatch(/client[ _-]?id/i);
+        expect(text, a.id).not.toMatch(/\bdoor\b/i);
+      }
+      const all = a.setup.map((s) => s.body).join(' ');
+      expect(all, a.id).toMatch(/directory/i);
+      expect(all, a.id).toMatch(/Connect/);
+      expect(all, a.id).toMatch(/PingOne/);
+      expect(all, a.id).toContain('sub=user, act=agent');
+      // The real URL is kept only in the presenter-only rehearsal note.
+      expect(a.rehearsal, a.id).toContain(STANDARD_DOOR);
+    }
+  });
+
+  it('every non-directory agent is labelled a developer path', () => {
+    for (const a of EXTERNAL_AGENTS) {
+      expect(['directory', 'developer'], a.id).toContain(a.path);
+    }
+    const developer = EXTERNAL_AGENTS.filter((a) => a.path === 'developer').map((a) => a.id);
+    expect(developer).toEqual(['muse-code', 'grok-cli', 'lm-studio', 'librechat']);
+  });
+
+  it('lesson-catalog demo steps for consumer assistants never ask the customer to paste a URL', () => {
+    for (const id of ['muse-app', 'grok-app', 'chatgpt']) {
+      const lesson = getLesson(id);
+      expect(lesson.walkthrough.length, id).toBeGreaterThan(0);
+      const text = JSON.stringify([lesson.walkthrough, lesson.talkingPoints]);
+      expect(text, id).not.toMatch(/paste|https?:\/\/|SE-host (door )?URL/i);
+    }
+  });
+
   it('every agent has a lesson-catalog entry with a matching route', () => {
     for (const id of IDS) {
       const lesson = getLesson(id);

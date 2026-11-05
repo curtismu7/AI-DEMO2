@@ -5,11 +5,15 @@ import {
   chunkTestFiles,
   findMemoryLimitExceeded,
   monitorVitest,
+  parseShard,
   parseVitestFileList,
   parseProcessTable,
+  selectShard,
+  MAX_BLIND_MS,
+  PS_TIMEOUT_MS,
   VITEST_RSS_LIMIT_BYTES,
 } from '../run-vitest-with-memory-guard.mjs'
-import { applyVitestMemoryLimits } from '../vitest-memory-guard.config.mjs'
+import { VITEST_MAX_WORKERS, applyVitestMemoryLimits } from '../vitest-memory-guard.config.mjs'
 
 async function waitForOutput(predicate, getOutput, timeoutMs = 3_000) {
   const startedAt = Date.now()
@@ -61,11 +65,11 @@ describe('Vitest memory guard', () => {
       test: {
         environment: 'jsdom',
         pool: 'forks',
-        maxWorkers: 2,
+        maxWorkers: VITEST_MAX_WORKERS,
         poolOptions: {
           forks: {
             execArgv: ['--max-old-space-size=1400'],
-            maxForks: 2,
+            maxForks: VITEST_MAX_WORKERS,
             minForks: 1,
           },
         },
@@ -250,5 +254,53 @@ describe('Vitest memory guard', () => {
 
     expect(result.type).toBe('monitor-error')
     expect(stopProcessTree).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('guard tolerance on a heavily loaded CI host', () => {
+  it('keeps the process-table timeout and blind window at or above the floors that stopped healthy runs', () => {
+    // Below these the guard killed green runs on the shared runner (host load 60-330).
+    expect(PS_TIMEOUT_MS).toBeGreaterThanOrEqual(15_000)
+    expect(MAX_BLIND_MS).toBeGreaterThanOrEqual(120_000)
+    // ...and never longer than a runaway worker could safely go unwatched.
+    expect(MAX_BLIND_MS).toBeLessThanOrEqual(5 * 60_000)
+  })
+})
+
+
+describe('splitting the full suite across CI shards', () => {
+  const files = Array.from({ length: 23 }, (_, i) => `src/pages/__tests__/Page${String(22 - i).padStart(2, '0')}.test.jsx`)
+
+  it('runs everything when no shard is set', () => {
+    expect(parseShard(undefined)).toBeNull()
+    expect(parseShard('')).toBeNull()
+    expect(selectShard(files, null)).toBe(files)
+  })
+
+  it('parses "index/count" and rejects anything else instead of silently running the whole suite', () => {
+    expect(parseShard('2/4')).toEqual({ index: 2, count: 4 })
+    for (const bad of ['0/4', '5/4', '1/0', '2', 'a/b', '1/4/4', '-1/4']) {
+      expect(() => parseShard(bad), bad).toThrow(/VITEST_SHARD/)
+    }
+  })
+
+  it('partitions the suite: every file lands in exactly one shard, regardless of input order', () => {
+    const count = 4
+    const shards = Array.from({ length: count }, (_, i) => selectShard(files, { index: i + 1, count }))
+    expect(shards.flat().sort()).toEqual([...files].sort())
+    expect(new Set(shards.flat()).size).toBe(files.length)
+    const sizes = shards.map((shard) => shard.length)
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1)
+    expect(selectShard([...files].reverse(), { index: 3, count })).toEqual(shards[2])
+  })
+
+  it('does not mutate the discovered file list', () => {
+    const before = [...files]
+    selectShard(files, { index: 1, count: 3 })
+    expect(files).toEqual(before)
+  })
+
+  it('returns an empty slice when there are fewer files than shards, so the runner can refuse it', () => {
+    expect(selectShard(['a.test.js'], { index: 2, count: 4 })).toEqual([])
   })
 })

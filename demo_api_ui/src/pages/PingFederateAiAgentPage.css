@@ -307,3 +307,17 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 :root[data-theme="dark"] .pf-ai-agent__status.is-ready > span {
   color: #051727;
 }
+
+/* CIMD tester (components/pfAiAgent/PfCimdTester.jsx) */
+.pf-ai-agent__tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.pf-ai-agent__tabs button { padding: 6px 12px; border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
+.pf-ai-agent__tabs button.is-active { border-color: var(--pf-ai-accent); color: var(--pf-ai-accent); font-weight: 650; }
+.pf-ai-agent__field { display: grid; gap: 4px; margin: 12px 0 8px; font-size: var(--font-size-sm); }
+.pf-ai-agent__field textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-xs); }
+.pf-ai-agent__probe-table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: var(--font-size-sm); }
+.pf-ai-agent__probe-table th,
+.pf-ai-agent__probe-table td { padding: 6px 8px; border-bottom: 1px solid var(--th-border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+
+/* ID-JAG section: the way into the PingFederate ID-JAG demo */
+.pf-ai-agent__idjag-demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+.pf-ai-agent__idjag-demo p { flex-basis: 100%; margin: 0; }

@@ -82,18 +82,18 @@ die()     { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2)
 IMAGE_MAP=(
-  "ai-demo-k8-ui:ai-demo-frontend"
-  "ai-demo-k8-api-server:ai-demo-demo-api-server"
-  "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+  "ai-demo-k8-ui:ai-demo2-frontend"
+  "ai-demo-k8-api-server:ai-demo2-demo-api-server"
+  "ai-demo-k8-mcp-server:ai-demo2-mcp-server"
   "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
-  "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
-  "ai-demo-k8-authz-server:ai-demo-authz-server"
-  "ai-demo-k8-agent-service:ai-demo-agent-service"
-  "ai-demo-k8-hitl-service:ai-demo-hitl-service"
-  "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
-  "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
-  "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
-  "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
+  "ai-demo-k8-mcp-gateway:ai-demo2-mcp-gateway"
+  "ai-demo-k8-authz-server:ai-demo2-authz-server"
+  "ai-demo-k8-agent-service:ai-demo2-agent-service"
+  "ai-demo-k8-hitl-service:ai-demo2-hitl-service"
+  "ai-demo-k8-mcp-resource-server:ai-demo2-mcp-resource-server"
+  "ai-demo-k8-api-resource-server:ai-demo2-api-resource-server"
+  "ai-demo-k8-mcp-brave:ai-demo2-mcp-brave"
+  "ai-demo-k8-langchain-agent:ai-demo2-langchain-agent"
   "ai-demo-k8-llm-proxy:ai-demo-llm-proxy"
   "ai-demo-k8-tier-manager:ai-demo-tier-manager"
   "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
@@ -114,12 +114,13 @@ IMAGE_MAP=(
 # Unset = rewrite everything (CI / full-deploy path, unchanged behavior).
 FOCUS_DEPLOYMENTS="${FOCUS_DEPLOYMENTS:-}"
 
-# ghcr_name → k8s deployment name, derived from the map: ai-demo-<svc>. The
+# ghcr_name → k8s deployment name, derived from the map: ai-demo2-<svc> (older ai-demo-<svc> still accepted). The
 # authz-server sidecar lives INSIDE the mcp-gateway/ping-gateway pod templates,
 # so rewriting "the mcp-gateway deployment" rewrites its sidecar too — one key
 # per manifest, no separate sidecar list.
 ghcr_to_dep() {
   case "$1" in
+    ai-demo2-*) echo "${1#ai-demo2-}" ;;
     ai-demo-*) echo "${1#ai-demo-}" ;;
     *) echo "$1" ;;
   esac
@@ -313,6 +314,9 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # test12345@mailinator.com is the AIC (external IdP) test user, kept on at the
   # user's request (2026-10-14). Its Mailinator inbox is PUBLIC: anyone can read
   # its reset/OTP mail, so treat it as an open door through the wall.
+  # tarunmadiraju@pingidentity.com is a shared demo login (added 2026-10-20). An
+  # allowlisted identity also skips the required-group check, so its wall access
+  # survives the user-login app losing its groups attribute mapping.
   #
   # OAUTH_PROVIDER=pingone is pinned here deliberately: the UI's provider
   # toggle persists oauth_provider=pingfederate into LMDB, and the SE PF_*
@@ -320,14 +324,18 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # in-cluster pod health-checking them 503s and the startup probe CrashLoops
   # the BFF (2026-09-25). envFrom beats the LMDB store, so this pin makes the
   # toggle a no-op on SE regardless of what LMDB holds.
-  # The pinned value is ${SE_OAUTH_PROVIDER-pingone} (default pingone);
-  # SE_OAUTH_PROVIDER="" (set but empty) un-pins it so the UI toggle works.
+  # The pinned value is ${SE_OAUTH_PROVIDER:-pingone} (default pingone);
+  # An empty SE_OAUTH_PROVIDER no longer un-pins it (PR guard); set SE_OAUTH_PROVIDER=pingfederate to switch.
   #
   # PINGONE_{USER,ADMIN}_AUTHORIZE_PI_FLOW=true are pinned for the same reason:
   # both default to false, and with them off every SE login silently falls back
   # to the PingOne hosted redirect instead of the in-app pi.flow modal.
+  #
+  # ID_JAG_PLAYGROUND_STEP4_ENABLED=false is pinned because the Node demo MCP gateway's authz sidecar validates
+  # every token with PingOne on SE, so the ID-JAG playground's step 4 (oauth-mcp / PingFederate tokens) would
+  # always fail. false makes the page show one line instead of the "List tools" button. Unset = on (local Docker).
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com}\"}}"
+    "{\"data\":{\"ID_JAG_PLAYGROUND_STEP4_ENABLED\":\"false\",\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER:-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com,tarunmadiraju@pingidentity.com}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
@@ -348,7 +356,7 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # shared nginx-public controller routes on Host, so every namespace must
   # claim its own or two deploys collide silently. Owner namespaces keep the
   # canonical hosts (what's live today); everyone else derives <slug>.* from
-  # their namespace. APP_HOST/MCP_HOST/A2A_HOST override any derivation
+  # their namespace. APP_HOST/MCP_HOST/A2A_HOST/POPPY_HOST override any derivation
   # (loudly logged, e.g. to mirror an existing DNS name).
   owner_slug="${NS#ping-devops-}"
   case "$NS" in
@@ -356,11 +364,13 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
       derived_app_host="ai-demo.ping-devops.com"
       derived_mcp_host="cmuir-mcp.ping-devops.com"
       derived_a2a_host="langchain-a2a.ai-demo.ping-devops.com"
+      derived_poppy_host="poppy.ai-demo.ping-devops.com"
       ;;
     ping-devops-*)
       derived_app_host="${owner_slug}.ai-demo.ping-devops.com"
       derived_mcp_host="${owner_slug}-mcp.ping-devops.com"
       derived_a2a_host="a2a-${owner_slug}.ai-demo.ping-devops.com"
+      derived_poppy_host="poppy-${owner_slug}.ai-demo.ping-devops.com"
       ;;
     *)
       # Non-ping-devops namespaces: still derive from the full name so the
@@ -368,11 +378,13 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
       derived_app_host="${NS}.ai-demo.ping-devops.com"
       derived_mcp_host="${NS}-mcp.ping-devops.com"
       derived_a2a_host="a2a-${NS}.ai-demo.ping-devops.com"
+      derived_poppy_host="poppy-${NS}.ai-demo.ping-devops.com"
       ;;
   esac
   APP_HOST="${APP_HOST:-$derived_app_host}"
   MCP_HOST="${MCP_HOST:-$derived_mcp_host}"
   A2A_HOST="${A2A_HOST:-$derived_a2a_host}"
+  POPPY_HOST="${POPPY_HOST:-$derived_poppy_host}"
   if [[ "${APP_HOST:-}" != "$derived_app_host" || "${MCP_HOST:-}" != "$derived_mcp_host" || "${A2A_HOST:-}" != "$derived_a2a_host" ]]; then
     warn "Hostname override active: APP_HOST=$APP_HOST MCP_HOST=$MCP_HOST A2A_HOST=$A2A_HOST (derived would be $derived_app_host / $derived_mcp_host / $derived_a2a_host)"
   fi
@@ -500,12 +512,21 @@ done
 if [[ -n "$K8S_NAMESPACE" ]]; then
   # Hostnames were derived before the configmap patch (search "Per-engineer
   # hostnames"); APP_HOST etc. are already set here.
-  info "Applying SE cluster ingress (app=$APP_HOST mcp=$MCP_HOST a2a=$A2A_HOST)..."
+  info "Applying SE cluster ingress (app=$APP_HOST mcp=$MCP_HOST a2a=$A2A_HOST poppy=$POPPY_HOST)..."
   sed -e "s|<<NAMESPACE>>|$NS|g" \
       -e "s|<<APP_HOST>>|$APP_HOST|g" \
       -e "s|<<MCP_HOST>>|$MCP_HOST|g" \
       -e "s|<<A2A_HOST>>|$A2A_HOST|g" \
+      -e "s|<<POPPY_HOST>>|$POPPY_HOST|g" \
       "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
+  # The BFF serves the Poppy discovery documents only on this host. envFrom is read at
+  # pod start, so restart the api-server when the value changes. POPPY_ALLOWED_AGENTS
+  # stays unset (no agent accepted) until an operator lists the agents to trust.
+  prev_poppy_domain="$(kubectl get configmap ai-demo-config -n "$NS" -o jsonpath='{.data.POPPY_DOMAIN}' 2>/dev/null || true)"
+  if [[ "$prev_poppy_domain" != "$POPPY_HOST" ]]; then
+    kubectl patch configmap ai-demo-config -n "$NS" --type merge -p "{\"data\":{\"POPPY_DOMAIN\":\"$POPPY_HOST\"}}"
+    kubectl rollout restart deployment/demo-api-server -n "$NS" 2>/dev/null || true
+  fi
 else
   info "Applying ALB ingress..."
   # ingress.yaml ships with a placeholder ACM cert ARN — substitute the real one

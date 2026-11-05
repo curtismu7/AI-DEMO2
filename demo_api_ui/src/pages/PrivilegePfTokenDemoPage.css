@@ -1,0 +1,41 @@
+/* PingFederate token on Privilege demo. Tokens only (--th-*, --font-*, --radius-*), so light and dark both work. */
+.ppt-page { max-width: 1100px; margin: 0 auto; padding: 24px 24px 64px; color: var(--th-text); font-family: var(--font-primary); }
+.ppt-page h1 { font-size: var(--font-size-3xl); font-weight: 700; margin: 0 0 8px; }
+.ppt-page h2 { font-size: var(--font-size-lg); font-weight: 700; margin: 0 0 10px; }
+.ppt-page h3 { font-size: var(--font-size-md); font-weight: 600; margin: 0 0 6px; }
+.ppt-lede { font-size: var(--font-size-body); color: var(--th-text-body); max-width: 780px; }
+.ppt-muted { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.ppt-warn { padding: 8px 12px; border: 1px solid var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
+.ppt-card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 16px 18px 18px; margin-top: 16px; }
+.ppt-page code, .ppt-page pre { font-family: var(--font-mono); font-size: var(--font-size-xs); }
+.ppt-btn { padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--th-bg-emphasis); background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); font: inherit; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; margin: 6px 0; }
+.ppt-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ppt-result { margin-top: 12px; display: grid; gap: 12px; }
+.ppt-claims pre { margin: 0; padding: 10px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-sm); overflow: auto; line-height: 1.5; }
+.ppt-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.ppt-answer { padding: 12px 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); background: var(--th-bg-inset); }
+.ppt-answer p { margin: 4px 0; }
+.ppt-answer--ok { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); }
+.ppt-answer--ok .ppt-verdict { color: var(--th-status-success-text); }
+.ppt-answer--warn { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); }
+.ppt-answer--warn .ppt-verdict { color: var(--th-status-warning-text); }
+.ppt-answer--bad { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
+.ppt-answer--bad .ppt-verdict { color: var(--th-status-error-text); }
+.ppt-verdict { font-size: var(--font-size-lg); letter-spacing: 0.04em; }
+.ppt-tools { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 8px 0 0; }
+.ppt-tools li { padding: 2px 8px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); background: var(--th-bg-card); }
+.ppt-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); margin: 8px 0; }
+.ppt-table th, .ppt-table td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--th-border); }
+.ppt-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+.ppt-section > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.ppt-section > summary::-webkit-details-marker { display: none; }
+.ppt-section > summary::before { content: '▸'; color: var(--th-text-muted); transition: transform 0.15s; }
+.ppt-section[open] > summary::before { transform: rotate(90deg); }
+.ppt-section > summary h2 { display: inline; margin: 0; }
+.ppt-section[open] > summary { margin-bottom: 10px; }
+.ppt-section:not(.ppt-card) { margin-top: 16px; }
+.ppt-code { margin: 6px 0 10px; padding: 10px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-sm); overflow: auto; line-height: 1.5; white-space: pre; }
+.ppt-tier-verdict--ok { color: var(--th-status-success-text); }
+.ppt-tier-verdict--warn { color: var(--th-status-warning-text); }
+.ppt-tier-verdict--bad { color: var(--th-status-error-text); }
+@media (max-width: 640px) { .ppt-page { padding: 16px 16px 48px; } .ppt-table { display: block; overflow-x: auto; } }

@@ -8,8 +8,14 @@ metadata:
     component: api-server
 spec:
   replicas: 1
-  # Quota-safe restarts: terminate the old pod before creating the new one so a
-  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  # Terminate the old pod before creating the new one. Do NOT "fix" this to
+  # maxSurge: 1 / maxUnavailable: 0: bff-logs and lmdb-data are ReadWriteOnce EBS
+  # volumes pinned to one AZ, so a surge pod on another node hangs in
+  # ContainerCreating (Multi-Attach) while the old pod, which maxUnavailable: 0
+  # keeps alive, never releases them (and a surge pod on the same node would run a
+  # second BFF writing the same LMDB). The ai-demo-quota in k8s/01-namespace.yaml
+  # is not applied on SE. Before an SE rollout run scripts/se-capacity-check.sh;
+  # see docs/runbooks/se-cpu-rightsizing.md.
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -94,6 +100,12 @@ spec:
         # inside the pod. This env var must be set before the BFF starts.
         - name: AGENT_SERVICE_URL
           value: "http://agent-service:3006"
+        # Unattended-run policy (autonomousAuthorize.js) calls the mock PingOne
+        # Authorize. In k8s it is a loopback sidecar (below), exactly as in the
+        # mcp-gateway pod. Without this the BFF dials localhost:9001 ::1-first and
+        # every unattended run fails "authorization unavailable: ECONNREFUSED".
+        - name: PINGAUTHORIZE_ENDPOINT
+          value: "http://127.0.0.1:9001"
         # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
         # Mirrors docker-compose: the bootstrap script is mounted at /otel from
         # the otel-instrument ConfigMap (created by the deploy scripts).
@@ -143,7 +155,7 @@ spec:
             # 500m, was 750m: the BFF idles near 70m, and on 2026-10-04 a 750m request was the
             # difference between scheduling and "0/27 Insufficient cpu" on the shared SE cluster
             # (maxSurge 0, so a restart needs the slot back). Bursts are covered by the limit.
-            cpu: "500m"
+            cpu: "490m"
           limits:
             memory: "2Gi"
             cpu: "2000m"
@@ -169,6 +181,45 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
+          failureThreshold: 3
+      # Authorization Server (mock PingOne Authorize) as a loopback sidecar, same
+      # shape as the one in 60-mcp-gateway-deployment.yaml. Pinned to a GHCR tag
+      # (not the :latest placeholder) so deploy.sh's focused single-service
+      # deploys, which only rewrite the placeholders of in-focus services, never
+      # leave this container on an image that does not exist. Bump it with the
+      # gateway's authz-server tag when that changes.
+      - name: authz-server
+        image: ghcr.io/cmuir_pingcorp/ai-demo-authz-server:sha-9af44c3459faea380b7c1bb1f9d5a485965e0587
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9001
+          name: authz
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: AUTHZ_PORT
+          value: "9001"
+        envFrom:
+        - secretRef:
+            name: gateway-secrets
+        - configMapRef:
+            name: ai-demo-config
+        - secretRef:
+            name: ai-demo-secrets
+        resources:
+          requests:
+            memory: "96Mi"
+            cpu: "10m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        # Binds 127.0.0.1 only, so probe inside the container's netns.
+        readinessProbe:
+          exec:
+            command: ["wget", "-qO-", "http://127.0.0.1:9001/health"]
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
           failureThreshold: 3
       volumes:
       - name: tls-certs

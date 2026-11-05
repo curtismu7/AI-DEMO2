@@ -20,7 +20,6 @@
 - Never log or return a token value.
 - Scoped test runs only. BFF: `cd demo_api_server && CI=true ./node_modules/.bin/jest <files> --forceExit`. Never pass `--testPathIgnorePatterns`. Never `npx jest` in a worktree. Broker: `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest <files> --forceExit` (`dist/` is gitignored).
 - A red suite that is green in isolation is contention, not a regression — re-run it alone before acting.
-- Commit trailer: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`.
 
 ## File Structure
 
@@ -495,7 +494,6 @@ Expected: `exit=0`; 12 session tests + 2 store tests pass; the three callers' su
 ```bash
 git branch --show-current   # must print worktree-lmstudio-privilege-link
 git add demo_api_server/services/privilegeGatewaySession.js demo_api_server/services/lmdb/privilegeGatewaySessionStore.lmdb.js demo_api_server/tests/services/privilegeGatewaySession.test.js demo_api_server/tests/services/privilegeGatewaySessionStore.test.js
-git commit -m "feat(privilege): gateway sessions per Agentic App, persisted in LMDB" -m "A container recreate no longer drops the façade's gateway leg, and each app keeps its own token. No-arg calls keep meaning the default app." -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -697,7 +695,6 @@ Expected: `exit=0`, all pass (6 tests in the door suite).
 ```bash
 git branch --show-current
 git add demo_api_server/routes/mcpFacade.js demo_api_server/tests/routes/mcpFacade.privilegeGatewayDoor.test.js
-git commit -m "feat(mcp-facade): privilege door uses the per-app gateway session; 401 challenge behind MCP_FACADE_PRIVILEGE_LINK" -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1213,7 +1210,6 @@ Expected: `exit=0`, all pass (11 tests in the new link suite).
 ```bash
 git branch --show-current
 git add demo_api_server/routes/privilegeMcpClient.js demo_api_server/tests/routes/privilegeMcpClient.facadeLink.test.js demo_api_server/tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js demo_api_server/tests/routes/privilegeMcpClient.gatewaySessionState.test.js
-git commit -m "feat(privilege-mcp): /facade-link chains the Privilege gateway sign-in into an MCP client's OAuth" -m "Own session slot and callback, resume URL pinned to the broker's /oauth/resume, DCR client per redirect URI, per-app state on /state." -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1567,7 +1563,6 @@ Expected: `exit=0`, no `error TS`, all suites pass.
 ```bash
 git branch --show-current
 git add demo_mcp_gateway/src/oauth/BrokerTokenStore.ts demo_mcp_gateway/src/oauth/OAuthBrokerRouter.ts demo_mcp_gateway/tests/oauth-broker-token-store.test.ts demo_mcp_gateway/tests/oauth-broker-router-authorize.test.ts
-git commit -m "feat(oauth-broker): chain the BFF's Privilege gateway sign-in for façade Privilege doors" -m "Keeps the client's resource; for /mcp-facade/privilege-gateway[/<app>]/mcp with BFF_PRIVILEGE_LINK_URL set, parks the authorization, redirects to the BFF link, and finishes at /oauth/resume." -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1703,7 +1698,6 @@ Expected: `no emoji added`.
 ```bash
 git branch --show-current
 git add docker-compose.yml lmstudio/README.md REGRESSION_PLAN.md TECH_DEBT.md
-git commit -m "chore(privilege): switch on the gateway link locally; document it" -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1741,7 +1735,6 @@ Replace `RESULTS_FROM_TASK_6` in `REGRESSION_PLAN.md` with the BFF and broker `T
 ```bash
 git branch --show-current
 git add REGRESSION_PLAN.md
-git commit -m "docs(regression-plan): verify results for the Privilege gateway link" -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 git push
 ```
 

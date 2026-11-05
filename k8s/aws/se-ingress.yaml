@@ -2,7 +2,7 @@
 # Ingress for the Ping SE DevOps cluster (ping-dev-aws-us-east-2).
 # Uses the cluster's nginx ingress controller — no ALB/ACM needed.
 # <<NAMESPACE>> is substituted by deploy.sh with the actual namespace (e.g. ping-devops-cmuir).
-# <<APP_HOST>>, <<MCP_HOST>> and <<A2A_HOST>> are substituted by deploy.sh so each
+# <<APP_HOST>>, <<MCP_HOST>>, <<A2A_HOST>> and <<POPPY_HOST>> are substituted by deploy.sh so each
 # engineer's namespace gets its own hostname and shared nginx rules never collide.
 # Owner namespaces (ping-devops-cmuir, ping-devops-curtismuir) keep the canonical
 # ai-demo.ping-devops.com; everyone else gets <slug>.ai-demo.ping-devops.com.
@@ -132,10 +132,15 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # Login and callback endpoints are public by design, so bound them
-    # independently of authenticated application traffic.
-    nginx.ingress.kubernetes.io/limit-rps: "5"
-    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
-    nginx.ingress.kubernetes.io/limit-connections: "20"
+    # independently of authenticated application traffic. This ingress also
+    # serves every /assets request (Prefix path below): a single page load
+    # fetches ~30 files in parallel, so the per-visitor caps must leave room for
+    # that or the browser gets 503 on some chunks and the app stalls on its
+    # loading splash. Values match what is live on the SE cluster, which was raised
+    # by hand; this file had drifted at 5 / 3 / 20.
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "10"
+    nginx.ingress.kubernetes.io/limit-connections: "300"
     nginx.ingress.kubernetes.io/proxy-body-size: "1m"
 spec:
   ingressClassName: nginx-public
@@ -214,6 +219,15 @@ spec:
             name: frontend
             port:
               number: 4000
+      # Muse (personal agent page): PingOne sends the browser back here with a code. The route never relies on the session cookie;
+      # a one-time state value decides, so the wall must not intercept it (it 302'd an arriving browser to the wall login).
+      - path: /api/muse/callback
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /api/auth/hosted-access/logout
         pathType: Exact
         backend:
@@ -262,6 +276,29 @@ spec:
       # The bare '/' root is served by ai-demo-spa-ingress (no auth — see the
       # comment there); listing it here too would conflict on the same path.
       - path: /request-access
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # Public diagram pages for the gateway v1.261024/27/28 findings and the PingOne third-party token
+      # exchange. Static data only; they call no API that needs a session.
+      - path: /gateway-claims
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /poppy
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /p1-third-party-exchange
         pathType: Exact
         backend:
           service:
@@ -390,6 +427,37 @@ spec:
             port:
               number: 4000
       - path: /api/cimd/privilege/privilege-mcp-client/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # PingFederate fetches the PF AI Agent's CIMD document with no session.
+      - path: /api/pf-ai-agent/cimd/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # Documents that each break one CIMD rule, for PingFederate to refuse in the CIMD tester.
+      - path: /api/pf-ai-agent/cimd/negative/client-id-mismatch.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/pf-ai-agent/cimd/negative/shared-secret.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # PingFederate's RAR processor (server to server, own credential).
+      - path: /api/pf-ai-agent/rar/user-limits
         pathType: Exact
         backend:
           service:
@@ -534,6 +602,67 @@ spec:
             name: langchain-agent
             port:
               number: 8888
+---
+# Poppy (Personal Agent Protocol) host. Spec section 3.2 needs the protected-resource
+# `resource` to be exactly https://{domain}, which the main app host cannot give
+# (it already serves the banking and MCP resources). Only the discovery documents
+# and /poppy/api are routed here, straight to the BFF (the frontend nginx does not
+# proxy them). No sign-in wall: agents authenticate with a PingFederate bearer token
+# plus a Poppy-Session header, both verified by the BFF. external-dns creates the
+# record; the two-label host needs its own cert (see the A2A block above).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: poppy
+  namespace: <<NAMESPACE>>
+spec:
+  secretName: poppy-tls
+  issuerRef:
+    name: letsencrypt-pdo
+    kind: ClusterIssuer
+  dnsNames:
+    - <<POPPY_HOST>>
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: poppy-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+spec:
+  ingressClassName: nginx-public
+  tls:
+  - hosts:
+    - <<POPPY_HOST>>
+    secretName: poppy-tls
+  rules:
+  - host: <<POPPY_HOST>>
+    http:
+      paths:
+      - path: /.well-known/poppy.json
+        pathType: Exact
+        backend:
+          service:
+            name: demo-api-server
+            port:
+              number: 3001
+      - path: /.well-known/oauth-protected-resource
+        pathType: Exact
+        backend:
+          service:
+            name: demo-api-server
+            port:
+              number: 3001
+      - path: /poppy/api
+        pathType: Prefix
+        backend:
+          service:
+            name: demo-api-server
+            port:
+              number: 3001
 ---
 # The /mcpgw path-based Ingress that used to live here (ai-demo-mcpgw-ingress,
 # on this same shared host) is REMOVED as of 2026-08-13 — proven live to be

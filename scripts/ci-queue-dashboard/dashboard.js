@@ -52,6 +52,8 @@ const elements = {
   deployLocal: document.getElementById('deploy-local'),
   deployRecent: document.getElementById('deploy-recent'),
   deployBuilds: document.getElementById('deploy-builds'),
+  deploySe: document.getElementById('deploy-se'),
+  deploySeState: document.getElementById('deploy-se-state'),
 };
 
 function node(tag, className, text) {
@@ -393,12 +395,18 @@ function renderHostLoad(host) {
   elements.hostLoad.hidden = !host;
   if (!host) return;
   const ratio = host.cores ? host.load1 / host.cores : 0;
-  elements.hostLoadFigure.textContent = `Load ${host.load1} on ${host.cores} cores`;
+  const mem = host.mem;
+  const memText = mem?.totalMb ? ` · Memory ${(mem.usedMb / 1024).toFixed(1)} of ${(mem.totalMb / 1024).toFixed(0)} GB used` : '';
+  elements.hostLoadFigure.textContent = `Load ${host.load1} on ${host.cores} cores${memText}`;
   elements.hostLoad.dataset.pressure = ratio >= 2 ? 'high' : ratio >= 1 ? 'raised' : 'normal';
   elements.hostLoadContent.replaceChildren();
   if (ratio >= 1) {
     elements.hostLoadContent.append(node('p', 'host-load-note',
       `This Mac has ${ratio.toFixed(1)} times more runnable work than cores, so CI jobs will run slower than usual.`));
+  }
+  const groups = Array.isArray(host.contributors) ? host.contributors : [];
+  if (groups.length) {
+    elements.hostLoadContent.append(node('p', 'host-load-groups', `Running now: ${groups.map((item) => `${item.count} ${item.label.toLowerCase()}`).join(', ')}.`));
   }
   const list = node('ul', 'host-load-list');
   for (const item of Array.isArray(host.top) ? host.top : []) {
@@ -428,11 +436,47 @@ function serviceSummary(services) {
   return services.length > 4 ? `${shown} and ${services.length - 4} more` : shown;
 }
 
-function renderDeploy(deploy, builds) {
+function renderSeDeploy(se) {
+  elements.deploySe.replaceChildren();
+  if (!se?.available) {
+    elements.deploySeState.textContent = '';
+    elements.deploySe.append(node('p', 'placeholder', 'SE US cluster state is unavailable (kubectl context us).'));
+    return;
+  }
+  const outOfDate = se.outOfDate || [];
+  const unknown = se.unknown || [];
+  const current = se.current || [];
+  elements.deploySeState.textContent = outOfDate.length ? 'Behind main' : unknown.length ? 'No known changes pending' : 'In sync with main';
+  elements.deploySeState.dataset.state = outOfDate.length ? 'pending' : 'current';
+  for (const item of outOfDate) {
+    const row = node('div', 'deploy-row deploy-row--pending');
+    row.append(node('span', 'deploy-services', item.service));
+    row.append(node('span', 'deploy-detail', `${item.files} ${item.files === 1 ? 'file' : 'files'} changed since ${item.sha}`));
+    elements.deploySe.append(row);
+  }
+  if (current.length) {
+    const row = node('div', 'deploy-row');
+    row.append(node('span', 'deploy-services', serviceSummary(current)));
+    row.title = current.join(', ');
+    row.append(node('span', 'deploy-detail', 'no source changes since their image'));
+    elements.deploySe.append(row);
+  }
+  if (unknown.length) {
+    const row = node('div', 'deploy-row');
+    row.append(node('span', 'deploy-services', serviceSummary(unknown.map((item) => item.service))));
+    row.title = unknown.map((item) => `${item.service} at ${item.sha}`).join(', ');
+    row.append(node('span', 'deploy-detail', 'no source folder mapped, cannot tell'));
+    elements.deploySe.append(row);
+  }
+  if (!outOfDate.length && !current.length && !unknown.length) elements.deploySe.append(node('p', 'placeholder', 'No ai-demo images found on the cluster.'));
+}
+
+function renderDeploy(deploy, builds, se) {
   const local = deploy?.available ? deploy : null;
   const buildList = Array.isArray(builds) ? builds : [];
-  elements.deployPanel.hidden = !local && buildList.length === 0;
+  elements.deployPanel.hidden = !local && buildList.length === 0 && !se;
   if (elements.deployPanel.hidden) return;
+  renderSeDeploy(se);
 
   const pending = (local?.groups || []).filter((group) => group.commitsSince > 0);
   const running = Boolean(local?.lock?.running);
@@ -494,7 +538,7 @@ function renderInsights(insights) {
   renderStaleRuns(insights);
   renderHostLoad(insights?.host);
   renderWaitTrend(insights?.turnaroundTrend);
-  renderDeploy(insights?.deploy, insights?.imageBuilds);
+  renderDeploy(insights?.deploy, insights?.imageBuilds, insights?.se);
 }
 
 function renderWorkflowControls(controls) {
@@ -520,7 +564,8 @@ function renderWorkflowControls(controls) {
 
 function renderRunnerControls(controls) {
   elements.runnerControls.replaceChildren();
-  elements.runnerControlNote.textContent = controls?.error || '';
+  elements.runnerControlNote.textContent = controls?.error
+    || (controls?.runnersUnavailable ? 'GitHub does not list runners for this repository to non-admins, so this shows the runner services on this Mac. Online and busy state is not available.' : '');
   const runners = Array.isArray(controls?.runners) ? controls.runners : [];
   if (controls?.error) return;
   if (!runners.length) {
@@ -534,10 +579,15 @@ function renderRunnerControls(controls) {
     identity.append(node('span', 'control-name', runner.name));
     const localPaused = Boolean(runner.localPaused);
     const busy = Boolean(runner.busy);
-    const stateText = localPaused ? 'Paused on this machine' : `${runner.status} · ${busy ? 'Busy' : 'Idle'}`;
-    identity.append(node('span', `control-state${runner.status === 'online' && !busy && !localPaused ? ' control-state--active' : ''}`, stateText));
+    const isLocal = runner.source === 'local';
+    const stateText = isLocal
+      ? `${runner.localState === 'running' ? 'Running' : 'Stopped'} on this Mac`
+      : localPaused ? 'Paused on this machine' : `${runner.status} · ${busy ? 'Busy' : 'Idle'}`;
+    identity.append(node('span', `control-state${isLocal ? (runner.localState === 'running' ? ' control-state--active' : '') : (runner.status === 'online' && !busy && !localPaused ? ' control-state--active' : '')}`, stateText));
     row.append(identity);
-    if (runner.localControlAvailable) {
+    if (isLocal) {
+      // display-only: GitHub's own status for this runner is not readable
+    } else if (runner.localControlAvailable) {
       hasLocalControl = true;
       const action = localPaused ? 'resume' : 'pause';
       const button = makeActionButton('runner', action, runner.id, localPaused ? 'Resume runner' : 'Pause runner');
@@ -549,7 +599,7 @@ function renderRunnerControls(controls) {
     }
     elements.runnerControls.append(row);
   }
-  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Pause and resume appear only for runners whose service is loaded on this Mac.';
+  if (!hasLocalControl && !controls?.runnersUnavailable) elements.runnerControlNote.textContent = 'Pause and resume appear only for runners whose service is loaded on this Mac.';
 }
 
 function renderControls(controls) {

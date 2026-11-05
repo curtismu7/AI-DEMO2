@@ -5,20 +5,21 @@
  * PingOne — the BFF still redeems a PingOne code and holds PingOne tokens.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_LOGIN_AIC as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (browser)", sub: ["clicks Sign in"], x: 40, y: 150, detail: "Clicks 'Sign in with AIC'; she authenticates at AIC, and after the round trip her browser holds only a session cookie." },
-  { id: "bff", group: "gateway", label: "BFF", sub: ["mints PKCE", "holds tokens"], x: 340, y: 150, detail: "Turns AIC sign-in on, destroys the old session, generates the code_verifier server-side and redirects to PingOne asking for the AIC_Login policy. It redeems PingOne's code and stores PingOne's tokens in the server session." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["authorization server", "federates to AIC"], x: 640, y: 150, detail: "Runs the AIC_Login sign-on policy, whose one step is the AIC external identity provider. After AIC returns, PingOne links or creates the user and issues its own authorization code and tokens." },
-  { id: "aic", group: "external", label: "PingOne AIC", sub: ["authenticates the person"], x: 640, y: 340, detail: "PingOne Advanced Identity Cloud, alpha realm. PingOne is an OIDC client of AIC: the person signs in here and AIC returns a code to PingOne's callback." },
-  { id: "rs", group: "resource", label: "Resource server", sub: ["/resource-server"], x: 940, y: 150, detail: "The OIDC Resource Server page uses the PingOne login token directly: no token exchange, PingOne Authorize or Agent Gateway." },
+  { id: "bff", group: "gateway", label: "BFF", sub: ["mints PKCE", "holds tokens"], x: 480, y: 150, detail: "Turns AIC sign-in on, destroys the old session, generates the code_verifier server-side and redirects to PingOne asking for the AIC_Login policy. It redeems PingOne's code and stores PingOne's tokens in the server session." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["authorization server", "federates to AIC"], x: 930, y: 150, detail: "Runs the AIC_Login sign-on policy, whose one step is the AIC external identity provider. After AIC returns, PingOne links or creates the user and issues its own authorization code and tokens." },
+  { id: "aic", group: "external", label: "PingOne AIC", sub: ["authenticates the person"], x: 930, y: 340, detail: "PingOne Advanced Identity Cloud, alpha realm. PingOne is an OIDC client of AIC: the person signs in here and AIC returns a code to PingOne's callback." },
+  { id: "rs", group: "resource", label: "Resource server", sub: ["/resource-server"], x: 1370, y: 150, detail: "The OIDC Resource Server page uses the PingOne login token directly: no token exchange, PingOne Authorize or Agent Gateway." },
 ];
 
 const EDGES = [
   ["user", "bff", "force fresh sign-in", { detail: "'Sign in with AIC' — her identity lives in AIC, her tokens stay on the server." }],
   ["bff", "p1", "acr_values=AIC_Login", { detail: "A normal PKCE authorize request to PingOne, naming the sign-on policy that hands off to AIC." }],
-  ["p1", "aic", "redirect to AIC", { detail: "PingOne sends the browser to AIC's authorize endpoint as an OIDC client." }],
-  ["aic", "p1", "code to PingOne", { detail: "AIC authenticates the person and returns a code to PingOne's callback; AIC's tokens stop at PingOne." }],
+  ["p1", "aic", "redirect to AIC", { lane: -60, detail: "PingOne sends the browser to AIC's authorize endpoint as an OIDC client." }],
+  ["aic", "p1", "code to PingOne", { lane: 60, detail: "AIC authenticates the person and returns a code to PingOne's callback; AIC's tokens stop at PingOne." }],
   ["p1", "rs", "callback + exchange", { detail: "PingOne's own code returns to the BFF callback; the PingOne tokens it buys stay in the server session." }],
   ["rs", "user", "cookie, not token", { detail: "The PingOne login token is validated directly — no exchange, no Authorize, no gateway." }],
 ];
@@ -77,8 +78,10 @@ const walk = [
 export default {
   id: "UC-LOGIN-AIC",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

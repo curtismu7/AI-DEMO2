@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { render, screen, fireEvent, act } from "@testing-library/react";
@@ -15,6 +15,18 @@ window.ResizeObserver = ResizeObserverStub;
 Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 250 });
 Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => 40 });
 window.DOMMatrixReadOnly = window.DOMMatrixReadOnly || class {};
+
+// Every real config now opts in, so UC48 is served here as a synthetic config that does not.
+vi.mock("../../config/useCaseDiagrams", async (importActual) => {
+  const actual = await importActual();
+  return {
+    ...actual,
+    getConfig: (id) => {
+      const cfg = actual.getConfig(id);
+      return id === "UC48" && cfg ? { ...cfg, pingStyle: false, steps: undefined } : cfg;
+    },
+  };
+});
 
 import UseCaseDiagramPage from "../UseCaseDiagramPage";
 
@@ -52,8 +64,8 @@ describe("UseCaseDiagramPage with a pingStyle config (pilot UC-NHI2)", () => {
 
 describe("UseCaseDiagramPage with a config that does not opt in", () => {
   it("is unchanged: no Ping class, key, badges or selection ring; the page panel shows the picked node", async () => {
-    renderAt("UC11");
-    fireEvent.click(await screen.findByTestId("ucd-uc11-node-gw"));
+    renderAt("UC48");
+    fireEvent.click(await screen.findByTestId("ucd-uc48-node-gw"));
     expect(document.querySelector(".sfd--ping")).toBeNull();
     expect(screen.queryByLabelText("Arrow key")).toBeNull();
     expect(screen.queryByTestId("sfd-edge-badge-1")).toBeNull();
@@ -81,7 +93,7 @@ describe("per-step detail (cfg.steps)", () => {
   });
 
   it("a config without steps renders no step detail", async () => {
-    renderAt("UC11");
+    renderAt("UC48");
     await screen.findByTestId("ucd-panel");
     expect(screen.queryByTestId("ucd-step-detail")).toBeNull();
   });

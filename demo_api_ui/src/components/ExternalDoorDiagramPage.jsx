@@ -97,6 +97,14 @@ export default function ExternalDoorDiagramPage() {
             enforcement, out to the real PingOne login, and on to the Banking API.
             Click any box for its role, the request on the wire, the mock tokens and the standards.</>} />
 
+        <p className="mgof-why" data-testid="pmd-why">
+          <b>Why we care:</b> this map shows where the checks happen. The gateway enforces policy on every /mcp call,
+          but the sign-in paths (register, authorize, token) pass straight through to oauth-mcp, where the login is
+          decided. An external client you don't control can reach this public address, so knowing which box does which
+          job tells you where a request is checked, where it is only passed along, and what to look at when a call is
+          refused.
+        </p>
+
         <div className="pmd-panel">
           <EmbeddedFlowDiagram
             config={EXT_DOOR_TOPO_DIAGRAM}
@@ -126,6 +134,14 @@ export default function ExternalDoorDiagramPage() {
             PingOne login through oauth-mcp's federated authorization_code grant.
             The bottom flow authenticated with client_credentials — no user ever
             signed in, so there is no PingOne token to hand downstream.</>} />
+
+        <p className="mgof-why" data-testid="mgof-why">
+          <b>Why we care:</b> the bearer decides who the Banking API thinks is calling. With the federated token, the API
+          sees the real person behind the request, so it can apply that person's permissions and the audit log names them.
+          With client_credentials, the API only sees the client application. Whatever that client is allowed to do, anyone
+          holding its secret can do, and nothing downstream can tell the users apart or ask for their consent. Per-user
+          control only works when the person's own PingOne login is in the chain.
+        </p>
 
         <DiagramExportBar
           source={uploadedSeq ?? SEQUENCE_SOURCE}

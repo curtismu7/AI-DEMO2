@@ -1,5 +1,5 @@
 ARG GIT_SHA=unknown
-FROM node:22-alpine
+FROM node:26-alpine
 ENV GIT_SHA=$GIT_SHA
 
 WORKDIR /app

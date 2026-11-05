@@ -77,6 +77,12 @@ spec:
         # both, emitHop() silently no-ops (fail-open by design).
         - name: BFF_TRANSACTION_HOP_URL
           value: "https://demo-api-server:3001/internal/transaction-hop"
+        # Verify PingFederate-issued tokens forwarded by Privilege doors in Pass Agent Token mode (whoami demo).
+        # Set here, not in the shared config, because demo_api_server reads PF_ISSUER for its own sign-in.
+        - name: PF_ISSUER
+          value: "https://cmuir-pf.ping-devops.com"
+        - name: PF_JWKS_URI
+          value: "https://cmuir-pf.ping-devops.com/pf/JWKS"
         envFrom:
         - configMapRef:
             name: ai-demo-config
@@ -92,7 +98,7 @@ spec:
         resources:
           requests:
             memory: "128Mi"
-            cpu: "100m"
+            cpu: "50m"  # was 100m; SE idle use is a few m, see docs/runbooks/se-cpu-rightsizing.md
           limits:
             memory: "512Mi"
             cpu: "500m"

@@ -54,10 +54,32 @@ const PLAYGROUND_PATH = '/pingfederate-id-jag/playground';
 const MODES = ['oauth-mcp', 'pf-pf', 'byo'];
 const env = (k) => String(process.env[k] || '').trim();
 
+/**
+ * The pf-pf REDEEMER (resource AS). Its own settings, each falling back to the app's login
+ * PingFederate so the local Docker stack (where that PF is the redeemer) needs none of them.
+ * On SE the login PF is the issuer too, so SE sets PF_IDJAG_PF_REDEEMER_ISSUER to the Acme PF.
+ *   issuer          pf_id_jag_pf_redeemer_issuer / PF_IDJAG_PF_REDEEMER_ISSUER      (ID-JAG audience)
+ *   token endpoint  pf_id_jag_pf_redeemer_token_endpoint / PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT
+ *   client id       pf_id_jag_pf_redeemer_client_id / PF_IDJAG_PF_REDEEMER_CLIENT_ID
+ *   resource        pf_id_jag_pf_resource / PF_IDJAG_PF_RESOURCE
+ *   client secret   PF_IDJAG_PF_REDEEMER_CLIENT_SECRET (env only)
+ */
+function pfRedeemerSettings() {
+  const own = (cfg('pf_id_jag_pf_redeemer_issuer') || env('PF_IDJAG_PF_REDEEMER_ISSUER')).replace(/\/$/, '');
+  const issuer = own || cfg('pf_issuer') || cfg('pf_issuer_uri');
+  const tokenEndpoint = cfg('pf_id_jag_pf_redeemer_token_endpoint') || env('PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT')
+    || (own ? `${own}/as/token.oauth2` : cfg('pf_token_endpoint'));
+  return {
+    issuer, tokenEndpoint,
+    clientId: cfg('pf_id_jag_pf_redeemer_client_id') || env('PF_IDJAG_PF_REDEEMER_CLIENT_ID') || 'ai-demo-pf-idjag-redeemer',
+    resource: cfg('pf_id_jag_pf_resource') || env('PF_IDJAG_PF_RESOURCE') || 'https://api.ping.demo:3036/mcp',
+  };
+}
+
 function pfPfSettings() {
   const issuer = (cfg('pf_id_jag_issuer_pf_url') || env('PF_IDJAG_ISSUER_PF_URL')
     || (env('PINGFEDERATE_HOST') ? `https://${env('PINGFEDERATE_HOST')}` : '')).replace(/\/$/, '');
-  const localIssuer = cfg('pf_issuer') || cfg('pf_issuer_uri');
+  const redeemer = pfRedeemerSettings();
   return {
     provider: configStore.getOAuthProvider?.() || null,
     enabled: ['true', true].includes(configStore.getEffective('pf_id_jag_enabled')),
@@ -70,14 +92,14 @@ function pfPfSettings() {
       exchangeClientId: cfg('pf_user_client_id'),
     },
     resourceAs: {
-      name: 'PingFederate (local, resource AS)',
-      issuer: localIssuer,
-      tokenEndpoint: cfg('pf_token_endpoint'),
-      clientId: cfg('pf_id_jag_pf_redeemer_client_id') || 'ai-demo-pf-idjag-redeemer',
+      name: 'PingFederate (redeemer, resource AS)',
+      issuer: redeemer.issuer,
+      tokenEndpoint: redeemer.tokenEndpoint,
+      clientId: redeemer.clientId,
     },
     request: {
-      audience: localIssuer,
-      resource: cfg('pf_id_jag_pf_resource') || 'https://api.ping.demo:3036/mcp',
+      audience: redeemer.issuer,
+      resource: redeemer.resource,
       scope: cfg('pf_id_jag_scope'),
       subjectTokenType: 'urn:ietf:params:oauth:token-type:refresh_token',
     },
@@ -87,9 +109,27 @@ function pfPfSettings() {
 function pfPfUnavailableReason() {
   const s = pfPfSettings();
   if (!s.idp.issuer) return 'Set PF_IDJAG_ISSUER_PF_URL (or PINGFEDERATE_HOST) to the SE PingFederate.';
-  if (!env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET')) return 'PF_IDJAG_PF_REDEEMER_CLIENT_SECRET is not set for the local PingFederate redeemer.';
+  if (s.resourceAs.issuer && s.resourceAs.issuer.replace(/\/$/, '') === s.idp.issuer) {
+    return 'The issuer and the redeemer are the same PingFederate, and an IdP must not redeem its own ID-JAG. Set PF_IDJAG_PF_REDEEMER_ISSUER to a second PingFederate.';
+  }
+  if (!env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET')) return 'PF_IDJAG_PF_REDEEMER_CLIENT_SECRET is not set for the redeemer PingFederate.';
   return null;
 }
+
+/**
+ * Where a mode's sign-in lives. pf-pf always signs in at the SE issuer. oauth-mcp uses the app's own session
+ * when the login provider is PingFederate, and otherwise (PingOne login) the playground's own issuer sign-in at
+ * the same PingFederate: the shared provider is never changed for it.
+ */
+const issuerModeOf = (req) => (modeOf(req) === 'oauth-mcp' ? 'oauth-mcp' : 'pf-pf');
+const issuerIdp = (mode) => (mode === 'oauth-mcp' ? settings('oauth-mcp').idp : pfPfSettings().idp);
+const issuerUnavailableReason = (mode) => {
+  if (mode !== 'oauth-mcp') return pfPfUnavailableReason();
+  const { idp } = settings('oauth-mcp');
+  if (!idp.issuer) return 'Set PF_ISSUER to the PingFederate that issues the ID-JAG.';
+  if (!idp.exchangeClientId || !cfg('pf_user_client_secret')) return 'The PingFederate user client (PF_USER_CLIENT_ID / PF_USER_CLIENT_SECRET) is not configured.';
+  return null;
+};
 
 const modeOf = (req) => (MODES.includes(req?.session?.idJagPlaygroundMode) ? req.session.idJagPlaygroundMode : 'oauth-mcp');
 
@@ -114,6 +154,7 @@ function settings(mode = 'oauth-mcp') {
       issuer,
       jwksUrl: cfg('pf_jwks_uri') || (issuer ? `${issuer}/pf/JWKS` : ''),
       tokenEndpoint: cfg('pf_token_endpoint'),
+      authorizationEndpoint: cfg('pf_authorization_endpoint') || (issuer ? `${issuer}/as/authorization.oauth2` : ''),
       exchangeClientId: cfg('pf_user_client_id') || cfg('pf_token_exchange_client_id'),
     },
     resourceAs: {
@@ -182,9 +223,18 @@ function subjectToken(req, type) {
   return token && token !== '_cookie_session' ? token : null;
 }
 
+function usesIssuerSession(req) {
+  const mode = modeOf(req);
+  return mode === 'pf-pf' || (mode === 'oauth-mcp' && settings('oauth-mcp').provider !== 'pingfederate');
+}
+
 function pfSignedIn(req) {
   const s = req.session || {};
-  if (modeOf(req) === 'pf-pf') return Boolean(s.idJagIssuer?.refreshToken);
+  if (usesIssuerSession(req)) {
+    // A session stored for another issuer is not this mode's sign-in.
+    const held = s.idJagIssuer;
+    return Boolean(held?.refreshToken && (!held.issuer || held.issuer === issuerIdp(issuerModeOf(req)).issuer));
+  }
   return Boolean(s.oauthProvider === 'pingfederate' && s.oauthTokens?.refreshToken);
 }
 
@@ -205,10 +255,13 @@ function requirePf(req, res, next) {
     if (!pfSignedIn(req)) return res.status(401).json({ error: 'pf_sign_in_required', message: 'Sign in at the SE PingFederate first; it issues the ID-JAG.' });
     return next();
   }
-  if (s.provider !== 'pingfederate') {
-    return res.status(409).json({ error: 'id_jag_provider_required', message: 'ID-JAG runs on PingFederate. Switch the login provider to PingFederate and sign in.' });
-  }
   if (!s.enabled) return res.status(409).json({ error: 'id_jag_disabled', message: 'pf_id_jag_enabled is off.' });
+  if (usesIssuerSession(req)) {
+    const reason = issuerUnavailableReason('oauth-mcp');
+    if (reason) return res.status(409).json({ error: 'issuer_sign_in_unavailable', message: reason });
+    if (!pfSignedIn(req)) return res.status(401).json({ error: 'pf_sign_in_required', message: 'Sign in with PingFederate on this page first; the ID-JAG is minted from that session.' });
+    return next();
+  }
   if (!pfSignedIn(req) || !subjectToken(req, s.request.subjectTokenType)) {
     return res.status(401).json({ error: 'pf_sign_in_required', message: 'Sign in with PingFederate first; the ID-JAG is minted from your session.' });
   }
@@ -240,17 +293,22 @@ async function exchangeAtIssuerPf(req, s, scope) {
   return r.data.access_token;
 }
 
+/** The subject token this request's exchange uses: the issuer-side refresh token, or the session's own. */
+function subjectUsed(req, s) {
+  return usesIssuerSession(req) ? req.session?.idJagIssuer?.refreshToken : subjectToken(req, s.request.subjectTokenType);
+}
+
 async function mintIdJag(req, scopeOverride) {
   const mode = modeOf(req);
   const s = settings(mode);
   const scope = scopeOverride ?? s.request.scope;
-  const idJag = mode === 'pf-pf'
+  const idJag = usesIssuerSession(req)
     ? await exchangeAtIssuerPf(req, s, scope)
     : await oauthService.performIdJagExchange(
       subjectToken(req, s.request.subjectTokenType), s.request.subjectTokenType,
       s.request.audience, s.request.resource, scopeList(scope),
     );
-  return { idJag, request: exchangeShown(s, scope) };
+  return { idJag, request: exchangeShown(s, scope, subjectUsed(req, s)) };
 }
 
 // ---- SAML: the server signs an assertion for the signed-in user; PingFederate trades it for the ID-JAG. ----
@@ -266,11 +324,11 @@ function samlUnavailableReason() {
 
 /** The assertion subject is ALWAYS the signed-in user's email; no request field can choose it. */
 function samlSubject(req) {
-  const email = modeOf(req) === 'pf-pf' ? req.session?.idJagIssuer?.email : req.session?.user?.email;
+  const email = usesIssuerSession(req) ? req.session?.idJagIssuer?.email : req.session?.user?.email;
   // eslint-disable-next-line no-control-regex
   if (typeof email !== 'string' || email.length > 254 || !/^[^\s@\u0000-\u001f]+@[^\s@\u0000-\u001f]+$/.test(email)) {
-    const err = new Error(modeOf(req) === 'pf-pf'
-      ? 'The SE PingFederate sign-in has no usable email address; sign in there again.'
+    const err = new Error(usesIssuerSession(req)
+      ? 'The PingFederate sign-in on this page has no usable email address; sign in there again.'
       : 'The signed-in user has no usable email address for the SAML assertion.');
     err.code = 'saml_subject_invalid';
     throw err;
@@ -321,14 +379,25 @@ function samlGate(req, res, next) {
   return next();
 }
 
-/** The exchange request as the page shows it (the subject token is never shown). */
-function exchangeShown(s, scope) {
+/**
+ * A token as the page may show it: its first 6 and last 4 characters, length and kind. Enough to see which token
+ * was sent and to match it against PingFederate's logs; never enough to use it.
+ */
+function maskToken(token) {
+  const t = String(token || '');
+  if (!t) return '[your session token, never sent to the browser]';
+  const kind = t.split('.').length === 3 ? 'JWT' : 'opaque';
+  return t.length <= 16 ? `[masked, ${t.length} chars, ${kind}]` : `${t.slice(0, 6)}…${t.slice(-4)} [masked, ${t.length} chars, ${kind}]`;
+}
+
+/** The exchange request as the page shows it (the subject token masked, see maskToken). */
+function exchangeShown(s, scope, subject) {
   return {
     endpoint: `POST ${s.idp.tokenEndpoint}`,
     body: {
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       requested_token_type: ID_JAG_TOKEN_TYPE,
-      subject_token: '[your session token, never sent to the browser]',
+      subject_token: maskToken(subject),
       subject_token_type: s.request.subjectTokenType,
       audience: s.request.audience,
       resource: s.request.resource || undefined,
@@ -343,9 +412,9 @@ async function tryMint(req) {
   const s = settings(modeOf(req));
   try {
     await mintIdJag(req);
-    return { ok: true, status: 200, error: null, request: exchangeShown(s, s.request.scope) };
+    return { ok: true, status: 200, error: null, request: exchangeShown(s, s.request.scope, subjectUsed(req, s)) };
   } catch (err) {
-    return { ok: false, status: err.httpStatus || 502, error: err.pfError || null, error_description: err.pfErrorDescription || err.message, request: exchangeShown(s, s.request.scope) };
+    return { ok: false, status: err.httpStatus || 502, error: err.pfError || null, error_description: err.pfErrorDescription || err.message, request: exchangeShown(s, s.request.scope, subjectUsed(req, s)) };
   }
 }
 
@@ -437,6 +506,15 @@ async function inspect(idJag, s = settings(), verify = verifySignature) {
   return { header: h, claims: c, checks };
 }
 
+// Step 4 sends the redeemed token to the Node demo MCP gateway. Where that gateway's authz sidecar validates every token
+// with PingOne (SE), these tokens always fail, so the deployment turns step 4 into a negative test: the gateway is
+// expected to refuse the token (the wrong token for a PingOne-only gateway). Unset = a normal call. byo is unaffected.
+const STEP4_OFF_REASON = 'The MCP gateway on this deployment validates tokens with PingOne only. A token from oauth-mcp or PingFederate is the wrong token for it, so the gateway must refuse it.';
+function step4For(req) {
+  const off = ['false', '0', 'no', 'off'].includes(String(configStore.getEffective('id_jag_playground_step4_enabled') ?? '').trim().toLowerCase());
+  return off && modeOf(req) !== 'byo' ? { available: false, expectRejected: true, reason: STEP4_OFF_REASON } : { available: true, reason: null };
+}
+
 function configFor(req) {
   const mode = modeOf(req);
   const pfPfReason = pfPfUnavailableReason();
@@ -453,17 +531,20 @@ function configFor(req) {
       // itself uses are not reachable from outside). ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT overrides.
       'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer,
         tokenEndpoint: env('ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT') || (oauthMcp.resourceAs.issuer ? `${oauthMcp.resourceAs.issuer.replace(/\/$/, '')}/token` : '') },
-      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'),
-        tokenEndpoint: (cfg('pf_issuer') || cfg('pf_issuer_uri')) ? `${(cfg('pf_issuer') || cfg('pf_issuer_uri')).replace(/\/$/, '')}/as/token.oauth2` : '' },
+      pingfederate: { issuer: pfRedeemerSettings().issuer,
+        tokenEndpoint: pfRedeemerSettings().issuer ? `${pfRedeemerSettings().issuer.replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
+    gateway: { step4: step4For(req) },
     byo: req.session?.idJagPlayground?.byo || null,
     saml: { available: !samlUnavailableReason(), reason: samlUnavailableReason(), audience: samlAudience(), issuer: samlIssuer(),
       supportedModes: SAML_MODES, appSignedIn: Boolean(req.session?.user?.email) },
     xaa: { available: !xaaUnavailableReason(), reason: xaaUnavailableReason(), signedIn: !!req.session?.idJagXaa,
       user: req.session?.idJagXaa ? (req.session.idJagXaa.email || req.session.idJagXaa.sub) : null },
+    signIn: { via: usesIssuerSession(req) ? 'issuer' : 'app', reason: usesIssuerSession(req) ? issuerUnavailableReason(issuerModeOf(req)) : null },
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
     // Who the sign-in belongs to, so step 1 can say so. In oauth-mcp the playground uses the app's own PingFederate session.
-    signedInAs: pfSignedIn(req) && modeOf(req) === 'oauth-mcp' ? (req.session?.user?.email || req.session?.user?.username || null) : null,
+    signedInAs: pfSignedIn(req) && modeOf(req) === 'oauth-mcp'
+      ? ((usesIssuerSession(req) ? req.session.idJagIssuer.email : req.session?.user?.email) || req.session?.user?.username || null) : null,
     hasAccessToken: !!req.session?.idJagPlayground?.accessToken };
 }
 
@@ -517,11 +598,11 @@ function missingConfig(mode, s) {
 
 function signedInCheck(req, mode, s) {
   const sess = req.session || {};
-  if (mode === 'pf-pf') {
-    const ok = !!sess.idJagIssuer?.refreshToken;
-    return ['signed-in', 'Signed in at the issuer PingFederate', ok ? 'pass' : 'fail',
+  if (usesIssuerSession(req)) {
+    const ok = pfSignedIn(req);
+    return ['signed-in', mode === 'pf-pf' ? 'Signed in at the issuer PingFederate' : 'Signed in with PingFederate on this page', ok ? 'pass' : 'fail',
       ok ? 'The BFF holds your issuer session.' : 'No issuer sign-in in this session (never signed in, or the session expired).',
-      'Click "Sign in at the issuer PingFederate" in step 1.'];
+      mode === 'pf-pf' ? 'Click "Sign in at the issuer PingFederate" in step 1.' : 'Click "Sign in with PingFederate" in step 1.'];
   }
   const label = 'Signed in with PingFederate';
   const fix = 'Click "Sign in with PingFederate" in step 1.';
@@ -639,7 +720,12 @@ async function preflight(req, step) {
   }
   if (byo && step === 'signin') return checks;
 
-  if (mode === 'oauth-mcp') {
+  if (mode === 'oauth-mcp' && usesIssuerSession(req)) {
+    const reason = issuerUnavailableReason('oauth-mcp');
+    add('issuer-sign-in', 'This page signs in at PingFederate itself', reason ? 'fail' : 'pass',
+      reason || `Sign-in at ${s.idp.issuer} as ${s.idp.exchangeClientId}; the app's login provider (${s.provider}) is not used or changed. The pi.flow sign-in uses the client's registered callback; only the redirect fallback needs ${issuerRedirectUri()} registered.`,
+      reason || '');
+  } else if (mode === 'oauth-mcp') {
     const provider = configStore.getOAuthProvider?.() || 'unset';
     add('provider', 'Login provider is PingFederate', provider === 'pingfederate' ? 'pass' : 'fail', `The app's login provider is ${provider}.`,
       'Switch the login provider to PingFederate (P1/PF toggle in the top bar, admin), then sign in again in step 1. PingOne does not issue ID-JAGs.');
@@ -653,11 +739,12 @@ async function preflight(req, step) {
     `Set ${missing.join(', ')} in the BFF configuration (config store or environment), then reload this page.`);
 
   if (mode === 'oauth-mcp' && step === 'signin' && here) {
-    const cb = originOf(getUserRedirectUri(req));
+    const issuerSignIn = usesIssuerSession(req);
+    const cb = originOf(issuerSignIn ? issuerRedirectUri() : getUserRedirectUri(req));
     if (cb) {
       add('redirect-host', 'PingFederate returns the sign-in to this host', cb === here ? 'pass' : 'fail',
         cb === here ? `The callback is on ${cb}.` : `The sign-in callback is on ${cb}, not ${here}: the session would land on the other host.`,
-        cb === front ? `Open ${page} and sign in there.` : `Set pf_user_redirect_uri to ${front}/api/auth/oauth/user/callback (and register it at PingFederate) so sign-in returns to the app host.`);
+        cb === front || issuerSignIn ? `Open ${page} and sign in there.` : `Set pf_user_redirect_uri to ${front}/api/auth/oauth/user/callback (and register it at PingFederate) so sign-in returns to the app host.`);
     }
   }
 
@@ -778,43 +865,49 @@ const issuerRedirectUri = () => `${getFrontendOrigin()}/api/id-jag-playground/is
 // PingFederate. Its flow state lives in a private bag on the session (the driver reads oauthState and
 // oauthRedirectUri there), so the app's own sign-in state is never touched. A COMPLETED flow still ends at
 // /issuer/callback below, which does the code exchange: PKCE and the refresh-token capture stay in one place.
-const issuerPiFlow = makePiFlowHandlers({
+const issuerPiFlows = Object.fromEntries(['pf-pf', 'oauth-mcp'].map((mode) => [mode, makePiFlowHandlers({
   providerConfig: {
-    get authorizationEndpoint() { return pfPfSettings().idp.authorizationEndpoint; },
-    get tokenEndpoint() { return pfPfSettings().idp.tokenEndpoint; },
+    get authorizationEndpoint() { return issuerIdp(mode).authorizationEndpoint; },
+    get tokenEndpoint() { return issuerIdp(mode).tokenEndpoint; },
   },
   knownRedirectOrigins: [],
-});
+})]));
 function onIssuerSession(req) {
   const bag = (req.session.idJagIssuerPiFlow ||= {});
   // The driver calls session.save(cb); persist the real session. Non-enumerable, so it is never serialised.
   Object.defineProperty(bag, 'save', { value: (cb) => req.session.save(cb), configurable: true });
   return Object.create(req, { session: { value: bag } });
 }
-const issuerPiFlowStep = (handler) => (req, res) => {
-  const reason = pfPfUnavailableReason();
+const issuerPiFlowStep = (step) => (req, res) => {
+  const mode = issuerModeOf(req);
+  const reason = issuerUnavailableReason(mode);
   if (reason) return res.status(409).json({ error: 'pf_pf_unavailable', message: reason });
-  return handler(onIssuerSession(req), res);
+  return issuerPiFlows[mode][step](onIssuerSession(req), res);
 };
-router.post('/issuer/pi-flow/credentials', issuerPiFlowStep(issuerPiFlow.handleCredentialsStep));
-router.post('/issuer/pi-flow/otp', issuerPiFlowStep(issuerPiFlow.handleOtpStep));
-router.post('/issuer/pi-flow/device', issuerPiFlowStep(issuerPiFlow.handleDeviceSelectStep));
+router.post('/issuer/pi-flow/credentials', issuerPiFlowStep('handleCredentialsStep'));
+router.post('/issuer/pi-flow/otp', issuerPiFlowStep('handleOtpStep'));
+router.post('/issuer/pi-flow/device', issuerPiFlowStep('handleDeviceSelectStep'));
 
 /**
  * pf-pf: sign in at the SE PingFederate (code + PKCE) so it holds a refresh token to exchange.
  * ?pi_flow=1 opens the flow and answers JSON for the sign-in modal; without it, the redirect (the modal's fallback).
  */
 router.get('/issuer/login', async (req, res) => {
-  const s = pfPfSettings();
-  const reason = pfPfUnavailableReason();
+  const mode = issuerModeOf(req);
+  const idp = issuerIdp(mode);
+  const reason = issuerUnavailableReason(mode);
   const piFlow = req.query.pi_flow === '1';
   if (reason) return piFlow ? res.status(409).json({ error: 'pf_pf_unavailable', message: reason }) : res.redirect(safeReturnTo(req.query.return_to));
   const verifier = crypto.randomBytes(32).toString('base64url');
   const state = crypto.randomBytes(16).toString('hex');
-  req.session.idJagIssuerLogin = { state, verifier, returnTo: safeReturnTo(req.query.return_to), at: Date.now() };
-  const u = new URL(s.idp.authorizationEndpoint);
+  // oauth-mcp reuses the app's login client, which is registered for the app's own callback only. A pi.flow sign-in never
+  // sends the browser to that callback (the driver hands the code to /issuer/callback), so it can ask PingFederate with the
+  // registered URI and need no new redirect URI. The redirect fallback has no such option: it needs the issuer callback registered.
+  const authzRedirect = mode === 'oauth-mcp' && piFlow ? (cfg('pf_user_redirect_uri') || `${getFrontendOrigin()}/api/auth/oauth/user/callback`) : issuerRedirectUri();
+  req.session.idJagIssuerLogin = { state, verifier, returnTo: safeReturnTo(req.query.return_to), at: Date.now(), mode, redirectUri: authzRedirect };
+  const u = new URL(idp.authorizationEndpoint);
   u.search = new URLSearchParams({
-    response_type: 'code', client_id: s.idp.exchangeClientId, redirect_uri: issuerRedirectUri(),
+    response_type: 'code', client_id: idp.exchangeClientId, redirect_uri: authzRedirect,
     scope: 'openid profile email offline_access', state, prompt: 'login',
     code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
     ...(piFlow ? { response_mode: 'pi.flow' } : {}),
@@ -824,7 +917,7 @@ router.get('/issuer/login', async (req, res) => {
     delete view.session.oauthPiFlow;
     view.session.oauthState = state;
     view.session.oauthRedirectUri = issuerRedirectUri();
-    return issuerPiFlow.openPiFlow(view, res, u.toString(), 'pingfederate');
+    return issuerPiFlows[mode].openPiFlow(view, res, u.toString(), 'pingfederate');
   }
   return req.session.save(() => res.redirect(u.toString()));
 });
@@ -837,19 +930,19 @@ router.get('/issuer/callback', async (req, res) => {
   if (!pending || !req.query.code || req.query.state !== pending.state || Date.now() - pending.at > 10 * 60 * 1000) {
     return req.session.save(() => res.redirect(`${back}?issuer_error=invalid_state`));
   }
-  const s = pfPfSettings();
+  const idp = issuerIdp(pending.mode === 'oauth-mcp' ? 'oauth-mcp' : 'pf-pf');
   try {
-    const r = await axios.post(s.idp.tokenEndpoint, new URLSearchParams({
-      grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: issuerRedirectUri(), code_verifier: pending.verifier,
+    const r = await axios.post(idp.tokenEndpoint, new URLSearchParams({
+      grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: pending.redirectUri || issuerRedirectUri(), code_verifier: pending.verifier,
     }).toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(s.idp.exchangeClientId, cfg('pf_user_client_secret')) },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(idp.exchangeClientId, cfg('pf_user_client_secret')) },
       timeout: 15000, validateStatus: () => true,
     });
     if (r.status !== 200 || !r.data?.refresh_token) {
       return req.session.save(() => res.redirect(`${back}?issuer_error=${encodeURIComponent(r.data?.error || `http_${r.status}`)}`));
     }
     const idClaims = decodeJwt(r.data.id_token || '')?.claims;
-    req.session.idJagIssuer = { refreshToken: r.data.refresh_token, sub: idClaims?.sub || null, ...(idClaims?.email ? { email: String(idClaims.email) } : {}) };
+    req.session.idJagIssuer = { refreshToken: r.data.refresh_token, sub: idClaims?.sub || null, ...(idClaims?.email ? { email: String(idClaims.email) } : {}), ...(pending.mode === 'oauth-mcp' ? { issuer: idp.issuer } : {}) };
     delete req.session.idJagPlayground;
     return req.session.save(() => res.redirect(back));
   } catch (err) {
@@ -974,6 +1067,8 @@ router.get('/xaa/login', async (req, res) => {
     response_type: 'code', client_id: secretSetting('XAA_DEV_IDP_CLIENT_ID'), redirect_uri: xaaRedirectUri(),
     scope: 'openid profile email offline_access', prompt: 'consent', state, nonce,
     code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
+    // IdenX takes any email: pre-fill the signed-in user's so they only type the code.
+    ...(req.session?.user?.email ? { login_hint: req.session.user.email } : {}),
   }).toString();
   return req.session.save(() => res.redirect(u.toString()));
 });
@@ -1073,8 +1168,10 @@ router.post('/call', requirePf, async (req, res) => {
     const result = await callToolViaGateway(null, token, tool, params, pin);
     return res.json({ request, result });
   } catch (err) {
-    // The gateway's own answer (status, error code, reason), not just ours.
-    return res.status(err.httpStatus && err.httpStatus < 600 ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message,
+    // The gateway's own answer (status, error code, reason) goes in the body. The HTTP status is ours: forwarding the
+    // gateway's 401/403 would read as "the app session expired" and make the SPA raise its sign-in modal.
+    const forwarded = err.httpStatus && err.httpStatus >= 400 && err.httpStatus < 600 && ![401, 403].includes(err.httpStatus);
+    return res.status(forwarded ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message,
       gatewayStatus: err.gatewayStatus, gatewayErrorCode: err.gatewayErrorCode, gatewayMessage: err.gatewayMessage, request });
   }
 });
@@ -1121,7 +1218,7 @@ router.get('/backends', async (req, res) => {
   res.json({ backends: await probeBackends(modeOf(req) === 'byo' ? { ...s, idp: { ...s.idp, issuer: '' } } : s, axios.get, nodeGatewayUrl()) });
 });
 
-const issuerRefreshToken = (req) => (modeOf(req) === 'pf-pf' ? req.session?.idJagIssuer?.refreshToken : req.session?.oauthTokens?.refreshToken);
+const issuerRefreshToken = (req) => (usesIssuerSession(req) ? req.session?.idJagIssuer?.refreshToken : req.session?.oauthTokens?.refreshToken);
 
 /**
  * Revoke and prove it: the exchange must work first (control), then the issuer revokes this session's refresh token
@@ -1148,7 +1245,7 @@ router.post('/revoke', requirePf, async (req, res) => {
     return res.status(502).json({ error: 'revoke_failed', message: `Could not reach ${s.idp.name} (${err.code || err.message}).` });
   }
   const retry = await tryMint(req);
-  if (mode === 'pf-pf') delete req.session.idJagIssuer;
+  if (usesIssuerSession(req)) delete req.session.idJagIssuer;
   delete req.session.idJagPlayground;
   res.json({
     control,
@@ -1278,6 +1375,9 @@ router.post('/reset', (req, res) => {
 module.exports = router;
 module.exports._inspect = inspect;
 module.exports._settings = settings;
+module.exports._settingsFor = settingsFor;
 module.exports._probeBackends = probeBackends;
+module.exports._byoSettings = byoSettings;
+module.exports._nodeGatewayUrl = nodeGatewayUrl;
 module.exports._clearProbeCache = () => probes.clear();
 module.exports._resetXaaDiscovery = () => { xaaDiscoveryP = null; };

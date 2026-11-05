@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeRouting } from '../../test-utils/diagramRouting';
 import * as dot from '../dotWorkbenchDiagram';
-import * as studio from '../personalAgentStudioDiagram';
 import * as cimd from '../../components/cimdPrivilege/cimdPrivilegeData';
 import * as review from '../../components/personalAgent/personalAgentData';
 import { P266_EDGES, P266_GROUPS, P266_NODES } from '../phase266Diagram';
@@ -13,7 +12,6 @@ const PING = new Set(['#151a24', '#5a5f69', '#b5231a']);
 // maxCrossings is the number of arrow crossings the router leaves in the shipped layout (a ratchet: lower it, never raise it).
 const CASES = [
   ['Dot workbench', dot.DOT_WORKBENCH_GROUPS, dot.DOT_WORKBENCH_NODES, dot.DOT_WORKBENCH_EDGES, 0],
-  ['Personal Agent Studio', studio.PERSONAL_AGENT_GROUPS, studio.PERSONAL_AGENT_NODES, studio.PERSONAL_AGENT_EDGES, 0],
   ['CIMD flow', cimd.FLOW_GROUPS, cimd.FLOW_NODES, cimd.FLOW_EDGES, 0],
   ['CIMD capabilities', cimd.CAP_GROUPS, cimd.CAP_NODES, cimd.CAP_EDGES, 0],
   ['Personal Agent review', review.REVIEW_GROUPS, review.ORIGINAL_NODES, review.ORIGINAL_EDGES, 0],

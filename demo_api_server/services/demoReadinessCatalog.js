@@ -126,6 +126,7 @@ function executionModeFor(id, trigger, isAdmin) {
 function providerFlowFor(id, isAdmin, provider) {
   if (isAdmin) return provider === 'pingone' ? 'pingone-admin-mcp' : 'pingfederate-admin-mcp';
   if (id === 'UC40' && provider === 'pingone') return null;
+  if (id === 'UC14b' && provider === 'pingfederate') return null;
   // UC2.6 runs the same real delegation as UC2 before its mismatch probe.
   if (provider === 'pingone') return ['UC2', 'UC2.5', 'UC2.6'].includes(id) ? 'pingone-a2a' : 'pingone-standard';
   if (id === 'UC40') return 'pingfederate-native-id-jag';
@@ -138,7 +139,9 @@ function pfCredentialRoleIdsFor(id, flowId) {
   if (flowId === 'pingfederate-native-id-jag') return ['uc40-native-id-jag'];
   if (flowId === 'pingfederate-a2a') return ['standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist'];
   if (flowId === 'pingfederate-workload') {
-    return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
+    // The customer's own workload agent is the first-hop actor, replacing the
+    // built-in ai-agent-actor client.
+    return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'mcp-service-actor'];
   }
   if (flowId === 'pingfederate-admin-mcp') return ['standard-agent-exchanger', 'standard-mcp-exchanger'];
   return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
@@ -162,7 +165,9 @@ function pfExchangeContractFor({ id, flowId, profiles = pingFederateProfiles }) 
     unresolved: roles[roleId]?.unresolved !== false,
   }));
   const unresolved = credentialRoles.filter((role) => role.unresolved || !role.objectId);
-  const sourceGap = unresolved.length
+  const exchange = profiles?.exchangeContract;
+  const recorded = Boolean(exchange?.issuer && exchange?.issuerSourceRef && exchange?.tokenEndpoint && exchange?.tokenEndpointSourceRef);
+  const sourceGap = unresolved.length || !recorded
     ? {
       code: 'pf_exact_exchange_contract_source_gap',
       reason: 'A committed PingFederate provisioner or supported PF Admin API readback must record the literal PF issuer, token endpoint, and registered credential roles before this lane can run.',
@@ -170,6 +175,20 @@ function pfExchangeContractFor({ id, flowId, profiles = pingFederateProfiles }) 
       remediation: 'Record the readback in demoReadinessPingFederateProfiles.json, including the resolved issuer, endpoint, and role registration, then mark the role resolved.',
     }
     : null;
+  // Every role resolved and the readback recorded: the literal values the
+  // worker's observed exchange must match.
+  if (!sourceGap) {
+    return {
+      status: 'ready',
+      issuer: exchange.issuer,
+      issuerSourceRef: exchange.issuerSourceRef,
+      endpoint: exchange.tokenEndpoint,
+      endpointSourceRef: exchange.tokenEndpointSourceRef,
+      endpointAlias: exchange.tokenEndpointAlias?.origin || null,
+      credentialRoles,
+      sourceGap: null,
+    };
+  }
   return {
     status: sourceGap ? 'blocked' : 'ready',
     issuer: { configurationKey: 'pf_issuer', sourceRef: 'demo_api_server/services/oauthEndpointResolver.js#issuer' },
@@ -310,6 +329,37 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
       .filter((item) => item?.uri && item !== a2aOwner && [...(item.scopes || []), ...(item.mirroredScopes || [])].includes(a2aCanonicalScope))
       .map((item) => item.uri),
   }] : null;
+  const gatewayHop = topology.servers?.ping_gateway ? {
+    audience: topology.servers.ping_gateway.validatesAudience || null,
+    scopes: [...(topology.resources?.[topology.servers.ping_gateway.resource]?.scopes || [])],
+  } : null;
+  const backendHop = resourceServer?.id === 'olb' ? {
+    audience: topology.resources?.[topology.servers?.demo_mcp_server?.resource]?.uri || null,
+    // Least privilege: the gateway asks the MCP server for this tool's scopes only.
+    scopes: requiredScopes,
+  } : null;
+  // Under PingFederate the audiences come from the access token manager each
+  // exchanger is restricted to (demoReadinessPingFederateProfiles.json), and
+  // the BFF puts the tool scopes on the gateway token as well. The scopes
+  // themselves are the same as PingOne's.
+  const pf = sources.pingFederateProfiles || {};
+  const pfAudienceOf = (roleId) => pf.accessTokenManagers?.[pf.roles?.[roleId]?.baseline?.defaultAccessTokenManagerRef]?.audience || null;
+  const pfAgentAudience = pfAudienceOf('standard-agent-exchanger');
+  const pfBackendAudience = pf.exchangeContract?.gatewayExchangerRole ? pfAudienceOf(pf.exchangeContract.gatewayExchangerRole) : null;
+  // A2A: the specialist's Exchange #2 token is minted by the access token
+  // manager the specialist clients are restricted to, and goes straight to
+  // PingGateway, so it carries the gateway's inbound scope and the specialist's.
+  const pfSpecialistAudience = pf.accessTokenManagers?.[pf.roles?.['a2a-specialist']?.tokenAccessTokenManagerRef]?.audience || null;
+  const pfA2aScopeResources = tool?.a2aDelegated && pfSpecialistAudience
+    ? [...new Set([...(gatewayHop?.scopes || []), ...(a2aScope ? [a2aScope] : requiredScopes)])]
+      .map((scope) => ({ scope, canonicalScope: topology.aliases?.[scope] || scope, audience: pfSpecialistAudience, mirrorAudiences: [] }))
+    : null;
+  const pingfederate = pfAgentAudience ? {
+    ...(pfA2aScopeResources ? { a2aScopeResources: pfA2aScopeResources } : {}),
+    scopeResources: scopeResources.map((item) => ({ ...item, audience: pfAgentAudience, mirrorAudiences: [] })),
+    ...(gatewayHop ? { gatewayHop: { ...gatewayHop, scopes: [...new Set([...gatewayHop.scopes, ...requiredScopes])] } } : {}),
+    ...(backendHop && pfBackendAudience ? { backendHop: { ...backendHop, audience: pfBackendAudience } } : {}),
+  } : null;
   const restrictedRole = manifest?.groups?.restrictedTools?.[toolName] || null;
   const restrictedRoleConfig = restrictedRole ? manifest?.groups?.categories?.[restrictedRole] : null;
   if (restrictedRole && !restrictedRoleConfig?.name) {
@@ -334,15 +384,9 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
     ...(a2aScopeResources ? { a2aScopeResources } : {}),
     // The token sent to the gateway, and the one the gateway exchanges for to
     // call the MCP server. Both from scope-topology.json `servers`.
-    gatewayHop: topology.servers?.ping_gateway ? {
-      audience: topology.servers.ping_gateway.validatesAudience || null,
-      scopes: [...(topology.resources?.[topology.servers.ping_gateway.resource]?.scopes || [])],
-    } : null,
-    backendHop: resourceServer?.id === 'olb' ? {
-      audience: topology.resources?.[topology.servers?.demo_mcp_server?.resource]?.uri || null,
-      // Least privilege: the gateway asks the MCP server for this tool's scopes only.
-      scopes: requiredScopes,
-    } : null,
+    gatewayHop,
+    backendHop,
+    ...(pingfederate ? { providerOverrides: { pingfederate } } : {}),
     authorizeToolGroup: restrictedRole ? {
       role: restrictedRole,
       groupName: restrictedRoleConfig?.name || null,
@@ -779,9 +823,10 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       pingone: providerFlowFor(id, isAdmin, 'pingone'),
       pingfederate: providerFlowFor(id, isAdmin, 'pingfederate'),
     };
-    const providerNotApplicableReasons = id === 'UC40'
-      ? { pingone: 'UC40 is a native PingFederate ID-JAG journey and requires a PingFederate-authenticated session' }
-      : {};
+    const providerNotApplicableReasons = {
+      ...(id === 'UC40' ? { pingone: 'UC40 is a native PingFederate ID-JAG journey and requires a PingFederate-authenticated session' } : {}),
+      ...(id === 'UC14b' ? { pingfederate: 'UC14b is a PingOne PAR (RFC 9126) intent-binding flow; PingFederate has no PAR path in this demo' } : {}),
+    };
     for (const [provider, flowId] of Object.entries(providerFlows)) {
       if (!flowId) {
         if (!providerNotApplicableReasons[provider]) {
@@ -805,8 +850,9 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       }
       if (provider === 'pingfederate') {
         const pfContract = pfExchangeContractFor({ id, flowId, profiles: sources.pingFederateProfiles });
-        if (pfContract.issuer?.configurationKey !== 'pf_issuer'
-            || pfContract.endpoint?.configurationKey !== 'pf_token_endpoint'
+        const keyed = pfContract.issuer?.configurationKey === 'pf_issuer'
+          && pfContract.endpoint?.configurationKey === 'pf_token_endpoint';
+        if ((!keyed && !hasExactPfFeatureContract(pfContract, true))
             || !Array.isArray(pfContract.credentialRoles) || pfContract.credentialRoles.length === 0) {
           pushIssue(issues, `${id} PingFederate flow lacks its checked-in issuer, endpoint-key, and credential-role contract`);
         }

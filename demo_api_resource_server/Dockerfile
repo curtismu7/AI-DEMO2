@@ -1,5 +1,5 @@
 ARG GIT_SHA=unknown
-FROM node:22-alpine
+FROM node:26-alpine
 
 # Half of what CI needs to push this image to GHCR: this links the package to
 # the repo on push. The other half is NOT in this repo — the package's
@@ -30,3 +30,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 USER node
 
 CMD ["node", "server.js"]
+
+# Rebuild trigger for SE image refresh (no functional change).

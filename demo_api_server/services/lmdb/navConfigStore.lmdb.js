@@ -21,7 +21,7 @@ const TOP_LEVEL_LABELS = [
   'Home', 'Security Dashboard', 'Skin Studio', 'Agent Privilege', 'A2A', 'Jev Demos', 'DaVinci',
   'Ping products', 'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Exploring',
   'Utilities', 'AI Experiences', 'Personal Agents', 'MCP & Integrations',
-  'PingFederate ID-JAG', 'AIC', 'Developer Tools', 'Observability', 'Diagrams',
+  'AIC', 'Developer Tools', 'Observability', 'Diagrams',
   'Demo arch slides', 'Architecture & Learning', 'Administration',
 ];
 
@@ -133,7 +133,7 @@ const BUILTIN_CONFIGS = [
   preset('product-privilege', 'Product · Privilege / Agent Gateway', 'Agent Privilege', 'MCP & Integrations', 'Observability', 'Diagrams'),
   preset('product-authorize', 'Product · PingOne Authorize', 'Authorize', 'Delegation & Consent', 'Observability'),
   preset('product-protect-verify', 'Product · Protect / Verify / MFA', 'Ping products', 'Identity Journeys', 'Utilities'),
-  preset('product-aic-idjag', 'Product · AIC + ID-JAG', 'AIC', 'PingFederate ID-JAG', 'Delegation & Consent', 'Diagrams'),
+  preset('product-aic-idjag', 'Product · AIC + ID-JAG', 'AIC', 'Ping products', 'Delegation & Consent', 'Diagrams'),
   // By use case
   personalAgentPreset,
   preset('uc-digital-assistant', 'Use case · Digital assistant', 'AI Experiences', 'Jev Demos', 'MCP & Integrations'),

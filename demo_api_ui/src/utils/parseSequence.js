@@ -1,7 +1,7 @@
 // Parses the subset of Mermaid `sequenceDiagram` text the Diagrams pages use into a
 // plain model, so the .mmd stays the exported/uploaded source while React Flow draws it.
 //
-// Supported: participant/actor [as Label], box [colour] Label ... end, A->>B / A-->>B: text,
+// Supported: participant/actor [as Label], box [colour] Label ... end, A->>B / A-->>B / A<<->>B (two-way): text,
 // Note over A[,B]: text, alt/else/opt/loop/par/rect ... end, autonumber. Anything else is ignored.
 
 const br = (s) => s.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
@@ -53,10 +53,10 @@ export function parseSequence(source = "") {
       const over = m[1].split(",").map((s) => s.trim());
       over.forEach((id) => ensure(id));
       items.push({ type: "note", over, text: br(m[2]) });
-    } else if ((m = line.match(/^(\S+?)\s*(--?>>|--?>|--?x)\s*[+-]?(\S+?)\s*:\s*(.*)$/))) {
+    } else if ((m = line.match(/^(\S+?)\s*(<<--?>>|--?>>|--?>|--?x)\s*[+-]?(\S+?)\s*:\s*(.*)$/))) {
       ensure(m[1]);
       ensure(m[3]);
-      items.push({ type: "message", from: m[1], to: m[3], text: br(m[4]), dashed: m[2].startsWith("--") });
+      items.push({ type: "message", from: m[1], to: m[3], text: br(m[4]), dashed: m[2].replace("<<", "").startsWith("--"), ...(m[2].startsWith("<<") ? { both: true } : null) });
     }
   }
   return { participants, boxes, items, autonumber };

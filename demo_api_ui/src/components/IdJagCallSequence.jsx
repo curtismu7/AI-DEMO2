@@ -1,78 +1,141 @@
+import { useEffect, useMemo, useRef } from "react";
+import { BaseEdge, Controls, EdgeLabelRenderer, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { ACTORS, CALLS } from "../utils/idJagCallSequence";
 import { PF_ID_JAG_GROUPS } from "../config/pfIdJagDiagrams";
+import { SEQ_LOOP_H, SEQ_LOOP_W, seqEdges, seqHeight, seqNodes, seqWidth } from "../config/pfIdJagSequence";
+import { useFitOnResize } from "../hooks/useFitOnResize";
+import SequenceActorHeader from "./SequenceActorHeader";
 
-const COL = 124;
-const PAD = 70;
-const ROW = 54;
-const TOP = 62;
-const idx = (id) => ACTORS.findIndex((a) => a.id === id);
-const x = (id) => PAD + idx(id) * COL;
+const FIT = { padding: 0.02 };
 
-// Same palette as the flow figures above (PF_ID_JAG_GROUPS): red = Ping product, dark = apps and people, grey = the MCP side.
-const ACTOR_GROUP = {
-  browser: "user", bff: "bff", agent: "bff", pf: "ping",
-  oauthmcp: "res", gateway: "ping", mcp: "res", bank: "res",
-};
+// An actor box (a lifeline head). Colour bar = the group, like the other figures on the page.
+function ActorNode({ data }) {
+  const bg = PF_ID_JAG_GROUPS[data.group].bg;
+  return (
+    <div className="ijc-actor" style={{ "--ijc-group": bg }}>
+      <span className="ijc-actor__label">{data.label}</span>
+    </div>
+  );
+}
 
-// ID-JAG-specific sequence diagram: eight lifelines, one row per call, in the shared Ping look
-// (light grey canvas, thick black arrows, orange numbered badges, blue dashed arrow for the call in focus).
-// Lifeline actors are not draggable; the numbers, the arrows and the detail panel work like the other diagrams.
-// A fork of the idea behind SequenceReelDiagram, driven by the call list instead of the global trace, so every
-// call appears whether or not a live run recorded it.
+// The dashed lifeline. It carries one hidden handle pair per call so each arrow lands on its own row.
+function LifeNode({ data }) {
+  return (
+    <div className="ijc-life">
+      {data.rows.map((y, i) => (
+        <span key={i}>
+          <Handle id={`s${i}`} type="source" position={Position.Right} className="ijc-h" style={{ top: y }} isConnectable={false} />
+          <Handle id={`t${i}`} type="target" position={Position.Left} className="ijc-h" style={{ top: y }} isConnectable={false} />
+          <Handle id={`v${i}`} type="source" position={Position.Right} className="ijc-h" style={{ top: y - SEQ_LOOP_H / 2 }} isConnectable={false} />
+          <Handle id={`u${i}`} type="target" position={Position.Right} className="ijc-h" style={{ top: y + SEQ_LOOP_H / 2 }} isConnectable={false} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// One call: a straight horizontal arrow (a small loop for a call to itself), a number badge on its start
+// and the call's words above the line. The badge + words are one button.
+function SeqEdge({ sourceX, sourceY, targetX, targetY, data, id }) {
+  const { onSelect, state } = data.ui;
+  const { self, dir, n, label, untraced, i } = data;
+  const head = 9;
+  let path;
+  let tip;
+  let labelX;
+  let labelY;
+  let badgeX;
+  if (self) {
+    path = `M${sourceX},${sourceY} h${SEQ_LOOP_W} V${targetY} h${-SEQ_LOOP_W + 1}`;
+    tip = `M${sourceX},${targetY} l${head},-5 v10 z`;
+    labelX = sourceX + SEQ_LOOP_W + 8;
+    labelY = (sourceY + targetY) / 2;
+    badgeX = labelX;
+  } else {
+    path = `M${sourceX},${sourceY} H${targetX - dir * 1}`;
+    tip = `M${targetX},${targetY} l${-dir * head},-5 v10 z`;
+    labelX = (sourceX + targetX) / 2;
+    labelY = sourceY - 20;
+    badgeX = labelX;
+  }
+  return (
+    <>
+      <BaseEdge id={id} path={path} className={`ijc-edge ijc-edge--${state}`} interactionWidth={16} />
+      <path d={tip} className={`ijc-edge__head ijc-edge__head--${state}`} />
+      <EdgeLabelRenderer>
+        <button
+          type="button"
+          className={`ijc-edge-label ijc-edge-label--${state} ${self ? "is-self" : ""}`}
+          style={{ transform: `translate(${self ? "0" : "-50%"}, -50%) translate(${self ? labelX : badgeX}px, ${labelY}px)` }}
+          aria-label={`Call ${n}: ${label}`}
+          aria-current={state === "now" ? "step" : undefined}
+          onClick={() => onSelect(i)}
+        >
+          <span className="ijc-edge-label__n">{n}</span>
+          <span className="ijc-edge-label__text">{label}{untraced ? " (not traced)" : ""}</span>
+        </button>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const NODE_TYPES = { actor: ActorNode, life: LifeNode };
+const EDGE_TYPES = { seq: SeqEdge };
+
+function Inner({ activeIndex, onSelect, calls }) {
+  const wrap = useRef(null);
+  const { fitView } = useReactFlow();
+  useFitOnResize(wrap, FIT);
+  useEffect(() => { fitView(FIT); }, [fitView]);
+  const nodes = useMemo(() => seqNodes(calls), [calls]);
+  const edges = useMemo(() => seqEdges(calls).map((e) => ({
+    ...e,
+    data: { ...e.data, ui: { onSelect, state: e.data.i === activeIndex ? "now" : e.data.i < activeIndex ? "done" : "next" } },
+  })), [calls, activeIndex, onSelect]);
+  const firstCallOf = (actorId) => calls.findIndex((c) => c.from === actorId || c.to === actorId);
+  return (
+    <div ref={wrap} className="ijc-seq__canvas" style={{ aspectRatio: `${seqWidth()} / ${seqHeight(calls.length)}` }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
+        fitView
+        fitViewOptions={FIT}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        zoomOnScroll={false}
+        preventScrolling={false}
+        panOnDrag={false}
+        proOptions={{ hideAttribution: true }}
+        onNodeClick={(_, node) => { if (node.type === "actor") { const k = firstCallOf(node.id); if (k >= 0) onSelect(k); } }}
+        aria-label="ID-JAG calls, sequence diagram"
+      >
+        <Controls showInteractive={false} />
+      </ReactFlow>
+    </div>
+  );
+}
+
+// ID-JAG sequence diagram as a ReactFlow figure in the shared Ping look (light grey canvas, thick black arrows,
+// orange numbered badges, blue dashed arrow for the call in focus). Actor boxes sit on the lifelines and are not
+// draggable; Simulate / Step / Reset / speed and the per-call detail (request form, MOCK tokens, standards) are the
+// player's, next to it. Every call appears whether or not a live run recorded it.
 export default function IdJagCallSequence({ activeIndex, onSelect, calls = CALLS }) {
-  // extra room on the right: a call on the last lifeline draws its label past it
-  const width = PAD + (ACTORS.length - 1) * COL + 200;
-  const height = TOP + calls.length * ROW + 30;
+  const callState = (i) => (i === activeIndex ? "active" : i < activeIndex ? "done" : "idle");
+  const headerActors = ACTORS.map((a) => {
+    const states = calls.flatMap((c, i) => (c.from === a.id || c.to === a.id ? [callState(i)] : []));
+    const state = states.includes("active") ? "active" : states.includes("done") ? "done" : "idle";
+    return { id: a.id, name: a.label, state };
+  });
   return (
     <div className="ijc-seq" data-testid="idjag-sequence">
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="ID-JAG calls, sequence diagram">
-        <defs>
-          <marker id="ijc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" className="ijc-seq__head" />
-          </marker>
-        </defs>
-        {ACTORS.map((a) => (
-          <g key={a.id}>
-            <line x1={x(a.id)} y1={40} x2={x(a.id)} y2={height - 12} className="ijc-seq__life" />
-            <rect x={x(a.id) - 52} y={6} width={104} height={34} rx={6} className="ijc-seq__actor" />
-            <rect x={x(a.id) - 52} y={6} width={5} height={34} fill={PF_ID_JAG_GROUPS[ACTOR_GROUP[a.id]].bg} />
-            <text x={x(a.id) + 2} y={a.label.includes(" (") ? 20 : 27} textAnchor="middle" className="ijc-seq__actor-label">
-              {a.label.split(/ (?=\()/).map((part, k) => <tspan key={part} x={x(a.id) + 2} dy={k ? 13 : 0}>{part}</tspan>)}
-            </text>
-          </g>
-        ))}
-        {calls.map((call, i) => {
-          const y = TOP + i * ROW + 28;
-          const self = call.from === call.to;
-          const x1 = x(call.from);
-          const x2 = x(call.to);
-          const dir = x2 >= x1 ? 1 : -1;
-          const cls = `ijc-seq__row ${i === activeIndex ? "is-active" : ""} ${i < activeIndex ? "is-done" : ""}`;
-          const mid = (x1 + x2) / 2;
-          const badgeX = self ? x1 + 13 : x1 + dir * 22;
-          return (
-            <g key={call.n} className={cls} onClick={() => onSelect(i)} role="button" tabIndex={0}
-              aria-label={`Call ${call.n}: ${call.label}`}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(i); } }}>
-              <rect x={0} y={y - ROW / 2 + 4} width={width} height={ROW - 4} className="ijc-seq__band" />
-              {self ? (
-                <>
-                  <path d={`M${x1},${y - 6} h40 v16 h-40`} className="ijc-seq__arrow" markerEnd="url(#ijc-arrow)" fill="none" />
-                  <text x={x1 + 52} y={y + 5} className="ijc-seq__label">{call.label}</text>
-                </>
-              ) : (
-                <>
-                  <line x1={x1} y1={y} x2={x2} y2={y} className="ijc-seq__arrow" markerEnd="url(#ijc-arrow)" />
-                  <text x={mid} y={y - 14} textAnchor="middle" className="ijc-seq__label">{call.label}</text>
-                </>
-              )}
-              <circle cx={badgeX} cy={self ? y - 6 : y} r={11} className="ijc-seq__num" />
-              <text x={badgeX} y={(self ? y - 6 : y) + 4} textAnchor="middle" className="ijc-seq__num-text">{call.n}</text>
-              {call.traced === false && <text x={width - 8} y={y + 4} textAnchor="end" className="ijc-seq__untraced">not traced</text>}
-            </g>
-          );
-        })}
-      </svg>
+      <SequenceActorHeader actors={headerActors} segments={calls.map((_, i) => ({ state: callState(i) }))} />
+      <ReactFlowProvider>
+        <Inner activeIndex={activeIndex} onSelect={onSelect} calls={calls} />
+      </ReactFlowProvider>
     </div>
   );
 }

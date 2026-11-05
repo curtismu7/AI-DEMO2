@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import DraggableModal from '../DraggableModal';
 
@@ -132,5 +132,35 @@ describe('DraggableModal', () => {
     );
 
     expect(document.querySelectorAll('.dm-panel .dm-handle')).toHaveLength(8);
+  });
+  it('drags from a body strip marked data-drag-handle, but not from its buttons or the rest of the body', () => {
+    render(
+      <DraggableModal isOpen onClose={vi.fn()} title="Test">
+        <div data-testid="strip" data-drag-handle="true">
+          <span>label</span>
+          <button type="button">zoom</button>
+        </div>
+        <p>plain body</p>
+      </DraggableModal>,
+    );
+    const dialog = screen.getByRole('dialog');
+    const left = () => dialog.style.left;
+    // jsdom has no PointerEvent, so build the move as a MouseEvent (carries clientX/Y) named pointermove.
+    const down = (el) => act(() => { el.dispatchEvent(new MouseEvent('pointerdown', { button: 0, clientX: 100, clientY: 100, bubbles: true, cancelable: true })); });
+    const move = (el) => act(() => { el.dispatchEvent(new MouseEvent('pointermove', { clientX: 160, clientY: 140, bubbles: true })); });
+    const before = left();
+
+    down(screen.getByText('plain body'));
+    move(screen.getByText('plain body'));
+    expect(left()).toBe(before);
+
+    down(screen.getByText('zoom'));
+    move(screen.getByText('zoom'));
+    expect(left()).toBe(before);
+
+    const strip = screen.getByTestId('strip');
+    down(screen.getByText('label'));
+    move(strip.parentElement);
+    expect(left()).not.toBe(before);
   });
 });

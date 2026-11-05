@@ -92,10 +92,42 @@ data:
             gzip off;
         }
 
+        # The page nginx serves while the API is down: JSON for the SPA's fetches, a self-retrying page for a browser
+        # navigation (e.g. the OAuth callback landing during a deploy).
+        location = /__api_down {
+            internal;
+            default_type application/json;
+            add_header Retry-After 15 always;
+            add_header Cache-Control "no-store" always;
+            if ($http_accept ~* "text/html") { rewrite ^ /__api_down_html last; }
+            return 503 '{"error":"api_restarting","message":"The service is restarting after an update. Try again in about a minute."}';
+        }
+
+        location = /__api_down_html {
+            internal;
+            default_type text/html;
+            add_header Retry-After 15 always;
+            add_header Cache-Control "no-store" always;
+            return 503 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="8"><title>Restarting</title><style>body{font-family:system-ui,sans-serif;background:#051727;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}main{max-width:30rem;padding:2rem;text-align:center}h1{font-size:1.4rem}p{color:#9fb2cc;line-height:1.5}</style></head><body><main><h1>Back in about a minute</h1><p>The service is restarting after an update. This page retries on its own every few seconds.</p></main></body></html>';
+        }
+
         # Proxy /api/ to BFF (HTTPS inside cluster — BFF uses self-signed mkcert TLS)
         location /api/ {
             proxy_pass https://demo-api-server:3001/api/;
             proxy_ssl_verify off;
+            # While the api-server restarts (every deploy: its pod is replaced, not surged - its volumes are
+            # ReadWriteOnce and LMDB is single-writer) nginx cannot reach it and answers 502/503/504. Say so instead of a
+            # bare nginx page. error_page only fires for nginx's own failures (no upstream), not for a 5xx the BFF itself
+            # returns (proxy_intercept_errors is off).
+            error_page 502 503 504 /__api_down;
+            # The OAuth callback answers 302 + a large session Set-Cookie. nginx's
+            # default response-header buffer (4-8k) rejects it as "upstream sent
+            # too big header" and the browser sees 502 even though the BFF saved
+            # the session. busy_buffers_size must be >= buffer_size and less than
+            # all buffers minus one (8 x 32k), or nginx -t fails.
+            proxy_buffer_size 32k;
+            proxy_buffers 8 32k;
+            proxy_busy_buffers_size 64k;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
@@ -181,6 +213,10 @@ data:
         gzip on;
         gzip_vary on;
         gzip_min_length 1024;
-        gzip_proxied expired no-cache no-store private auth;
-        gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
+        # 'any': the SE ingress sits in front of this nginx, and the hashed assets are served with
+        # Cache-Control: public, so the old list (no-cache no-store private auth) skipped them and the
+        # 11 MB JS bundle went out uncompressed (~20 s per cold load).
+        gzip_proxied any;
+        # Vite emits .js as application/javascript, which the old list did not include.
+        gzip_types text/plain text/css text/xml text/javascript application/javascript application/x-javascript application/xml application/xml+rss image/svg+xml font/ttf font/otf application/vnd.ms-fontobject;
     }

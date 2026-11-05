@@ -1,4 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { protectedActionLabel } from './protectedActionLabel';
+import { useLocation } from "react-router-dom";
+import apiClient from "../services/apiClient";
+import { useVertical } from "../vertical/useVertical";
+import PersonalAgentStudioPage from "./PersonalAgentStudioPage";
+import DigitalWorkerRunPanel from "./DigitalWorkerRunPanel";
+import DigitalWorkerSignIn from "./DigitalWorkerSignIn";
+import useConsentPhone from "./useConsentPhone";
+// The studio emits workload-agents__* classes styled there; this page mounts the
+// studio outside WorkloadAgentsPage, same as PersonalAgentClientWindow does.
+import "./WorkloadAgentsPage.css";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -27,7 +38,7 @@ import "./DigitalWorkerPage.css";
 // Digital Worker: editable architecture diagram. Double-click a box or zone to rename it, double-click
 // an arrow to relabel it, select + Delete to remove, drag to move. Edits autosave to this browser only.
 // Bump the version when the built-in layout changes, so browsers holding an older saved copy pick it up.
-const STORE = "digital-worker-diagram-v2";
+const STORE = "digital-worker-diagram-v3";
 const SIDES = [["t", Position.Top], ["r", Position.Right], ["b", Position.Bottom], ["l", Position.Left]];
 
 function Handles() {
@@ -273,15 +284,142 @@ function Canvas() {
   );
 }
 
+// The verticals this page can run a workload agent for — mirrors WorkloadAgentsPage's set,
+// so an unsupported active vertical (e.g. pingone-admin) still gets a runnable default.
+const SUPPORTED_VERTICALS = new Set([
+  "banking", "healthcare", "retail", "walbuy", "government",
+  "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines",
+]);
+// What goes on the consent phone for a use case, read from its own run prompt ("pay $600 tuition"). A prompt
+// that names no amount has nothing to approve on a phone, so the caller runs it as before.
+function consentSnapshot(uc) {
+  const match = /\$\s*([\d,]+(?:\.\d{1,2})?)/.exec(uc?.runPrompt || "");
+  const amount = match ? Number(match[1].replace(/,/g, "")) : 0;
+  if (!(amount > 0)) return null;
+  return { amount, type: /withdraw/i.test(uc.runPrompt) ? "withdrawal" : "transfer", description: String(uc.runPrompt).slice(0, 80) };
+}
+
+const MODES = [
+  { id: "attended", label: "Attended", hint: "you ask" },
+  { id: "unattended", label: "Unattended", hint: "it starts itself" },
+];
+const DEFAULT_VERTICAL = "banking"; // uc38's canonical run here: the wire transfer with step-up MFA and HITL
+
 export default function DigitalWorkerPage() {
+  const location = useLocation();
+  const { activeId } = useVertical();
+  const params = new URLSearchParams(location.search);
+  const vertical = params.get("vertical") || (SUPPORTED_VERTICALS.has(activeId) ? activeId : DEFAULT_VERTICAL);
+
+  // Scenario loading mirrors WorkloadAgentsPage: the vertical choices arrive from
+  // /api/verticals/list, the protected-action use case (UC38) resolves per vertical, and the studio
+  // only mounts once both are in hand. The studio's own "Run <action>" button is the
+  // one way to start the run; mounting never fires it (its runNonce stays 0).
+  const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
+  const [error, setError] = useState("");
+  const [needsSignIn, setNeedsSignIn] = useState(false); // the wall answered 401: not an error, an invitation
+
+  // One consent phone for the page, shared by the attended Run button and the unattended panel (the server
+  // keeps a single pending mock request per session).
+  const { ask: askConsent, host: consentHost } = useConsentPhone();
+  const consentGate = useCallback(async (uc) => {
+    const snapshot = consentSnapshot(uc);
+    if (!snapshot) return true;
+    return (await askConsent(snapshot, `${uc.id}: ${uc.runPrompt}`)) === "approved";
+  }, [askConsent]);
+  const [mode, setMode] = useState("attended");
+
+  useEffect(() => {
+    let live = true;
+    // Pinned mirror of WorkloadAgentsPage's loading order. This page has no vertical
+    // picker, so the payload has no consumer here — the server 400s an unknown
+    // vertical on the use-case fetch below, and that alert is the real guard.
+    apiClient.get("/api/verticals/list")
+      .catch((err) => {
+        if (!live) return;
+        if (err?.response?.status === 401) setNeedsSignIn(true);
+        else setError("Vertical choices could not be loaded.");
+      });
+    return () => { live = false; };
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    setCatalog({ vertical: null, useCase: null });
+    setError("");
+    setNeedsSignIn(false);
+    apiClient.get(`/api/use-cases/UC38?vertical=${encodeURIComponent(vertical)}`)
+      .then(({ data }) => { if (live) setCatalog({ vertical, useCase: data.useCase }); })
+      .catch((err) => {
+        if (!live) return;
+        if (err?.response?.status === 401) setNeedsSignIn(true);
+        else setError("The governed run could not be loaded for this vertical.");
+      });
+    return () => { live = false; };
+  }, [vertical]);
+
+  const cases = catalog.vertical === vertical ? catalog : {};
+  const selected = cases.useCase;
+
+
+  // The attended studio is tall; a plain hash link would also push a router entry.
+  const jumpToDiagram = (ev) => {
+    ev.preventDefault();
+    document.getElementById("dw-diagram")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="dw-page">
-      <h1 className="dw-page__title">Digital Worker Diagram</h1>
-      <div className="dw-page__canvas">
-        <ReactFlowProvider>
-          <Canvas />
-        </ReactFlowProvider>
-      </div>
+      <h1 className="dw-page__title">Digital Worker</h1>
+      <p className="dw-page__lede">
+        An assistant answers questions. A worker takes action — it holds delegated identity,
+        spends it across tools, and every action is governed.{" "}
+        <a href="#dw-diagram" className="dw-page__jump" onClick={jumpToDiagram}>Jump to the diagram ↓</a>
+      </p>
+
+      {/* The agent comes first: both modes stay mounted (hidden, not unmounted) so the
+          arm state and any run in progress survive a tab switch. */}
+      <section className="dw-agent" aria-label="Digital worker agent">
+        <div className="dw-tabs" role="tablist" aria-label="How the worker runs">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              id={`dw-tab-${m.id}`}
+              aria-selected={mode === m.id}
+              aria-controls={`dw-pane-${m.id}`}
+              className="dw-tab"
+              onClick={() => setMode(m.id)}
+            >
+              {m.label}<span className="dw-tab__hint">{m.hint}</span>
+            </button>
+          ))}
+        </div>
+
+        {consentHost}
+
+        <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} className="dw-agent__pane">
+          <p className="dw-agent__intro">{selected ? `${protectedActionLabel(selected)[0].toUpperCase()}${protectedActionLabel(selected).slice(1)}` : "Protected action"} with step-up MFA and human approval</p>
+          {needsSignIn ? <DigitalWorkerSignIn what="run the governed worker" /> : error && <p role="alert" className="dw-run-task__error">{error}</p>}
+          {selected ? (
+            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} reelEmptyState={<p className="dw-reel-empty">Run it to see each hop's token here.</p>} />
+          ) : !error && !needsSignIn && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
+        </div>
+
+        <div role="tabpanel" id="dw-pane-unattended" aria-labelledby="dw-tab-unattended" hidden={mode !== "unattended"} className="dw-agent__pane">
+          <DigitalWorkerRunPanel onAskConsent={askConsent} />
+        </div>
+      </section>
+
+      <section id="dw-diagram" className="dw-diagram" aria-label="Architecture diagram">
+        <h2 className="dw-diagram__title">How it works</h2>
+        <div className="dw-page__canvas">
+          <ReactFlowProvider>
+            <Canvas />
+          </ReactFlowProvider>
+        </div>
+      </section>
     </div>
   );
 }

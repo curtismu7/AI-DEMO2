@@ -123,7 +123,7 @@
         "label": "My Walbuy orders",
         "message": "show my Walbuy orders",
         "mode": "both",
-        "tool": "list_anf_orders",
+        "tool": "list_walbuy_orders",
         "useCaseId": "delegated-access-with-proof"
       },
       {
@@ -627,7 +627,7 @@
         }
       ]
     },
-    "list_anf_orders": {
+    "list_walbuy_orders": {
       "type": "table",
       "title": "My Walbuy Orders",
       "columns": [

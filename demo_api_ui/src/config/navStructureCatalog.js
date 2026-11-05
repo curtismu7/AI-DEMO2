@@ -10,9 +10,9 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Skin Studio" },
   { label: "Agent Privilege", children: [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
-    "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
-    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege Topologies", "Agent Privilege · MCP",
-    "Malicious MCP Catalog",
+    "Agent Gateway Authorization", "Agent IAM Core",
+    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · MCP",
+    "Malicious MCP Catalog", "AI Policies Demo", "PingFederate Token Demo",
     "Agent Privilege Demo",
   ] },
   { label: "A2A", children: [
@@ -23,11 +23,16 @@ export const NAV_STRUCTURE_CATALOG = [
     "Game Agent", "Context Compaction", "Trading Bot", "Paper Organizer",
   ] },
   { label: "DaVinci", children: [
-    "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
-    "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview", "PingFederate DaVinci Integration Kit",
+    "DaVinci SDK Guide", "DaVinci Widget", "DaVinci Orchestration SDK", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "Ping products", children: [
+    // A sub-group in the side nav, with its own links listed under it there: "Privilege shelf", "Privilege Map",
+    // "Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"
+    // and "Privilege Docs Index". Hiding the group hides all of them; a preset can also hide one of them by label.
+    "Privilege info",
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
+    // A sub-group in the side nav (its own links listed under it there); hiding it hides all of them.
+    "PingFederate",
   ] },
   { label: "Identity Journeys", children: [
     "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map",
@@ -68,10 +73,6 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)",
-  ] },
-  { label: "PingFederate ID-JAG", children: [
-    "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram", "ID-JAG Implementation (PF + Resource Server)", "ID-JAG Playground (try + validate)", "ID-JAG Playground diagrams",
-    "PingFederate ID-JAG (Node)", "Workload Agents · 3rd-party MCP via ID-JAG", "Enterprise-Managed MCP Auth",
   ] },
   { label: "AIC", children: [
     "AIC Token Exchange",

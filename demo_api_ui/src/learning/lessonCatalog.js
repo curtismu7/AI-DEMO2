@@ -64,7 +64,7 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Governance still holds", explain: "The enterprise never governs the dot's private memory, but it governs every tool call: delegated tokens, consent, policy, audit.", demonstrate: "Run a governed action as Dot and read the token chain — same RFC 8693 path as any other personal agent." },
   ],
   "muse-app": [
-    { title: "Connect Muse to the bank", explain: "Meta's consumer Muse creates a custom connector for a hosted MCP endpoint.", demonstrate: "Give Muse the SE-host URL and watch the connector discover the door." },
+    { title: "Connect Muse to the bank", explain: "The bank lists its connector once in Muse's app directory. The customer never types a server address.", demonstrate: "Open Muse's apps directory, find the bank, and click Connect." },
     { title: "Sign in as the customer", explain: "The OAuth browser step proves the person; Sentinel keeps credentials out of the agent.", demonstrate: "Complete the PingOne login on the phone and show the consent." },
     { title: "Read under governance", explain: "Every tool call runs with a delegated token through the gateway and Authorize.", demonstrate: "Ask for the balance and read the token chain on the dashboard." },
   ],
@@ -74,7 +74,7 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Run both lanes", explain: "The standard door and the facade's privilege-gateway door both govern the same agent.", demonstrate: "Run the read, the governed write, then switch doors for lane 2." },
   ],
   "grok-app": [
-    { title: "Create the custom connector", explain: "xAI's connector UI takes any public MCP URL.", demonstrate: "Paste the SE-host door URL in Connectors → Custom." },
+    { title: "Connect from the directory", explain: "The bank lists its connector once in Grok's connector directory. The customer never types a server address.", demonstrate: "Open Grok's connectors directory, find the bank, and click Connect." },
     { title: "Complete the OAuth flow", explain: "The door's discovery and DCR handle registration without xAI-side setup.", demonstrate: "Watch Grok open the PingOne login and return authenticated." },
     { title: "Read under governance", explain: "Tool calls ride the delegated token path, audited end to end.", demonstrate: "Ask for the balance and show the chain on the dashboard." },
   ],
@@ -94,7 +94,7 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Run both lanes", explain: "Two mcpServers entries cover the standard door and the facade door.", demonstrate: "Switch agents in the LibreChat UI and compare the chains." },
   ],
   chatgpt: [
-    { title: "Add the connector", explain: "ChatGPT connectors require a publicly reachable MCP URL.", demonstrate: "Point at the SE-host door and validate." },
+    { title: "Connect from the directory", explain: "The bank lists its connector once in ChatGPT's app directory. The customer never types a server address.", demonstrate: "Open ChatGPT's apps directory, find the bank, and click Connect." },
     { title: "Complete OAuth", explain: "The door's discovery, DCR, and PKCE work with any spec-compliant client.", demonstrate: "Watch the browser login return to ChatGPT." },
     { title: "Read under governance", explain: "The full chain runs: delegated token, gateway, Authorize, audit.", demonstrate: "Ask for the balance and read the dashboard chain." },
   ],
@@ -147,6 +147,17 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Assemble the actors", explain: "Evidence connects person, agent, workload, and protected resource into one story.", demonstrate: "Start with the person and follow the agent identity through the request." },
     { title: "Connect controls", explain: "Tokens, policy, approvals, protocols, and tools each contribute evidence.", demonstrate: "Filter the timeline by token, policy, approval, protocol, and tool." },
     { title: "Assign product ownership", explain: "The product map identifies which Ping control owns each decision or boundary.", demonstrate: "Follow a timeline event to PingOne, Authorize, Gateway, Privilege, or Governance." },
+  ],
+  "authorization-flow-live": [
+    { title: "Pick a vertical and a moment", explain: "The story follows the vertical: the business, what the assistant reads, what it pays for and which tool it calls. Six moments cover the whole control story.", demonstrate: "Choose a vertical, then walk the six moments: no connection, connect, read, pay $25, pay $60 (refused), revoke." },
+    { title: "Follow the three tokens", explain: "The connect token cannot call the business. Exchange 1 mints a delegated token (sub = customer, act = assistant). Exchange 2 mints an audience token in the business's own scope vocabulary, for five minutes, with no onward delegation.", demonstrate: "Press Simulate on Read, or click steps 4, 5 and 11 in the step list, and watch the lit token card change." },
+    { title: "Read the request, response and claims", explain: "Each step shows the real shape: PingOne's /as/token with the RFC 8693 token-exchange grant, the Authorize decision call, the CIBA request, and every claim of the token explained.", demonstrate: "Open a step, read What is happening and Why it matters, then the request and the decoded claims." },
+    { title: "See the refusals", explain: "Authority dies in three places: at policy before the phone rings ($60 over the $50 limit), at the human (no approval), and at Exchange 1 after the consent is revoked.", demonstrate: "Run Pay $60 and Revoke, and note that no device push is sent and nothing reaches the business." },
+  ],
+  "digital-worker-live": [
+    { title: "Contrast the assistant and the worker", explain: "An assistant answers questions, while a worker holds delegated identity and spends it taking governed action.", demonstrate: "Read the lede on Digital Worker, then drag a diagram box to show where the worker's identity is spent." },
+    { title: "Run the governed worker task", explain: "The vertical's protected action (a transfer in banking, a bill in healthcare) runs on the same rails as an attended run: delegated token, policy, step-up MFA, and human approval. The approval is a mock CIBA push: the request goes to the person's own device, never to the browser that started it.", demonstrate: "On the Attended tab, click the Run button (named for the vertical's action), approve the request on the mock phone, then follow the run through the studio's MFA and approval gates." },
+    { title: "Watch an unattended run", explain: "The worker can start itself with nobody present, so arming carries a dead-man switch and every run stays approvable and auditable.", demonstrate: "On the Unattended tab, arm the worker and fire the job without a human turn. When it parks a transfer over its mandate, ask for approval on the mock phone, tap Approve or Deny, and note the auto-disarm." },
   ],
 });
 
@@ -318,7 +329,7 @@ export const lessonCatalog = Object.freeze([
     agentCategory: "Consumer & Partner Agent",
     productRoles: ["PingOne", "Agent Gateway / Broker"],
     talkingPoints: [
-      "xAI's consumer app connects through its self-serve custom-connector UI — the same door, the same governance.",
+      "The customer connects from Grok's connector directory, where the bank lists itself once. Same governance as every other agent.",
       "DCR compatibility is verified live in Task 1's matrix; fixed-client or Bearer fallbacks are documented.",
       "Cloud-hosted like Muse: the SE host is the door, never a laptop URL.",
     ],
@@ -394,7 +405,7 @@ export const lessonCatalog = Object.freeze([
     agentCategory: "Consumer & Partner Agent",
     productRoles: ["PingOne", "Agent Gateway / Broker"],
     talkingPoints: [
-      "The most mainstream agent surface: ChatGPT connectors need a publicly reachable MCP URL — the SE host.",
+      "The most mainstream agent surface: the customer connects from ChatGPT's app directory, where the bank lists itself once.",
       "Read-path demo carries the full governance chain: discovery, DCR, PKCE, delegated token, audit.",
       "Same reachability constraint as Muse/Grok cloud agents; local stack is out of reach by design.",
     ],
@@ -582,6 +593,44 @@ export const lessonCatalog = Object.freeze([
     talkingPoints: [
       "Connect the person, agent, tokens, policy, approvals, protocols, tools, and product ownership in one defensible story.",
       "Every event is labeled by provenance so captured evidence is distinct from explanatory content.",
+    ],
+  }),
+  lesson({
+    id: "digital-worker-live",
+    title: "Digital worker vs digital assistant",
+    audience: "Sales engineers and customer architects",
+    category: "AI concepts",
+    route: "/digital-worker",
+    standaloneRoute: "/digital-worker",
+    run: { action: "ai-architecture", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["assistant-answer", "worker-action", "delegated-identity", "unattended-arm", "approval"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded digital worker run" },
+    maturityStages: [MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Personal and Enterprise Agents",
+    productRoles: ["Agent Governance", "Agent IAM Core"],
+    talkingPoints: [
+      "An assistant answers; a worker acts — and spends delegated identity",
+      "Unattended runs need a dead-man switch, revocation, and audit",
+      "Same governance rails as attended runs: tokens, consent, HITL",
+    ],
+  }),
+  lesson({
+    id: "authorization-flow-live",
+    title: "The assistant acts, the business decides",
+    audience: "Sales engineers and customer architects",
+    category: "AI concepts",
+    route: "/authorization-flow",
+    standaloneRoute: "/authorization-flow",
+    run: { action: "ai-architecture", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["connect-token", "delegated-token", "audience-token", "policy-decision", "ciba-approval"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.RECORDED, label: "Scripted authorization flow" },
+    maturityStages: [MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Personal and Enterprise Agents",
+    productRoles: ["Agent IAM Core", "PingOne Authorize", "Agent Gateway"],
+    talkingPoints: [
+      "The assistant requests; the business decides; the human authorises consequence",
+      "Two token exchanges narrow authority at every hop, and each re-checks the live consent",
+      "A policy limit, a human approval and a revocation each stop the action at a different boundary",
     ],
   }),
 ]);

@@ -6,6 +6,7 @@
  * exists. Mirror of UC42 (the blocked-query deny).
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "agent", group: "agent", label: "Banking agent", sub: ["news ask"], x: 40, y: 150, detail: "Sends 'search the news for PingOne DaVinci' — an ordinary business search, no sign-in needed." },
@@ -47,11 +48,49 @@ const walk = [
   },
 ];
 
+// Per-step detail: request forms use placeholders, tokens are decoded MOCK values, refs are published RFCs/specs or marked emerging drafts.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /mcp   (Agent Gateway)\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"brave_news_search\", \"arguments\": { \"query\": \"PingOne DaVinci\" } } }",
+      tokens: [],
+      refs: [SPEC("MCP specification 2025-11-25", "Model Context Protocol tools/call"), SPEC("JSON-RPC 2.0", "Message envelope")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "Gateway content policy (tx-brave-scope.groovy, inline)\n\nblocked terms: [bitcoin, cryptocurrency, crypto]\nquery \"PingOne DaVinci\" contains none -> pass",
+      tokens: [],
+      refs: [],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST <Brave Search MCP endpoint>   (gateway to third party, unmodified)\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"brave_news_search\", \"arguments\": { \"query\": \"PingOne DaVinci\" } } }",
+      tokens: [],
+      refs: [SPEC("MCP specification 2025-11-25", "Model Context Protocol tools/call")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "-> 200\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"result\": { \"content\": [{ \"type\": \"text\", \"text\": \"<news results>\" }] } }",
+      tokens: [],
+      refs: [SPEC("MCP specification 2025-11-25", "tools/call result")],
+    },
+  },
+];
+
 export default {
   id: "UC41",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

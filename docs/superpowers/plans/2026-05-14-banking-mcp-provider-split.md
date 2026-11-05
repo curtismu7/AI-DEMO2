@@ -151,7 +151,6 @@ will import.
 
 No observable behavior change.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -394,7 +393,6 @@ new module. Three call sites updated to import mapTransactionError.
 No observable behavior change. Same console.log debug lines, same
 JSON payload shape, same HITL_THRESHOLD_USD value.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -832,7 +830,6 @@ new module. getUserTokenForScopes also moves in as a private method.
 No observable behavior change. Same cache keys, same error messages,
 same log strings, same env-var reads, same prod-vs-dev throw.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -1104,7 +1101,6 @@ No observable behavior change. Same fail-open semantics for JWKS
 errors, same STRICT_TOKEN_VERIFICATION promote-to-throw, same expired-
 token AuthenticationError throw.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -1440,7 +1436,6 @@ No observable behavior change. Same chainIndex semantics, same FIFO
 eviction at 1000 sessions, same UserTokenInfo/ExchangedTokenInfo
 shapes, same audit-failure swallow.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -1991,7 +1986,6 @@ dispatch() method.
 No observable behavior change. Same per-tool response JSON, same log
 strings, same error paths, same mapTransactionError integration.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -2132,7 +2126,6 @@ No observable behavior change. Same constructor, same executeTool
 signature, same BankingToolResult shape. The seven-commit refactor is
 complete.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```

@@ -354,17 +354,17 @@ export function errorMessageSuggestsLogin(message) {
 /** Dispatched by navigateToCustomerOAuthLogin; PiFlowSignInModal sets `detail.handled = true`. */
 export const PI_FLOW_SIGNIN_EVENT = 'banking-pi-flow-signin';
 
-/** Current bare path, with the landing page mapped to /dashboard. */
+/** Current path (plus query), so sign-in returns to the page it started on, the landing page included. */
 function currentReturnPath() {
   if (typeof window === 'undefined') return undefined;
-  const p = window.location.pathname;
-  return p === '/' ? '/dashboard' : p;
+  const { pathname, search } = window.location;
+  return pathname ? `${pathname}${search || ''}` : undefined;
 }
 
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
  * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
- *   If not provided, defaults to current page unless on landing page (redirects to /dashboard).
+ *   If not provided, defaults to the current page.
  */
 export function navigateToCustomerOAuthLogin(returnTo) {
   openSignIn({ role: 'customer', returnTo: returnTo ?? currentReturnPath() });

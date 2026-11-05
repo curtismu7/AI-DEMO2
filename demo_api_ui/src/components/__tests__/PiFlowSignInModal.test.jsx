@@ -192,7 +192,7 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard'));
   });
 
-  test('a returnTo with a query string reaches the redirect login as the bare path', async () => {
+  test('a returnTo with a query string reaches the redirect login with its query', async () => {
     mockBff({
       config: ON,
       login: () => ok({ flowId: 'f1' }),
@@ -202,8 +202,7 @@ describe('PiFlowSignInModal', () => {
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fpingone-mcp-inspector'));
-    expect(window.location.href).not.toContain('vertical');
+    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fpingone-mcp-inspector%3Fvertical%3Dhealthcare'));
   });
 
   test('a transient BFF 5xx on credentials shows a retryable error and stays in pi.flow', async () => {

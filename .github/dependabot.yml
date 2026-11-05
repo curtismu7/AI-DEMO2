@@ -1,0 +1,41 @@
+# Dependabot SECURITY updates, grouped: one pull request for every vulnerable dependency across all the lockfiles below,
+# instead of one pull request per package per folder (each of which starts its own full CI run on the shared runners).
+# open-pull-requests-limit: 0 turns off routine VERSION updates; security updates are not affected by it.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/agent_token_service"
+      - "/demo_agent_service"
+      - "/demo_api_resource_server"
+      - "/demo_api_server"
+      - "/demo_api_ui"
+      - "/demo_authz_server"
+      - "/demo_hitl_service"
+      - "/demo_llm_proxy"
+      - "/demo_mcp_code_search"
+      - "/demo_mcp_gateway"
+      - "/demo_mcp_proxy"
+      - "/demo_mcp_resource_server"
+      - "/demo_mcp_weather"
+      - "/demo_ungoverned_agent"
+      - "/dev_mcp/banking-dev"
+      - "/jwt-verifier-mcp-server"
+      - "/langchain_agent/frontend"
+      - "/lmstudio/demo-steps-plugin"
+      - "/oauth-mcp"
+      - "/standalone/hostile-a2a-agent"
+      - "/standalone/hostile-mcp-server"
+      - "/standalone/mcp-inspector/server"
+      - "/standalone/mcp-inspector/web"
+      - "/standalone/mcp-scanner"
+      - "/standalone/privilege-a2a-anthropic-demo"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"

@@ -69,7 +69,8 @@ describe("PingFederate AI Agent page", () => {
     it("offers no DPoP option unless a DPoP client is configured", async () => {
       render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
       await screen.findByRole("button", { name: /Run allowed RAR request/i });
-      expect(screen.queryByLabelText(/DPoP/i)).not.toBeInTheDocument();
+      // The RAR form's DPoP box; the separate DPoP section is labelled by its heading.
+      expect(screen.queryByLabelText(/Bind the access token .* DPoP/i)).not.toBeInTheDocument();
       rarForms().forEach((form) => expect(form.querySelector('[name="dpop"]')).toBeNull());
     });
 
@@ -521,5 +522,27 @@ describe("PingFederate AI Agent page", () => {
     expect(exchange).toBeDisabled();
     expect(apiClient.post).not.toHaveBeenCalled();
     expect(notifyError).not.toHaveBeenCalled();
+  });
+});
+
+describe("PingFederate AI Agent page: ID-JAG points at the PingFederate ID-JAG demo", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("links the PingFederate → PingFederate playground lane and hides the page's own run when it is not configured", async () => {
+    apiClient.get.mockResolvedValue({ data: { sessionProvider: "pingone", features: { crossDomain: false }, idJagDemoEnabled: true } });
+    render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+    const links = await screen.findByTestId("idjag-demo-links");
+    expect(links.querySelector('a[href="/pingfederate-id-jag/playground?mode=pf-pf"]')).not.toBeNull();
+    expect(links.querySelector('a[href="/pingfederate-id-jag"]')).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Run third-party token exchange/i })).toBeNull();
+    const chip = screen.getByText("ID-JAG (third-party exchange)").parentElement;
+    expect(chip).toHaveTextContent("Ready");
+  });
+
+  it("keeps the page's own exchange where it is configured", async () => {
+    apiClient.get.mockResolvedValue({ data: { sessionProvider: "pingone", features: { crossDomain: true } } });
+    render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+    expect(await screen.findByRole("button", { name: /Run third-party token exchange/i })).toBeInTheDocument();
+    expect(screen.getByTestId("idjag-demo-links")).toBeInTheDocument();
   });
 });

@@ -5,16 +5,17 @@
  * services and LLM budgets.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "atk", group: "external", label: "Flooding agent", sub: ["burst of calls"], x: 40, y: 150, detail: "Fires rapid sequential tool calls — probing thresholds, running up cost, or plain flooding." },
-  { id: "gw", group: "gateway", label: "Rate limiter", sub: ["per agent+tool"], x: 340, y: 150, detail: "The limiter's window is per agent and per tool: 3 calls per 10 seconds in the sim." },
+  { id: "gw", group: "gateway", label: "Rate limiter", sub: ["per sub+tool"], x: 340, y: 150, detail: "The limiter's window is per user sub and per tool: 3 calls per 10 seconds in the sim." },
   { id: "tool", group: "resource", label: "Banking MCP", sub: ["sees the flood end"], x: 640, y: 150, detail: "Upstream services and LLM budgets never see the flood past the limiter." },
 ];
 
 const EDGES = [
   ["atk", "gw", "burst", { detail: "Calls 1, 2, 3 within the window." }],
-  ["gw", "gw", "window counted", { detail: "The limiter counts per agent and per tool." }],
+  ["gw", "gw", "window counted", { detail: "The limiter counts per user sub and per tool." }],
   ["atk", "gw", "calls 4, 5, 6…", { detail: "The burst continues past the allowed rate." }],
   ["gw", "atk", "429", { dashed: true, detail: "Throttled — not errored — before further tool dispatch." }],
   ["gw", "tool", "upstream untouched", { detail: "The flood stops at the limiter; the tool and LLM budget never see it." }],
@@ -25,13 +26,13 @@ const walk = [
     title: "Burst begins", label: "Rapid sequential calls",
     nodes: ["atk", "gw"], edges: [0],
     lines: [{ who: "Attacker", text: "The flood pattern: as many tool calls as the wire allows." }],
-    tech: [{ t: "API", c: "N sequential tools/call requests, same agent + tool" }],
+    tech: [{ t: "API", c: "N sequential tools/call requests, same sub + tool" }],
   },
   {
     title: "Limiter counts", label: "Per agent, per tool",
     nodes: ["gw"], edges: [1],
     lines: [{ who: "Gateway", text: "The window is scoped so one noisy agent cannot exhaust a shared budget." }],
-    tech: [{ t: "POLICY", c: "rate window: 3 calls / 10 s per (agent, tool)" }],
+    tech: [{ t: "POLICY", c: "rate window: 3 calls / 10 s per (sub, tool)" }],
   },
   {
     title: "Limit crossed", label: "Mid-burst",
@@ -56,8 +57,10 @@ const walk = [
 export default {
   id: "UC18",
   result: { label: "THROTTLED", tone: "warn" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC18"],
 };

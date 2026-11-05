@@ -11,7 +11,7 @@
 #
 # What it does (in order):
 #   1. Installs Homebrew if missing.
-#   2. Installs git, Node 20, GitHub CLI, Python 3.10+.
+#   2. Installs git, Node 26, GitHub CLI, Python 3.10+.
 #   3. Installs Docker Desktop (to build + push images).
 #   4. Installs SE K8s tools: kubelogin, kubectx, kubectl.
 #   5. Installs mkcert + trusts root CA.
@@ -36,8 +36,8 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/cmuir_pingcorp/AI-DEMO2.git}"
 BRANCH="${BANKING_BRANCH:-main}"
 DEFAULT_DIR_NAME="AI-demo"
-NODE_REQUIRED_MAJOR="20"
-NODE_MIN_MAJOR="20"
+NODE_REQUIRED_MAJOR="26"
+NODE_MIN_MAJOR="26"
 
 if [[ -t 1 ]]; then
   BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BLUE=$'\033[34m'; RESET=$'\033[0m'

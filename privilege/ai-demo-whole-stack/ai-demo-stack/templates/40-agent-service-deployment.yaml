@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: langchain-agent
-        image: "{{ .Values.imageRegistry }}/ai-demo-langchain-agent:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-langchain-agent:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 8888

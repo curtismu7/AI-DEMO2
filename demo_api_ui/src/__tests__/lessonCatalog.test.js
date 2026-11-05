@@ -32,6 +32,8 @@ const REQUIRED_IDS = [
   "threat-defense",
   "lifecycle",
   "evidence-timeline",
+  "digital-worker-live",
+  "authorization-flow-live",
 ];
 
 const NON_EMPTY_STRING = expect.stringMatching(/\S/);

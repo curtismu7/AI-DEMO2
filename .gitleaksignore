@@ -54,3 +54,6 @@ demo_api_ui/src/pages/LlmGatewayPage.jsx:generic-api-key:291
 #    image, resolves only for a viewer signed in to Ping's Glean; owner-confirmed 2026-09-12).
 demo_api_ui/public/learning-mirror/agent-guardrails.html:generic-api-key:638
 demo_api_ui/public/learning-mirror/agent-guardrails.html:generic-api-key:644
+
+# False positive: a git commit SHA in a GHCR image tag (authz-server sidecar), not a secret.
+k8s/20-api-server-deployment.yaml:generic-api-key:186

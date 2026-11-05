@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
       - name: mcp-gateway
-        image: "{{ .Values.imageRegistry }}/ai-demo-mcp-gateway:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-mcp-gateway:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 3005
@@ -122,7 +122,7 @@ spec:
       # probes must run inside the container's netns (exec); an httpGet probe
       # dials the pod IP and would be refused.
       - name: authz-server
-        image: "{{ .Values.imageRegistry }}/ai-demo-authz-server:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-authz-server:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 9001

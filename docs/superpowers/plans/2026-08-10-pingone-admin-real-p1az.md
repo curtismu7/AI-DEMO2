@@ -483,7 +483,6 @@ for this admin user). Two-hop exchange (AI Agent Actor -> Token Exchanger)
 produces a token with both a real aud and a real act, live-tested to a
 genuine PERMIT before this commit.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```

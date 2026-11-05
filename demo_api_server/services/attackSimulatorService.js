@@ -887,11 +887,14 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   const simTool = 'create_transfer';
   const simArgs = { amount: 1, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' };
   try {
+    // pinNodeGateway: this control (per-tool scope) lives on the Node Demo Agent Gateway, so the Node-audienced
+    // token must be routed there; without it the BFF's regular-call guard rejects the token (GATEWAY_AUDIENCE_MISMATCH).
     await callToolViaGateway(
       _nodeGatewayUrl(),
       exchangedToken,
       simTool,
-      simArgs
+      simArgs,
+      { simulatedAttack: true, pinNodeGateway: true }
     );
     // If no error thrown, scope enforcement did not fire — unexpected permit.
     tokenChainEvents.push(buildTokenEvent(
@@ -943,6 +946,16 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
  *   Then call get_accounts at the gateway.
  *   The gateway's validateInboundToken sees aud != gatewayResourceUri → 401 invalid_aud.
  */
+/**
+ * PingFederate enforces the audience at exchange time: it will not issue a token for an audience that has no
+ * registered SP connection, answering unauthorized_client / invalid_target. For the wrong-aud sim that refusal IS
+ * the denial (the wrong-audience token never exists), so it is reported as one instead of a 502 sim error.
+ */
+function _pfExchangeRefusal(err, provider) {
+  return provider === 'pingfederate'
+    && ['unauthorized_client', 'invalid_target'].includes(err?.pingoneError || err?.error || '');
+}
+
 async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
   const sim = 'wrong-aud';
   const gatewayAud = _gatewayAud();
@@ -986,6 +999,17 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       ['read', 'write']
     );
   } catch (err) {
+    if (_pfExchangeRefusal(err, configStore.getOAuthProvider?.())) {
+      const refusal = `PingFederate refused to issue a token for ${wrongAud}: ${err.message}. The authorization server enforces ` +
+        `the audience at exchange time, so a token for the wrong audience never exists to present to the gateway.`;
+      tokenChainEvents.push(buildTokenEvent('sim-exchange-refused', 'Token Exchange DENIED (wrong audience)', 'error', null, refusal,
+        { error: 'invalid_aud', httpStatus: 401 }));
+      stampUseCaseId(tokenChainEvents, useCaseId);
+      return {
+        sim, useCaseId, status: 401, errorCode: 'invalid_aud', reason: refusal, tokenChainEvents,
+        triedAudience: wrongAud, allowedAudience: gatewayAud,
+      };
+    }
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange to wrong audience failed: ${err.message}`;
     tokenChainEvents.push(buildTokenEvent(
@@ -1164,7 +1188,11 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
   try {
   for (let i = 0; i < burstCount; i++) {
     try {
-      await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
+      // pinNodeGateway: this sim targets the Node Demo Agent Gateway ON PURPOSE (it owns the limiter), so the
+      // Node-audienced token must be routed there; without it the BFF's regular-call guard rejects the token
+      // (GATEWAY_AUDIENCE_MISMATCH). get_branch_hours needs only 'read', so every burst call is PERMITted
+      // until the limiter answers 429 (get_my_accounts needs accounts:read and was refused before the burst).
+      await callToolViaGateway(gatewayUrl, exchangedToken, 'get_branch_hours', {}, { simulatedAttack: true, pinNodeGateway: true });
       tokenChainEvents.push(buildTokenEvent(
         `sim-burst-${i + 1}`,
         `Burst call ${i + 1} PERMIT`,
@@ -1326,7 +1354,9 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
       return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
     }
 
-    await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
+    // pinNodeGateway: the control under test (JWKS fail-closed) lives on the Node Demo Agent Gateway, so the
+    // Node-audienced token must be routed there rather than rejected by the BFF's regular-call guard.
+    await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {}, { simulatedAttack: true, pinNodeGateway: true });
     // No throw means the gateway accepted a token while its validation backend
     // was armed down — a fail-OPEN control, which must not render as PERMIT
     // (measured live 2026-09-08: a mislabeled green PERMIT). With jwksSimDown
@@ -2056,16 +2086,22 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   }
 
   let transferResult;
+  // from_account_id: required by the gateway's spec-§2 arg schema — see the matching note on the rar-exceeded call above.
+  const callTransfer = () => callToolViaGateway(
+    null,
+    exchanged.token,
+    'create_transfer',
+    {
+      amount, from_account_id: fromAccountId, to_account_id: toAccountId, ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
+      // create_transfer is destructive, so P1AZ answers PERMIT + ELICITATION until the caller confirms, and the
+      // gateway treats an unsatisfied elicitation like an unsatisfied HITL (a pre-approved receipt alone ends in
+      // hitl_receipt_rejected). This sim is the legitimate user who approved the transfer, so it confirms inline.
+      _elicitation_confirmed: true,
+    },
+    { tratContextHeader },
+  );
   try {
-    transferResult = await callToolViaGateway(
-      null,
-      exchanged.token,
-      'create_transfer',
-      // from_account_id: required by the gateway's spec-§2 arg schema — see
-      // the matching note on the rar-exceeded call above.
-      { amount, from_account_id: fromAccountId, to_account_id: toAccountId, ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
-      { tratContextHeader },
-    );
+    transferResult = await callTransfer();
   } catch (err) {
     // This path is NOT an offline simulation: the exchange and the gateway call
     // above are real, so a deny here is a real refusal of a call the demo expected
@@ -2394,5 +2430,5 @@ module.exports = {
   runAttackSim: _withSession(runAttackSim),
   runIntentBindingDemo: _withSession(runIntentBindingDemo),
   _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
+  __test: { _pfExchangeRefusal, _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
 };

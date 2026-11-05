@@ -8,6 +8,7 @@
  * nothing ever left the BFF.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signs in once"], x: 40, y: 150, detail: "Signed in; her raw access token is the credential the agent tries to hand to MCP — the thing that must never leave the BFF." },
@@ -67,7 +68,7 @@ const walk = [
     nodes: ["p1", "user"], edges: [4],
     lines: [{ who: "Presenter", text: "Only exchanged, agent-scoped tokens with an act claim ever leave the BFF. The user token never crossed a process boundary — to the agent runtime, the gateway, or the LLM context." }],
     tech: [
-      { t: "API", c: "verdict DENY_403 — sim returns user_token_forwarding_disabled" },
+      { t: "API", c: "status 403, errorCode user_token_forwarding_disabled" },
       { t: "POLICY", c: "protection point: BFF token custody (enforced at the source, not downstream)" },
     ],
   },
@@ -76,8 +77,10 @@ const walk = [
 export default {
   id: "UC16b",
   result: { label: "DENY", tone: "err" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC16b"],
 };

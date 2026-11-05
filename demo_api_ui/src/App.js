@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import lazyWithRetry from "./utils/lazyWithRetry";
 import installModalEnterDefault from './utils/modalEnterDefault';
 import {
   Navigate,
@@ -13,145 +14,157 @@ import { initSignInService } from "./utils/signInService";
 import { MdSwapHoriz } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 
-import AccessIdTokenPathPage from "./components/AccessIdTokenPathPage";
-import Accounts from "./components/Accounts";
+const AccessIdTokenPathPage = lazyWithRetry(() => import("./components/AccessIdTokenPathPage"));
+const Accounts = lazyWithRetry(() => import("./components/Accounts"));
 import { ActorTokenEducation } from "./components/ActorTokenEducation";
-import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
+const AdminErrorAuditLog = lazyWithRetry(() => import("./components/AdminErrorAuditLog"));
 import AdminSideNav from "./components/AdminSideNav";
 import DrawOverlay from "./components/DrawOverlay";
 import PageGuide from "./components/PageGuide";
 import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
-import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
-import AgentBuilderPage from "./components/AgentBuilderPage";
-import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
-import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
-import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
-import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
-import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
-import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
-import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
-import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
-import SkillsIndexPage from "./pages/SkillsIndexPage";
-import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
-import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
+const AdminTokenComplianceAudit = lazyWithRetry(() => import("./components/AdminTokenComplianceAudit"));
+const AgentBuilderPage = lazyWithRetry(() => import("./components/AgentBuilderPage"));
+const AgentGuardrailsPage = lazyWithRetry(() => import("./pages/AgentGuardrailsPage"));
+const AgentOnboardingFlowDiagram = lazyWithRetry(() => import("./components/AgentOnboardingFlowDiagram"));
+const AgentOnboardingSubwayPage = lazyWithRetry(() => import("./components/AgentOnboardingSubwayPage"));
+const AgentOnboardingMermaidPage = lazyWithRetry(() => import("./components/AgentOnboardingMermaidPage"));
+const McpGatewayOauthFlowPage = lazyWithRetry(() => import("./components/McpGatewayOauthFlowPage"));
+const PrivilegeMcpDiagramPage = lazyWithRetry(() => import("./components/PrivilegeMcpDiagramPage"));
+const PrivilegeAiPoliciesDemoPage = lazyWithRetry(() => import("./pages/PrivilegeAiPoliciesDemoPage"));
+const PrivilegePfTokenDemoPage = lazyWithRetry(() => import("./pages/PrivilegePfTokenDemoPage"));
+const P1ThirdPartyExchangePage = lazyWithRetry(() => import("./pages/P1ThirdPartyExchangePage"));
+const PrivilegeGatewayTopologyPage = lazyWithRetry(() => import("./components/PrivilegeGatewayTopologyPage"));
+const GatewayStatsPage = lazyWithRetry(() => import("./components/GatewayStatsPage"));
+const PrivilegeDocsIndexPage = lazyWithRetry(() => import("./pages/PrivilegeDocsIndexPage"));
+const PrivilegeShelfPage = lazyWithRetry(() => import("./pages/PrivilegeShelfPage"));
+const PrivilegeMapPage = lazyWithRetry(() => import("./pages/PrivilegeMapPage"));
+const SkillsIndexPage = lazyWithRetry(() => import("./pages/SkillsIndexPage"));
+const InvestDualAuthDiagramPage = lazyWithRetry(() => import("./components/InvestDualAuthDiagramPage"));
+const ExternalDoorDiagramPage = lazyWithRetry(() => import("./components/ExternalDoorDiagramPage"));
 import DemoArchSlidesPage, { Id4aiSlidesRoute } from "./components/DemoArchSlidesPage";
-import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
-import DemoMapPage from "./components/DemoMapPage";
-import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
-import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
-import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
-import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
-import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
-import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
-import A2aArchitecturePage from "./components/a2aArchitecture/A2aArchitecturePage";
-import DiagramsIndexPage from "./components/diagramsIndex/DiagramsIndexPage";
-import UseCaseDiagramPage from "./components/UseCaseDiagramPage";
-import UseCaseDiagramsGalleryPage from "./components/UseCaseDiagramsGalleryPage";
-import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
-import DemoTrackPage from "./pages/DemoTrackPage";
-import DemoSummaryPage from "./pages/DemoSummaryPage";
-import DelegationChainValuePage from "./pages/DelegationChainValuePage";
-import McpShowcasePage from "./pages/McpShowcasePage";
-import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
-import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
-import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
-import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
-import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
+const DemoStepsLifelineAuditPage = lazyWithRetry(() => import("./components/DemoStepsLifelineAuditPage"));
+const DemoMapPage = lazyWithRetry(() => import("./components/DemoMapPage"));
+const GatewayEnforcementMapPage = lazyWithRetry(() => import("./components/GatewayEnforcementMapPage"));
+const ResourceServerPlacementPage = lazyWithRetry(() => import("./components/ResourceServerPlacementPage"));
+const PrivilegeFirstGatewayPage = lazyWithRetry(() => import("./components/PrivilegeFirstGatewayPage"));
+const PersonalAgentDesignPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentDesignPage"));
+const UhgChatgptMcpFlowPage = lazyWithRetry(() => import("./pages/UhgChatgptMcpFlowPage"));
+const PocFlowPage = lazyWithRetry(() => import("./pages/PocFlowPage"));
+const GatewayClaimsPage = lazyWithRetry(() => import("./pages/GatewayClaimsPage"));
+const PoppyPage = lazyWithRetry(() => import("./pages/PoppyPage"));
+const UnitedPersonalAgentFlowPage = lazyWithRetry(() => import("./pages/UnitedPersonalAgentFlowPage"));
+const PersonalAgentFlowPage = lazyWithRetry(() => import("./pages/PersonalAgentFlowPage"));
+const PersonalAgentReviewPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentReviewPage"));
+const CimdPrivilegePage = lazyWithRetry(() => import("./components/cimdPrivilege/CimdPrivilegePage"));
+const A2aArchitecturePage = lazyWithRetry(() => import("./components/a2aArchitecture/A2aArchitecturePage"));
+const DiagramsIndexPage = lazyWithRetry(() => import("./components/diagramsIndex/DiagramsIndexPage"));
+const UseCaseDiagramPage = lazyWithRetry(() => import("./components/UseCaseDiagramPage"));
+const UseCaseDiagramsGalleryPage = lazyWithRetry(() => import("./components/UseCaseDiagramsGalleryPage"));
+const ResourceServerCheckpointPage = lazyWithRetry(() => import("./components/ResourceServerCheckpointPage"));
+const DemoTrackPage = lazyWithRetry(() => import("./pages/DemoTrackPage"));
+const DemoSummaryPage = lazyWithRetry(() => import("./pages/DemoSummaryPage"));
+const DelegationChainValuePage = lazyWithRetry(() => import("./pages/DelegationChainValuePage"));
+const McpShowcasePage = lazyWithRetry(() => import("./pages/McpShowcasePage"));
+const DiscoveryPreviewPage = lazyWithRetry(() => import("./components/agentStudioPreview/DiscoveryPreviewPage"));
+const AgentStudioPreviewPage = lazyWithRetry(() => import("./components/agentStudioPreview/AgentStudioPreviewPage"));
+const IgaForAiPage = lazyWithRetry(() => import("./components/agentStudioPreview/IgaForAiPage"));
+const PrivilegesGatewayPreviewPage = lazyWithRetry(() => import("./components/agentStudioPreview/PrivilegesGatewayPreviewPage"));
+const PlatformGapsPage = lazyWithRetry(() => import("./components/agentStudioPreview/PlatformGapsPage"));
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
-import OwaspLearnerPage from "./components/OwaspLearnerPage";
-import PrivilegeAiDemoPage from "./pages/PrivilegeAiDemoPage";
-import McpScannerPage from "./pages/McpScannerPage";
-import UngovernedAgentPage from "./components/UngovernedAgentPage";
+const OwaspLearnerPage = lazyWithRetry(() => import("./components/OwaspLearnerPage"));
+const PrivilegeAiDemoPage = lazyWithRetry(() => import("./pages/PrivilegeAiDemoPage"));
+const McpScannerPage = lazyWithRetry(() => import("./pages/McpScannerPage"));
+const UngovernedAgentPage = lazyWithRetry(() => import("./components/UngovernedAgentPage"));
 import AIAgent from "./components/AIAgent";
 import ErrorBoundary from "./components/ErrorBoundary";
 import OfflineBanner from "./components/OfflineBanner";
-import ApiKeyPathPage from "./components/ApiKeyPathPage";
-import AuditPage from "./components/AuditPage";
-import BankingAdminOps from "./components/BankingAdminOps";
+const ApiKeyPathPage = lazyWithRetry(() => import("./components/ApiKeyPathPage"));
+const AuditPage = lazyWithRetry(() => import("./components/AuditPage"));
+const BankingAdminOps = lazyWithRetry(() => import("./components/BankingAdminOps"));
 import CIBAPanel from "./components/CIBAPanel";
 import CimdSimPanel from "./components/CimdSimPanel";
-import ClientCredentialsResourcePage from "./components/ClientCredentialsResourcePage";
-import ClientRegistrationPage from "./components/ClientRegistrationPage";
-import ComplianceModalPopout from "./components/ComplianceModalPopout";
+const ClientCredentialsResourcePage = lazyWithRetry(() => import("./components/ClientCredentialsResourcePage"));
+const ClientRegistrationPage = lazyWithRetry(() => import("./components/ClientRegistrationPage"));
+const ComplianceModalPopout = lazyWithRetry(() => import("./components/ComplianceModalPopout"));
 import Dashboard from "./components/Dashboard";
-import SecurityRiskDashboard from "./components/SecurityRiskDashboard";
-import DelegationPage from "./components/DelegationPage";
-import AgentLifecyclePage from "./pages/AgentLifecyclePage";
-import DelegatedCommercePage from "./pages/DelegatedCommercePage";
-import DemoGuidePopout from "./components/DemoGuidePopout";
+const SecurityRiskDashboard = lazyWithRetry(() => import("./components/SecurityRiskDashboard"));
+const DelegationPage = lazyWithRetry(() => import("./components/DelegationPage"));
+const AgentLifecyclePage = lazyWithRetry(() => import("./pages/AgentLifecyclePage"));
+const DelegatedCommercePage = lazyWithRetry(() => import("./pages/DelegatedCommercePage"));
+const DemoGuidePopout = lazyWithRetry(() => import("./components/DemoGuidePopout"));
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
-import DemoConfigPage from "./components/DemoConfigPage";
-import FeatureFlagsPage from "./components/FeatureFlagsPage";
+const DemoConfigPage = lazyWithRetry(() => import("./components/DemoConfigPage"));
+const FeatureFlagsPage = lazyWithRetry(() => import("./components/FeatureFlagsPage"));
 import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
 import TokenTopologyPanel from "./components/TokenTopologyPanel";
 import SystemFlowMapPanel from "./components/SystemFlowMap";
-import HealthcareAdminOps from "./components/HealthcareAdminOps";
+const HealthcareAdminOps = lazyWithRetry(() => import("./components/HealthcareAdminOps"));
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
-import LearningHub from "./components/LearningHub";
+const LearningHub = lazyWithRetry(() => import("./components/LearningHub"));
 import { AcademyLessonRoute, AcademyLegacyPrefixRoute, AgentIdentityAcademyRoute } from "./routes/AcademyRoutes";
-import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
-import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
-import SpinnerShowcasePage from "./pages/SpinnerShowcasePage";
-import LlmConfigPage from "./components/LlmConfigPage";
-import LogoutPage from "./components/LogoutPage";
+const ShadowAiDetectorPage = lazyWithRetry(() => import("./pages/ShadowAiDetectorPage"));
+const LearningProtocolLabPage = lazyWithRetry(() => import("./pages/LearningProtocolLabPage"));
+const SpinnerShowcasePage = lazyWithRetry(() => import("./pages/SpinnerShowcasePage"));
+const LlmConfigPage = lazyWithRetry(() => import("./components/LlmConfigPage"));
+const LogoutPage = lazyWithRetry(() => import("./components/LogoutPage"));
 import LoginSuccessModal from "./components/LoginSuccessModal";
 import AdminRequiredModal from "./components/AdminRequiredModal";
 import LogViewer from "./components/LogViewer";
-import MgmtApiRunnerPage from "./components/MgmtApiRunnerPage";
+const MgmtApiRunnerPage = lazyWithRetry(() => import("./components/MgmtApiRunnerPage"));
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
-import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
-import MortgagePathPage from "./components/MortgagePathPage";
-import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
-import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
-import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
-import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
-import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
-import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
-import Profile from "./components/Profile";
-import ResourceServerPage from "./components/ResourceServerPage";
-import ResourceServerJourneyPage from "./pages/ResourceServerJourneyPage";
-import RetailAdminOps from "./components/RetailAdminOps";
-import ScopeAuditPage from "./components/ScopeAuditPage";
-import ScopeReferencePage from "./components/ScopeReferencePage";
-import SecretRotationPage from "./pages/SecretRotationPage";
-import SecurityCenter from "./components/SecurityCenter";
-import SecuritySettings from "./components/SecuritySettings";
+const MockAuthzRulesPage = lazyWithRetry(() => import("./components/MockAuthzRulesPage"));
+const MortgagePathPage = lazyWithRetry(() => import("./components/MortgagePathPage"));
+const OAuthDebugLogViewer = lazyWithRetry(() => import("./components/OAuthDebugLogViewer"));
+const OAuthTokenDisplayPage = lazyWithRetry(() => import("./components/OAuthTokenDisplayPage"));
+const PingOneAuthorizePage = lazyWithRetry(() => import("./components/PingOneAuthorizePage"));
+const PingOneAuthorizeCapabilitiesPage = lazyWithRetry(() => import("./pages/PingOneAuthorizeCapabilitiesPage"));
+const PolicyDecisionTracePage = lazyWithRetry(() => import("./components/PolicyDecisionTracePage"));
+const PostmanCollectionsPage = lazyWithRetry(() => import("./components/PostmanCollectionsPage"));
+const Profile = lazyWithRetry(() => import("./components/Profile"));
+const ResourceServerPage = lazyWithRetry(() => import("./components/ResourceServerPage"));
+const ResourceServerJourneyPage = lazyWithRetry(() => import("./pages/ResourceServerJourneyPage"));
+const RetailAdminOps = lazyWithRetry(() => import("./components/RetailAdminOps"));
+const ScopeAuditPage = lazyWithRetry(() => import("./components/ScopeAuditPage"));
+const ScopeReferencePage = lazyWithRetry(() => import("./components/ScopeReferencePage"));
+const SecretRotationPage = lazyWithRetry(() => import("./pages/SecretRotationPage"));
+const SecurityCenter = lazyWithRetry(() => import("./components/SecurityCenter"));
+const SecuritySettings = lazyWithRetry(() => import("./components/SecuritySettings"));
 import ServerRestartModal from "./components/ServerRestartModal";
 import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import PiFlowSignInModal from "./components/PiFlowSignInModal";
 import PingFederateDownModal from "./components/PingFederateDownModal";
 import PingFederateRequiredModal from "./components/PingFederateRequiredModal";
-import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
+const SportingGoodsAdminOps = lazyWithRetry(() => import("./components/SportingGoodsAdminOps"));
 import SpinnerHost from "./components/shared/SpinnerHost";
 import AuthLoadingScreen from "./components/shared/AuthLoadingScreen";
 import DemoScriptLauncher from "./components/DemoScriptLauncher";
-import TokenSecurityTester from "./components/TokenSecurityTester";
+const TokenSecurityTester = lazyWithRetry(() => import("./components/TokenSecurityTester"));
 import TopNav from "./components/TopNav";
-import TransactionConsentPage from "./components/TransactionConsentPage";
-import Transactions from "./components/Transactions";
+const TransactionConsentPage = lazyWithRetry(() => import("./components/TransactionConsentPage"));
+const Transactions = lazyWithRetry(() => import("./components/Transactions"));
 import DemoTourModal from "./components/tour/DemoTourModal";
 import WelcomeWizard from "./components/WelcomeWizard";
-import UserAccounts from "./components/UserAccounts";
-import Users from "./components/Users";
-import UserTransactions from "./components/UserTransactions";
+const UserAccounts = lazyWithRetry(() => import("./components/UserAccounts"));
+const Users = lazyWithRetry(() => import("./components/Users"));
+const UserTransactions = lazyWithRetry(() => import("./components/UserTransactions"));
 import VerifiedBanner from "./components/VerifiedBanner";
-import VerticalFeaturePage from "./components/VerticalFeaturePage";
-import WebMcpExplainer from "./components/WebMcpExplainer";
-import NotFoundPage from "./components/NotFoundPage";
-import WorkforceAdminOps from "./components/WorkforceAdminOps";
-import UniversityAdminOps from "./components/UniversityAdminOps";
+const VerticalFeaturePage = lazyWithRetry(() => import("./components/VerticalFeaturePage"));
+const WebMcpExplainer = lazyWithRetry(() => import("./components/WebMcpExplainer"));
+const NotFoundPage = lazyWithRetry(() => import("./components/NotFoundPage"));
+const WorkforceAdminOps = lazyWithRetry(() => import("./components/WorkforceAdminOps"));
+const UniversityAdminOps = lazyWithRetry(() => import("./components/UniversityAdminOps"));
 import SupportConsole from "./components/supportConsole/SupportConsole";
 import { resolveConsoleVertical } from "./components/supportConsole/supportConsoleConfig";
-import GovernmentAdminOps from "./components/GovernmentAdminOps";
-import ManufacturingAdminOps from "./components/ManufacturingAdminOps";
-import InvestmentAdminOps from "./components/InvestmentAdminOps";
-import AbercrombieFitchAdminOps from "./components/AbercrombieFitchAdminOps";
+const GovernmentAdminOps = lazyWithRetry(() => import("./components/GovernmentAdminOps"));
+const ManufacturingAdminOps = lazyWithRetry(() => import("./components/ManufacturingAdminOps"));
+const InvestmentAdminOps = lazyWithRetry(() => import("./components/InvestmentAdminOps"));
+const AbercrombieFitchAdminOps = lazyWithRetry(() => import("./components/AbercrombieFitchAdminOps"));
 import { ActivityNarrativeProvider } from "./context/ActivityNarrativeContext";
 import {
   AgentUiModeProvider,
@@ -170,39 +183,41 @@ import { useAppFlags } from "./hooks/useAppFlags";
 import { useAuth } from "./hooks/useAuth";
 import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
-import SkinStudioPage from "./pages/SkinStudioPage";
-import AiControlPlanePage from "./pages/AiControlPlanePage";
-import ControlPlanePage from "./pages/ControlPlanePage";
-import AgentRegistryPage from "./pages/AgentRegistryPage";
-import CheckPage from "./pages/CheckPage";
-import McpDiscoveryPage from "./pages/McpDiscoveryPage";
-import TracingPage from "./pages/TracingPage";
-import TransactionTracePage from "./pages/TransactionTracePage";
-import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
-import FootprintPicksPage from "./pages/FootprintPicksPage";
-import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
-import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
-import TelemetryPage from "./pages/TelemetryPage";
-import McpObservabilityPage from "./pages/McpObservabilityPage";
-import LangChainPage from "./pages/LangChainPage";
-import SnapshotImport from "./pages/SnapshotImport";
-import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
-import WorkloadAgentsPage from "./pages/WorkloadAgentsPage";
-import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
-import DotWorkbenchPage from "./pages/DotWorkbenchPage";
-import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
-import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
-import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
-import PingCliPage from "./components/PingCliPage";
-import PromptFooPage from "./components/PromptFooPage";
-import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
-import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
-import PingAiProductPage from "./pages/PingAiProductPage";
-import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
-import PingOneVerifyRecognizePage from "./pages/PingOneVerifyRecognizePage";
+const SkinStudioPage = lazyWithRetry(() => import("./pages/SkinStudioPage"));
+const AiControlPlanePage = lazyWithRetry(() => import("./pages/AiControlPlanePage"));
+const ControlPlanePage = lazyWithRetry(() => import("./pages/ControlPlanePage"));
+const AgentRegistryPage = lazyWithRetry(() => import("./pages/AgentRegistryPage"));
+const CheckPage = lazyWithRetry(() => import("./pages/CheckPage"));
+const McpDiscoveryPage = lazyWithRetry(() => import("./pages/McpDiscoveryPage"));
+const TracingPage = lazyWithRetry(() => import("./pages/TracingPage"));
+const TransactionTracePage = lazyWithRetry(() => import("./pages/TransactionTracePage"));
+const AutonomousAgentsPage = lazyWithRetry(() => import("./pages/AutonomousAgentsPage"));
+const FootprintPicksPage = lazyWithRetry(() => import("./pages/FootprintPicksPage"));
+const FootprintMockGalleryPage = lazyWithRetry(() => import("./pages/FootprintMockGalleryPage"));
+const FootprintLiveShellPage = lazyWithRetry(() => import("./pages/FootprintLiveShellPage"));
+const TelemetryPage = lazyWithRetry(() => import("./pages/TelemetryPage"));
+const McpObservabilityPage = lazyWithRetry(() => import("./pages/McpObservabilityPage"));
+const LangChainPage = lazyWithRetry(() => import("./pages/LangChainPage"));
+const SnapshotImport = lazyWithRetry(() => import("./pages/SnapshotImport"));
+const PersonalAgentStudioPage = lazyWithRetry(() => import("./pages/PersonalAgentStudioPage"));
+const PersonalAgentLearnPage = lazyWithRetry(() => import("./pages/PersonalAgentLearnPage"));
+const WorkloadAgentsPage = lazyWithRetry(() => import("./pages/WorkloadAgentsPage"));
+const PersonalAgentClientWindow = lazyWithRetry(() => import("./pages/PersonalAgentClientWindow"));
+const DotWorkbenchPage = lazyWithRetry(() => import("./pages/DotWorkbenchPage"));
+const MusePage = lazyWithRetry(() => import("./pages/MusePage"));
+const GovernanceTimelinePage = lazyWithRetry(() => import("./pages/GovernanceTimelinePage"));
+const EmbeddedWorkerPage = lazyWithRetry(() => import("./pages/EmbeddedWorkerPage"));
+const TransactionTraceEmbedPage = lazyWithRetry(() => import("./pages/TransactionTraceEmbedPage"));
+const PingCliPage = lazyWithRetry(() => import("./components/PingCliPage"));
+const PromptFooPage = lazyWithRetry(() => import("./components/PromptFooPage"));
+const LlamaVscodeGuidePage = lazyWithRetry(() => import("./components/LlamaVscodeGuidePage"));
+const AgenticAccessConsolePage = lazyWithRetry(() => import("./pages/AgenticAccessConsolePage"));
+const PingAiProductPage = lazyWithRetry(() => import("./pages/PingAiProductPage"));
+const PingOneProtectBrowserDemo = lazyWithRetry(() => import("./pages/PingOneProtectBrowserDemo"));
+const PingOneVerifyRecognizePage = lazyWithRetry(() => import("./pages/PingOneVerifyRecognizePage"));
 import AdminRoute from "./routes/AdminRoute";
-import HostedRegistrationPage from "./pages/HostedRegistrationPage";
-import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
+const HostedRegistrationPage = lazyWithRetry(() => import("./pages/HostedRegistrationPage"));
+const HostedRegistrationAdminPage = lazyWithRetry(() => import("./pages/HostedRegistrationAdminPage"));
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
@@ -220,6 +235,7 @@ import MonitoringRoutes, {
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
   CibaApprovalPageRoute,
+  CibaEmailApprovePageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
@@ -254,10 +270,13 @@ import PublicRoutes, {
   IdJagPlaygroundPageRoute,
   IdJagPlaygroundDiagramPageRoute,
   IdJagLearnPageRoute,
+  IdJagInspectPageRoute,
   PingFederateAiAgentPageRoute,
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
+  SessionLabPageRoute,
   DigitalWorkerPageRoute,
+  AuthorizationFlowPageRoute,
   ChatgptLoginPageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
@@ -273,6 +292,7 @@ import PublicRoutes, {
   StandaloneIndexRoute,
   StandaloneSampleRoute,
   StandaloneRunnerRoute,
+  StandaloneAiPoliciesRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -289,7 +309,8 @@ import PublicRoutes, {
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
 import SignInRequired from "./routes/SignInRequired";
-import SignInPrompt from "./components/SignInPrompt";
+const SignInPrompt = lazyWithRetry(() => import("./components/SignInPrompt"));
+const GroupPolicyBoardPage = lazyWithRetry(() => import("./pages/GroupPolicyBoardPage"));
 import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import apiClient from "./services/apiClient";
@@ -790,6 +811,7 @@ function AppWithAuth() {
               {/* A render error on any page used to unmount the whole app (a white
                   screen); only AIAgent had a boundary. resetKey clears it on navigation. */}
               <ErrorBoundary resetKey={pathname}>
+              <Suspense fallback={<AuthLoadingScreen label="Loading…" />}>
               <Routes>
                 <Route
                   path="/request-access"
@@ -883,6 +905,15 @@ function AppWithAuth() {
                 <Route
                   path="/standalone/runner/m2m"
                   element={<StandaloneRunnerRoute />}
+                />
+                <Route
+                  path="/standalone/ai-policies"
+                  element={<StandaloneAiPoliciesRoute />}
+                />
+                {/* The first version of this page was a browser Cedar toy at /standalone/cedar; keep shared links alive. */}
+                <Route
+                  path="/standalone/cedar"
+                  element={<Navigate to="/standalone/ai-policies" replace />}
                 />
                 <Route
                   path="/standalone/:sampleId"
@@ -1045,6 +1076,7 @@ function AppWithAuth() {
                 <Route path="/davinci-sdk-login" element={<Navigate to="/davinci-orchestration-sdk" replace />} />
                 <Route path="/davinci-login-guide" element={<Navigate to="/davinci-widget" replace />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
+                <Route path="/ciba-email-approve" element={<CibaEmailApprovePageRoute />} />
                 <Route
                   path="/code-explorer"
                   element={
@@ -1446,6 +1478,13 @@ function AppWithAuth() {
                     )
                   }
                 />
+                {/* Bare full-page variant for sharing from the handoff page: no side nav, header or
+                    footer. Signed-out visitors get the sign-in prompt alone (SignInRequired would
+                    bring the top nav back). */}
+                <Route
+                  path="/group-policy/full"
+                  element={loading ? null : user ? <GroupPolicyBoardPage /> : <SignInPrompt message="The group policy board reads your own directory membership, so it needs a signed-in session." />}
+                />
                 {/* Page catalog — signed-in users only (it edits their own side-nav prefs). */}
                 <Route
                   path="/page-catalog"
@@ -1497,6 +1536,10 @@ function AppWithAuth() {
                   element={<IdJagLearnPageRoute user={user} logout={logout} />}
                 />
                 <Route
+                  path="/pingfederate-id-jag/inspect"
+                  element={<IdJagInspectPageRoute user={user} logout={logout} />}
+                />
+                <Route
                   path="/pingfederate-id-jag/playground/diagram/:mode"
                   element={<IdJagPlaygroundDiagramPageRoute user={user} logout={logout} />}
                 />
@@ -1510,6 +1553,17 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <AicTokenExchangePageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* Session Lab: signed-in users only (the top half reads their own BFF session). */}
+                <Route
+                  path="/session-lab"
+                  element={
+                    loading ? null : user ? (
+                      <SessionLabPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )
@@ -1539,6 +1593,10 @@ function AppWithAuth() {
                 <Route
                   path="/digital-worker"
                   element={<DigitalWorkerPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/authorization-flow"
+                  element={<AuthorizationFlowPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/privilege-demo"
@@ -1635,6 +1693,15 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/personal-agent/full"
+                  element={
+                    // Bare full-page variant for sharing from the handoff page —
+                    // no side nav, header or footer. Same page component; bare drops
+                    // the chrome-height subtraction from its fixed-height shell.
+                    <PersonalAgentStudioPage user={user} bare />
+                  }
+                />
+                <Route
                   path="/workload-agents"
                   element={
                     <AppShell user={user} logout={logout}>
@@ -1655,6 +1722,37 @@ function AppWithAuth() {
                     <AppShell user={user} logout={logout}>
                       <DotWorkbenchPage user={user} />
                     </AppShell>
+                  }
+                />
+                {/* Muse: real PingOne sign-in + delegation. Signed-in only (the BFF keys the flow to the session). */}
+                <Route
+                  path="/personal-agent/muse"
+                  element={
+                    loading ? null : user ? (
+                      <AppShell user={user} logout={logout}>
+                        <MusePage />
+                      </AppShell>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/personal-agent/learn"
+                  element={
+                    // Standalone, teaching-first Personal Agent Studio: no side nav, header or footer. Signed-out
+                    // visitors see the page with a sign-in prompt (the agent needs a session to run).
+                    <PersonalAgentLearnPage user={user} />
+                  }
+                />
+                <Route
+                  path="/personal-agent/dot/full"
+                  element={
+                    // Bare full-page variant for sharing from the handoff page —
+                    // no side nav, header or footer. Same page component; bare
+                    // drops the chrome-height subtraction and moves the diagram
+                    // below the fixed-height sheet.
+                    <DotWorkbenchPage user={user} bare />
                   }
                 />
                 <Route
@@ -2261,9 +2359,43 @@ function AppWithAuth() {
                               path="/privilege-mcp-diagrams"
                               element={<PrivilegeMcpDiagramPage />}
                             />
+                            {/* The live demo, inside the app shell so the side nav stays (/standalone/ai-policies is the walkthrough). */}
+                            <Route
+                              path="/privilege-ai-policies"
+                              element={<PrivilegeAiPoliciesDemoPage />}
+                            />
+                            {/* PingFederate token on Privilege: live run through the BFF (run needs a session; the page is public). */}
+                            {/* PingOne token exchange with third-party JWTs (Ping UAT guide, Oct 2026). Mock, no live call. */}
+                            <Route
+                              path="/p1-third-party-exchange"
+                              element={<P1ThirdPartyExchangePage />}
+                            />
+                            <Route
+                              path="/privilege-pf-token"
+                              element={<PrivilegePfTokenDemoPage />}
+                            />
+                            {/* What gateway v1.261024 added: nested-claim gate + AgentCore posture. Explains only, no live call. */}
+                            <Route
+                              path="/gateway-claims"
+                              element={<GatewayClaimsPage />}
+                            />
+                            {/* Poppy (Personal Agent Protocol) Company side. Explains only, no live call. */}
+                            <Route path="/poppy" element={<PoppyPage />} />
+                            <Route
+                              path="/privilege-cedar"
+                              element={<Navigate to="/privilege-ai-policies" replace />}
+                            />
                             <Route
                               path="/privilege-docs-index"
                               element={<PrivilegeDocsIndexPage />}
+                            />
+                            <Route
+                              path="/privilege-shelf"
+                              element={<PrivilegeShelfPage />}
+                            />
+                            <Route
+                              path="/privilege-map"
+                              element={<PrivilegeMapPage />}
                             />
                             <Route
                               path="/claude-skills"
@@ -2272,6 +2404,10 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-gateway-topologies"
                               element={<PrivilegeGatewayTopologyPage />}
+                            />
+                            <Route
+                              path="/gateway-stats"
+                              element={<GatewayStatsPage />}
                             />
                             <Route
                               path="/demo-track"
@@ -2355,6 +2491,28 @@ function AppWithAuth() {
                             <Route
                               path="/personal-agent-design"
                               element={<PersonalAgentDesignPage variant="target" />}
+                            />
+                            <Route
+                              path="/personal-agent-flow"
+                              element={<PersonalAgentFlowPage />}
+                            />
+                            <Route
+                              path="/uhg-chatgpt-mcp-flow"
+                              element={
+                                // Customer architecture: signed-in users only.
+                                loading ? null : user ? <UhgChatgptMcpFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/poc-flow"
+                              element={
+                                // Customer POC pattern: signed-in users only.
+                                loading ? null : user ? <PocFlowPage /> : <SignInPrompt message="This customer POC pattern needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/united-personal-agent-flow"
+                              element={<UnitedPersonalAgentFlowPage />}
                             />
                             <Route
                               path="/personal-agent-dual-gateway"
@@ -2593,6 +2751,7 @@ function AppWithAuth() {
                   }
                 />
               </Routes>
+              </Suspense>
               </ErrorBoundary>
               <PageGuide />
               {shouldMountSingleAgent && (
@@ -2725,7 +2884,9 @@ export default function App() {
               <IndustryBrandingProvider>
                 <VerticalProvider>
                   <SessionTokenProvider>
-                    <AppWithAuth />
+                    <Suspense fallback={null}>
+                      <AppWithAuth />
+                    </Suspense>
                   </SessionTokenProvider>
                 </VerticalProvider>
               </IndustryBrandingProvider>

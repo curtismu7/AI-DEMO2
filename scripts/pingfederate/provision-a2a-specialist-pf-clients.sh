@@ -5,6 +5,11 @@
 # runtime config, lost in the 2026-09-26 PF profile rebuild).
 #
 # Grants: CLIENT_CREDENTIALS + TOKEN_EXCHANGE (actor CC + Exchange #2 exchanger).
+# tokenExchangeProcessorPolicyRef is REQUIRED (PF: "Token Exchange Processor Policy mapping not found"
+# without it). The final (Exchange #2) token is minted by aiDemoPfMcpGatewayJwtAtm, whose audience
+# https://api.ping.demo:3036/mcp is in P1AZ HasValidMcpAudience; aiDemoPfAgentGwJwtAtm (aud agentgateway.ping.demo)
+# is NOT accepted there, so a specialist on it denied mcp-invalid-audience under PF (report 2026-09-30 fix (b)).
+# Re-run after any specialist id/secret change in demo_api_server/.env: PF only knows the ids it was given.
 set -euo pipefail
 
 PF_BASE="${PF_BASE:-https://local.ping-devops.com:9999/pf-admin-api/v1}"
@@ -38,7 +43,9 @@ for V in $VERTICALS; do
   "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"],
   "bypassApprovalPage": true,
   "restrictScopes": false,
-  "defaultAccessTokenManagerRef": { "id": "aiDemoPfJwtAtm" },
+  "tokenExchangeProcessorPolicyRef": { "id": "aiDemoStandardTePolicy" },
+  "defaultAccessTokenManagerRef": { "id": "aiDemoPfMcpGatewayJwtAtm" },
+  "restrictToDefaultAccessTokenManager": true,
   "persistentGrantExpirationTime": 0
 }
 EOF

@@ -26,7 +26,7 @@ function evaluation(level, recommendedAction = 'ALLOW') {
   return {
     id: `eval-${level.toLowerCase()}`,
     result: { level, recommendedAction },
-    details: { botDetection: { level: 'LOW', status: 'COMPLETE', detected: { rule: { id: 'rule-1' } } } },
+    details: { botDetection: { level: 'LOW', status: 'COMPLETE', detected: { rule: { id: '674', name: 'AI agent - Muse detected' } } } },
   };
 }
 
@@ -59,7 +59,7 @@ describe('/api/protect-auth browser risk evaluations', () => {
     expect(res.body).toEqual({
       level: 'LOW',
       recommendedAction: 'ALLOW',
-      botDetection: { level: 'LOW', status: 'COMPLETE', detectedRuleId: 'rule-1' },
+      botDetection: { level: 'LOW', status: 'COMPLETE', detectedRuleId: '674', detectedRuleName: 'AI agent - Muse detected' },
     });
     expect(res.body).not.toHaveProperty('flowId');
     expect(res.body).not.toHaveProperty('evaluationId');

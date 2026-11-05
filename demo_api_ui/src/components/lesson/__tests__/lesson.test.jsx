@@ -2,7 +2,7 @@
 // contract is what is pinned here: Copy copies the exact sample, the nav scrolls
 // to the section id it names, and Status never claims success it was not given.
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, waitFor, screen } from "@testing-library/react";
+import { render, fireEvent, waitFor, screen, within } from "@testing-library/react";
 
 // @xyflow/react needs ResizeObserver in jsdom (same stub A2AFlowVisualizer.test.jsx uses).
 class ResizeObserverStub {
@@ -119,8 +119,9 @@ describe("TableBlock, Status, OnThisRun, MermaidFigure", () => {
   it("draws the diagram source it is given as a React Flow sequence", () => {
     render(<MermaidFigure source={"sequenceDiagram\n  participant B as Browser\n  participant S as Server\n  B->>S: hi"} label="The flow" />);
     expect(screen.getByRole("figure", { name: "The flow" })).toBeTruthy();
-    expect(screen.getByText("Browser")).toBeTruthy();
-    expect(screen.getByText("Server")).toBeTruthy();
+    const canvas = within(screen.getByTestId("sequence-flow-canvas"));
+    expect(canvas.getByText("Browser")).toBeTruthy();
+    expect(canvas.getByText("Server")).toBeTruthy();
     expect(document.querySelector(".react-flow")).toBeTruthy();
   });
 

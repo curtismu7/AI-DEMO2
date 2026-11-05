@@ -1698,5 +1698,4 @@ git commit -m "feat: MCP smart fields — auto-fill, copy buttons, smart param c
 - McpGatewayConfig wizard: Step 2 values carry forward to Step 3 with source chips
 - Typography fixes: line-height 1.5, letter-spacing 0.01em, mono font for UUIDs/URLs
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```

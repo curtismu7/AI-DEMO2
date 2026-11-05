@@ -13,6 +13,8 @@ import DiagramExportBar from "./DiagramExportBar";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import { PMD_ARCH_DIAGRAM, PMD_SEQ_DIAGRAM, PMD_FLOW_DIAGRAM } from "../config/privilegeMcpDiagrams";
+import { AI_POLICIES_DIAGRAM } from "../config/privilegeAiPoliciesDiagram";
+import { PF_TOKEN_DIAGRAM } from "../config/privilegePfTokenDemo";
 import "./PrivilegeMcpDiagramPage.css";
 import PageHeader from './common/PageHeader';
 
@@ -146,6 +148,18 @@ const TABS = [
     lede: "Every branch the BFF takes: token already in the session or not, WWW-Authenticate header or the PingOne fallback, a good or a failed token exchange, and a refresh when the token is about to expire.",
     ariaLabel: "Privilege MCP auth flow", diagramLabel: "Privilege MCP auth flow diagram",
   },
+  {
+    id: "aipolicies", label: "AI Policies", config: AI_POLICIES_DIAGRAM,
+    title: "How Privilege decides a tool call: Cedar runs inside the gateway",
+    lede: "Our demo page is only a client: it sends a real call through a real door and shows the real verdict. Privilege authenticates, resolves who is calling, applies the grant, and Cedar decides: allow, refuse, or hold for a human. Solid arrows were observed on the SE gateway; dashed arrows are inferred. The PingFederate agent path was measured on 2026-10-26. Click a card for the step.",
+    ariaLabel: "How Privilege decides a tool call with Cedar", diagramLabel: "Privilege AI Policies diagram",
+  },
+  {
+    id: "pftoken", label: "PF Token", config: PF_TOKEN_DIAGRAM,
+    title: "A PingFederate token through the Privilege gateway",
+    lede: "An agent presents a PingFederate-issued JWT to the pftoken door. The gateway verifies it against the PFtoken identity, maps it to the agent key pftoken-agent, applies the key's grant, and returns the tools. Measured 2026-10-26. Live run: the PingFederate Token Demo page.",
+    ariaLabel: "PingFederate token through the Privilege gateway", diagramLabel: "PingFederate token diagram",
+  },
 ];
 
 export default function PrivilegeMcpDiagramPage() {
@@ -173,11 +187,13 @@ export default function PrivilegeMcpDiagramPage() {
         ))}
       </div>
 
-      <DiagramExportBar
-        source={showUpload ? uploadedSeq : tab.source}
-        sourceFilename={tab.filename}
-        onSourceChange={isSeq ? setUploadedSeq : undefined}
-      />
+      {tab.source && (
+        <DiagramExportBar
+          source={showUpload ? uploadedSeq : tab.source}
+          sourceFilename={tab.filename}
+          onSourceChange={isSeq ? setUploadedSeq : undefined}
+        />
+      )}
 
       <div className="pmd-panel">
         {showUpload ? (

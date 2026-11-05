@@ -15,6 +15,8 @@ const { HARD_DEADLINE_MS, redactReadinessValue } = require('./demoReadinessRepor
 const { resolveRepositoryRoot, readRepositoryRevision } = require('../utils/repositoryRoot');
 
 const DEFAULT_TARGETS = Object.freeze(['local', 'se']);
+// A run limited to one provider is diagnostic, like a run limited to one target.
+const DEFAULT_PROVIDERS = Object.freeze(['pingone', 'pingfederate']);
 const TERMINAL_BAD = new Set(['fail', 'blocked', 'unknown', 'not-run', 'queued', 'active']);
 
 function nowFrom(clock) {
@@ -209,13 +211,14 @@ function createDefaultAdapters(clock = Date.now, {
     },
     planRepairs: (args) => repairs.planRepairs(args),
     applyRepairs: (args) => repairs.applyRepairs(args),
-    execute: async ({ targets, deadlineAt, startedAt, onProgress, signal }) => {
+    execute: async ({ targets, providers, deadlineAt, startedAt, onProgress, signal }) => {
       let result;
       let runError;
       let cleanup;
       try {
         result = await readinessExecution.runManifest({
           targets: targets.map((target) => target === 'se' ? 'hosted' : target),
+          providers,
           deadlineAt,
           startedAt,
           commit: process.env.GIT_COMMIT || process.env.COMMIT_SHA,
@@ -302,6 +305,7 @@ function confirmationDigest(answer, digest) {
 /** Coordinate the readiness phases under one wall-clock deadline. */
 async function startReadinessRun({
   targets = DEFAULT_TARGETS,
+  providers = DEFAULT_PROVIDERS,
   confirmRepairs,
   onProgress = () => {},
   clock = Date.now,
@@ -310,6 +314,8 @@ async function startReadinessRun({
   configStore,
 } = {}) {
   const selectedTargets = [...new Set(targets || [])];
+  const selectedProviders = [...new Set(providers || [])];
+  const allProviders = DEFAULT_PROVIDERS.every((provider) => selectedProviders.includes(provider));
   const startedAt = nowFrom(clock);
   const deadlineAt = startedAt + Math.min(HARD_DEADLINE_MS, Math.max(1, deadlineMs));
   const runId = crypto.randomUUID();
@@ -368,12 +374,17 @@ async function startReadinessRun({
     const allRows = [...checks, ...rows];
     const bad = allRows.some((row) => row.required && TERMINAL_BAD.has(row.status));
     const deadlineExceeded = expired();
-    const complete = matrixCompleted && !bad && !deadlineExceeded && selectedTargets.length === 2 && DEFAULT_TARGETS.every((target) => selectedTargets.includes(target));
+    const complete = matrixCompleted && !bad && !deadlineExceeded && allProviders && selectedTargets.length === 2 && DEFAULT_TARGETS.every((target) => selectedTargets.includes(target));
+    const diagnosticScope = [
+      ...(selectedTargets.length === 1 ? [selectedTargets[0].toUpperCase()] : []),
+      ...(allProviders ? [] : selectedProviders.map((provider) => provider.toUpperCase())),
+    ].join(', ');
     return redactReadinessValue({
       status: deadlineExceeded ? 'deadline-exceeded' : complete ? 'ready' : 'not-ready',
       ready: complete,
-      label: complete ? 'READY — BOTH TARGETS' : selectedTargets.length === 1 && !bad ? 'DIAGNOSTIC — ' + selectedTargets[0].toUpperCase() + ' ONLY' : 'NOT READY',
+      label: complete ? 'READY — BOTH TARGETS' : diagnosticScope && !bad ? 'DIAGNOSTIC — ' + diagnosticScope + ' ONLY' : 'NOT READY',
       targets: selectedTargets,
+      providers: selectedProviders,
       startedAt,
       deadlineAt,
       elapsedMs: Math.max(0, nowFrom(clock) - startedAt),
@@ -386,7 +397,7 @@ async function startReadinessRun({
         runId,
         commit,
         targets: selectedTargets,
-        providerMatrix: selectedTargets.flatMap((target) => ['pingone', 'pingfederate'].map((provider) => ({ target, provider }))),
+        providerMatrix: selectedTargets.flatMap((target) => DEFAULT_PROVIDERS.filter((provider) => selectedProviders.includes(provider)).map((provider) => ({ target, provider }))),
         matrixAttempted,
         matrixDetails,
         status: deadlineExceeded ? 'deadline_exceeded' : complete ? 'ready' : 'not-ready',
@@ -450,6 +461,10 @@ async function startReadinessRun({
 
   if (!selectedTargets.length || selectedTargets.some((target) => !DEFAULT_TARGETS.includes(target))) {
     checks.push({ id: 'run:targets', status: 'blocked', required: true, phase: 'validation', evidence: 'targets must include local, se, or both' });
+    return makeResult();
+  }
+  if (!selectedProviders.length || selectedProviders.some((provider) => !DEFAULT_PROVIDERS.includes(provider))) {
+    checks.push({ id: 'run:providers', status: 'blocked', required: true, phase: 'validation', evidence: 'providers must include pingone, pingfederate, or both' });
     return makeResult();
   }
   if (expired()) return finishDeadline();
@@ -574,7 +589,7 @@ async function startReadinessRun({
   }
 
   matrixAttempted = true;
-  const executionResult = await runAdapter('scenario-matrix', ({ signal }) => adapters.execute({ targets: selectedTargets, deadlineAt, startedAt, onProgress, signal }), { drainOnTimeout: true, drainTimeoutMs: 10_500 });
+  const executionResult = await runAdapter('scenario-matrix', ({ signal }) => adapters.execute({ targets: selectedTargets, providers: selectedProviders, deadlineAt, startedAt, onProgress, signal }), { drainOnTimeout: true, drainTimeoutMs: 10_500 });
   if (executionResult?.timedOut || expired()) {
     const completed = executionResult?.completedResult;
     if (completed && Array.isArray(completed.rows)) {
@@ -609,4 +624,4 @@ async function startReadinessRun({
   return makeResult();
 }
 
-module.exports = { DEFAULT_TARGETS, createDefaultAdapters, startReadinessRun, inProcessSettings };
+module.exports = { DEFAULT_TARGETS, DEFAULT_PROVIDERS, createDefaultAdapters, startReadinessRun, inProcessSettings };

@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 // browser; identifiers that are not secret (client_id, redirect_uri, scope) and decoded token CLAIMS are shown.
 const SECRET_KEYS = new Set([
   'code', 'code_verifier', 'client_secret', 'access_token', 'refresh_token', 'id_token', 'subject_token', 'assertion',
-  'auth_req_id',
+  'auth_req_id', 'registration_access_token',
 ]);
 // Random per-flow values that are not secret, but are long and noisy: show the start only.
 const SHORTEN_KEYS = new Set(['state', 'nonce', 'code_challenge']);

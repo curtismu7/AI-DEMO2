@@ -219,6 +219,11 @@ spec:
         {{- with .Values.extraContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- /* Local addition: containers for ONE release only, appended after extraContainers
+              (a list replaces on --reuse-values, so a per-node sidecar can't live in it). */}}
+        {{- with .Values.nodeExtraContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       volumes:
         - name: logs
           hostPath:

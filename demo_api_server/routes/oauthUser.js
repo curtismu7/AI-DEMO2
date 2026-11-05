@@ -35,6 +35,7 @@ const tokenIntrospectionService = require('../services/tokenIntrospectionService
 const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
 const demoScenarioStore = require('../services/demoScenarioStore');
+const verticalAccountSnapshots = require('../services/verticalAccountSnapshots');
 const { verticalManifest } = require('../services/verticalManifest');
 const loginFlowTrace = require('../services/loginFlowTraceService');
 const { establishUserSession } = require('../services/userSessionService');
@@ -56,7 +57,7 @@ const pendingIdJagRuns = new Map();
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
 /**
- * Same-origin SPA path only — used after customer OAuth to return to landing page instead of /dashboard.
+ * Same-origin SPA path (optional simple query) only — used after customer OAuth to return to landing page instead of /dashboard.
  * @param {unknown} raw
  * @returns {string|null}
  */
@@ -64,7 +65,8 @@ function sanitizePostLoginReturnPath(raw) {
   if (raw == null || typeof raw !== 'string') return null;
   const t = raw.trim();
   if (!t.startsWith('/') || t.startsWith('//') || t.length > 160) return null;
-  if (!/^[/a-zA-Z0-9._~-]+$/.test(t)) return null;
+  // Path, plus an optional plain query (so ?verticalId=… survives sign-in). No '#', no encoded or nested URLs.
+  if (!/^[/a-zA-Z0-9._~-]+(\?[a-zA-Z0-9._~=&,-]*)?$/.test(t)) return null;
   return t;
 }
 
@@ -256,20 +258,17 @@ async function reseedIfVerticalMismatch(userId, firstName, lastName) {
   const primaryType = (existing[0]?.accountType || '').toLowerCase();
   const expectedLower = (expectedType || '').toLowerCase();
   if (expectedLower && primaryType !== expectedLower) {
-    console.debug(`[reseed] User ${userId} has "${existing[0]?.accountType}" accounts but vertical is "${activeVertical}" — reseeding`);
-    // Wipe this user's accounts/transactions from the Maps directly,
-    // then persist so in-memory and disk stay in sync before re-seeding.
-    const acctIds = new Set();
-    for (const [id, acct] of dataStore.accounts) {
-      if (acct.userId === userId) { acctIds.add(id); dataStore.accounts.delete(id); }
-    }
-    for (const [id, tx] of dataStore.transactions) {
-      if (tx.userId === userId || acctIds.has(tx.fromAccountId) || acctIds.has(tx.toAccountId)) {
-        dataStore.transactions.delete(id);
-      }
-    }
-    await dataStore.persistAllData();
-    const result = await createSampleDataForCustomer(userId, firstName, lastName);
+    // Snapshot the outgoing vertical and restore (or seed) this one, never wipe:
+    // the bare delete-and-reseed that used to run here destroyed the user's
+    // built-up demo state on every login under a different global vertical,
+    // and undid a session that had pinned another vertical (the agent and
+    // /api/accounts/my already switch this way). The outgoing vertical is read
+    // from the user's own accounts first: the recorded vertical can disagree
+    // with the data, and snapshotting under the wrong name would lose it.
+    const fromVertical = verticalForPrimaryType(primaryType)
+      || await verticalAccountSnapshots.getCurrentVertical(userId);
+    console.debug(`[reseed] User ${userId} has "${existing[0]?.accountType}" accounts but vertical is "${activeVertical}" — switching (from ${fromVertical || 'unknown'})`);
+    const result = await verticalAccountSnapshots.switchUserVertical(userId, activeVertical, fromVertical ? { fromVertical } : {});
     // Update the KV snapshot so Vercel cold-start restore returns correct-vertical accounts.
     const freshAccounts = dataStore.getAccountsByUserId(userId);
     const snap = freshAccounts.map(a => ({
@@ -279,6 +278,15 @@ async function reseedIfVerticalMismatch(userId, firstName, lastName) {
     await demoScenarioStore.save(userId, { accountSnapshot: snap });
     return result;
   }
+}
+
+/** The one vertical whose primary account type this is, or null if none or several. */
+function verticalForPrimaryType(primaryType) {
+  if (!primaryType) return null;
+  const matches = verticalManifest.loader.list()
+    .map(({ id }) => id)
+    .filter((id) => (verticalManifest.loader.get(id)?.manifest?.terminology?.accountTypes?.[0] || '').toLowerCase() === primaryType);
+  return matches.length === 1 ? matches[0] : null;
 }
 
 /**

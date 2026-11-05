@@ -42,3 +42,38 @@ loadBalancer:
       address: agentless-mcpgw3.ping-devops-curtismuir.svc.cluster.local:8623
       scheme: http
       parked: false
+
+# Gateway 1's per-node OpenSearch MCP sidecar. It was added by hand with kubectl and a helm
+# upgrade dropped it once (2026-10-25). OPENSEARCH_URL resolves only in this namespace.
+nodeExtraContainers:
+  - name: opensearch-mcp-server
+    image: cjmuir710/opensearch-mcp-server:latest
+    imagePullPolicy: Always
+    args: ["--transport", "stream", "--host", "0.0.0.0", "--port", "9900"]
+    env:
+      - {name: OPENSEARCH_URL, value: "http://opensearch:9200"}
+      - {name: OPENSEARCH_NO_AUTH, value: "true"}
+    ports:
+      - containerPort: 9900
+    livenessProbe:
+      tcpSocket: {port: 9900}
+      initialDelaySeconds: 15
+      periodSeconds: 30
+    readinessProbe:
+      tcpSocket: {port: 9900}
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    resources:
+      requests: {cpu: 25m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+
+# The opensearch Deployment's live CPU request was set to 25m by hand; matching it here
+# stops Helm's server-side apply conflicting on that field.
+opensearch:
+  resources:
+    requests:
+      cpu: 25m
+
+# Pin the gateway image to the deployed build (latest only refreshes on pod recreation).
+image:
+  tag: v1.261030

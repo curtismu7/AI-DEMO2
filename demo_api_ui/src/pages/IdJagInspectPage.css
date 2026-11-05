@@ -1,0 +1,22 @@
+/* ID-JAG Inspector: extends the Learn page look (IdJagLearnPage.css). Theme tokens only; dark follows them. */
+.ijl .ijin-field textarea { box-sizing: border-box; display: block; min-height: 7rem; width: 100%; max-width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); font-size: var(--font-size-sm); }
+.ijl .ijin-field { max-width: none; width: 100%; }
+.ijin-btn { font: inherit; font-weight: 600; padding: 0.45rem 1rem; border: 1px solid var(--ijl-red); border-radius: var(--radius-md); background: var(--ijl-red); color: var(--th-bg-card); cursor: pointer; }
+.ijin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ijin-banner { margin: 0.75rem 0; padding: 0.6rem 0.8rem; border: 1px solid var(--th-border); border-left: 5px solid var(--ijl-red); border-radius: var(--radius-md); background: var(--th-bg); }
+.ijin-card { margin: 1rem 0; padding: 0.75rem 1rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg); }
+.ijin-code { margin: 0.4rem 0; padding: 0.6rem 0.8rem; max-height: 22rem; overflow: auto; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); font-size: var(--font-size-xs); }
+.ijin-badge { display: inline-block; padding: 0.1rem 0.5rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); font-size: var(--font-size-2xs); font-weight: 700; white-space: nowrap; background: var(--th-bg-page); }
+.ijin-badge--ok { color: var(--th-success); }
+.ijin-badge--warn { color: var(--ijl-strong); border-color: var(--th-border-strong, var(--th-border)); }
+.ijin-badge--fail { color: var(--ijl-red-text); border-color: var(--ijl-red); }
+.ijin-btn--secondary { background: var(--th-bg); color: var(--ijl-red-text); }
+.ijin-or { margin: 1rem 0 0.4rem; color: var(--th-text-muted, var(--th-text)); font-weight: 600; }
+.ijin-signin { margin: 0.75rem 0; padding: 0.6rem 0.8rem; border: 1px solid var(--th-border); border-left: 5px solid var(--ijl-red); border-radius: var(--radius-md); background: var(--th-bg); }
+.ijin-backends { margin-top: 1.5rem; }
+.ijin-backends > summary { cursor: pointer; font-weight: 700; }
+.ijl-panel > .ijin-btn, .ijin-backends > .ijin-btn { display: block; margin: 0 0 0.9rem; }
+.ijin-backends > summary { margin-bottom: 0.6rem; }
+.ijin-reveal { margin: 0 0 0.9rem; }
+.ijin-reveal .ijin-btn { display: inline-block; margin: 0.5rem 0 0; }
+.ijl-panel > p + .ijin-btn { margin-top: 0.6rem; }

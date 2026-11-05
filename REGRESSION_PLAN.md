@@ -275,6 +275,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-11-04 — Node gateway lane dead under PingFederate: validator rejected PF's policy-derived aud
+
+**Files:** `demo_api_server/services/pfStandardTokenExchangeService.js` (`validateFinalToken`), `demo_api_server/services/agentMcpTokenService.js` (`_performTwoExchangeDelegation`), test `pfStandardTokenExchangeService.test.js`. PR #1968 (merged `923795105`).
+
+**What was broken:** every MCP call routed to the Node Demo Agent Gateway (Node-only tools, A2A pins, `pinNodeGateway` callers) failed closed with `PingFederate final audience mismatch` → `delegation_chain_broken` under the PF standard exchange. PingFederate's token-exchange policy derives the output resource from the granted scope set and ignores the audience parameter (`performExchange` sends `omitAudience`): `gateway:mcp:invoke` mints `https://api.ping.demo:3036/mcp`, `read`+`mcp:invoke` mints `mcpserver.ping.demo` — never the Node lane's expected `mcpgateway.ping.demo`. With `ff_mcp_gateway_pinggateway=false` every fresh two-exchange 401'd, which also made the gateway's Web Bot Auth (RFC 9421) verifier unexercisable live.
+
+**What changed:** `validateFinalToken` takes `acceptedAudiences` — the lane's expected audience plus the auds the destination gateway itself accepts (the `MCP_GW_RESOURCE_URI` comma list) and the PingGateway resource — and `_performTwoExchangeDelegation` passes them. The token stays bound to a real gateway resource in either lane; the mismatch error names expected vs received.
+
+**Do not break:** the PingOne lane's aud behavior (branch untouched — `provider` is falsy there); the PingGateway lane (its primary expected audience is unchanged); the ID-JAG lane (separate path); `middleware/auth.js` aud defaults; scope-topology.json (untouched — the guard's strict equality on `PINGONE_RESOURCE_TWO_EXCHANGE_URI` still holds). A token audienced to an audience in NEITHER the lane's expectation NOR the destination gateway's accepted list must still fail closed.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/agentMcpTokenService.test.js src/__tests__/agentMcpTokenService.pfProviderIsolation.test.js src/__tests__/agentMcpTokenService.pfCatalogParity.test.js src/__tests__/agentMcpTokenService.pfIdJag.test.js src/__tests__/pfStandardTokenExchangeService.test.js src/__tests__/pfTokenExchangeDemo.test.js src/__tests__/mcpGatewayRoutingPolicy.test.js src/__tests__/mcpGatewayClient.pinnedAudience.test.js src/__tests__/mcpGatewayClient.a2aPin.test.js --forceExit` (187 pass). Live: `POST /api/demo/attack-sim/run {"sim":"rate-limit-burst"}` → gateway logs `[GW] Web Bot Auth signature verified`; `POST /api/mcp-gateway/test {"tool":"get_my_accounts"}` → `ok:true` via `ping-gateway:8080`.
+
 ### 2026-10-17 — PingFederate sign-on pages were generic again: Ping-branded theme, re-applied on every run
 
 **Files:** `scripts/pingfederate/apply-login-theme.sh` (+ `.test.sh`), `scripts/pingfederate/assets/` (`login-theme.css`, `login-theme-ping.css`, `login-theme-acme.css`, `html.form.login.template.html`, `acme-mark.svg`, `montserrat-latin.woff2` + OFL; removed `login-main.css`, `ping-logo.svg`, the old `ping-identity-logo.png`), `run-docker.sh` (`ensure_pingfederate`), `scripts/pingfederate/ensure-se-pingfederate.sh`, `editions/pingone.json`, `package.json` (`hygiene:check`).
@@ -561,7 +573,7 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **What changed:** UC46A (Step 25A) is its own use case shown right after Step 25. Clicking it starts `runPrivilegeA2aChatRun` and hands off to /dashboard with `keepTrace`. The "A" button and its handler are gone. 25A lives in `DEMO_SUB_STEP_IDS`, outside the numbered lists, so it shares Step 25's number and reads "25A", and Step 26 onward are NOT renumbered. It is deliberately not in `demoReadinessInventory.json`, which mirrors the 26 numbered primary steps.
 
-**Do not break:** UC46 (Step 25) keeps its link trigger and route `/privilege-mcp-client?view=demo&tab=a2a`. UC47 stays Step 26. Do not insert UC46A into `DEMO_PRIMARY_USE_CASE_IDS`; that would renumber every later step.
+**Do not break:** UC46 (Step 25) keeps its link trigger and route `/privilege-a2a` (moved from `/privilege-mcp-client?view=demo&tab=a2a`, which redirects there, on 2026-10-30). UC47 stays Step 26. Do not insert UC46A into `DEMO_PRIMARY_USE_CASE_IDS`; that would renumber every later step.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/config`; `npm run build`; `npm run authz:verify`; `cd demo_api_server && npm run use-cases:check`.
 
@@ -585,7 +597,7 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **What changed:** `/chat` `delegate`/`result` frames now carry `request` (key masked), `response` and `elapsedMs`; worker `mcp-call`/`mcp-result`/`error` frames carry from/to (analyst and mcp). New `runPrivilegeA2aChatRun({ message, sessionId, onEvent, store, fetchImpl, signal })` streams one chat, feeds `pa2a-<n>` events tagged `privilege-a2a-access-review` via `chainHopToTokenEvent` (new optional `useCaseId` arg) and dispatches `token-chain-inject`; the tab calls it and keeps its own UI through `onEvent`. `buildPrivilegeA2aChainSteps` renders `mcp-call`/`mcp-result` hops and labels `analyst`/`mcp` as "Analyst agent"/"MCP tools". The wire request/response of the main-to-analyst hop are rebuilt from the fixed A2A shape (the SDK hides the body), so ids are placeholders.
 
-**Do not break:** UC46's route `/privilege-mcp-client?view=demo&tab=a2a` and link trigger in `config/useCases.js` are untouched; the tab still selects via URL and never auto-submits. UC47 chain output and ids (`pa2a-*`, `privilege-a2a-agent-chain`) are unchanged. Frames without from/to (session, some errors) are still dropped from the reel by design.
+**Do not break:** UC46's route `/privilege-a2a` (formerly `/privilege-mcp-client?view=demo&tab=a2a`, which still redirects there) and link trigger in `config/useCases.js` are untouched; the page never auto-submits. UC47 chain output and ids (`pa2a-*`, `privilege-a2a-agent-chain`) are unchanged. Frames without from/to (session, some errors) are still dropped from the reel by design.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/privilegeA2aChainRun.test.js src/features/privilegeA2aClient src/components/__tests__/DemoStepsDropdown.test.jsx src/services/tokenChainTrace`; `npm run build`; `cd standalone/privilege-a2a-anthropic-demo && npm test` (the `main should call Anthropic ... 2 !== 4` assertion fails on main already, unrelated).
 
@@ -1456,7 +1468,7 @@ use its permitted Haiku model while newer models retain their server defaults.
 After a successful delegation, MainAgent streams the WorkerAgent's grounded
 answer directly instead of making a redundant fourth model call.
 
-**Do not break:** keep UC46 on `/privilege-mcp-client?view=demo&tab=a2a`, keep
+**Do not break:** keep UC46 on `/privilege-a2a` (the old `?tab=a2a` link redirects there), keep
 the browser-to-BFF session boundary, and preserve the separate MainAgent →
 WorkerAgent → MCP topology and every existing MCP Inspect tab.
 
@@ -1584,7 +1596,7 @@ into the token-chain trace store as `pa2a-*` events and the movie reel shows
 them alone, without the banking pipeline skeleton.
 
 **Do not break:** `UC46` stays at step 25 with its
-`/privilege-mcp-client?view=demo&tab=a2a` trigger; the chain run forwards only
+`/privilege-a2a` trigger (formerly `?tab=a2a` on the MCP client, which redirects); the chain run forwards only
 `message` and `specialist` and never a browser token; banking A2A (`a2a-*`
 events) keeps its own steps; a trace with no `pa2a-*` events renders exactly as
 before.
@@ -17777,3 +17789,36 @@ the enforcement points. The guard intentionally also 403s the `/webmcp` and
 with "Switch to user token". `curl` `GET /api/accounts/my` with an admin session
 returns 403 `admin_token_forbidden`. Sign in as a customer → `/dashboard`
 hydrates normally. `cd demo_api_ui && npm run build` exits 0.
+
+### 2026-10-27 — PingGateway local JWKS route: optional extra audience and scope
+
+**Files:** `ping-gateway/scripts/groovy/jwks-token-validation.groovy`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/check-jwks-extra-audience.test.js`.
+
+**What changed:** The JWKS validation script accepts two optional, comma-separated,
+exact-match settings, `PG_JWKS_EXTRA_AUDIENCES` and `PG_JWKS_EXTRA_SCOPES`. They let a
+second caller path (an Agent Privilege app in front of the gateway, whose tokens carry
+the audience Privilege generated for the caller's identity) pass the route without
+changing the audience or scope every other caller uses. PingOne cannot give one app the
+same scope name on two resources, so that caller cannot also carry the gateway's own scope.
+
+**Do not break:** With both settings unset the checks are exactly what they were:
+`aud` must contain `PG_GATEWAY_RESOURCE_URI` or `PG_GATEWAY_RESOURCE_ID`, `scope` must
+contain `PG_INBOUND_SCOPE`, and the `aud_config_missing` fail-closed guard still fires when
+neither gateway audience is configured. The extras never replace those values and do not
+match wildcards or blank entries.
+
+**Verify:** `node --test ping-gateway/scripts/check-jwks-extra-audience.test.js`. Live: send a
+token with the extra audience and scope through the route with the settings set (200), and
+with them unset (401 `audience_mismatch`).
+
+**Addendum — Authorize policy audience (same change, second layer):** PingOne Authorize's
+`HasValidMcpAudience` condition is generated from `scope-topology.json`, so the same caller path was
+denied there ("MCP Denied — Invalid Audience"). `snapshots/gen-authorize-snapshot.js` now reads an
+optional, comma-separated, exact-match `PINGONE_EXTRA_MCP_AUDIENCES` and adds each value as an accepted
+`TokenAudience`; `demo_authz_server/routes/decision.js` (rule 0c) reads the same variable. Unset, the
+generated snapshot is byte-identical (`node snapshots/gen-authorize-snapshot.js --check` stays green) and
+the object version does not change. Importing a snapshot generated with the variable set is still a console
+step (Authorize, Trust Framework, Import). Verify: `node --test snapshots/authorizeSnapshotExtraAudience.test.js`
+and the two `demo_authz_server/decision.*parity.test.js` suites.

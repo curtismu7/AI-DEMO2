@@ -13,13 +13,16 @@
 #                            PF_USER_REDIRECT_URI     <PUBLIC_APP_URL>/api/auth/oauth/user/callback
 #                            PF_ID_JAG_AUDIENCE       SE_OAUTH_MCP_URL
 #                            PF_ID_JAG_RESOURCE       SE_OAUTH_MCP_URL/mcp
+#   only with SE_PF_REDEEMER_URL set (the Acme PingFederate; its discovery issuer must match):
+#                            PF_IDJAG_PF_REDEEMER_ISSUER, PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT
+#                            -- the pf-pf playground redeemer; the login PF issues on SE
 #   ConfigMap ai-demo-config OAUTH_PROVIDER -> "" only with --unpin (the UI provider toggle works
 #                            again; an empty value is ignored by configStore)
 # Then: kubectl rollout restart deployment/demo-api-server, and waits for rollout status.
 #
-# NOT touched: PF_IDJAG_ISSUER_PF_URL and anything for the pf-pf playground mode. pf-pf needs a
-# LOCAL PingFederate as the resource authorization server and is meant for the local app. Pointing
-# PF_ISSUER at the SE PingFederate makes pf-pf fail with invalid_target on SE.
+# NOT touched: PF_IDJAG_ISSUER_PF_URL and PF_IDJAG_PF_REDEEMER_CLIENT_SECRET. pf-pf needs a SECOND
+# PingFederate as the resource authorization server: with PF_ISSUER at the SE PingFederate and no
+# SE_PF_REDEEMER_URL, pf-pf is reported unavailable (it would fail with invalid_target).
 #
 # Usage:
 #   scripts/se-pf-overrides.sh                 # print the plan (keys and URLs, no secrets); change nothing
@@ -31,6 +34,7 @@
 #   SE_NS=ping-devops-cmuir                      namespace
 #   SE_PF_URL=https://cmuir-pf.ping-devops.com   PingFederate base URL (must equal the issuer)
 #   SE_OAUTH_MCP_URL=https://cmuir-mcp.ping-devops.com
+#   SE_PF_REDEEMER_URL=https://cmuir-pf-acme.ping-devops.com   (unset = pf-pf keys left alone)
 #   PUBLIC_APP_URL=<origin>                      else read from ConfigMap ai-demo-config
 #
 # Safety: values are written with `kubectl patch --type merge --patch-file` (a 0600 temp file,
@@ -44,6 +48,7 @@ set -euo pipefail
 SE_NS="${SE_NS:-ping-devops-cmuir}"
 SE_PF_URL="${SE_PF_URL:-https://cmuir-pf.ping-devops.com}"
 SE_OAUTH_MCP_URL="${SE_OAUTH_MCP_URL:-https://cmuir-mcp.ping-devops.com}"
+SE_PF_REDEEMER_URL="${SE_PF_REDEEMER_URL:-}"
 SECRET_NAME="ai-demo-secrets"
 CONFIGMAP_NAME="ai-demo-config"
 DEPLOYMENT="demo-api-server"
@@ -54,7 +59,7 @@ for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
     --unpin) UNPIN=1 ;;
-    -h|--help) sed -n '2,37p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
     *) echo "unknown option: $a (try --help)" >&2; exit 64 ;;
   esac
 done
@@ -75,6 +80,7 @@ done
 
 SE_PF_URL="${SE_PF_URL%/}"
 SE_OAUTH_MCP_URL="${SE_OAUTH_MCP_URL%/}"
+SE_PF_REDEEMER_URL="${SE_PF_REDEEMER_URL%/}"
 
 WORK="$(mktemp -d)"
 chmod 700 "$WORK"
@@ -85,6 +91,12 @@ DISCOVERY_URL="$SE_PF_URL/.well-known/openid-configuration"
 say "Fetching $DISCOVERY_URL"
 retry 3 curl -fsS --max-time 20 -o "$WORK/discovery.json" "$DISCOVERY_URL" \
   || die "could not fetch the discovery document from $DISCOVERY_URL"
+
+if [ -n "$SE_PF_REDEEMER_URL" ]; then
+  say "Fetching $SE_PF_REDEEMER_URL/.well-known/openid-configuration (redeemer)"
+  retry 3 curl -fsS --max-time 20 -o "$WORK/redeemer-discovery.json" "$SE_PF_REDEEMER_URL/.well-known/openid-configuration" \
+    || die "could not fetch the discovery document from $SE_PF_REDEEMER_URL"
+fi
 
 # ---------- 2. public app URL ----------
 PUBLIC_APP_URL="${PUBLIC_APP_URL:-}"
@@ -101,6 +113,7 @@ SECRET_PATCH="$WORK/secret-patch.json"
 KEYS_FILE="$WORK/plan.txt"
 DISCOVERY_FILE="$WORK/discovery.json" PF_URL="$SE_PF_URL" DISC_URL="$DISCOVERY_URL" \
 REDIRECT_URI="$PUBLIC_APP_URL/api/auth/oauth/user/callback" \
+REDEEMER_URL="$SE_PF_REDEEMER_URL" REDEEMER_DISCOVERY_FILE="$WORK/redeemer-discovery.json" \
 JAG_AUD="$SE_OAUTH_MCP_URL" JAG_RES="$SE_OAUTH_MCP_URL/mcp" \
 PATCH_OUT="$SECRET_PATCH" PLAN_OUT="$KEYS_FILE" node -e '
 const fs = require("fs");
@@ -130,6 +143,20 @@ if (missing.length) {
   process.exit(1);
 }
 map.push(["PF_USER_REDIRECT_URI", e.REDIRECT_URI], ["PF_ID_JAG_AUDIENCE", e.JAG_AUD], ["PF_ID_JAG_RESOURCE", e.JAG_RES]);
+if (e.REDEEMER_URL) {
+  let r;
+  try { r = JSON.parse(fs.readFileSync(e.REDEEMER_DISCOVERY_FILE, "utf8")); }
+  catch (_) { console.error("ERROR: the redeemer discovery document is not valid JSON"); process.exit(1); }
+  if (norm(r.issuer) !== norm(e.REDEEMER_URL) || !r.token_endpoint) {
+    console.error("ERROR: redeemer discovery issuer does not match SE_PF_REDEEMER_URL or has no token_endpoint (issuer=" + r.issuer + ")");
+    process.exit(1);
+  }
+  if (norm(r.issuer) === norm(d.issuer)) {
+    console.error("ERROR: SE_PF_REDEEMER_URL is the same PingFederate as SE_PF_URL; the redeemer must be a second PingFederate");
+    process.exit(1);
+  }
+  map.push(["PF_IDJAG_PF_REDEEMER_ISSUER", r.issuer], ["PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT", r.token_endpoint]);
+}
 fs.writeFileSync(e.PATCH_OUT, JSON.stringify({ stringData: Object.fromEntries(map) }), { mode: 0o600 });
 fs.writeFileSync(e.PLAN_OUT, map.map(([k, v]) => "  " + k + " = " + v).join("\n") + "\n");
 ' || exit 1
@@ -145,7 +172,7 @@ else
   say "ConfigMap/$CONFIGMAP_NAME  untouched (pass --unpin to blank OAUTH_PROVIDER)"
 fi
 say "Then: kubectl rollout restart deployment/$DEPLOYMENT and wait for rollout status"
-say "Not touched: PF_IDJAG_ISSUER_PF_URL and pf-pf playground settings"
+say "Not touched: PF_IDJAG_ISSUER_PF_URL, PF_IDJAG_PF_REDEEMER_CLIENT_SECRET"
 
 if [ "$APPLY" != 1 ]; then
   say ""

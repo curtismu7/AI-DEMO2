@@ -160,13 +160,25 @@ function validateIntermediateToken(token, { userSub, audience, scopes, issuer, a
   return decoded;
 }
 
-function validateFinalToken(token, { userSub, audience, scopes, issuer, agentActorToken, mcpActorToken }) {
+function validateFinalToken(token, { userSub, audience, acceptedAudiences, scopes, issuer, agentActorToken, mcpActorToken }) {
   const decoded = assertAccessToken(token, 'second exchange');
   assertIssuer(decoded, issuer, 'second exchange');
   const agentActor = assertAccessToken(agentActorToken, 'AI-agent actor-token request');
   const mcpActor = assertAccessToken(mcpActorToken, 'MCP-service actor-token request');
   if (decoded.claims.sub !== userSub) throw new Error('PingFederate exchange did not preserve the user subject');
-  if (!includesAudience(decoded.claims.aud, audience)) throw new Error('PingFederate final audience mismatch');
+  // PF's token-exchange policy derives the output resource itself (the BFF sends
+  // no `audience`/`resource` parameter to PF — performExchange omitAudience), so
+  // the minted token carries the policy's audience regardless of which GATEWAY
+  // the caller targets. Accept the primary expected audience plus any explicitly
+  // listed alternates (e.g. the Node-gateway lane, whose gateway accepts the
+  // PingGateway-resource aud from the same comma-list MCP_GW_RESOURCE_URI).
+  const accepted = [audience, ...(Array.isArray(acceptedAudiences) ? acceptedAudiences : [])].filter(Boolean);
+  if (!accepted.some((a) => includesAudience(decoded.claims.aud, a))) {
+    throw new Error(
+      `PingFederate final audience mismatch: expected one of [${accepted.join(', ')}], ` +
+      `got ${JSON.stringify(decoded.claims.aud)}`
+    );
+  }
   if (!sameScopes(decoded.claims.scope, scopes)) throw new Error('PingFederate exchange scope mismatch');
   // Nested only: act.sub is the MCP service, act.act.sub is the AI agent. A flat
   // act naming just the agent used to pass too — accepted in 2026-09 when nobody

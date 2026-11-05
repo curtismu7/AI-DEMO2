@@ -1,0 +1,242 @@
+/* Personal-agent studio shell. Two layouts share the same elements:
+   - stacked (default): chat on top; the reel and Token Chain stack under it.
+   - cockpit: chat on the left; gates, flow diagram, reel and Token Chain in the right
+     column; the client dock along the bottom. Same DOM in both, so the conversation and
+     the live token events survive a layout switch. */
+.pas-shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 640px;
+  /* a definite height so the chat can flex; "bare" has no app chrome to subtract */
+  height: calc(100vh / var(--app-zoom, 1) - 176px);
+  background: var(--bg, #0f1117);
+}
+
+.pas-shell--bare { height: calc(100vh / var(--app-zoom, 1)); }
+
+/* Stacked flows at its natural height, like the design mock: the chat, the reel and the full token detail
+   each show in full and the page scrolls. (A fixed-height shell clipped the richer token cards.) */
+.pas-shell--stacked {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* The reel host is sticky and capped to half the page elsewhere; in the flowing stacked page it is just a block. */
+.pas-shell--stacked .tcfs-float-host.tcfs-float-host--stacked {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+
+/* ── Cockpit: dark theme ────────────────────────────────────────────────────────────────────────
+   The theme tokens are re-pointed on the cockpit shell, so every component inside that reads them (gate chips,
+   reel, Token Chain, token rows, dock, header) goes dark together without per-component overrides. */
+.pas-shell--cockpit {
+  --bg: #06101c;
+  --surface: #0b1c2e;
+  --border: #1d3a58;
+  --th-bg-page: #06101c;
+  --th-bg-card: #0b1c2e;
+  --th-bg-inset: #10263c;
+  --th-border: #1d3a58;
+  --th-text: #e8f0fa;
+  --th-text-muted: #8ea6c4;
+  --th-status-success-text: #31c48d;
+  --th-status-success-bg: rgba(49, 196, 141, 0.12);
+  --th-status-error-text: #ff8a8a;
+  --th-status-error-bg: rgba(210, 14, 15, 0.16);
+  --th-status-info-text: #7fb8f0;
+  --th-status-info-bg: rgba(63, 143, 216, 0.2);
+  --th-status-warning-text: #f2a93b;
+  --pas-pill-on-bg: #ffffff;
+  --pas-pill-on-fg: #06101c;
+  color: var(--th-text);
+}
+
+/* Cockpit: the chat stays in view (sticky) on the left while the right column flows at its natural height and
+   the page scrolls, so the gates, reel and token detail are never squeezed into whatever a short window leaves over
+   (a fixed-height grid gave the right column ~200px on a laptop). The client dock is pinned to the bottom edge. */
+.pas-shell--cockpit {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  /* header, gates, flow disclosure, reel + Token Chain, dock */
+  grid-template-rows: auto auto auto auto auto;
+  height: auto;
+  min-height: calc(100vh / var(--app-zoom, 1) - 176px);
+  overflow: visible;
+}
+
+.pas-shell--cockpit > .pas-c-header { grid-column: 1 / -1; grid-row: 1; }
+
+.pas-shell--cockpit > .pas-c-chat {
+  grid-column: 1;
+  grid-row: 2 / 5;
+  align-self: start;
+  position: sticky;
+  /* below the app's fixed top bar, or the chat's own header slides underneath it while you scroll */
+  top: calc(112px / var(--app-zoom, 1));
+  height: calc(100vh / var(--app-zoom, 1) - 300px);
+  min-height: 420px;
+  border-right: 1px solid var(--th-border);
+}
+
+.pas-shell--cockpit > .pas-c-gates { grid-column: 2; grid-row: 2; }
+.pas-shell--cockpit > .pas-c-flow { grid-column: 2; grid-row: 3; }
+
+/* The reel + Token Chain are a plain block in the right column (no sticky pin, no cap, no inner scroll).
+   Three classes so this beats the stacked variant's own max-height. */
+.pas-shell--cockpit > .pas-c-reel.tcfs-float-host.tcfs-float-host--stacked {
+  grid-column: 2;
+  grid-row: 4;
+  position: static;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.pas-shell--cockpit > .personal-agent-client-dock {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
+/* The right column is about 850px wide, so the Token Chain intro (a 3-column row in the full-width stacked
+   page) reads as one column here instead of three cramped ones. */
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro { grid-template-columns: minmax(0, 1fr); }
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-title,
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-list,
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-value,
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-cta { grid-column: 1; grid-row: auto; }
+
+/* The chat fills the whole left column instead of stopping at its content height. */
+.pas-shell--cockpit .agent-client-skin { height: 100%; }
+
+@media (max-width: 960px) {
+  .pas-shell--cockpit {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .pas-shell--cockpit > .pas-c-chat { position: static; height: auto; min-height: 420px; border-right: 0; }
+  .pas-shell--cockpit > .personal-agent-client-dock { position: static; }
+}
+
+.pas-c-chat { flex: 1; min-height: 320px; }
+.pas-c-flow { padding: 0 16px; }
+
+/* ── Stacked: numbered sections, as in the design mock ──────────────────────────────────────────
+   A red numeral and a small label sit in a left gutter beside each section, so they cost no
+   vertical space (the page is a fixed-height shell). Decorative only: the content is unchanged. */
+.pas-shell--stacked,
+.pas-c-cards { --pas-gutter: 88px; }
+
+/* 280px is the chat's floor: with the app chrome and header above it, anything taller pushes the reel below the
+   fold on a 720px window (the e2e guard "movie reel is on screen on Personal Agent Studio"). */
+/* A definite height, so the message list scrolls inside the card instead of the card growing to its content: it follows
+   the window (280px on a short one, up to 460px on a tall one). */
+.pas-shell--stacked > .pas-c-chat {
+  flex: none; /* the shell flows at its natural height here, so the chat takes the height below, not a share of it */
+  min-height: 280px; /* the base rule's 320px floor is for the fixed-height shells */
+  padding: 4px 28px 4px var(--pas-gutter);
+  box-sizing: border-box;
+  height: clamp(280px, calc(100vh / var(--app-zoom, 1) - 440px), 460px);
+}
+
+.pas-shell--stacked .agent-client-skin { height: 100%; }
+.pas-shell--stacked > .pas-c-flow { padding: 0 28px 0 var(--pas-gutter); min-height: 36px; }
+.pas-shell--stacked .tcfs-chain { padding-left: var(--pas-gutter); }
+.pas-shell--stacked .tcfs-spotlight-empty { padding: 14px 28px 14px var(--pas-gutter); }
+/* A visible rule between 4 (Tokens) and 5 (Clients), so the two sections do not run together. */
+.pas-c-cards { padding-left: var(--pas-gutter); padding-right: 28px; margin-top: 12px; border-top: 2px solid var(--th-border); }
+
+.pas-shell--stacked .agent-client-skin { border-radius: var(--radius-xl); }
+
+:is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards) { position: relative; }
+
+:is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::before {
+  position: absolute;
+  left: 26px;
+  top: 8px;
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--app-primary-red, #d20e0f);
+  pointer-events: none;
+}
+
+:is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::after {
+  position: absolute;
+  left: 26px;
+  top: 42px;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--th-text-muted);
+  pointer-events: none;
+}
+
+.pas-shell--stacked > .pas-c-chat::before { content: "1"; }
+.pas-shell--stacked > .pas-c-chat::after { content: "AGENT"; }
+.pas-shell--stacked > .pas-c-flow::before { content: "2"; top: 5px; font-size: var(--font-size-xl); }
+.pas-shell--stacked > .pas-c-flow::after { content: "FLOW"; top: 12px; left: 50px; }
+.pas-shell--stacked .tcfs-chain::before { content: "3"; }
+.pas-shell--stacked .tcfs-chain::after { content: "PIPELINE"; }
+.pas-shell--stacked .tcfs-spotlight-empty::before { content: "4"; }
+.pas-shell--stacked .tcfs-spotlight-empty::after { content: "TOKENS"; }
+.pas-c-cards::before { content: "5"; }
+.pas-c-cards::after { content: "CLIENTS"; }
+
+@media (max-width: 960px) {
+  .pas-shell--stacked,
+  .pas-c-cards { --pas-gutter: 20px; }
+
+  :is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::before,
+  :is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::after { display: none; }
+}
+
+/* Layout switch in the header */
+.pas-layout-switch {
+  display: inline-flex;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pas-layout-switch button {
+  padding: 5px 11px;
+  border: 0;
+  background: transparent;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pas-layout-switch button[aria-pressed="true"] {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font-weight: 600;
+}
+
+/* The vertical picker in the header: a quiet label beside the shared VerticalSwitcher dropdown */
+.pas-vertical { display: inline-flex; align-items: center; gap: 6px; }
+
+/* The shared dropdown renders at 15px here (a global select rule outranks its own 0.8rem), well above the 12-13px
+   controls around it. Two classes beat that rule. */
+.pas-vertical .vertical-switcher__select {
+  padding: 3px 6px;
+  font-size: var(--font-size-2xs);
+}
+
+.pas-vertical__label {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}

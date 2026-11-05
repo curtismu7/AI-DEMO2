@@ -347,7 +347,6 @@ REGRESSION_PLAN §4 entry: 2026-05-19 — Expense forecasting tool added.
 Files: src/tools/BankingToolRegistry.ts, services/simulatedAuthorizeService.js,
 demo_api_ui/src/components/BankingAgent.js.
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

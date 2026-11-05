@@ -16,6 +16,8 @@ LABEL="com.aidemo2.ci-dashboard"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG="$HOME/Library/Logs/aidemo2-ci-dashboard.log"
 PORT=57500
+# The repo CI runs in; the checkout's origin can point somewhere else.
+DASH_REPO="${CI_DASHBOARD_REPO:-ping-sandbox/AI-DEMO2}"
 
 if [ "${1:-install}" = "uninstall" ]; then
   launchctl unload "$PLIST" 2>/dev/null || true
@@ -58,6 +60,7 @@ cat > "$PLIST" <<PLISTEOF
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key><string>$PATH_ENV</string>
+    <key>CI_DASHBOARD_REPO</key><string>$DASH_REPO</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -79,6 +82,7 @@ launchctl load "$PLIST"
 
 echo "Installed and loaded $LABEL"
 echo "  server:    $SERVER"
+echo "  repo:      $DASH_REPO"
 echo "  PATH:      $PATH_ENV"
 echo "  plist:     $PLIST"
 echo "  log:       $LOG"

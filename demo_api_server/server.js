@@ -735,22 +735,13 @@ app.use('/api/admin/hosted-registrations', authenticateToken, requireAdmin, requ
 // Include /api/auth/oauth so GET /api/auth/oauth/user/status (and admin /status) run
 // refresh before the handler — otherwise the SPA sees authenticated:true while
 // /api/accounts/my still gets 401 from validatePingOneCoreToken on an expired JWT.
-app.use(
-    [
-        '/api/users',
-        '/api/accounts',
-        '/api/transactions',
-        '/api/mcp',
-        '/api/demo-agent',
-        '/api/demo/attack-sim',
-        '/api/tokens',
-        '/api/demo-scenario',
-        '/api/delegated-commerce',
-        '/api/auth/oauth',
-        '/api/mfa/test',
-    ],
-    refreshIfExpiring,
-);
+// Silent refresh runs for EVERY /api route, not a hand-kept list of prefixes. It used to be
+// limited to a dozen prefixes, so a page that only called an unlisted route (/api/verticals,
+// POST /api/agent/invoke, /api/canvas ...) never had its ~1h access token refreshed: after a
+// sleeping tab woke up, every call failed with "jwt expired" and the app sent the person back
+// to sign in (SE 2026-10-20, 19:19Z). The middleware is cheap when the token is fresh and
+// non-fatal when a refresh fails, so a global mount is safe. Keep it ahead of the route mounts.
+app.use('/api', refreshIfExpiring);
 
 // Audience (aud) enforcement lives in authenticateToken → validatePingOneCoreToken
 // (middleware/auth.js): always-on when BFF_RESOURCE_URI is configured, and aware of
@@ -1473,6 +1464,8 @@ app.use('/api/auth/oauth/user', oauthUserRoutes);
 app.use('/api/pf-ai-agent', require('./routes/pfAiAgent'));
 // ID-JAG playground: the real PingFederate ID-JAG flow, one step at a time, with spec checks.
 app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
+// ID-JAG Inspector: decode a pasted token + spec checks, backend discovery. Signed-in callers only.
+app.use('/api/id-jag-inspect', authenticateToken, require('./routes/idJagInspect').router);
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
@@ -1519,6 +1512,8 @@ app.use('/api/document-rag', authenticateToken, require('./routes/documentRag'))
 // OBO demo: Claude-facing MCP endpoint + downstream verifier. Self-authenticating (own Bearer check).
 const oboRoutes = require('./routes/obo');
 app.use('/api/obo', oboRoutes.router);
+// Muse personal-agent page: real PingOne sign-in + RFC 8693 delegation. Session-gated routes plus a state-keyed callback.
+app.use('/api/muse', require('./routes/muse').router);
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
 app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run
@@ -1560,6 +1555,8 @@ app.use('/api/privilege-a2a', require('./routes/privilegeA2aClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
 // MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
 app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));
+// PingFederate token on Privilege demo (/privilege-pf-token): PF-minted JWT to the pftoken door.
+app.use('/api/pf-token-demo', require('./routes/pfTokenPrivilegeDemo'));
 // Illustrative OAuth config admin page for banking-mcp — see docs/mocks/mcp-oauth-config-mock.html
 app.use('/api/mcp-oauth-config', require('./routes/mcpOAuthConfig'));
 // MCP Gateway Config — status + generated PingGateway mcp.json (open to any authenticated session)
@@ -1996,10 +1993,17 @@ app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
 // must be able to fetch them). Derived from scope-topology.json at request
 // time. Consumed by the mocked register-by-URL path (PingOne has no CIMD).
 app.use('/api/cimd', require('./routes/cimdAgentMetadata'));
+// "Add a connector to ChatGPT/Claude" sandbox: CIMD client + authorization server + gateway + policy decision (services/connectorSandbox.js).
+app.use('/api/connector-sandbox', require('./routes/connectorSandbox'));
 
 // RFC 9728 — Protected Resource Metadata (public, no authentication required)
 // RFC 9728 metadata for the OBO MCP endpoint (public; must precede the generic handler below).
 app.get('/.well-known/oauth-protected-resource/api/obo/mcp', oboRoutes.metadataHandler);
+// Poppy discovery (Personal Agent Protocol): poppy.json + host-root resource metadata, Poppy host only.
+const poppyDiscovery = require('./routes/poppyDiscovery');
+app.use('/.well-known', poppyDiscovery.router);
+app.use('/.well-known/oauth-protected-resource', poppyDiscovery.protectedResourceOnPoppyHost);
+app.use('/poppy/api', require('./routes/poppyApi').createPoppyApiRouter());
 app.use('/.well-known/oauth-protected-resource', protectedResourceMetadataRoutes);
 app.use('/api/rfc9728', protectedResourceMetadataRoutes);
 

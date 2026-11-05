@@ -157,7 +157,6 @@
   git commit -m "$(cat <<'EOF'
   Add promptFlowLayers utility for Prompt Flow Inspector layer/status colors
 
-  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   EOF
   )"
   ```
@@ -420,7 +419,6 @@
   git commit -m "$(cat <<'EOF'
   Add PromptFlowInspector run list (left column) on InspectorShell
 
-  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   EOF
   )"
   ```
@@ -760,7 +758,6 @@
   git commit -m "$(cat <<'EOF'
   Add layer-color-striped hop timeline (middle column) to PromptFlowInspector
 
-  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   EOF
   )"
   ```
@@ -973,7 +970,6 @@
   git commit -m "$(cat <<'EOF'
   Add Details/Raw JSON tabs with redaction marking to PromptFlowInspector
 
-  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   EOF
   )"
   ```
@@ -1196,7 +1192,6 @@
   git commit -m "$(cat <<'EOF'
   Wire /prompt-flow-inspector route with guest-redirect gating
 
-  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   EOF
   )"
   ```
@@ -1396,7 +1391,6 @@
   git commit -m "$(cat <<'EOF'
   Add Prompt Flow Inspector nav entry under Inspectors group
 
-  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   EOF
   )"
   ```

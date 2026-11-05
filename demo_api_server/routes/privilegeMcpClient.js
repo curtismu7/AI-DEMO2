@@ -8,10 +8,12 @@ const { internalSecret } = require('../utils/internalSecret');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
+const { holdRulesFrom, holdToolsByDoor } = require('../services/privilegeHoldRules');
 const guardrailAttemptLog = require('../services/guardrailAttemptLog');
 const externalGuardrailForwarder = require('../services/externalGuardrailForwarder');
 const { requireSession } = require('../middleware/auth');
 const { resolveActingIdentity } = require('../middleware/transactionTurn');
+const configStore = require('../services/configStore');
 const router = express.Router();
 
 // Same marker the LLM Gateway console (LlmGatewayPage.jsx) uses to detect a
@@ -1765,7 +1767,8 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   authUrl.searchParams.set('scope', requestedScopes);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', oauthState);
-  const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
+  // The session's email is empty for some accounts; the name the sign-in modal remembers fills the gap.
+  const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email || configStore.getEffective('last_login_hint_customer');
   if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
   // Reuse an existing IdP browser session when either the main app or a prior
@@ -2082,6 +2085,8 @@ router.get('/state', (req, res) => {
     // Where the sibling doors above came from. `persisted: false` means nobody
     // has connected the console yet and the picker is on the pre-W8 fallback.
     doorDiscovery: discoverySummary(discovery),
+    // { door: { tool: policy } } for tools a live policy holds for a human; null = this snapshot has no hold rules yet.
+    hitlTools: holdToolsByDoor(discovery),
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
@@ -2785,7 +2790,7 @@ const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 // Its own variable rather than repointing PRIVILEGE_SSO_ENV_ID, because that
 // one is paired with PRIVILEGE_SSO_CLIENT_ID/_SECRET for a client_credentials
 // grant (privilegeMcpSimple.js) and moving it would break that separately.
-// This mirrors standalone/ai-gateway-client, which has always kept the two
+// This mirrors ai-gateway-client (ping-sandbox/ai-gateway-client-LAB), which has always kept the two
 // apart as PRIVILEGE_CONSOLE_ENV_ID.
 function consoleEnvId() {
   return process.env.PRIVILEGE_CONSOLE_ENV_ID
@@ -2820,6 +2825,8 @@ function doorUrl(gatewayUrl, appName) {
 async function consoleInventory(session) {
   const envId = consoleEnvId();
   if (!envId) throw new Error('PRIVILEGE_SSO_ENV_ID not configured.');
+  // AI policies are read on a best-effort basis: they only feed the HITL badges, so failing to read them must not fail discovery.
+  const aiPoliciesPromise = consoleGet(session, `/api/${envId}/v1/aipolicys`).catch(() => null);
   const [appsBody, polBody] = await Promise.all([
     consoleGet(session, `/api/${envId}/v1/applications?ObjectMeta.Namespace=default`),
     consoleGet(session, `/api/${envId}/v1/pacpolicys`),
@@ -2868,7 +2875,12 @@ async function consoleInventory(session) {
     notBefore: consoleTime(p.NotBefore),
     notAfter: consoleTime(p.NotAfter),
   }));
-  return { applications, policies, envId };
+  const aiBody = await aiPoliciesPromise;
+  const aiPolicies = aiBody && (aiBody.AIPolicys || aiBody.Items || aiBody.items);
+  const holdRules = Array.isArray(aiPolicies)
+    ? holdRulesFrom(aiPolicies.map((p) => ({ name: p.ObjectMeta?.Name, state: p.State, spec: p.Spec })))
+    : undefined;
+  return { applications, policies, envId, ...(holdRules ? { holdRules } : {}) };
 }
 
 // A console timestamp as ISO, or null. The console is Go: an unset time
@@ -3944,7 +3956,7 @@ router.put('/env', express.json(), requireAdminSession, (req, res) => {
 // Both are direct here on purpose: Privilege's role in this demo is the TOOL
 // call gateway, not the LLM lane. Tool results carry the gateway verdict
 // verbatim, so a denial reaches the model as "tool result: denied".
-const AGENT_MAX_ROUNDS = 4;
+const AGENT_MAX_ROUNDS = 2;
 
 // MCP inputSchema → OpenAI function-definition. Hostile metadata passes through
 // byte-for-byte — normalising it here would weaken the attack the demo shows.

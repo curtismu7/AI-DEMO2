@@ -171,3 +171,32 @@ test("a live UC2 A2A run splices the specialist hops into the Live chain", () =>
   expect(screen.getByTitle(/Generalist agent/)).toBeInTheDocument();
   expect(screen.getByTitle(/Specialist agent/)).toBeInTheDocument();
 });
+
+describe("empty state: a static reel that a real run replaces", () => {
+  test("before any run it shows the chain map as a non-interactive preview with no fabricated facts", () => {
+    render(<TokenChainFilmstrip />);
+    const rail = document.querySelector(".tcnr--preview");
+    expect(rail).toBeInTheDocument();
+    expect(rail.textContent).toContain("fills in when you run a prompt");
+    // The same cards a run draws, all waiting and unclickable.
+    const nodes = [...rail.querySelectorAll(".tcnr-node")];
+    expect(nodes.length).toBeGreaterThan(3);
+    expect(nodes.every((n) => n.disabled && n.classList.contains("tcnr-node--pending"))).toBe(true);
+    expect(rail.textContent).not.toMatch(/no token change|scope narrowed|\bdone\b/);
+    // The walk-through controls belong to a real run.
+    expect(screen.queryByRole("button", { name: "Run" })).not.toBeInTheDocument();
+    expect(document.querySelector(".tcfs-empty-chip")).not.toBeInTheDocument();
+  });
+
+  test("a run replaces the preview with the live reel", () => {
+    render(<TokenChainFilmstrip />);
+    expect(document.querySelector(".tcnr--preview")).toBeInTheDocument();
+    act(() => tokenChainTraceStore.beginTrace({ prompt: "check my balance" }));
+    act(() => tokenChainTraceStore.ingestTokenEvents([
+      { id: "user-token", status: "active", claims: { sub: "u1", scope: "read" } },
+    ]));
+    expect(document.querySelector(".tcnr--preview")).not.toBeInTheDocument();
+    expect(document.querySelector(".tcnr")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeInTheDocument();
+  });
+});

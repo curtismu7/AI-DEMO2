@@ -203,7 +203,6 @@ transactionLedger.lmdb (in-process, no HTTP hop) whenever a request carries
 an inbound correlation id, so the Prompt Flow Inspector's ledger record
 includes the backend layer alongside Agent/LLM proxy/Gateway/P1AZ hops.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -403,7 +402,6 @@ Reads transactionLedger.lmdb for a paginated, newest-first list of runs
 (one entry per correlationId) with a status and vertical summarized from
 that run's hops. No new store — pure read over the existing ledger.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -537,7 +535,6 @@ Returns every ledger hop for one run, timestamp-ordered, with each hop's
 full details payload intact. Unknown correlationId degrades to an empty
 hops array rather than a 404/500, per the spec's read-endpoint error rule.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -682,7 +679,6 @@ Wires routes/promptFlow.js into server.js with an inline admin-session
 check identical in shape to the existing /api/mcp/audit gate, so only an
 admin session can read the transaction ledger's prompt-flow trace.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```

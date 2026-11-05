@@ -20,7 +20,6 @@
 - Do not change: OAuth/login, RFC 8693 token exchange, BFF session handling, role enforcement, HITL consent, ports/hosts, chip dispatch, agent routing, or the behavior of `ScopePicker` / `DemoStepsDropdown` / `Clear progress` / `Sign out`.
 - Honour `prefers-reduced-motion: reduce` on every transition or animation this plan adds.
 - localStorage key: `luw_demo_script_collapsed`, values `"1"` / `"0"`.
-- Commit messages end with: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
 
 ---
 
@@ -336,7 +335,6 @@ git add demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js \
         demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
 git commit -m "feat(luw): demo script drawer becomes a slide-over
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -584,7 +582,6 @@ git add demo_api_ui/src/components/OWASPBadge.jsx \
         demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js
 git commit -m "feat(luw): what-this-proves header above the agent
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -837,7 +834,6 @@ git add demo_api_ui/src/components/VerdictPair.jsx \
         demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
 git commit -m "feat(luw): expected vs observed verdict replaces the expectation-fed policy cell
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1009,7 +1005,6 @@ git add demo_api_ui/src/components/demoScript.js \
         demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js
 git commit -m "feat(luw): sync the teleprompter beat to workbench selection
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1328,7 +1323,6 @@ git add demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js \
         demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
 git commit -m "feat(luw): token chain takes focus when a run completes
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -1468,7 +1462,6 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist
 git add docs/superpowers/specs/2026-07-26-mcp-inspector-legibility-design.md
 git commit -m "docs(spec): what the MCP inspector can borrow from the live workbench
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---

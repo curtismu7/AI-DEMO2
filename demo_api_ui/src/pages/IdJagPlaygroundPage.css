@@ -48,10 +48,14 @@
 .ijp-status--ok { color: var(--ijp-ok); }
 .ijp-step__n.is-done { background: var(--ijp-ok); }
 :root[data-theme="dark"] .ijp-step__n.is-done { color: #052e16; }
-.ijp-btn { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.4rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: var(--btn-radius); background: var(--th-bg); color: var(--th-text); cursor: pointer; }
-.ijp-btn--primary { background: var(--ijp-grad); border-color: var(--ijp-red); color: #fff; font-weight: 600; }
-.ijp-btn:disabled { opacity: 0.45; cursor: default; }
-.ijp-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+.ijp .ijp-btn { font: inherit; font-size: var(--btn-font-size-sm); font-weight: var(--btn-weight); min-height: var(--btn-height-sm); padding: 0.4rem 0.9rem; margin: 0.25rem 0.5rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: var(--btn-radius); background: transparent; color: var(--ijp-strong); cursor: pointer; transition: var(--btn-transition); }
+.ijp .ijp-btn:hover:not(:disabled) { border-color: var(--ijp-red); color: var(--ijp-red-text); }
+.ijp .ijp-btn:focus-visible { outline: 2px solid var(--ijp-red); outline-offset: 2px; }
+.ijp .ijp-btn--primary { background: var(--ijp-grad); border-color: var(--ijp-red); color: #fff; }
+.ijp .ijp-btn--primary:hover:not(:disabled) { background: #aa0005; border-color: #aa0005; color: #fff; }
+.ijp .ijp-field + .ijp-btn, .ijp .ijp-note + .ijp-btn { margin-top: 0.9rem; }
+.ijp .ijp-btn:disabled { opacity: 0.45; cursor: default; }
+.ijp-io { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-top: 0.75rem; }
 .ijp-io h4, .ijp-checks h4 { margin: 0 0 0.3rem; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--th-text-muted); }
 .ijp-json, .ijp-form { margin: 0; padding: 0.6rem; max-height: 320px; overflow: auto; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); font-family: inherit; font-size: var(--font-size-2xs); }
 .ijp-json { white-space: pre-wrap; word-break: break-word; }
@@ -59,6 +63,11 @@
 .ijp-kv dt { color: var(--th-text-muted); font-weight: 600; }
 .ijp-kv dd { margin: 0; overflow-wrap: anywhere; color: var(--ijp-strong); }
 .ijp-kv .ijp-kv { padding-left: 0.6rem; border-left: 2px solid var(--th-border); }
+.ijp-fields { width: 100%; border-collapse: collapse; }
+.ijp-fields th, .ijp-fields td { padding: 0.2rem 0.5rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--th-border); }
+.ijp-fields th { width: 14rem; color: var(--th-text-muted); font-weight: 600; white-space: nowrap; }
+.ijp-fields td { overflow-wrap: break-word; color: var(--ijp-strong); }
+.ijp-fields__group th { color: var(--th-text); }
 .ijp-kv-list { margin: 0; padding-left: 1.1rem; }
 .ijp-checks { margin-top: 0.9rem; overflow-x: auto; }
 .ijp-checks table, .ijp-vendors { width: 100%; border-collapse: collapse; font-size: var(--font-size-2xs); }
@@ -67,8 +76,8 @@
 .ijp-checks tr.is-fail td { background: rgba(210, 14, 15, 0.08); }
 .ijp-checks tr.is-warn td { background: rgba(180, 83, 9, 0.08); }
 .ijp-cite { color: var(--th-text-muted); font-size: var(--font-size-3xs); }
-.ijp-field { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.5rem 0; font-size: var(--font-size-xs); max-width: 520px; }
-.ijp-field input, .ijp-field select, .ijp-field textarea { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); }
+.ijp .ijp-field { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.5rem 0 0.9rem; font-size: var(--font-size-xs); max-width: 520px; }
+.ijp .ijp-field input, .ijp .ijp-field select, .ijp .ijp-field textarea { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); }
 .ijp-args { margin: 0.5rem 0; padding: 0.5rem 0.75rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); max-width: 520px; }
 .ijp-args legend { font-size: var(--font-size-xs); font-weight: 600; padding: 0 0.3rem; }
 .ijp-check { display: flex; align-items: center; gap: 0.4rem; margin: 0.5rem 0; font-size: var(--font-size-xs); }
@@ -143,3 +152,8 @@
 .ijp-real { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .ijp-real summary { cursor: pointer; font-weight: 600; color: var(--ijp-strong); }
 .ijp-code { white-space: pre; overflow-x: auto; font-size: var(--font-size-2xs); line-height: 1.5; }
+
+.ijp-modal { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(5, 23, 39, 0.55); }
+.ijp-modal__box { width: min(28rem, 100%); padding: 1.25rem 1.5rem; border: 1px solid var(--th-border); border-top: 3px solid var(--ijp-red); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); }
+.ijp-modal__box h3 { margin: 0 0 0.5rem; color: var(--ijp-ok); }
+.ijp-modal__box p { margin: 0 0 1rem; }

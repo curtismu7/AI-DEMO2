@@ -43,7 +43,7 @@ import pkg from '../../package.json';
 import { AuditLogger } from '../utils/AuditLogger';
 import { Logger, createDefaultLoggerConfig } from '../utils/Logger';
 import { correlationFromMessage } from './correlationFromMessage';
-import { runWithCorrelation } from '../utils/correlationContext';
+import { runWithCorrelation, activeVerticalFrom } from '../utils/correlationContext';
 import { emitHop } from '../utils/transactionHop';
 import { extractTratClaims } from '../auth/TratClaimsExtractor';
 import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
@@ -801,6 +801,8 @@ export class HttpMCPTransport {
     // teachLog.step calls (TokenIntrospector etc.) inherit correlation_id automatically.
     const correlationId = correlationFromMessage(message as any, req.headers);
     // Correlation scope begins here: pre-route bearer/JWKS validation, gateway-contract and protocol-version checks (steps 1-6 above) run before the correlation id is bound. The RFC 7662 introspection that the teaching trace cares about runs inside handleMessage (within this scope) on both transports.
+    // The vertical the BFF session is on, forwarded on this request's BFF calls.
+    const activeVertical = activeVerticalFrom(req.headers['x-active-vertical']);
     await runWithCorrelation(correlationId, async () => {
       const mcpResponse = await this.messageHandler.handleMessage(message, context);
 
@@ -846,7 +848,7 @@ export class HttpMCPTransport {
 
       res.writeHead(200, headers);
       res.end(JSON.stringify({ jsonrpc: '2.0', ...mcpResponse }));
-    });
+    }, { activeVertical });
   }
 
   // -------------------------------------------------------------------------
@@ -1235,6 +1237,9 @@ export class HttpMCPTransport {
     requiredScopes?: string[];
     requestId?: string;
   }): void {
+    // The reason lives only in the response body, which the gateway strips; log it
+    // so a 401 on a gateway-forwarded call is diagnosable from this pod's logs.
+    console.warn(`[HttpMCPTransport] 401 unauthorized — ${detail}`);
     const base = this.resourceBaseUrl();
     const scopePart = options?.requiredScopes && options.requiredScopes.length > 0
       ? `, scope="${options.requiredScopes.join(' ')}"`

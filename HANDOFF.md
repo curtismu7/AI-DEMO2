@@ -66,7 +66,6 @@ None of #46–56 looked architecturally tricky like #41 (hitlCredit race) was �
 6. If the change touches shared/security-sensitive code (session, auth, config store) run the full suite too.
 7. Update `docs/RUNTIME_AUDIT_FINDINGS.md` **in the same commit**: flip the finding's heading and summary-table row to `FIXED`, replace "Fix (not yet applied)" with "Fix:" describing what actually happened, add an "Evidence:" paragraph with the verification commands/results, add a Changelog bullet at the top of the `## Changelog` section (reverse-chronological).
 8. `git add` the touched files + docs (never `git add -A` — `demo_api_server/data/*` gets jest-regenerated on every server test run; `git checkout -- demo_api_server/data/` and `git clean -f demo_api_server/data/step-verification/` before any merge/diff review if it shows up dirty).
-9. Commit with a detailed message (root cause, fix, evidence with exact commands+results) ending in `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
 
 After #56 is done: push, open a PR titled something like "fix: round-3 runtime audit — N more bugs found", then follow the merge procedure below.
 

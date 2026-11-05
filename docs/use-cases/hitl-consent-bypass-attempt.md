@@ -17,7 +17,7 @@ The BFF verifies a real, live HITL receipt — no boolean flag can substitute fo
 ## How to Run
 
 **Trigger:** Chip message: `transfer $600 from checking to savings`  
-**Expected outcome:** `HITL_REQUIRED`
+**Expected outcome:** `STEP_UP`
 
 ## What to Say
 

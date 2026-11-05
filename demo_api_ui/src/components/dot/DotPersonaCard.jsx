@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function DotPersonaCard({ persona, identity }) {
+export default function DotPersonaCard({ persona, identity, onSignIn }) {
   return (
     <div className="dot-card dot-persona">
       <div className="dot-avatar" aria-hidden="true" />
@@ -10,6 +10,7 @@ export default function DotPersonaCard({ persona, identity }) {
       </div>
       <div className="dot-pills">
         <span className="dot-pill">Acts as <b>{identity || 'Not signed in'}</b></span>
+        {!identity && onSignIn && <button type="button" className="dot-chip" onClick={onSignIn}>Sign in</button>}
         <span className="dot-pill">Agent identity <b>{persona.agentId || '—'}</b></span>
         {persona.scopes.length > 0 && <span className="dot-pill">Scopes <b>{persona.scopes.join(' · ')}</b></span>}
       </div>

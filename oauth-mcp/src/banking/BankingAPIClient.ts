@@ -17,7 +17,7 @@ import {
 } from '../interfaces/banking';
 import { CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError } from '../utils/CircuitBreaker';
 import { RetryManager, RetryConfig, RetryError } from '../utils/RetryManager';
-import { getCorrelationId } from '../utils/correlationContext';
+import { getCorrelationId, getActiveVertical } from '../utils/correlationContext';
 
 export interface BankingAPIClientOptions extends Partial<BankingAPIConfig> {
   circuitBreakerConfig?: Partial<CircuitBreakerConfig>;
@@ -533,11 +533,16 @@ export class BankingAPIClient {
     userToken: string,
     data?: any
   ): Promise<AxiosResponse<T>> {
+    // The caller's session vertical, so the BFF acts on that vertical's data.
+    // Without it a token-only call fell back to the BFF's global vertical and
+    // /api/accounts/my switched the user's accounts to it mid-session.
+    const activeVertical = getActiveVertical();
     const config = {
       method: method.toLowerCase(),
       url: endpoint,
       headers: {
-        'Authorization': `Bearer ${userToken}`
+        'Authorization': `Bearer ${userToken}`,
+        ...(activeVertical ? { 'X-Active-Vertical': activeVertical } : {}),
       },
       ...(data && { data })
     };

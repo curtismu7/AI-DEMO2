@@ -22,6 +22,19 @@ import SampleAppPage from "./SampleAppPage";
 import M2mCredentialsSamplePage from "./M2mCredentialsSamplePage";
 import "./StandaloneSamples.css";
 
+// Standalone demos that are not PingOne sample apps.
+import PrivilegeAiPoliciesDemoPage from "./PrivilegeAiPoliciesDemoPage";
+const STANDALONE_DEMOS = [
+  {
+    id: "ai-policies",
+    label: "AI Policies demo",
+    to: "/standalone/ai-policies",
+    tagline:
+      "How Privilege decides an AI agent's tool calls with Cedar policies inside the gateway: allowed, refused, or held for a human, next to the real policies that decide it. A walkthrough here; live runs are in the app.",
+    meta: "walkthrough · no sign-in needed · live runs need a Privilege sign-in",
+  },
+];
+
 // Samples whose "open the live runner" button has a standalone twin. Only the
 // M2M runner is a page of its own; the other runners are embedded in their
 // sample page and need no separate route.
@@ -69,6 +82,15 @@ function StandaloneShell({ children, current }) {
               {a.label}
             </Link>
           ))}
+          {STANDALONE_DEMOS.map((d) => (
+            <Link
+              key={d.id}
+              to={d.to}
+              className={d.id === current ? "st-link st-on" : "st-link"}
+            >
+              {d.label}
+            </Link>
+          ))}
         </nav>
         <button
           type="button"
@@ -109,6 +131,16 @@ export function StandaloneIndex() {
                   : "runs live, needs a real inbox"}
                 {a.writes ? " · creates tenant resources" : " · read-only"}
               </span>
+            </Link>
+          ))}
+        </div>
+        <h2 className="st-section">Demos</h2>
+        <div className="st-cards">
+          {STANDALONE_DEMOS.map((d) => (
+            <Link key={d.id} className="st-card" to={d.to}>
+              <h2>{d.label}</h2>
+              <p>{d.tagline}</p>
+              <span className="st-card-meta">{d.meta}</span>
             </Link>
           ))}
         </div>
@@ -167,6 +199,18 @@ export function StandaloneRunnerShell() {
   return (
     <StandaloneShell current="m2m-credentials">
       <M2mCredentialsSamplePage />
+    </StandaloneShell>
+  );
+}
+
+// /standalone/ai-policies: the Privilege AI Policies demo as a walkthrough. Its own route, ahead of
+// /standalone/:sampleId, which would otherwise answer "Unknown sample". It makes no calls (a public page has no Privilege
+// session); the live version is in the app shell at /privilege-ai-policies (side nav, Agent Privilege).
+export function StandaloneAiPoliciesShell() {
+  useStandaloneTitle("Privilege AI Policies demo");
+  return (
+    <StandaloneShell current="ai-policies">
+      <PrivilegeAiPoliciesDemoPage live={false} />
     </StandaloneShell>
   );
 }

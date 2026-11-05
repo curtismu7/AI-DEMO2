@@ -58,6 +58,11 @@ router.post('/evaluations', requireCsrf, async (req, res) => {
           level: botDetection.level || null,
           status: botDetection.status || null,
           detectedRuleId: botDetection.detected?.rule?.id ?? null,
+          // AI-agent identification: with the SDK's isIAFDetectionEnabled +
+          // agentIdentification opt-ins, Protect names the agent type (rules
+          // 660-674, e.g. "AI agent - Muse detected"). Surfaces the native
+          // detection — not a client-id heuristic — to the demo page.
+          detectedRuleName: botDetection.detected?.rule?.name ?? null,
         },
       } : {}),
     });

@@ -15,6 +15,7 @@ const { resolvePingOneIdentifier } = require('../services/pingOneUserLookupServi
 const { hostedAccessCheck, sendAccessRestricted } = require('../middleware/hostedAccessGate');
 const { makePiFlowHandlers } = require('../services/piFlowDriver');
 const configStore = require('../services/configStore');
+const { logger, LOG_CATEGORIES } = require('../utils/logger');
 
 // pi.flow needs the PingOne front-door app; under another provider the redirect stays the only way in.
 const piFlowAvailable = () => configStore.getOAuthProvider?.() !== 'pingfederate';
@@ -131,6 +132,13 @@ router.get('/callback', async (req, res) => {
   const destroyAndReply = (status = 403) => session.destroy(() => sendAccessRestricted(res, status));
 
   if (error) {
+    // The audit event carries only the reason code. Keep PingOne's own error so a burst of
+    // oauth_provider_error says WHY (11 of the 14 failed SE logins on 2026-10-20 had no detail).
+    // Short OAuth error code and a capped description only; req.query values are user-controlled.
+    logger.warn(LOG_CATEGORIES.AUTHENTICATION, 'hosted-access provider error', {
+      providerError: String(error).slice(0, 64),
+      providerErrorDescription: String(req.query.error_description || '').slice(0, 160),
+    });
     finishFailure(req, 'oauth_provider_error');
     return destroyAndReply(403);
   }
@@ -190,6 +198,9 @@ router.get('/identifier-policy', (req, res) => {
     rejectPlusAddressing: Boolean(policy.enabled && policy.rejectPlusAddressing),
     // The SPA only asks for the front-door modal when the wall is on and pi.flow can run.
     frontDoorPiFlow: Boolean(policy.enabled && piFlowAvailable()),
+    // The gate honours the approval the app sign-in stamps (middleware/hostedAccessGate isApprovedApplicationSession), so the
+    // SPA skips the front-door login and runs just the app sign-in: one login, not two.
+    appLoginUnlocksWall: Boolean(policy.enabled),
     allowedIdentifiers: policy.allowedIdentifiers,
   });
 });

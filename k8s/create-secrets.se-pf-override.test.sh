@@ -81,6 +81,17 @@ run "$I" "https://mcp.se.example/" "https://ai-demo.ping-devops.com"
 contains "PF_ID_JAG_AUDIENCE" "$PATCH" "\"PF_ID_JAG_AUDIENCE\":\"https://mcp.se.example\""
 contains "PF_ID_JAG_RESOURCE" "$PATCH" "\"PF_ID_JAG_RESOURCE\":\"https://mcp.se.example/mcp\""
 
+echo "SE_PF_REDEEMER_ISSUER set"
+run "$I" "" "https://ai-demo.ping-devops.com"
+absent   "no redeemer keys by default" "$PATCH" "PF_IDJAG_PF_REDEEMER"
+CALLER_SE_PF_REDEEMER_ISSUER="https://acme.se.example/"
+run "$I" "" "https://ai-demo.ping-devops.com"
+contains "redeemer issuer" "$PATCH" "\"PF_IDJAG_PF_REDEEMER_ISSUER\":\"https://acme.se.example\""
+contains "redeemer token endpoint" "$PATCH" "\"PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT\":\"https://acme.se.example/as/token.oauth2\""
+absent   "never touches the redeemer secret" "$PATCH" "PF_IDJAG_PF_REDEEMER_CLIENT_SECRET"
+check    "valid JSON" "$(printf '%s' "$PATCH" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")')" "ok"
+CALLER_SE_PF_REDEEMER_ISSUER=""
+
 echo "values read from demo_api_server/.env"
 printf 'FOO=bar\nSE_PF_ISSUER="https://pf.env.example"\nSE_OAUTH_MCP_URL=https://mcp.env.example\n' > "$TMP/assets/demo_api_server/.env"
 run "" "" "https://ai-demo.ping-devops.com"
@@ -109,7 +120,7 @@ render() { : > "$PATCHES"; ( NS=test-ns; HOSTED_ACCESS_REQUIRED_GROUP_ID=""; . "
 unset SE_OAUTH_PROVIDER
 contains "default pins pingone" "$(render)" '"OAUTH_PROVIDER":"pingone"'
 SE_OAUTH_PROVIDER=""; export SE_OAUTH_PROVIDER
-contains "empty SE_OAUTH_PROVIDER un-pins" "$(render)" '"OAUTH_PROVIDER":""'
+contains "empty SE_OAUTH_PROVIDER still pins pingone" "$(render)" '"OAUTH_PROVIDER":"pingone"'
 SE_OAUTH_PROVIDER=pingfederate
 contains "explicit value is honoured" "$(render)" '"OAUTH_PROVIDER":"pingfederate"'
 unset SE_OAUTH_PROVIDER

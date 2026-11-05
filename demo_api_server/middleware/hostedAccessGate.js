@@ -7,11 +7,27 @@ const {
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 
 const EXACT_BYPASSES = new Set([
+  // The app's own sign-in: one login, not two. Its callback already evaluates the wall's policy on the signed-in
+  // identity (denied -> session cleared, access-restricted page) and stamps hostedAccessApproval on the app session,
+  // which the gate honours (isApprovedApplicationSession). Only the sign-in steps are listed; everything else under
+  // /api/auth/oauth stays behind the wall.
+  'GET /api/auth/oauth/user/login',
+  'GET /api/auth/oauth/user/callback',
+  'GET /api/auth/oauth/user/silent-reauth',
+  'GET /api/auth/oauth/user/status',
+  'POST /api/auth/oauth/user/pi-flow/credentials',
+  'POST /api/auth/oauth/user/pi-flow/assertion',
+  'POST /api/auth/oauth/user/pi-flow/otp',
+  'POST /api/auth/oauth/user/pi-flow/passwordless',
+  'POST /api/auth/oauth/user/pi-flow/device',
+  'GET /api/auth/oauth/user/pi-flow/external',
   'GET /api/auth/hosted-access/login',
   // Sign-in modal reads the plus-addressing policy before opening the flow.
   'GET /api/auth/hosted-access/identifier-policy',
   'POST /api/auth/hosted-access/pi-flow/credentials',
   'GET /api/auth/hosted-access/callback',
+  // Muse: PingOne sends the browser back with a code; the route is keyed by a one-time state, never the session (mirrors se-ingress.yaml).
+  'GET /api/muse/callback',
   'GET /api/auth/hosted-access/logout',
   'POST /api/auth/hosted-registration/request',
   'POST /api/auth/hosted-registration/verify',
@@ -59,6 +75,14 @@ const EXACT_BYPASSES = new Set([
   'GET /api/cimd/privilege/langchain-agent/client-metadata.json',
   'GET /api/cimd/privilege/demo-agent-service/client-metadata.json',
   'GET /api/cimd/privilege/privilege-mcp-client/client-metadata.json',
+  // The PingFederate AI Agent's CIMD document: PingFederate fetches it with no session during authorization.
+  'GET /api/pf-ai-agent/cimd/client-metadata.json',
+  // Documents that each break one CIMD rule, for PingFederate to refuse in the CIMD tester.
+  'GET /api/pf-ai-agent/cimd/negative/client-id-mismatch.json',
+  'GET /api/pf-ai-agent/cimd/negative/shared-secret.json',
+  // PingFederate's banking_transaction RAR processor reads the user's accounts and limit here, server to server.
+  // No session: the route checks its own shared credential (PF_AI_RAR_LOOKUP_SECRET).
+  'GET /api/pf-ai-agent/rar/user-limits',
 ]);
 
 // These are the two pre-existing demo identities used to administer and
@@ -75,8 +99,9 @@ function isHostedAccessBypassPath(path, method) {
   return EXACT_BYPASSES.has(`${String(method || 'GET').toUpperCase()} ${pathname(path)}`);
 }
 
-function isBootstrapApplicationSession(session) {
-  const username = session?.user?.username;
+// A real, unexpired OAuth login on this session: an access token that is not the cookie-only marker, not expired,
+// from a user or admin sign-in. A stale session (user record left, tokens gone) is NOT live and never opens the wall.
+function hasLiveOAuthSession(session) {
   const token = session?.oauthTokens?.accessToken;
   const hasRealOAuthToken = typeof token === 'string'
     && token.trim().length > 0
@@ -84,11 +109,20 @@ function isBootstrapApplicationSession(session) {
   const expiresAt = session?.oauthTokens?.expiresAt;
   const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
   const authenticatedOAuthType = session?.oauthType === 'user' || session?.oauthType === 'admin';
+  return hasRealOAuthToken && tokenNotExpired && authenticatedOAuthType;
+}
+
+function isBootstrapApplicationSession(session) {
+  const username = session?.user?.username;
   return typeof username === 'string'
     && BOOTSTRAP_APPLICATION_USERNAMES.has(username.trim().toLowerCase())
-    && hasRealOAuthToken
-    && tokenNotExpired
-    && authenticatedOAuthType;
+    && hasLiveOAuthSession(session);
+}
+
+// The app sign-in unlocks the wall: its callback stamped a CURRENT hostedAccessApproval (same policy, same
+// allowlist/domain/group rules, same subject check) on the app session, and the session still holds live tokens.
+function isApprovedApplicationSession(session, policy, hasApproval) {
+  return hasLiveOAuthSession(session) && Boolean(hasApproval(session, policy));
 }
 
 function sendAccessRestricted(res) {
@@ -121,7 +155,7 @@ function createHostedAccessGate({
   return function hostedAccessGate(req, res, next) {
     if (!policy.enabled || isHostedAccessBypassPath(req.originalUrl || req.url, req.method)) return next();
     if (hasBearerToken(req)) return next();
-    if (hasApproval(req.hostedSession, policy) || isBootstrapApplicationSession(req.session)) return next();
+    if (hasApproval(req.hostedSession, policy) || isApprovedApplicationSession(req.session, policy, hasApproval) || isBootstrapApplicationSession(req.session)) return next();
     // Why-was-I-walled breadcrumb: no_approval = never signed in / cookie gone
     // (or store lost it); approval_stale = had one, but it no longer validates
     // (subject mismatch, removed from the allowlist, or group/verified-email rule changed).
@@ -146,7 +180,7 @@ function hostedAccessCheck({
 } = {}) {
   return function check(req, res) {
     res.set('Cache-Control', 'no-store');
-    if (!policy.enabled || hasApproval(req.hostedSession, policy) || isBootstrapApplicationSession(req.session)) return res.status(204).end();
+    if (!policy.enabled || hasApproval(req.hostedSession, policy) || isApprovedApplicationSession(req.session, policy, hasApproval) || isBootstrapApplicationSession(req.session)) return res.status(204).end();
     return res.status(401).end();
   };
 }
@@ -156,5 +190,6 @@ module.exports = {
   hostedAccessCheck,
   isHostedAccessBypassPath,
   isBootstrapApplicationSession,
+  isApprovedApplicationSession,
   sendAccessRestricted,
 };

@@ -344,3 +344,7 @@
    home in the step detail panel. */
 .tcnr-node-fact--narrowed { font-weight: 650; }
 .tcnr-node-fact--nochange { font-style: italic; opacity: 0.8; }
+
+/* Preview: the reel before any run. Same cards, dashed and unclickable, so it reads as waiting rather than broken. */
+.tcnr--preview .tcnr-node { border-style: dashed; cursor: default; opacity: 0.8; }
+.tcnr--preview .tcnr-node:hover { transform: none; }

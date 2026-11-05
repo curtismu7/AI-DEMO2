@@ -14,8 +14,11 @@ export function usePingOneAuthorizeConsole({
   pendingTest,
   onClearPendingTest,
   onEvaluated,
+  defaultMode = 'mock',
 }) {
   const [running, setRunning] = useState(false);
+  // 'live' sends to PingOne Authorize; 'mock' (the default) is answered by the server's built-in simulated engine (no PingOne call).
+  const [mode, setMode] = useState(defaultMode);
 
   // Preset & form state
   const [preset, setPreset] = useState(autoPreset);
@@ -48,6 +51,8 @@ export function usePingOneAuthorizeConsole({
   // Apply pendingTest prefill
   useEffect(() => {
     if (!pendingTest) return;
+    // A hand-off (Token Chain replay, a staged test) re-sends a request a real run made: it goes to PingOne, not the simulator.
+    setMode('live');
     setPreset(pendingTest.preset);
     const p = pendingTest.parameters;
     if (pendingTest.preset === 'transaction') {
@@ -120,13 +125,15 @@ export function usePingOneAuthorizeConsole({
 
   // Execute with explicit parameters (allows replay)
   // `usedPreset` lets Resend re-run a call under the preset it was made with.
-  const runParameters = useCallback(async (parameters, usedPreset = preset) => {
+  // `useMode` lets a hand-off run on 'live' in the same render that switches the console to it.
+  const runParameters = useCallback(async (parameters, usedPreset = preset, useMode = mode) => {
     setRunning(true);
     const started = Date.now();
     try {
       const res = await bffAxios.post('/api/authorize/evaluate-endpoint', {
         endpointId,
         parameters,
+        ...(useMode === 'mock' ? { mode: 'mock' } : {}),
       });
       const elapsed = Date.now() - started;
       onEvaluated?.({
@@ -146,7 +153,7 @@ export function usePingOneAuthorizeConsole({
     } finally {
       setRunning(false);
     }
-  }, [endpointId, preset, onEvaluated]);
+  }, [endpointId, preset, mode, onEvaluated]);
 
   // Execute with current form state
   const run = useCallback(() => {
@@ -158,7 +165,7 @@ export function usePingOneAuthorizeConsole({
   useEffect(() => {
     if (!pendingTest?.autoRun || !endpointId || consumedRef.current === pendingTest) return;
     consumedRef.current = pendingTest;
-    runParameters(pendingTest.parameters, pendingTest.preset);
+    runParameters(pendingTest.parameters, pendingTest.preset, 'live');
   }, [pendingTest, endpointId, runParameters]);
 
   // Custom row management
@@ -177,6 +184,8 @@ export function usePingOneAuthorizeConsole({
 
   return {
     running,
+    mode,
+    setMode,
 
     // Preset & form
     preset,

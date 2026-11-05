@@ -90,6 +90,11 @@ const _issRegion = process.env.PINGONE_REGION || 'com';
 const EXPECTED_ISS = _issEnvId
   ? `https://auth.pingone.${_issRegion}/${_issEnvId}/as`
   : null;
+// PingFederate is a second legitimate issuer when the stack runs in PF mode. Same shape as the
+// live P1AZ path (PF_ISSUER_URI tokens are exempt from the PingOne issuer comparison): the gateway
+// has already verified the signature against that issuer's JWKS before this rule runs. Only an
+// explicitly configured PF issuer joins the set — an unconfigured or foreign iss is still rejected.
+const PF_ISSUER = String(process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '').trim().replace(/\/+$/, '') || null;
 
 const IAT_MAX_AGE_SECONDS = parseInt(
   process.env.AUTHZ_IAT_MAX_AGE_SECONDS || '7200', 10
@@ -535,7 +540,9 @@ module.exports = async function decisionHandler(req, res) {
   if (McpResourceUri && TokenAudience) {
     const tokenAudList = parseAudList(TokenAudience);
     const resourceUriList = parseAudList(McpResourceUri);
-    if (!tokenAudList.some((a) => resourceUriList.includes(a))) {
+    // Parity with snapshots/gen-authorize-snapshot.js: optional extra exact audiences (empty by default).
+    const extraAudList = (process.env.PINGONE_EXTRA_MCP_AUDIENCES || '').split(',').map((a) => a.trim()).filter(Boolean);
+    if (!tokenAudList.some((a) => resourceUriList.includes(a) || extraAudList.includes(a))) {
       warn(`[AuthzServer/decision] DENY — TokenAudience [${tokenAudList.join(',')}] does not name McpResourceUri [${resourceUriList.join(',')}]`);
       return deny(res, `invalid_aud: TokenAudience "${TokenAudience}" does not match McpResourceUri "${McpResourceUri}"`);
     }
@@ -581,7 +588,8 @@ module.exports = async function decisionHandler(req, res) {
   // check. That is the correct, intentional shape for this token type, not
   // an impersonation attempt — same reasoning as the D-05 exemption two
   // rules up, reusing the same verified signal.
-  if (TokenIss && EXPECTED_ISS && TokenIss !== EXPECTED_ISS && !isIdJagIssuedToken) {
+  const isPfIssuedToken = Boolean(PF_ISSUER && String(TokenIss).replace(/\/+$/, '') === PF_ISSUER);
+  if (TokenIss && EXPECTED_ISS && TokenIss !== EXPECTED_ISS && !isIdJagIssuedToken && !isPfIssuedToken) {
     warn(`[AuthzServer/decision] DENY — iss mismatch: "${TokenIss}" expected "${EXPECTED_ISS}"`);
     return deny(res, `invalid_iss: unexpected token issuer`);
   }
@@ -717,8 +725,12 @@ module.exports = async function decisionHandler(req, res) {
     // The deployed stack sets only the ACTOR name (the same client, read by
     // Rule 2 below); reading just the first name left this check skipped.
     const authorizedGeneralist = process.env.PINGONE_AI_AGENT_CLIENT_ID || process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
-    if (authorizedGeneralist && NestedActClientId !== authorizedGeneralist) {
-      warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${authorizedGeneralist}"`);
+    // A PF-issued token's generalist is PF's own actor client (the PF SP connections stamp it into act),
+    // not the PingOne AI Agent app — accepted only for tokens from the configured PF issuer.
+    const pfGeneralist = isPfIssuedToken ? String(process.env.PF_AI_AGENT_ACTOR_CLIENT_ID || '') : '';
+    const allowedGeneralists = [authorizedGeneralist, pfGeneralist].filter(Boolean);
+    if (allowedGeneralists.length && !allowedGeneralists.includes(NestedActClientId)) {
+      warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${allowedGeneralists.join(' | ')}"`);
       return deny(res, `invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the authorized generalist`);
     }
     a2aDelegationVerified = true;

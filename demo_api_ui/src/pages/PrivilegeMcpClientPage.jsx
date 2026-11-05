@@ -5,6 +5,8 @@ import { useLocation, useSearchParams, useNavigate, Link } from 'react-router-do
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
 import ToolsTable from '../components/privilege/ToolsTable';
+import ToolWorkbench from '../components/privilege/ToolWorkbench';
+import { hitlToolsFor } from '../config/privilegeAiPoliciesDemo';
 import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
 import CimdClientIdentity from '../components/privilege/CimdClientIdentity';
 import JsonHighlight from '../components/shared/JsonHighlight';
@@ -215,8 +217,8 @@ const VIEW_TABS = {
   inspect: ['mcp', 'rpc', 'policies', 'relay', 'scopes'],
 };
 const VIEW_TERMINAL_TABS = {
-  demo: ['trace', 'results'],
-  inspect: ['trace', 'results'],
+  demo: ['trace'],
+  inspect: ['trace'],
 };
 const TAB_LABELS = [
   ['chat', 'Agent Chat'],
@@ -245,6 +247,16 @@ function gatewayModeDetails(mode, mcpUrl) {
  */
 function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) {
   const [view, setView] = useState('form');
+  const [copied, setCopied] = useState(false);
+  // Copies the raw JSON whichever view is showing, so a result can be pasted into a ticket or chat as-is.
+  const copy = async () => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    try {
+      await navigator.clipboard.writeText(text ?? '');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard blocked: the JSON view still lets the user select the text */ }
+  };
   return (
     <>
       <div className="cur-viewtoggle" role="group" aria-label={label}>
@@ -264,6 +276,12 @@ function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) 
         >
           JSON
         </button>
+        {/* The Form view already has its own per-field Copy; this one is for the JSON view, which had none. */}
+        {view === 'json' && (
+          <button type="button" onClick={copy} aria-label={`Copy ${label} as JSON`}>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        )}
       </div>
       {view === 'form'
         ? <div className="cur-formview"><JsonFormView value={value} emptyMessage={emptyMessage} /></div>
@@ -328,6 +346,8 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
+  // { door: { tool: policy } } the console says a live policy holds for a human; null until a console discovery has recorded them.
+  const [hitlTools, setHitlTools] = useState(null);
   // Discovery goes out to the Agent Privilege, which can take several seconds before
   // it returns a tool list. Without a visible wait state the sidebar just reads
   // "No tools discovered yet" the whole time, which looks like a failure.
@@ -611,14 +631,14 @@ export default function PrivilegeMcpClientPage() {
   // accepted by exactly zero doors, so counting it as gateway auth is what made
   // three surfaces disagree with each other and with the sign-in prompt.
   const gatewayAuth = authenticated ? 'signed-in' : silentAuthPending ? 'connecting' : 'needed';
-  // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
-  // bumps on each new result to flash the tab so the user notices output arrived.
+  // The latest Tools-tab result, shown in the response pane beside the request.
   const [toolResults, setToolResults] = useState([]);
-  const [resultNonce, setResultNonce] = useState(0);
   // The live HITL hold: a tool call the gateway stopped pending a human
   // approval. Cleared by any non-held result (the retry) or a new call.
   const [hold, setHold] = useState(null);
   const [retrying, setRetrying] = useState(false);
+  // The mock approver popup, for people with no Privilege access.
+  const [showApprover, setShowApprover] = useState(false);
   const retryHeldCall = useCallback(async () => {
     if (!hold || retrying) return;
     setRetrying(true);
@@ -743,6 +763,7 @@ export default function PrivilegeMcpClientPage() {
       setGatewayConfigs(s.gatewayConfigs || { direct: {}, privilege: {}, facade: {} });
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
+      setHitlTools(s.hitlTools && typeof s.hitlTools === 'object' ? s.hitlTools : null);
       setDoorDiscovery(s.doorDiscovery?.persisted ? s.doorDiscovery : null);
       setClientHints(s.clientHints || {});
       setAuthenticated(Boolean(s.oauth?.authenticated));
@@ -1367,9 +1388,6 @@ export default function PrivilegeMcpClientPage() {
           setToolPolicy(data.policy || { total: data.tools.length, permitted: data.tools.length, filtered: 0, filteredTools: [] });
           setAuthenticated(true);
         }
-        if (data.decision?.tool && data.execution) {
-          recordResult(data.decision.tool, JSON.stringify(data.execution, null, 2), data.decision.outcome === 'ALLOWED');
-        }
       }
     } catch (err) {
       if (handleAuthChallenge(err)) {
@@ -1389,9 +1407,19 @@ export default function PrivilegeMcpClientPage() {
   // fresh output land).
   const recordResult = useCallback((name, result, ok) => {
     setToolResults([{ tool: name, result, ok, ts: new Date().toISOString() }]);
-    setResultNonce((n) => n + 1);
-    setTerminalTab('results');
   }, []);
+
+  // The no-Privilege-access path: nothing is approved anywhere, the call is not re-sent, and the sample result says so.
+  const mockApprove = useCallback(() => {
+    if (!hold) return;
+    setShowApprover(false);
+    setHold(null);
+    recordResult(hold.tool, JSON.stringify({
+      simulated: true,
+      note: 'SIMULATED: no approval was recorded in Privilege and the gateway was not called again. This result is a sample.',
+      result: { content: [{ type: 'text', text: `Search results from gateway-events: 268 hits (sample, ${hold.tool})` }] },
+    }, null, 2), true);
+  }, [hold, recordResult]);
 
   const executeToolCall = async (name, argsStr) => {
     let out;
@@ -1415,10 +1443,18 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      setHold(null);
-      const handled = handleAuthChallenge(err, { silent: true });
-      out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
-      ok = false;
+      // Newer gateways announce a hold as a JSON-RPC error ("action requires human approval") rather than a
+      // pending_approval result. It is the same hold: an approval request is open in Privilege.
+      if (/requires human approval/i.test(err?.message || '')) {
+        setHold({ tool: name, instructionId: null, args: argsStr || '{}' });
+        out = JSON.stringify({ status: 'pending_approval', target: name, message: err.message }, null, 2);
+        ok = true;
+      } else {
+        setHold(null);
+        const handled = handleAuthChallenge(err, { silent: true });
+        out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
+        ok = false;
+      }
     }
     recordResult(name, out, ok);
     return out;
@@ -1558,6 +1594,30 @@ export default function PrivilegeMcpClientPage() {
                 onClick={() => { setShowSignInModal(false); startAuth(); }}
               >Sign in</button>
               <button className="cur-btn" onClick={() => setShowSignInModal(false)}>Not now</button>
+            </div>
+          </div>
+        </div>
+      </DraggableModal>
+      {/* Mock approver: for a presenter with no Privilege access. Approves nothing for real; the result that follows is a labelled sample. */}
+      <DraggableModal
+        isOpen={showApprover && Boolean(hold)}
+        onClose={() => setShowApprover(false)}
+        title="Mock approver — simulated"
+        footer={null}
+        defaultWidth={460}
+        defaultHeight={340}
+        storageKey="privilege-approver-modal"
+      >
+        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
+          <div className="cur-modal cur-modal--in-dm cur-approver">
+            <p className="cur-denial-note">
+              This stands in for the approver in Privilege. Nothing is approved for real and the gateway is not called again:
+              you get a sample result, marked as simulated.
+            </p>
+            <pre className="cur-trace-json cur-approver__args">{hold?.args}</pre>
+            <div className="cur-btn-row">
+              <button className="cur-btn cur-btn--primary" onClick={mockApprove}>Approve (mock)</button>
+              <button className="cur-btn" onClick={() => setShowApprover(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2360,12 +2420,61 @@ export default function PrivilegeMcpClientPage() {
             )}
 
             {demoTab === 'tools' && (
-              <ToolsTable
+              <ToolWorkbench
                 tools={tools}
                 onExecute={executeToolCall}
+                hitlTools={(hitlTools ? hitlTools[doorName(config.mcpUrl)] : null) ?? (hitlTools ? {} : hitlToolsFor(doorName(config.mcpUrl)))}
                 onPresent={() => setShowPresent(true)}
                 selectedTool={selectedTool}
                 selectNonce={toolSelectNonce}
+                response={toolResults.length === 0 && !hold ? null : (
+                  <>
+                    {hold && (
+                      <div className="cur-hitl-hold" data-testid="hitl-hold-card">
+                        <div className="cur-hitl-hold__head">
+                          <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
+                          <span className="cur-hitl-hold__title">Waiting for human approval</span>
+                        </div>
+                        <p className="cur-hitl-hold__body">
+                          <strong>Go to Privilege to approve this.</strong> The gateway held <code>{hold.tool}</code> until a person decides.
+                        </p>
+                        <ol className="cur-hitl-hold__steps">
+                          <li>Open the Privilege console and go to <strong>Access Request Approvals → HITL Requests</strong>.</li>
+                          <li>Approve the open request for <code>{hold.tool}</code>.</li>
+                          <li>Come back here and press <strong>Retry after approval</strong>.</li>
+                        </ol>
+                        {hold.instructionId && (
+                          <p className="cur-hitl-hold__instruction">
+                            Instruction <code>{hold.instructionId}</code>
+                          </p>
+                        )}
+                        <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
+                          {retrying ? 'Retrying…' : 'Retry after approval'}
+                        </button>{' '}
+                        <button type="button" className="cur-hitl-hold__retry cur-hitl-hold__retry--quiet" onClick={() => setShowApprover(true)}>No Privilege access? Mock the approval…</button>
+                      </div>
+                    )}
+                    {toolResults.map((r, i) => {
+                      const item = (
+                        <div key={`${r.ts}-${i}`} className="cur-result-item">
+                          <div className="cur-result-item-head">
+                            <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                            <span className="cur-result-item-tool">{r.tool}</span>
+                            <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                          </div>
+                          <JsonPane value={r.result} deep label={`${r.tool} result view`} />
+                        </div>
+                      );
+                      // The card above already says the call is held; the raw hold JSON stays one click away.
+                      return hold ? (
+                        <details key={`${r.ts}-${i}`} className="cur-hitl-raw">
+                          <summary>Raw response</summary>
+                          {item}
+                        </details>
+                      ) : item;
+                    })}
+                  </>
+                )}
               />
             )}
 
@@ -2376,19 +2485,11 @@ export default function PrivilegeMcpClientPage() {
 
           {/* Terminal panel */}
           <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
-          <div className="cur-terminal" ref={terminalRef}>
-            {/* TRACE and RESULTS carry the demo and stay here; Relay log and Scopes live in the Inspect drawer. */}
+          <div className={`cur-terminal${demoTab === 'tools' ? ' cur-terminal--short' : ''}`} ref={terminalRef}>
+            {/* TRACE stays here; results sit beside the request on the Tools tab, and Relay log and Scopes live in the Inspect drawer. */}
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
-              <button
-                key={`results-tab-${resultNonce}`}
-                className={`cur-terminal-tab ${visibleTerminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && visibleTerminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
-                onClick={() => setTerminalTab('results')}
-              >
-                RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
-              </button>
               {visibleTerminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
-              {visibleTerminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
             </div>
             <div className="cur-terminal-content">
               {visibleTerminalTab === 'trace' && (
@@ -2421,45 +2522,6 @@ export default function PrivilegeMcpClientPage() {
                       </details>
                     );
                   })}
-                </div>
-              )}
-              {visibleTerminalTab === 'results' && (
-                <div className="cur-terminal-results">
-                  {hold && (
-                    <div className="cur-hitl-hold" data-testid="hitl-hold-card">
-                      <div className="cur-hitl-hold__head">
-                        <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
-                        <span className="cur-hitl-hold__title">Waiting for human approval</span>
-                      </div>
-                      <p className="cur-hitl-hold__body">
-                        The gateway held <code>{hold.tool}</code> — policy requires a human decision before this
-                        tool runs. Approve it in the Privilege console under{' '}
-                        <strong>Access Request Approvals → HITL Requests</strong>, then retry.
-                      </p>
-                      {hold.instructionId && (
-                        <p className="cur-hitl-hold__instruction">
-                          Instruction <code>{hold.instructionId}</code>
-                        </p>
-                      )}
-                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
-                        {retrying ? 'Retrying…' : 'Retry after approval'}
-                      </button>
-                    </div>
-                  )}
-                  {toolResults.length === 0 ? (
-                    <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
-                  ) : (
-                    toolResults.map((r, i) => (
-                      <div key={`${r.ts}-${i}`} className="cur-result-item">
-                        <div className="cur-result-item-head">
-                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
-                          <span className="cur-result-item-tool">{r.tool}</span>
-                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
-                        </div>
-                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
-                      </div>
-                    ))
-                  )}
                 </div>
               )}
             </div>

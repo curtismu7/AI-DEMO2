@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Federated agents: PingFederate token on PingOne Privilege</title>
+<!--
+  Confluence source page. Same design family as privilege-docs-confluence-page.html: "Copy for Confluence" bakes
+  whitelist-safe inline styles (color, background-color, border, font-weight/size, padding, margin) + bgcolor on th/td.
+  No repo links (the repo is private). No images (Confluence drops pasted ones): the screenshots are listed in the last
+  section; attach them from the pf-token-privilege-screens folder.
+  Source of truth: privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md. Everything here was measured 2026-10-26/27.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #fcfcfc; --surface: #ffffff; --fg: #1b2733; --muted: #5b6b7a; --border: #e3e7eb;
+  --accent: #d20e0f; --accent-soft: #fdeaea; --code-bg: #f3f5f7; --code-fg: #14324a; --row-alt: #f3f6f8;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: "Source Sans 3", system-ui, sans-serif; font-size: 16px; line-height: 1.55; }
+main { max-width: 1000px; margin: 0 auto; padding: 32px 24px 96px; }
+h1, h2, h3 { font-family: Montserrat, system-ui, sans-serif; color: var(--accent); }
+h1 { font-size: 28px; margin: 0 0 6px; }
+h2 { font-size: 20px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; margin: 32px 0 8px; }
+h3 { font-size: 15px; margin: 22px 0 6px; }
+.subtitle { color: var(--muted); font-size: 15px; font-weight: 700; }
+.meta { color: var(--muted); font-size: 12.5px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; border: 1px solid #d7dde3; }
+th { background: #051727; color: #fff; text-align: left; font-size: 11px; padding: 8px 12px; border: 1px solid #d7dde3; }
+td { padding: 8px 12px; border: 1px solid #d7dde3; vertical-align: top; }
+tbody tr:nth-child(even) td { background: var(--row-alt); }
+code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; background: var(--code-bg); color: var(--code-fg); padding: 1px 4px; }
+pre { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; background: var(--code-bg); color: var(--code-fg); padding: 10px 14px; border: 1px solid #d7dde3; overflow: auto; white-space: pre; }
+.note { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 10px 14px; margin: 14px 0; font-size: 13.5px; }
+.ok { color: #0e7a52; font-weight: 700; }
+.no { color: #b01716; font-weight: 700; }
+#copyBtn { position: fixed; right: 20px; bottom: 20px; padding: 10px 18px; background: var(--accent); color: #fff; border: 0; border-radius: 6px; font: 600 14px Montserrat, sans-serif; cursor: pointer; }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #051727; color: #fff; padding: 8px 16px; border-radius: 6px; opacity: 0; transition: opacity .2s; }
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+<p class="subtitle">PingOne Privilege · Agent Privilege gateway</p>
+<h1>Federated agents: a PingFederate token on PingOne Privilege</h1>
+<p class="meta"><strong>Written for:</strong> SEs setting this up on their own tenant. <strong>Measured:</strong> 2026-10-26 and 2026-10-27 on gateway <code>privilege-aigw v1.261024</code> and <code>v1.261027</code>. "Federated Agents" is the coming name for what the console calls Non-Human Identities today; this page uses the console's current labels.</p>
+
+<section id="what">
+<h2>What this shows</h2>
+<p>An AI agent whose identity already lives in the customer's own identity provider (here PingFederate) presents <strong>the token PingFederate issued to it</strong> to a Privilege MCP server. Privilege trusts that issuer, pins the agent, decides which tools it may use, and passes the agent's own token through to the MCP server. The agent holds no Privilege secret.</p>
+<p>The customer story: <em>"We already register our agents in PingFederate. Govern what they can do on our MCP servers, without giving each agent a second credential."</em></p>
+</section>
+
+<section id="does">
+<h2>What Privilege does here, and what it can't</h2>
+<h3>Does (all measured)</h3>
+<table><thead><tr><th>What</th><th>How</th></tr></thead><tbody>
+<tr><td>Trusts PingFederate as the agent's issuer</td><td>The identity checks the signature (PingFederate JWKS), <code>iss</code>, <code>aud</code> (bound to one P1 Privilege Agent App) and token lifetime. Anything else: 401.</td></tr>
+<tr><td>Accepts only this agent</td><td>Required claims on the identity (<code>act.sub</code>, <code>client_id</code>) must match exactly, or 401.</td></tr>
+<tr><td>Holds no secret for the agent</td><td>The PingFederate token is the only credential.</td></tr>
+<tr><td>Decides which tools, per agent app</td><td>The agent key's grant lists tools per agent app. No rule for the app: 403.</td></tr>
+<tr><td>Gives different tools by scope (tiers)</td><td>Two grant rules for the same app, each with <code>RequiredClaims</code> on <code>scope</code>: the token's scope picks 3 tools, 9 tools, or 403.</td></tr>
+<tr><td>Blocks one tool by scope (Cedar)</td><td>An AI policy reads <code>context.token.scopes</code>: <code>SearchIndexTool</code> is denied unless the scope has <code>opensearch:search</code>; other tools still work.</td></tr>
+<tr><td>Passes the agent's token through</td><td>Pass Agent Token forwards the PingFederate token unchanged, so the MCP server verifies it too and can read its claims.</td></tr>
+</tbody></table>
+<h3>Can't (yet)</h3>
+<table><thead><tr><th>What</th><th>Why, and what to use instead</th></tr></thead><tbody>
+<tr><td>Token exchange (on behalf of a user)</td><td>Privilege does not exchange tokens. A token with the user in <code>sub</code> and the agent in <code>act</code> has to come from PingFederate. Privilege's OBO support is in staging (Ping, 2026-10-23).</td></tr>
+<tr><td>Narrow the token it forwards</td><td>The MCP server gets the same token the agent sent, with every scope in it.</td></tr>
+<tr><td>Cedar on other token claims</td><td>Cedar reads scopes but not <code>act.sub</code> or <code>client_id</code> (<code>context.token.claims</code> is due in a later release). Use the identity's required claims or the grant rule's <code>RequiredClaims</code>.</td></tr>
+<tr><td>Wildcard audiences</td><td>The audience must name the gateway. An allow-list is possible on request.</td></tr>
+<tr><td>New grant policies through the API</td><td>A POSTed grant is deleted within about a minute (cause unknown). Edit the key's existing grant.</td></tr>
+</tbody></table>
+</section>
+
+<section id="start">
+<h2>Before you start</h2>
+<ol>
+<li>Gateway <code>privilege-aigw v1.261024</code> or later (earlier versions cannot discover tools on a Pass Agent Token agent app).</li>
+<li>The agent app's backend resolves from <strong>every</strong> gateway pod (a Service name that was deleted gave "no such host"; a network policy can also block some pods).</li>
+<li>Access to PingFederate (admin console or API) and the Privilege console.</li>
+</ol>
+<p>Values in angle brackets are yours; ours are in square brackets.</p>
+</section>
+
+<section id="pf">
+<h2>A. PingFederate: make the agent's token</h2>
+<ol>
+<li><strong>Client</strong> with the <code>client_credentials</code> grant. [<code>pf-route-c-test</code>]</li>
+<li><strong>Scopes:</strong> add the scopes your tiers and policies use to the authorization server's scope list. [<code>opensearch:admin</code>, <code>opensearch:read</code>, <code>opensearch:search</code>, <code>whoami:read</code>]</li>
+<li><strong>JWT access token manager</strong> for this agent (clone an existing JWT one; unique Key ID). Audience claim and Resource URIs = the agent app URL [<code>https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp</code>]. Scope Claim Name <code>scope</code>. Do <strong>not</strong> add <code>scope</code> to the attribute contract: the manager then writes the granted scopes itself.</li>
+<li><strong>Access token mapping</strong> (<code>CLIENT_CREDENTIALS</code> context): <code>sub</code> and <code>client_id</code> from Context: ClientId; <code>act</code> from Expression <code>#{"sub": "&lt;agent id&gt;"}</code>. <code>act</code> must be an <strong>object</strong>; the text <code>"{}"</code> fails.</li>
+<li>Make this manager the client's default access token manager.</li>
+<li><strong>Every token request sends <code>resource=&lt;agent app URL&gt;</code>.</strong> Without it, a request that names a scope is served by a different token manager (audience <code>enduser.ping.demo</code>, no <code>sub</code>, no <code>act</code>) and the gateway answers 401.</li>
+<li><strong>Check:</strong> decode a token: <code>iss</code>, <code>sub</code>, <code>aud</code> = the agent app URL, <code>client_id</code>, <code>act.sub</code> = the agent id, and <code>scope</code> as requested.</li>
+</ol>
+</section>
+
+<section id="nhi">
+<h2>B. Privilege: register the federated agent (Non-Human Identity)</h2>
+<p>Console: <strong>Non-Human Identities → Register Identity</strong>.</p>
+<ol>
+<li>Token issuer type: <strong>OIDC Provider</strong>. Issuer: exactly the token's <code>iss</code>. [<code>https://cmuir-pf.ping-devops.com</code>]</li>
+<li>Key source: <strong>Fetch from URL</strong>; JWKS URL = PingFederate's. [<code>https://cmuir-pf.ping-devops.com/pf/JWKS</code>]</li>
+<li><strong>Subject:</strong> <code>*</code>. (The agent is pinned by the required claims below.)</li>
+<li>End user in a presented token: <strong>Opaque</strong>, claim empty (= <code>sub</code>).</li>
+<li><strong>Audience:</strong> the agent app URL, the same value PingFederate puts in <code>aud</code>.</li>
+<li><strong>Required claims:</strong> <code>act.sub</code> = &lt;agent id&gt; and <code>client_id</code> = &lt;client id&gt;. [both <code>pf-route-c-test</code>]</li>
+<li><strong>Permissions:</strong> <code>mcp</code>.</li>
+</ol>
+<div class="note">If the console refuses with "Spec.UserClaim resolves to sub", the subject is pinned while End user reads <code>sub</code>: set Subject to <code>*</code>.</div>
+</section>
+
+<section id="app">
+<h2>C. Privilege: the P1 Privilege Agent App</h2>
+<p>Console: <strong>Agentic Apps → Add Application → MCP Server</strong>.</p>
+<ol>
+<li><strong>MCP Server URL:</strong> a backend that resolves from every gateway pod, ending in exactly <code>/mcp</code>. The gateway uses the URL's path as the app's entry path: a URL saved as <code>…/mc</code> gave 404 and the log line <code>outside entry path "/mc"</code>.</li>
+<li><strong>Auth Mode:</strong> Pass Agent Token. <strong>Mesh cluster:</strong> the one your gateway pods serve.</li>
+<li>Save. The Overview shows "Awaiting first agent call".</li>
+</ol>
+</section>
+
+<section id="key">
+<h2>D. Privilege: the agent key and its tools</h2>
+<p>Console: <strong>Agent Registry → Add Agent</strong>.</p>
+<ol>
+<li><strong>Custodian:</strong> the identity from part B. Scope <code>mcp</code>. [key <code>pftoken-agent</code>, custodian <code>PFtoken</code>]</li>
+<li><strong>Gateway &amp; Apps:</strong> select the agent app from part C.</li>
+<li><strong>Configure Tool Access:</strong> MCP Server = the agent app; Access tier Everyone; select the tools (none selected grants every tool).</li>
+<li>Save. The agent app's <strong>Agent Registry</strong> tab now lists the key and its grant.</li>
+</ol>
+<div class="note">Do <strong>not</strong> create the grant as a separate policy through the API: every such policy was deleted by the gateway within seconds. Edit the key's own grant instead. Keys and grants expire (ours: 2026-10-29); renew them before a demo.</div>
+</section>
+
+<section id="test">
+<h2>E. First call and test</h2>
+<ol>
+<li>Make one agent call with the PingFederate token (<code>tools/list</code>). Even if refused, it triggers tool discovery.</li>
+<li>Call again: expect <strong>200</strong> with the tool list. A garbage bearer still gets 401.</li>
+<li>Gateway log (all gateway pods, <code>--all-containers</code>): <code>workload token accepted for key &lt;key&gt;</code>, no <code>policy denied</code>.</li>
+</ol>
+</section>
+
+<section id="tiers">
+<h2>F. Optional: tools by scope (tiers)</h2>
+<p>Each rule in the key's grant can require token claims (<code>RequiredClaims</code>). Two rules for the same app make two tiers.</p>
+<ol>
+<li>Read the key's grant (<code>GET /api/&lt;tenant&gt;/v1/pacpolicys</code>, the policy whose rules name your key). Save a backup.</li>
+<li>In <code>Spec.ActionMap.MCP.PolicyRule</code>, replace the app's rule with two copies, each with its own tools and condition:</li>
+</ol>
+<pre>"Capabilities": { "Map": { "tools": { "Elems": ["ListIndexTool","SearchIndexTool","CountTool"] } } },
+"RequiredClaims": { "Map": { "scope": { "Elems": ["opensearch:read"] } } }</pre>
+<p>and the same with all nine tools and <code>"Elems": ["opensearch:admin"]</code>. <code>PUT /api/&lt;tenant&gt;/v1/pacpolicys/default/&lt;grant name&gt;</code> with the whole policy; it takes effect in about 20 seconds.</p>
+<table><thead><tr><th>Token scope</th><th>Result for the same agent and agent app</th></tr></thead><tbody>
+<tr><td><code>openid opensearch:admin</code></td><td>200, all 9 tools</td></tr>
+<tr><td><code>openid opensearch:read</code></td><td>200, 3 tools</td></tr>
+<tr><td>neither</td><td>403, no tools</td></tr>
+</tbody></table>
+<p>Rules: a value list means <em>any of</em>; each scope in the token is matched on its own (requiring <code>opensearch:read</code> matches <code>openid opensearch:read</code>; requiring the whole string does not); claim paths may be dotted (<code>act.sub</code>). The value must be a list: a plain string is a 400. To remove a condition, <strong>delete the <code>RequiredClaims</code> field</strong>; a PUT with <code>{"Map": {}}</code> is ignored and the old condition stays.</p>
+</section>
+
+<section id="passthrough">
+<h2>G. Optional: prove the token is passed through</h2>
+<p>Create a second agent app (Pass Agent Token) in front of an MCP server that verifies the token itself and can report what it received. Ours, <code>pftoken-rs</code>, fronts a demo MCP server whose <code>whoami</code> tool returns every claim it verified. That server trusts the PingFederate issuer and JWKS and accepts the token's audience. Add a rule for the second app (tool <code>whoami</code>) to the key's grant, then call <code>whoami</code>: the issuer, <code>act</code>, scopes and the other claims it reports are the PingFederate token's. The gateway checked the token and passed it through; it did not swap in its own credential.</p>
+</section>
+
+<section id="cmds">
+<h2>H. Commands</h2>
+<pre>curl -s https://&lt;pf-host&gt;/as/token.oauth2 -u "&lt;client id&gt;:$CLIENT_SECRET" \
+  -d grant_type=client_credentials \
+  -d "scope=openid opensearch:read" \
+  -d "resource=https://&lt;gateway-host&gt;/&lt;agent app&gt;/mcp"
+
+curl -s https://&lt;gateway-host&gt;/&lt;agent app&gt;/mcp \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</pre>
+<table><thead><tr><th>You get</th><th>Means</th><th>Where to look</th></tr></thead><tbody>
+<tr><td>200 + tools</td><td>working</td><td>—</td></tr>
+<tr><td>401</td><td>token not accepted: issuer, audience, required claim, lifetime, or the wrong PingFederate token manager</td><td>gateway log <code>workload token rejected</code> or <code>token_not_found</code></td></tr>
+<tr><td>403</td><td>token accepted, no grant rule matched (no rule for the app, or no tier's <code>RequiredClaims</code> matched)</td><td>gateway log <code>policy denied</code></td></tr>
+<tr><td>404</td><td>the app's MCP Server URL does not end in <code>/mcp</code></td><td>gateway log <code>outside entry path</code></td></tr>
+<tr><td>200, no tools</td><td>tools not discovered yet, or the backend is unreachable</td><td>gateway log <code>tool discovery … failed</code></td></tr>
+</tbody></table>
+</section>
+
+<section id="cedar">
+<h2>I. Optional: block one tool by scope with Cedar</h2>
+<p>The grant decides which tools the agent may see; an AI policy (Cedar) can then refuse a single call based on the token. Console: <strong>AI Policies → New Policy</strong> (or <code>POST /api/&lt;tenant&gt;/v1/aipolicys</code>).</p>
+<pre>@reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
+when   { context.app == "pftoken" }
+unless { context has token &amp;&amp; context.token.scopes.contains("opensearch:search") };</pre>
+<div class="note"><strong>Make it Active.</strong> A policy created through the API starts as a <em>Candidate</em> (<code>State: ""</code>): it is compiled and logged but never enforced. The gateway log then says <code>candidate policy would have returned deny where the active set returned allow</code>. In the console, click <strong>Enforce</strong> on the policy (or set <code>State</code> to <code>Active</code> through the API). It takes effect within seconds.</div>
+<table><thead><tr><th>Token scope</th><th><code>SearchIndexTool</code></th><th>Other tools</th></tr></thead><tbody>
+<tr><td><code>openid opensearch:admin</code></td><td><strong>400</strong>, JSON-RPC <code>-32600</code> "action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token"</td><td>allowed</td></tr>
+<tr><td><code>openid opensearch:admin opensearch:search</code></td><td>200, search results</td><td>allowed</td></tr>
+</tbody></table>
+<p>Gateway log for the block: <code>aipolicy: denied PFtoken calling SearchIndexTool on pftoken</code>. Cedar sees only the token's scopes; for other claims use the identity's required claims or the grant's <code>RequiredClaims</code>.</p>
+</section>
+
+<section id="trouble">
+<h2>When it does not work</h2>
+<table><thead><tr><th>You see</th><th>Gateway log</th><th>Fix</th></tr></thead><tbody>
+<tr><td>401</td><td><code>workload token rejected: required claim "act.sub" does not match</code></td><td>Set the identity's <code>act.sub</code> to the agent id; make PingFederate emit <code>act</code> as an object.</td></tr>
+<tr><td>401 (only when a scope is requested)</td><td><code>auth rejected: reason=token_not_found</code></td><td>Send <code>resource=&lt;agent app URL&gt;</code> with the token request.</td></tr>
+<tr><td>403</td><td><code>policy denied PFtoken access to pftoken (agent=true)</code></td><td>Add a rule for the agent app to the key's existing grant.</td></tr>
+<tr><td>404</td><td><code>rejecting /mcp on app …: outside entry path "/mc"</code></td><td>The MCP Server URL must end in exactly <code>/mcp</code>.</td></tr>
+<tr><td>No tools</td><td><code>tool discovery for … failed: … no such host</code></td><td>Point the agent app at a backend that resolves from every gateway pod.</td></tr>
+<tr><td>A grant vanishes</td><td><code>RDP terminate: policy deleted</code></td><td>Do not create a new grant policy for the key; edit the key's existing one.</td></tr>
+<tr><td>Console refuses to save the identity</td><td><code>Spec.UserClaim resolves to "sub" …</code></td><td>With End user on <code>sub</code>, widen the subject to <code>*</code> and pin the agent with required claims.</td></tr>
+<tr><td>Cedar policy does not block</td><td><code>candidate policy would have returned deny</code></td><td>The policy is a Candidate: click <strong>Enforce</strong> (State Active).</td></tr>
+<tr><td>A condition cannot be removed</td><td>—</td><td>Delete the <code>RequiredClaims</code> field; <code>{"Map": {}}</code> is ignored.</td></tr>
+</tbody></table>
+</section>
+
+<section id="screens">
+<h2>Screenshots to attach</h2>
+<p>Attach these from the <code>pf-token-privilege-screens</code> folder next to this page (Confluence drops images pasted from HTML).</p>
+<table><thead><tr><th>File</th><th>Shows</th><th>Place under</th></tr></thead><tbody>
+<tr><td><code>a1-pf-clients-list.png</code></td><td>PingFederate OAuth clients list</td><td>A</td></tr>
+<tr><td><code>a2-pf-client-general.png</code></td><td>Client, General Info</td><td>A</td></tr>
+<tr><td><code>a3-pf-client-oauth-settings.png</code></td><td>Client, OAuth Settings: CLIENT_CREDENTIALS grant</td><td>A</td></tr>
+<tr><td><code>a4-pf-client-token-manager.png</code></td><td>Client, default token manager <code>routeCTestAtm</code></td><td>A</td></tr>
+<tr><td><code>a5-pf-scopes-opensearch.png</code></td><td>The demo scopes in Scope Management</td><td>A</td></tr>
+<tr><td><code>a6-pf-token-managers-list.png</code></td><td>Token managers; the default is a different one</td><td>A</td></tr>
+<tr><td><code>a7-pf-token-manager-audience-scope-claim.png</code></td><td>Token manager: scope claim name, issuer, audience</td><td>A</td></tr>
+<tr><td><code>a8-pf-token-manager-attribute-contract.png</code></td><td>Token manager: attribute contract (no <code>scope</code>) and resource URI</td><td>A</td></tr>
+<tr><td><code>a9-pf-access-token-mapping.png</code></td><td>Access token mapping: <code>sub</code>, <code>client_id</code>, <code>act</code></td><td>A</td></tr>
+<tr><td><code>b1-nhi-list.png</code></td><td>Non-Human Identities list with <code>PFtoken</code></td><td>B</td></tr>
+<tr><td><code>c1-agentic-apps.png</code></td><td>Agentic Apps list</td><td>C</td></tr>
+<tr><td><code>c5-pftoken-rs-edit.png</code></td><td>Agent app edit: <code>/mcp</code> URL, Pass Agent Token, mesh</td><td>C</td></tr>
+<tr><td><code>c2-pftoken-rs-overview.png</code></td><td>Agent app overview after discovery, with <code>whoami</code></td><td>C, G</td></tr>
+<tr><td><code>d2-pftoken-agent-registry.png</code></td><td>Agent Registry tab: key and grant</td><td>D</td></tr>
+<tr><td><code>d3-pftoken-agent-view-config.png</code></td><td>View Config for the key</td><td>D</td></tr>
+<tr><td><code>c4-pftoken-rs-agent-registry.png</code></td><td>Agent Registry tab of the second agent app</td><td>G</td></tr>
+<tr><td><code>i4-pftoken-scope-search-detail.png</code></td><td>The Cedar policy page, State Active</td><td>I</td></tr>
+<tr><td><code>i3-ai-policies-page2.png</code></td><td>AI Policies list: Candidate with Enforce, and Active</td><td>I</td></tr>
+<tr><td><code>pg1-claims.png</code></td><td>Demo page: the claims PingFederate put in the token</td><td>H</td></tr>
+<tr><td><code>pg2-allowed.png</code></td><td>Demo page: the gateway accepted the token and returned the tools</td><td>E</td></tr>
+<tr><td><code>pg3-garbage-control.png</code></td><td>Demo page: control with a garbage token (401)</td><td>E</td></tr>
+<tr><td><code>pg4-scope-tiers.png</code></td><td>Demo page: same agent, three scopes: 9 tools, 3 tools, 403</td><td>F</td></tr>
+<tr><td><code>pg5-cedar-blocks-by-scope.png</code></td><td>Demo page: Cedar blocks SearchIndexTool without opensearch:search</td><td>I</td></tr>
+<tr><td><code>pg6-backend-received.png</code></td><td>Demo page: every claim the MCP server received</td><td>G</td></tr>
+<tr><td><code>pg7-what-privilege-does.png</code></td><td>Demo page: what Privilege does and can't do</td><td>top</td></tr>
+<tr><td><code>pg8-flow-diagram.png</code></td><td>Demo page: the flow diagram</td><td>top</td></tr>
+</tbody></table>
+<p class="meta">PingFederate screens were taken from the PingFederate 13.1 admin console; the "Demo page" screens come from the live demo after pressing Run (2026-10-27).</p>
+</section>
+
+<p class="meta">Live demo (sign-in required): https://ai-demo.ping-devops.com/privilege-pf-token · Measured 2026-10-26 and 2026-10-27 on our tenant. Rules marked "not available yet" may change with Privilege releases.</p>
+</main>
+<button id="copyBtn" type="button">Copy for Confluence</button>
+<div id="toast" role="status"></div>
+<script>
+(function () {
+  var btn = document.getElementById('copyBtn'), toastEl = document.getElementById('toast'), timer = null;
+  function toast(m) { toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(timer); timer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600); }
+  var INLINE = [
+    ['h1', 'color:#d20e0f;font-size:28px;font-weight:bold;margin:0 0 6px;'],
+    ['h2', 'color:#d20e0f;font-size:20px;font-weight:bold;border-bottom:2px solid #d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
+    ['h3', 'color:#d20e0f;font-size:15px;font-weight:bold;margin:22px 0 6px;'],
+    ['p', 'font-size:14px;color:#1b2733;margin:8px 0;'],
+    ['li', 'font-size:14px;color:#1b2733;margin:4px 0;'],
+    ['table', 'border:1px solid #d7dde3;font-size:13px;color:#1b2733;margin:10px 0;border-collapse:collapse;width:100%;'],
+    ['th', 'background-color:#051727;color:#ffffff;border:1px solid #d7dde3;font-size:11px;font-weight:bold;text-align:left;padding:8px 12px;'],
+    ['td', 'border:1px solid #d7dde3;color:#1b2733;padding:8px 12px;'],
+    ['code', 'background-color:#f3f5f7;color:#14324a;font-size:12px;'],
+    ['pre', 'background-color:#f3f5f7;color:#14324a;border:1px solid #d7dde3;font-size:12px;padding:10px 14px;margin:10px 0;'],
+    ['tbody tr:nth-child(even) td', 'background-color:#f3f6f8;'],
+    ['.note', 'background-color:#fdeaea;border-left:3px solid #d20e0f;padding:10px 14px;margin:14px 0;font-size:13.5px;'],
+    ['.subtitle', 'color:#5b6b7a;font-size:15px;font-weight:bold;'],
+    ['.meta', 'color:#5b6b7a;font-size:12.5px;']
+  ];
+  function bake(root) {
+    var clone = root.cloneNode(true);
+    INLINE.forEach(function (r) { clone.querySelectorAll(r[0]).forEach(function (el) { el.style.cssText += r[1]; }); });
+    function hex(n) { return ('0' + parseInt(n, 10).toString(16)).slice(-2); }
+    clone.querySelectorAll('th, td').forEach(function (el) {
+      var bg = el.style.backgroundColor, m = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(bg);
+      if (m) el.setAttribute('bgcolor', '#' + hex(m[1]) + hex(m[2]) + hex(m[3]));
+      else if (/^#[0-9a-fA-F]{3,6}$/.test(bg)) el.setAttribute('bgcolor', bg);
+    });
+    return clone;
+  }
+  btn.addEventListener('click', function () {
+    var src = document.querySelector('main'), html = bake(src).outerHTML, text = src.innerText;
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+      navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })])
+        .then(function () { toast('Copied with styles: paste into Confluence'); })
+        .catch(function () { sel(); });
+    } else { sel(); }
+  });
+  function sel() { var r = document.createRange(); r.selectNodeContents(document.querySelector('main')); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); toast('Clipboard blocked: page selected, press Cmd/Ctrl+C'); }
+})();
+</script>
+</body>
+</html>

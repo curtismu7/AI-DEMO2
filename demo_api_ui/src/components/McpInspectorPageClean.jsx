@@ -14,6 +14,9 @@ import { mcpCallFromStore, apiCallFromTracker } from './inspector/mcpCalls';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
+import { defaultParamsFor, pickDefaultTool, choiceGroupFor, inferOption, applyOption } from '../config/inspectorDefaults';
+import ParamChoice from './inspector/ParamChoice';
+import InlineSpinner from './shared/InlineSpinner';
 
 const NEW_PROFILE_DEFAULTS = {
   label: '',
@@ -51,26 +54,31 @@ const NODE_SUBS = {
 const CALLS_NOTE = 'Includes calls the AI agent made in this browser tab.';
 // The sources whose tools are the AI Demo MCP server's per-vertical tools.
 const VERTICAL_SOURCES = ['banking', 'custom'];
-const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools. Switch to Banking, or ';
-const ELICIT_ID = 'elicitation-pending';
+const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools.';
 
-/** Tools bucketed by `config.groupBy`, first-seen order. No groupBy: one unlabelled group. */
-function groupsFor(config, tools) {
-  const key = config.groupBy;
-  if (!key) return [{ label: null, tools }];
-  const order = [];
-  const byLabel = new Map();
-  for (const t of tools) {
-    const label = t[key] || 'Other';
-    if (!byLabel.has(label)) { byLabel.set(label, []); order.push(label); }
-    byLabel.get(label).push(t);
-  }
-  return order.map((label) => ({ label, tools: byLabel.get(label) }));
+/** Why live discovery fell back to the local catalog, in words — and whether signing in again can fix it. */
+function fallbackReason(reason, provider) {
+  const r = String(reason || '');
+  // Live tools only work with the PingOne (P1) login today; re-signing in on PingFederate can't change that.
+  if (provider === 'pingfederate') return { text: 'Live tools only work with the PingOne (P1) login, and this session uses PingFederate. An administrator can switch the provider to P1 in the top bar, then sign in again.', relogin: false };
+  if (r.startsWith('mcp_unreachable')) return { text: 'The live MCP server could not be reached.', relogin: false };
+  if (r.startsWith('no_mcp_bearer')) return { text: 'This session has no MCP token (restored session).', relogin: true };
+  // The BFF's own actor client (client-credentials) was refused — signing in again cannot fix that.
+  if (r.includes('actor_token_invalid')) return { text: 'The server-side actor client was rejected (locked or misconfigured) — this is not your login.', relogin: false };
+  if (r.startsWith('token_resolve_failed_')) return { text: `Your token was rejected (${r.slice('token_resolve_failed_'.length)}).`, relogin: true };
+  if (r) return { text: 'Live tool discovery failed.', relogin: true };
+  return { text: 'Showing the local catalog.', relogin: true };
 }
+const ELICIT_ID = 'elicitation-pending';
 
 const asText = (v) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
 /** The vertical's sample args for a tool, as form strings. */
 const paramsFor = (vertical, name) => Object.fromEntries(Object.entries(argsFor(vertical, name)).map(([k, v]) => [k, asText(v)]));
+/** What a freshly picked tool's form starts with: the defaults for what it declares, then the vertical's sample args on top. */
+const initialParams = (tool, vertical, toolKey) => ({
+  ...defaultParamsFor(tool?.inputSchema?.properties ?? tool?.schema?.properties),
+  ...(vertical ? paramsFor(vertical, tool?.[toolKey]) : {}),
+});
 
 function AddServerForm({ source }) {
   const [open, setOpen] = useState(false);
@@ -144,6 +152,60 @@ function AddServerForm({ source }) {
   );
 }
 
+/** Searchable table of every tool the server offers; picking a row selects it (replaces the old Tool dropdown + dumped list). */
+function ToolsTable({ tools, toolKey, groupBy, selected, loading, noun, onPick }) {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  // Same table for every source; a column a source never fills (e.g. protocol methods have no scopes) is dropped, not left empty.
+  const hasDesc = tools.some((t) => t.description);
+  const hasScopes = tools.some((t) => (t.requiredScopes || []).length);
+  const cols = 1 + (groupBy ? 1 : 0) + (hasDesc ? 1 : 0) + (hasScopes ? 1 : 0);
+  const rows = q
+    ? tools.filter((t) => `${t[toolKey]} ${groupBy ? t[groupBy] || '' : ''} ${t.description || ''} ${(t.requiredScopes || []).join(' ')}`.toLowerCase().includes(q))
+    : tools;
+  if (loading && !tools.length) {
+    return <div className="insp-tools__loading"><InlineSpinner size="md" label={`Loading ${noun}s…`} /></div>;
+  }
+  if (!tools.length) return null;
+  return (
+    <section className="insp-tools" aria-label={`${noun}s`} aria-busy={loading || undefined}>
+      <div className="insp-tools__bar">
+        <input
+          type="search"
+          className="insp-tools__search"
+          placeholder={`Search ${tools.length} ${noun}s…`}
+          aria-label={`Search ${noun}s`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {loading && <InlineSpinner label={`Refreshing ${noun}s…`} />}
+        <span className="insp-tools__count" aria-live="polite">{rows.length === tools.length ? `${tools.length} ${noun}s` : `${rows.length} of ${tools.length}`}</span>
+      </div>
+      <div className="insp-tools__scroll">
+        <table className="insp-tools__table">
+          <thead>
+            <tr><th scope="col">{noun === 'method' ? 'Method' : 'Tool'}</th>{groupBy && <th scope="col">Group</th>}{hasDesc && <th scope="col">Description</th>}{hasScopes && <th scope="col">Scopes</th>}</tr>
+          </thead>
+          <tbody>
+            {rows.map((t) => {
+              const on = t === selected;
+              return (
+                <tr key={t[toolKey]} className={on ? 'is-selected' : undefined} aria-selected={on}>
+                  <td><button type="button" className="insp-tools__pick mono" aria-pressed={on} onClick={() => onPick(t)}>{t[toolKey]}</button></td>
+                  {groupBy && <td className="insp-tools__group">{t[groupBy] || 'Other'}</td>}
+                  {hasDesc && <td className="insp-tools__desc" title={t.description || undefined}><div className="insp-tools__clamp">{t.description}</div></td>}
+                  {hasScopes && <td className="insp-tools__scopes">{(t.requiredScopes || []).map((sc) => <Chip key={sc} chip={idle(sc)} />)}</td>}
+                </tr>
+              );
+            })}
+            {!rows.length && <tr><td colSpan={cols} className="insp-tools__empty">{`No ${noun}s match "${query}".`}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function McpInspectorPageClean() {
   const { darkMode } = useThemeOptional();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -157,16 +219,38 @@ function McpInspectorPageClean() {
   const sendRef = useRef(null);
   const byVertical = VERTICAL_SOURCES.includes(activeSource);
   // A vertical change keeps the selected tool when this vertical may use it, with its sample args.
-  const { id: verticalId, vertical, field: verticalField } = useInspectorVertical((v, id) => {
+  const { id: verticalId, vertical } = useInspectorVertical((v, id) => {
     const sel = source.selectedTool;
     if (!byVertical || !sel) return;
     const keep = !belongsElsewhere(id, sel[toolKey]);
     if (!keep) source.setSelectedTool(null);
-    source.setParamValues(keep ? paramsFor(v, sel[toolKey]) : {});
+    source.setParamValues(keep ? initialParams(sel, v, toolKey) : {});
   });
 
   // null = follow the newest call; set when the user picks a row.
   const [pickedId, setPickedId] = useState(null);
+
+  // Which alternative the user picked for a choice group (e.g. Location by City / Coordinates); reset per tool.
+  const [chosenOption, setChosenOption] = useState(null);
+  useEffect(() => { setChosenOption(null); }, [source.selectedTool]);
+
+  // Pre-select a safe default tool once per source/profile, so a bare Send works. Never fights the user:
+  // it runs only while nothing is selected, and only once for each source and profile.
+  const autoPicked = useRef('');
+  useEffect(() => {
+    if (isCalls || source.loadingTools || source.selectedTool || !source.tools?.length) return;
+    const key = `${activeSource}:${source.selectedProfileId || ''}`;
+    // The hook outlives a source switch: until it reports tools loaded for THIS source/profile, the
+    // list is the previous source's, and picking from it would burn the once-only guard below.
+    if (source.toolsKey !== undefined && source.toolsKey !== key) return;
+    if (autoPicked.current === key) return;
+    autoPicked.current = key;
+    const t = pickDefaultTool(activeSource, source.tools, toolKey);
+    if (!t) return;
+    source.setSelectedTool(t);
+    source.setParamValues(initialParams(t, byVertical ? vertical : null, toolKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCalls, source.loadingTools, source.selectedTool, source.tools, source.toolsKey, activeSource, source.selectedProfileId]);
 
   // Smart field propagation: publish this page's last result for other inspectors.
   useEffect(() => {
@@ -268,8 +352,42 @@ function McpInspectorPageClean() {
   const tool = source.selectedTool;
   const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
   const scopes = tool?.requiredScopes || [];
-  // Other verticals' tools are hidden; unowned tools and the selected one stay.
-  const listed = byVertical ? source.tools.filter((t) => t === tool || !belongsElsewhere(verticalId, t[toolKey])) : source.tools;
+
+  // toolsKey stays null until the first load has finished; before that the effect that starts the load
+  // has not run yet, so loadingTools alone would leave the card blank for a moment (and a slow BFF looks dead).
+  const awaitingFirstLoad = source.toolsKey === null && !isCalls && !(source.mode === 'profiles' && !source.selectedProfileId);
+
+  const renderField = (key) => {
+    const schema = source.schemaProps[key];
+    return (
+      <label key={key} className="insp-field">
+        <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
+        <input
+          type="text"
+          placeholder={schema?.description || schema?.type || 'value'}
+          value={source.paramValues[key] || ''}
+          onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
+        />
+        {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
+          <small>Filled from an earlier result</small>
+        )}
+      </label>
+    );
+  };
+
+  // Alternative parameters (the weather tool's city / coordinates / saved location) become one choice,
+  // showing only the chosen alternative's fields; the rest of the optional settings fold under "More options".
+  const group = tool ? choiceGroupFor(source.schemaProps) : null;
+  const activeId = group ? (chosenOption ?? inferOption(group, source.paramValues)) : null;
+  const choice = group && activeId ? (() => {
+    const inGroup = new Set(group.options.flatMap((o) => o.fields));
+    const shown = group.options.find((o) => o.id === activeId).fields;
+    return { group, active: activeId, shown, more: Object.keys(source.schemaProps).filter((k) => !inGroup.has(k)) };
+  })() : null;
+  const pickOption = (id) => {
+    setChosenOption(id);
+    source.setParamValues(applyOption(group, id, source.paramValues));
+  };
 
   const sendCard = isCalls ? null : (
     <div className="insp-send-body" ref={sendRef}>
@@ -282,6 +400,7 @@ function McpInspectorPageClean() {
           </div>
         </div>
       )}
+      {source.mode === 'profiles' && source.profiles.length > 0 && (
       <div className="insp-send-row">
         {source.mode === 'profiles' && source.profiles.length > 0 && (
           <label className="insp-field">
@@ -291,53 +410,20 @@ function McpInspectorPageClean() {
             </select>
           </label>
         )}
-        {source.mode === 'profiles' && source.profiles.length > 0 && <AddServerForm source={source} />}
-        {byVertical && verticalField}
-        <label className="insp-field">
-          <span>{isMethod ? 'Method' : 'Tool'}</span>
-          <select
-            value={tool ? String(source.tools.indexOf(tool)) : ''}
-            disabled={source.loadingTools}
-            onChange={(e) => {
-              const next = e.target.value === '' ? null : source.tools[Number(e.target.value)];
-              source.setSelectedTool(next);
-              source.setParamValues(next && byVertical ? paramsFor(vertical, next[toolKey]) : {});
-            }}
-          >
-            <option value="">{source.loadingTools ? 'Loading…' : `Select a ${isMethod ? 'method' : 'tool'}`}</option>
-            {groupsFor(source.config, listed).map(({ label, tools }) => {
-              const opts = tools.map((t) => <option key={source.tools.indexOf(t)} value={String(source.tools.indexOf(t))}>{t[toolKey]}</option>);
-              return label ? <optgroup key={label} label={label}>{opts}</optgroup> : opts;
-            })}
-          </select>
-        </label>
-        {tool && Object.entries(source.schemaProps).map(([key, schema]) => (
-          <label key={key} className="insp-field">
-            <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
-            <input
-              type="text"
-              placeholder={schema?.description || schema?.type || 'value'}
-              value={source.paramValues[key] || ''}
-              onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
-            />
-            {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
-              <small>Filled from an earlier result</small>
-            )}
-          </label>
-        ))}
-        <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
-          {source.busy ? 'Sending…' : 'Send'}
-        </button>
+        <AddServerForm source={source} />
       </div>
+      )}
       {toolsSource === 'local_catalog' && (() => {
         const nonBanking = byVertical && verticalId !== 'banking';
+        const why = fallbackReason(source.toolsReason, source.toolsProvider);
         return (
           <p className="insp-err" role="status">
-            {nonBanking && LOCAL_FALLBACK_NOTE}
-            <button type="button" className="insp-btn" onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}>
-              {nonBanking ? 'log in' : 'Log in for the live MCP server'}
-            </button>
-            {nonBanking && ' for the live MCP server.'}
+            {why.text} {nonBanking && LOCAL_FALLBACK_NOTE}
+            {why.relogin && (
+              <button type="button" className="insp-btn" onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}>
+                Log in again
+              </button>
+            )}
           </p>
         );
       })()}
@@ -349,31 +435,54 @@ function McpInspectorPageClean() {
           ))}
         </div>
       )}
-      {tool && (
-        <p className="insp-toolinfo">
-          {tool.description}
-          {scopes.map((s) => <Chip key={s} chip={idle('needs ' + s)} />)}
-        </p>
-      )}
-      {tool && (tool.inputSchema || tool.schema) && (
-        <details>
-          <summary>Input schema</summary>
-          <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
-        </details>
-      )}
-      {source.tools.length > 0 && (
-        <details>
-          <summary>{`Browse all ${source.tools.length} tools`}</summary>
-          <ul className="insp-browse">
-            {source.tools.map((t, i) => (
-              <li key={i}>
-                <strong className="mono">{t[toolKey]}</strong>
-                {t.description && <span>{t.description}</span>}
-                {(t.requiredScopes || []).map((s) => <Chip key={s} chip={idle(s)} />)}
-              </li>
-            ))}
-          </ul>
-        </details>
+      <ToolsTable
+        tools={source.tools}
+        toolKey={toolKey}
+        groupBy={source.config.groupBy}
+        selected={tool}
+        loading={source.loadingTools || awaitingFirstLoad}
+        noun={isMethod ? 'method' : 'tool'}
+        onPick={(t) => {
+          source.setSelectedTool(t);
+          source.setParamValues(initialParams(t, byVertical ? vertical : null, toolKey));
+        }}
+      />
+      {tool ? (
+        <div className="insp-picked">
+          <p className="insp-toolinfo">
+            <strong className="mono">{tool[toolKey]}</strong>
+            {tool.description}
+            {scopes.map((s) => <Chip key={s} chip={idle('needs ' + s)} />)}
+          </p>
+          <div className="insp-send-row">
+        {tool && !choice && Object.keys(source.schemaProps).map(renderField)}
+        {tool && choice && (
+          <>
+            <ParamChoice group={choice.group} active={choice.active} onChange={pickOption} />
+            {choice.shown.map(renderField)}
+          </>
+        )}
+        <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
+          {source.busy ? 'Sending…' : 'Send'}
+        </button>
+        {tool && choice && choice.more.length > 0 && (
+          <details className="insp-more">
+            <summary>{`More options (${choice.more.length})`}</summary>
+            <div className="insp-send-row">{choice.more.map(renderField)}</div>
+          </details>
+        )}
+          </div>
+          {(tool.inputSchema || tool.schema) && (
+            <details>
+              <summary>Input schema</summary>
+              <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
+            </details>
+          )}
+        </div>
+      ) : (
+        !source.loadingTools && source.tools.length > 0 && (
+          <p className="insp-hint">{`Pick a ${isMethod ? 'method' : 'tool'} above to fill in its parameters and send it.`}</p>
+        )
       )}
     </div>
   );

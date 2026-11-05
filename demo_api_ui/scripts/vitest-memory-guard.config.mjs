@@ -1,7 +1,8 @@
 import viteConfig from '../vite.config.js'
 
 export const VITEST_WORKER_HEAP_LIMIT_MB = 1_400
-export const VITEST_MAX_WORKERS = 2
+// Pinned to 2 for local runs and old target refs; CI raises it with VITEST_MAX_WORKERS.
+export const VITEST_MAX_WORKERS = Number.parseInt(process.env.VITEST_MAX_WORKERS ?? '', 10) || 2
 
 export function applyVitestMemoryLimits(config) {
   const test = config?.test ?? {}

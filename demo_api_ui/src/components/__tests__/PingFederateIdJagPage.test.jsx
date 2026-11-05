@@ -29,10 +29,11 @@ function topControls() {
 }
 
 describe("PingFederate ID-JAG architecture", () => {
-  it("provides flow education and official PingFederate docs in both open tabs", () => {
+  it("provides flow education and official PingFederate docs in both open tabs", async () => {
     renderPage();
 
-    let details = screen.getByText("Protocol details").closest("details");
+    // The route page loads lazily: wait for it once.
+    let details = (await screen.findByText("Protocol details")).closest("details");
     expect(details.open).toBe(true);
     expect(screen.getByRole("heading", { name: "Understand this flow" })).toBeTruthy();
     expect(screen.getByText(/PingFederate validates the refresh token and issues the ID-JAG/)).toBeTruthy();

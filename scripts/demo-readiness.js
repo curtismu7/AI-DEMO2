@@ -4,6 +4,7 @@ const readline = require('node:readline/promises');
 const { stdin, stdout, stderr } = require('node:process');
 const { startReadinessRun } = require('../demo_api_server/services/demoReadinessRunner');
 const { redactReadinessValue } = require('../demo_api_server/services/demoReadinessReport');
+const { runThroughBff } = require('./demo-readiness-bff');
 
 const HELP = `Usage: npm run demo:ready -- [options]
 
@@ -11,6 +12,8 @@ Run the demo readiness audit, preview source-backed repairs, and execute the req
 
 Options:
   --target local|se|both  Select targets (default: both). A single target is diagnostic only.
+  --provider pingone|pingfederate|both
+                          Select providers (default: both). A single provider is diagnostic only.
   --json                  Write the final sanitized machine-readable report as JSON.
   -h, --help              Show this help.
 
@@ -18,10 +21,25 @@ Repairs are shown in full and require typing the exact repair plan digest once. 
 counts toward the single 15-minute deadline. This standalone CLI has no verified administrator
 identity, so a typed digest can never authorize a repair write; use Admin sidebar Reset Demo for
 administrator-bound repair. Exit status is 0 only for full READY — BOTH TARGETS.
+
+BFF lane: set DEMO_READINESS_BFF_URL (the BFF origin) and DEMO_READINESS_BFF_ADMIN_TOKEN (an admin
+access token, never printed) to run the audit inside the BFF, which can read its effective
+configuration. --target and --provider are passed to the BFF; one of either stays diagnostic. The CLI never confirms
+a repair; a pending repair preview ends the run and is applied from Admin sidebar Reset Demo.
 `;
 
+// The BFF lane is chosen by its two environment settings. Setting only one is an error, so a missing
+// token can never fall back silently to the in-process run.
+function bffLane(env = {}, fetchImpl = fetch) {
+  const baseUrl = env.DEMO_READINESS_BFF_URL;
+  const token = env.DEMO_READINESS_BFF_ADMIN_TOKEN;
+  if (!baseUrl && !token) return null;
+  if (!baseUrl || !token) throw new Error('Set both DEMO_READINESS_BFF_URL and DEMO_READINESS_BFF_ADMIN_TOKEN, or neither.');
+  return ({ targets, providers, onProgress }) => runThroughBff({ baseUrl, token, targets, providers, onProgress, fetchImpl });
+}
+
 function parseArgs(argv = []) {
-  const parsed = { targets: ['local', 'se'], json: false, help: false };
+  const parsed = { targets: ['local', 'se'], providers: ['pingone', 'pingfederate'], json: false, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--help' || arg === '-h') parsed.help = true;
@@ -30,6 +48,10 @@ function parseArgs(argv = []) {
       const value = argv[++index];
       if (!['local', 'se', 'both'].includes(value)) throw new Error('--target must be local|se|both');
       parsed.targets = value === 'both' ? ['local', 'se'] : [value];
+    } else if (arg === '--provider') {
+      const value = argv[++index];
+      if (!['pingone', 'pingfederate', 'both'].includes(value)) throw new Error('--provider must be pingone|pingfederate|both');
+      parsed.providers = value === 'both' ? ['pingone', 'pingfederate'] : [value];
     } else throw new Error('unknown option: ' + arg);
   }
   return parsed;
@@ -81,11 +103,21 @@ async function runCli(argv = process.argv.slice(2), options = {}) {
     return 0;
   }
 
+  let start = options.start;
+  if (!start) {
+    try {
+      start = bffLane(options.env || process.env, options.fetchImpl) || startReadinessRun;
+    } catch (error) {
+      err.write(error.message + '\n');
+      return 2;
+    }
+  }
+
   let previewPrinted = false;
   const confirm = options.confirm || ((promptText) => terminalConfirm(promptText));
-  const start = options.start || startReadinessRun;
   const result = await start({
     targets: parsed.targets,
+    providers: parsed.providers,
     confirmRepairs: async ({ digest, preview }) => confirm('Type the exact repair plan digest ' + digest + ' to apply these changes: ', { digest, preview }),
     onProgress: async (event) => {
       if (event.phase === 'repair-preview-ready') {
@@ -107,7 +139,8 @@ async function runCli(argv = process.argv.slice(2), options = {}) {
   else out.write((result.label || result.status || 'NOT READY') + '\n' + audienceScopeTable(result.checks) + safeJson(result) + '\n');
 
   return result.ready === true && result.status === 'ready'
-    && parsed.targets.length === 2 && parsed.targets.includes('local') && parsed.targets.includes('se') ? 0 : 1;
+    && parsed.targets.length === 2 && parsed.targets.includes('local') && parsed.targets.includes('se')
+    && parsed.providers.length === 2 ? 0 : 1;
 }
 
 if (require.main === module) {

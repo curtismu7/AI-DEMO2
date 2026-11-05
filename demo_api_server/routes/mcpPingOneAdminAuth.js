@@ -26,7 +26,6 @@ const crypto = require('crypto');
 const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
-const { getAuthorizationEndpoint, getTokenEndpoint, getParEndpoint } = require('../services/oauthEndpointResolver');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const pingoneAdminSession = require('../services/pingoneAdminSession');
@@ -102,8 +101,10 @@ function resolveWorkerConfig() {
 }
 
 /**
- * How this door signs in: PingOne's OWN built-in client, over a loopback
- * callback.
+ * OPT-IN FALLBACK (PINGONE_MCP_ADMIN_LOOPBACK_PORT): sign in with PingOne's
+ * built-in client over a loopback callback. No longer the default — since
+ * 2026-10-21 the hosted MCP accepts tokens from our own app over HTTPS, so
+ * leave the port unset. The text below is the original 2026-09-10 measurement.
  *
  * THE MEASURED RULE (2026-09-10): the hosted MCP accepts a token only when it
  * was minted for `pingone-mcp-server`, PingOne's built-in client. Two tokens
@@ -145,6 +146,21 @@ function resolveLoopbackClientConfig() {
     authorizationEndpoint: `${as}/authorize`,
     tokenEndpoint: `${as}/token`,
   };
+}
+
+/**
+ * PingOne's own authorization server for the environment being administered.
+ * Deliberately NOT services/oauthEndpointResolver: that follows the demo's
+ * ACTIVE sign-in provider, so with PingFederate active the PAR push, authorize
+ * redirect and token exchange all went to PF ("PAR push failed (401): Invalid
+ * client") — this app is a PingOne client and the hosted MCP is PingOne's.
+ */
+function pingOneAs() {
+  const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
+  const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  if (!envId) throw new Error('PINGONE_ENVIRONMENT_ID is not configured');
+  const as = `https://auth.pingone.${region}/${envId}/as`;
+  return { authorize: `${as}/authorize`, token: `${as}/token`, par: `${as}/par` };
 }
 
 /**
@@ -208,6 +224,17 @@ function requireSignedInSession(req, res, next) {
   return next();
 }
 
+/**
+ * Same admin test as routes/adminConfig.js. Only an admin session may publish
+ * its token into the SHARED admin-session store (services/pingoneAdminSession.js),
+ * which serves every façade caller as that one operator. Anyone signed in can
+ * still sign in here and use their OWN token via their session.
+ */
+function isAdminSession(req) {
+  const s = req.session;
+  return !!(s && (s.user?.role === 'admin' || s.oauthType === 'admin' || s.isAdmin));
+}
+
 /** Only a site-relative path, mirroring routes/privilegeMcpClient.js's sanitizeReturnTo. */
 function sanitizeReturnTo(value) {
   if (typeof value !== 'string' || value.length > 200) return null;
@@ -265,13 +292,14 @@ router.get('/login', requireSignedInSession, async (req, res) => {
         clientId: loopback.clientId,
         tokenEndpoint: loopback.tokenEndpoint,
         returnTo,
+        shareable: isAdminSession(req),
       });
       return res.redirect(`${loopback.authorizationEndpoint}?${params.toString()}`);
     }
 
     const app = await ensureApp(req);
 
-    req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo };
+    req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo, shareable: isAdminSession(req) };
 
     const resource = `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`;
     const authParams = {
@@ -306,7 +334,7 @@ router.get('/login', requireSignedInSession, async (req, res) => {
     let requestUri;
     try {
       const parResp = await axios.post(
-        getParEndpoint(),
+        pingOneAs().par,
         new URLSearchParams(authParams).toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 },
       );
@@ -326,7 +354,7 @@ router.get('/login', requireSignedInSession, async (req, res) => {
       // Per RFC 9126: only client_id + request_uri on the authorize leg —
       // every other param already travelled in the pushed request above.
       const authorizeParams = new URLSearchParams({ client_id: app.clientId, request_uri: requestUri });
-      res.redirect(`${getAuthorizationEndpoint()}?${authorizeParams.toString()}`);
+      res.redirect(`${pingOneAs().authorize}?${authorizeParams.toString()}`);
     });
   } catch (err) {
     console.error('[mcpPingOneAdminAuth] /login error:', err.message);
@@ -353,24 +381,20 @@ router.get('/callback', async (req, res) => {
   if (!code) return failAndRedirect('missing_code');
 
   try {
-    // The legacy cookie-callback path, for a deployment with no loopback port
-    // configured. It cannot reach the hosted MCP — that needs PingOne's built-in
-    // client, which only redirects to loopback — but it is left intact rather
-    // than deleted so an operator who has not opened a port still gets a token
-    // and a clear 401 explaining why, instead of a broken route.
+    // The default sign-in: our own "PingOne MCP Server" app over an HTTPS
+    // callback on our origin. The hosted MCP accepts its tokens (re-measured
+    // 2026-10-21) and the refresh token lets the BFF keep the session alive.
     const app = await ensureApp(req);
-    const tokenEndpoint = getTokenEndpoint();
+    const tokenEndpoint = pingOneAs().token;
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: pending.redirectUri,
       code_verifier: pending.codeVerifier,
       client_id: app.clientId,
-      // Kept for parity with this path's PAR push, which pins it. NOTE: it is
-      // inert — PingOne ignores RFC 8707 `resource` here, measured repeatedly:
-      // the token comes back `aud: https://api.pingone.com` with or without it.
-      // Left in place only because this legacy path is vestigial and not worth
-      // a behaviour change; the working path (loopback) sends none.
+      // Kept for parity with the PAR push, which pins it. Inert: PingOne
+      // ignores RFC 8707 `resource` here (token comes back aud api.pingone.com
+      // either way), and the hosted MCP accepts that token.
       resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
     });
 
@@ -396,7 +420,7 @@ router.get('/callback', async (req, res) => {
       // completed — and with no session, nothing would later clear it (logout
       // keys off req.session.pingoneMcpAdminToken). See
       // services/pingoneAdminSession.js for the trade this store makes.
-      if (!err) {
+      if (!err && pending.shareable) {
         pingoneAdminSession.remember({
           accessToken: resp.data.access_token,
           refreshToken: resp.data.refresh_token,
@@ -489,7 +513,7 @@ async function handleLoopbackCallback(req, res) {
       timeout: 15000,
     });
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;
-    pingoneAdminSession.remember({
+    if (pending.shareable) pingoneAdminSession.remember({
       accessToken: resp.data.access_token,
       refreshToken: resp.data.refresh_token,
       clientId: pending.clientId,
@@ -508,4 +532,4 @@ module.exports = router;
 module.exports.handleLoopbackCallback = handleLoopbackCallback;
 module.exports.resolveLoopbackClientConfig = resolveLoopbackClientConfig;
 // Test-only exports (pure helpers — no live PingOne calls).
-module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls };
+module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, pingOneAs, isAdminSession };

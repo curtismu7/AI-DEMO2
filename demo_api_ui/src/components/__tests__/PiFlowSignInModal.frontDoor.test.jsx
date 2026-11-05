@@ -12,11 +12,11 @@ const ok = (body, status = 200) => Promise.resolve({ ok: status < 400, status, j
 const CONFIG = { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone' };
 const KEY = 'piFlowFrontDoorResume';
 
-function mockBff({ checkStatus = 401, frontDoorPiFlow = true } = {}) {
+function mockBff({ checkStatus = 401, frontDoorPiFlow = true, appLoginUnlocksWall } = {}) {
   global.fetch = vi.fn((url, init) => {
     const u = String(url);
     if (u.includes('/api/admin/config')) return ok({ config: CONFIG });
-    if (u.includes('/hosted-access/identifier-policy')) return ok({ rejectPlusAddressing: false, allowedIdentifiers: [], frontDoorPiFlow });
+    if (u.includes('/hosted-access/identifier-policy')) return ok({ rejectPlusAddressing: false, allowedIdentifiers: [], frontDoorPiFlow, ...(appLoginUnlocksWall !== undefined ? { appLoginUnlocksWall } : {}) });
     if (u.includes('/hosted-access/check')) return Promise.resolve({ ok: checkStatus < 400, status: checkStatus });
     if (u.includes('/hosted-access/login')) return ok({ flowId: 'fd1', status: 'USERNAME_PASSWORD_REQUIRED' });
     if (u.includes('/hosted-access/pi-flow/credentials')) return ok({ redirectTo: 'https://app.test/api/auth/hosted-access/callback?code=c&state=s' });
@@ -65,6 +65,24 @@ describe('PiFlowSignInModal front door', () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/hosted-access/callback?code=c&state=s'));
     expect(urls().some((u) => u.includes('/hosted-access/pi-flow/credentials'))).toBe(true);
     expect(JSON.parse(sessionStorage.getItem(KEY))).toMatchObject({ returnTo: '/mfa-test', role: 'customer' });
+  });
+
+  // One login, not two: the BFF gate honours the approval the app sign-in stamps, so when it says so the modal runs ONLY the
+  // app sign-in, even though the wall is not passed yet (check would answer 401). It used to chain the front door first.
+  test('app sign-in unlocks the wall: not past the wall, but goes straight to the app sign-in (no front door, no second login)', async () => {
+    mockBff({ checkStatus: 401, appLoginUnlocksWall: true });
+    await mountAndSignIn();
+    expect(urls().some((u) => u.includes('/oauth/user/login'))).toBe(true);
+    expect(urls().some((u) => u.includes('/hosted-access/login'))).toBe(false);
+    expect(urls().some((u) => u.includes('/hosted-access/check'))).toBe(false);
+    expect(screen.queryByText(/confirm you can access this demo/i)).toBeNull();
+  });
+
+  test('flag absent or false: the front door still runs first (older BFF behaviour)', async () => {
+    mockBff({ checkStatus: 401, appLoginUnlocksWall: false });
+    await mountAndSignIn();
+    expect(urls().some((u) => u.includes('/hosted-access/login'))).toBe(true);
+    expect(urls().some((u) => u.includes('/oauth/user/login'))).toBe(false);
   });
 
   test('already past the wall (check 204): goes straight to the normal app sign-in', async () => {

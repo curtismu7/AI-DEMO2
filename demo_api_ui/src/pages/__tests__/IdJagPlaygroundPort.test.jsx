@@ -139,6 +139,12 @@ describe("ID-JAG Learn page", () => {
     expect(screen.queryByText("Identity assertion")).toBeNull();
   });
 
+  it("links to the Inspector from the docs tab", () => {
+    renderLearn();
+    fireEvent.click(screen.getByRole("tab", { name: "Docs" }));
+    expect(screen.getByRole("link", { name: "ID-JAG Inspector" })).toHaveAttribute("href", "/pingfederate-id-jag/inspect");
+  });
+
   it("filters the source library by kind", async () => {
     renderLearn();
     fireEvent.click(screen.getByRole("tab", { name: "Library" }));

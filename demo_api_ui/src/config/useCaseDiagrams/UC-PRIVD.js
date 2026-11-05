@@ -6,17 +6,18 @@
  * window before assuming an edit didn't take.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_PRIVD as steps } from "../ucBatch3Steps";
 
 const NODES = [
-  { id: "client", group: "agent", label: "MCP client", sub: ["3 -> 2, no reason shown"], x: 40, y: 150, detail: "Re-lists and sees 2 tools where there were 3 — the page shows no hint whether the change was an expiry, an edit or a deletion." },
-  { id: "gw", group: "gateway", label: "Agent Privilege gateway", sub: ["union recomputed"], x: 340, y: 150, detail: "The union is the non-expired policies only: an expired policy stops contributing entirely, leaving the others untouched." },
-  { id: "p1", group: "pingone", label: "Policy #1", sub: ["window expired"], x: 640, y: 150, detail: "Its time window was set to expired in the console — policy #2 untouched. The window is a live kill switch that fires silently." },
-  { id: "p2", group: "pingone", label: "Policy #2", sub: ["still live"], x: 940, y: 150, detail: "Still valid: its 2 tools are the entire remaining grant — exactly what a deletion of #1 would have left." },
+  { id: "client", group: "agent", label: "MCP client", sub: ["3 -> 2, no reason shown"], x: 40, y: 330, detail: "Re-lists and sees 2 tools where there were 3 — the page shows no hint whether the change was an expiry, an edit or a deletion." },
+  { id: "gw", group: "gateway", label: "Agent Privilege gateway", sub: ["union recomputed"], x: 500, y: 330, detail: "The union is the non-expired policies only: an expired policy stops contributing entirely, leaving the others untouched." },
+  { id: "p1", group: "pingone", label: "Policy #1", sub: ["window expired"], x: 500, y: 110, detail: "Its time window was set to expired in the console — policy #2 untouched. The window is a live kill switch that fires silently." },
+  { id: "p2", group: "pingone", label: "Policy #2", sub: ["still live"], x: 1010, y: 330, detail: "Still valid: its 2 tools are the entire remaining grant — exactly what a deletion of #1 would have left." },
 ];
 
 const EDGES = [
   ["client", "gw", "tools/list (again)", { detail: "The same discovery call as before — only time has moved." }],
-  ["p1", "gw", "expired — contributes nothing", { detail: "The expired policy stops contributing entirely. Nothing announces it; the union just shrinks." }],
+  ["p1", "gw", "expired — contributes nothing", { vertical: true, detail: "The expired policy stops contributing entirely. Nothing announces it; the union just shrinks." }],
   ["p2", "gw", "still contributes {2 tools}", { detail: "Policy #2's grant survives untouched — expiry subtracts only the expired policy's contribution." }],
   ["gw", "client", "2 tools, no reason", { detail: "Client count 3 → 2, identical to deletion: nothing client-side distinguishes expired vs deleted vs never-covered." }],
 ];
@@ -51,8 +52,10 @@ const walk = [
 export default {
   id: "UC-PRIVD",
   result: { label: "3 → 2", tone: "warn" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

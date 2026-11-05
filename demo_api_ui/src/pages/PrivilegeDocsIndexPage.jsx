@@ -388,7 +388,7 @@ const SECTIONS = [
         repo: "docs/privilege-agent-features.md",
         pdf: null,
         covers:
-          "All 21 Privilege features: the ten agent-facing ones in demo arc order, then eleven more (discovery-gating, aggregates, A2A, CIMD, policy union, Secrets Hub, sensor enforcement and others), each with a description, links to the detailed docs, and how to demo it.",
+          "All 29 Privilege features: the ten agent-facing ones in demo arc order, then eleven more (discovery-gating, aggregates, A2A, CIMD, policy union, Secrets Hub, sensor enforcement and others), then eight added for the 2026-11-02 release (Ping release claims, not tested on our tenant), each with a description, links to the detailed docs, and how to demo it.",
       },
       {
         title: "Privilege Agent Field Guide",
@@ -557,6 +557,22 @@ const SECTIONS = [
         pdf: "drive",
         covers:
           "What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees \"denied\", the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a \"policy problem\" isn't one — every step measured live 2026-10-10.",
+      },
+      {
+        title: "Federated agents: PingFederate token on Privilege",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md",
+        pdf: null,
+        covers:
+          "Step-by-step setup (parts A to I, with console screenshots) for an agent that presents its own PingFederate token to a P1 Privilege Agent App: the PingFederate client, token manager and scopes, the identity with required claims, the agent app, the key and grant. What Privilege does and can't do here, tools by scope with RequiredClaims tiers, the token passed through to the MCP server, Cedar blocking a tool by token scope, and every failure with its gateway log line. Measured 2026-10-26 and 2026-10-27. Section 17 (2026-11-01 and 2026-11-02) covers what gateway v1.261029, v1.261030 and v1.261102 changed, read from the binary and unverified, and the 2026-11-02 release features not yet measured. Live demo: PingFederate Token Demo.",
+      },
+      {
+        title: "PF identity in Cedar policies",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md",
+        pdf: null,
+        covers:
+          "Can a PingFederate token claim drive a Cedar AI policy? Measured 2026-10-20: the door trusts only itself, PF is not registered in Privilege, Cedar reads a fixed attribute set (token scopes, group, tool, args, app) and no raw claims, act or ID-JAG. Route A (PF behind PingOne for people), route C (native workload identity + RequiredClaims for agents), the rule templates, Candidate vs Active, and what is measured vs untested. Diagram: AI Agent Gateway diagrams, AI Policies tab; live demo: AI Policies Demo.",
       },
       {
         title: "Agent mode end to end",

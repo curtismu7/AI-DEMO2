@@ -131,9 +131,11 @@ const _SECRET_KEYS_RAW = [
   'PF_AI_CROSS_DOMAIN_CLIENT_SECRET',
   'PF_AI_THIRD_PARTY_CLIENT_SECRET',
   'PF_AI_RAR_LOOKUP_SECRET',
+  'PF_AI_DCR_IAT_CLIENT_SECRET',
   'PF_AI_CIBA_CLIENT_SECRET',
   'PF_AI_CIBA_APPROVER_SECRET',
   'aic_actor_client_secret',
+  'pingone_muse_client_secret',
   'pingone_fraud_watch_agent_client_secret',
   'pingone_balance_sweep_agent_client_secret',
   'spiffe_bridge_private_key',
@@ -222,6 +224,7 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pf_ai_cross_domain_client_secret',
   'pf_ai_third_party_client_secret',
   'pf_ai_rar_lookup_secret',
+  'pf_ai_dcr_iat_client_secret',
   'pf_ai_ciba_client_secret',
   'pf_ai_ciba_approver_secret',
 ]);
@@ -629,6 +632,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   aic_subject_client_id:         { public: true,  default: '' },
   aic_actor_client_id:           { public: true,  default: '' },
   aic_actor_client_secret:       { public: false, default: '' },
+  // Muse personal-agent page: PingOne app "Muse agent login" (confidential, client_secret_post, PKCE S256).
+  pingone_muse_client_id:        { public: true,  default: '4ae0e731-f0e9-464b-ba6c-6749ba296b4c' },
+  pingone_muse_client_secret:    { public: false, default: '' },
   aic_delegated_scope:           { public: true,  default: '' },
   PF_ISSUER:                     { public: true,  default: '' },
   PF_DISCOVERY_ENDPOINT:         { public: true,  default: '' },
@@ -668,6 +674,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
   PF_STANDARD_MCP_ACTOR_SCOPE: { public: true, default: 'mcp:invoke' },
   PF_ID_JAG_ENABLED:             { public: true,  default: 'false' },
+  // ID-JAG playground step 4 (list tools via the MCP gateway). Empty/unset = on; 'false' hides it where the gateway cannot validate the playground's tokens (SE).
+  ID_JAG_PLAYGROUND_STEP4_ENABLED: { public: true, default: '' },
   PF_ID_JAG_AUDIENCE:            { public: true,  default: '' },
   PF_ID_JAG_RESOURCE:            { public: true,  default: '' },
   PF_ID_JAG_SCOPE:               { public: true,  default: '' },
@@ -697,6 +705,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_AI_RAR_CLIENT_ID: { public: true, default: '' },
   PF_AI_RAR_DPOP_CLIENT_ID: { public: true, default: '' },
   PF_AI_RAR_LOOKUP_SECRET: { public: false, default: '' },
+  // Dynamic client registration: this client mints the initial access token PF requires (scripts/pingfederate/provision-pf-dcr.js).
+  PF_AI_DCR_ENABLED: { public: true, default: 'false' },
+  PF_AI_DCR_IAT_CLIENT_ID: { public: true, default: 'ai-demo-pf-dcr-iat' },
+  PF_AI_DCR_IAT_CLIENT_SECRET: { public: false, default: '' },
   PF_AI_CIBA_ENABLED: { public: true, default: 'false' },
   PF_AI_CIBA_CLIENT_ID: { public: true, default: '' },
   PF_AI_CIBA_CLIENT_SECRET: { public: false, default: '' },
@@ -1303,6 +1315,8 @@ const ENV_FALLBACK_MAP = {
   aic_subject_client_id:         ['AIC_SUBJECT_CLIENT_ID'],
   aic_actor_client_id:           ['AIC_ACTOR_CLIENT_ID'],
   aic_actor_client_secret:       ['AIC_ACTOR_CLIENT_SECRET'],
+  pingone_muse_client_id:        ['PINGONE_MUSE_CLIENT_ID'],
+  pingone_muse_client_secret:    ['PINGONE_MUSE_CLIENT_SECRET'],
   aic_delegated_scope:           ['AIC_DELEGATED_SCOPE'],
   pf_issuer:                     ['PF_ISSUER'],
   pf_discovery_endpoint:         ['PF_DISCOVERY_ENDPOINT'],
@@ -1342,6 +1356,7 @@ const ENV_FALLBACK_MAP = {
   pf_standard_mcp_actor_scope: ['PF_STANDARD_MCP_ACTOR_SCOPE'],
   pf_token_exchange_token_endpoint_auth_method: ['PF_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD'],
   pf_id_jag_enabled:             ['PF_ID_JAG_ENABLED'],
+  id_jag_playground_step4_enabled: ['ID_JAG_PLAYGROUND_STEP4_ENABLED'],
   pf_id_jag_audience:            ['PF_ID_JAG_AUDIENCE'],
   pf_id_jag_resource:            ['PF_ID_JAG_RESOURCE'],
   pf_id_jag_scope:               ['PF_ID_JAG_SCOPE'],
@@ -1370,6 +1385,9 @@ const ENV_FALLBACK_MAP = {
   pf_ai_rar_client_id: ['PF_AI_RAR_CLIENT_ID'],
   pf_ai_rar_dpop_client_id: ['PF_AI_RAR_DPOP_CLIENT_ID'],
   pf_ai_rar_lookup_secret: ['PF_AI_RAR_LOOKUP_SECRET'],
+  pf_ai_dcr_enabled: ['PF_AI_DCR_ENABLED'],
+  pf_ai_dcr_iat_client_id: ['PF_AI_DCR_IAT_CLIENT_ID'],
+  pf_ai_dcr_iat_client_secret: ['PF_AI_DCR_IAT_CLIENT_SECRET'],
   pf_ai_ciba_enabled: ['PF_AI_CIBA_ENABLED'],
   pf_ai_ciba_client_id: ['PF_AI_CIBA_CLIENT_ID'],
   pf_ai_ciba_client_secret: ['PF_AI_CIBA_CLIENT_SECRET'],
@@ -2767,33 +2785,36 @@ function detectRotatedCredentials() {
   // stale 'pingone_admin_client_secret' key name — a drift this derivation
   // makes structurally impossible. Only keys with a canonical env alias in
   // process.env are checked (an unset env var is nothing to compare against).
-  const seen = new Set();
   const watchlist = [];
   const isRotatableSecret = (key) =>
     /(_secret|_password|_api_key)$/.test(key) || SECRET_KEYS.has(key.toUpperCase());
   for (const [configKey, envAliases] of Object.entries(ENV_FALLBACK_MAP)) {
     if (!isRotatableSecret(configKey)) continue;
-    for (const envKey of envAliases) {
-      if (envKey !== envKey.toUpperCase() || !/^[A-Z0-9_]+$/.test(envKey)) continue;
-      if (seen.has(envKey)) continue;
-      seen.add(envKey);
-      // One watch entry PER env alias: the caller may have set any alias (e.g.
-      // PINGONE_AI_CORE_CLIENT_SECRET or PINGONE_ADMIN_CLIENT_SECRET both feed
-      // admin_client_secret), and a rotated value can appear under any of them.
-      watchlist.push([configKey, envKey]);
-    }
+    const aliases = envAliases.filter((k) => k === k.toUpperCase() && /^[A-Z0-9_]+$/.test(k));
+    if (aliases.length) watchlist.push([configKey, aliases]);
   }
 
   const warnings = [];
   try {
-    for (const [configKey, envKey] of watchlist) {
-      const envVal = (process.env[envKey] || '').trim();
-      if (!envVal) continue; // not set in .env — nothing to compare
+    for (const [configKey, aliases] of watchlist) {
+      // Compare only the alias getEffective() reads: the first one set, in
+      // ENV_FALLBACK_MAP order. A lower-priority alias that is set but shadowed
+      // is never used for this key, and some aliases (AGENT_CLIENT_ID/SECRET)
+      // are listed under two keys that name DIFFERENT apps — comparing a
+      // shadowed alias against this key's cache is a guaranteed false warning.
+      const envKey = aliases.find((k) => (process.env[k] || '').trim());
+      if (!envKey) continue; // not set in .env — nothing to compare
+      const envVal = process.env[envKey].trim();
 
       const cached = configStore.get(configKey);
       if (!cached) continue; // not in LMDB — no stale value possible
 
       if (cached !== envVal) {
+        // Warn only when the stored value would actually be USED. For ordinary keys getEffective() reads the env
+        // value first, so a different stored copy is shadowed dead data (nothing reads it directly) and "LMDB wins"
+        // would be false — it cried wolf on every boot. The stored copy really wins when the env value is present
+        // but ignored (e.g. an "encrypted:..." value), which getEffective() skips.
+        if (configStore.getEffective(configKey) === envVal) continue;
         warnings.push(
           `[config-rotation] ${envKey}: .env value differs from LMDB cache — ` +
           'LMDB wins for this key (non-bootstrap). If you rotated this credential, ' +

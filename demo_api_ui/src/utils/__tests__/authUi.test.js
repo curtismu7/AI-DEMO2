@@ -301,7 +301,7 @@ describe('authUi', () => {
       expect(window.location.href).toMatch(/\/api\/auth\/oauth\/user\/login$/);
     });
 
-    it.each([['/pingone-mcp-inspector', '/pingone-mcp-inspector'], ['/', '/dashboard']])(
+    it.each([['/pingone-mcp-inspector', '/pingone-mcp-inspector'], ['/', '/']])(
       'navigateToCustomerOAuthLogin() from %s asks the sign-in modal to return to %s',
       (pathname, expected) => {
         delete window.location;
@@ -360,12 +360,13 @@ describe('authUi', () => {
         expect(window.location.href).toContain('&return_to=%2Ftracing');
       });
 
-      it('force login sends the landing page to /dashboard, not back to /', () => {
+      it('force login sends the landing page back to /', () => {
         stubLocation('/');
 
         navigateToCustomerOAuthForceLogin();
 
-        expect(window.location.href).toContain('&return_to=%2Fdashboard');
+        expect(window.location.href).toContain('&return_to=%2F');
+        expect(window.location.href).not.toContain('dashboard');
       });
 
       it('admin login joins return_to with ? since it has no other query', () => {

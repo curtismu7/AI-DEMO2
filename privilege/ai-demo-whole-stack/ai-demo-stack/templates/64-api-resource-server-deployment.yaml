@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: api-resource-server
-        image: "{{ .Values.imageRegistry }}/ai-demo-api-resource-server:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-api-resource-server:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 8082

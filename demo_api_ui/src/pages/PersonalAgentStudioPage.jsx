@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
 import ConfirmModal from '../components/ConfirmModal';
@@ -8,17 +8,25 @@ import PersonalAgentClientCards from '../components/learning/PersonalAgentClient
 import DotMemoryPanel from '../components/DotMemoryPanel';
 import DotPersonaStrip from '../components/DotPersonaStrip';
 import { governanceFrom } from '../utils/dotGovernance';
-import { airlineSuggestions } from '../config/dotSuggestions';
+import { studioSuggestions, studioGreeting } from '../config/dotSuggestions';
+import { useVertical } from '../vertical/useVertical';
+import VerticalSwitcher from '../components/VerticalSwitcher';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import InlineSpinner from '../components/shared/InlineSpinner';
 import OboDemoPage from './OboDemoPage';
+import ConnectorFlow from '../components/ConnectorFlow';
 import SignInPrompt from '../components/SignInPrompt';
-import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
-import { PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
+import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
+import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE, personalAgentMessageForReelStep } from '../config/personalAgentSequenceFlow';
+import { protectedActionLabel } from './protectedActionLabel';
+import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
+import GateChips from '../components/GateChips';
+import TokenCards, { hasTokenCards } from '../components/TokenCards';
+import './PersonalAgentStudioPage.css';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Persona Agent (Dot)' };
@@ -44,7 +52,8 @@ const DEFAULT_GATES = [
   { id: 'authz', name: 'PingOne Authorize',           desc: 'Policy: agent identity · loyalty tier · action scope', icon: '✅', status: 'waiting' },
 ];
 
-function deriveGates(events) {
+// Exported so the standalone learning page (/personal-agent/learn) reads the same real gate logic.
+export function deriveGates(events) {
   const gates = DEFAULT_GATES.map((g) => ({ ...g }));
   const ids = new Set(events.map((e) => e.id));
   const statuses = Object.fromEntries(events.map((e) => [e.id, e.status]));
@@ -71,7 +80,7 @@ function deriveGates(events) {
   return gates;
 }
 
-function extractActClaim(events) {
+export function extractActClaim(events) {
   const exchEvent = events.find((e) => e.id === 'mcp-exchange' || e.id === 'personal-agent-lookup');
   if (!exchEvent || !exchEvent.token) return null;
   const claims = exchEvent.token?.claims;
@@ -86,12 +95,15 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null }) {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, reelEmptyState = undefined, bare = false }) {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
   const routeVertical = query.get('vertical');
-  const vertical = selectedVertical || routeVertical || 'airlines';
+  // The vertical the chat talks to: an explicit prop or ?vertical= first, then the app's ACTIVE vertical (the picker in
+  // this page's header and the top bar both set it), then the airline demo this page was built around.
+  const { activeId, pageManifest } = useVertical();
+  const vertical = selectedVertical || routeVertical || activeId || 'airlines';
   const routeContextKey = routeVertical && ['UC38', 'UC44'].includes(routeId) ? `${routeId}:${vertical}` : null;
   const [routeScenario, setRouteScenario] = useState(null);
   const workloadScenario = scenario || (routeScenario?.key === routeContextKey ? routeScenario.useCase : null);
@@ -102,12 +114,35 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   // A freeform Dot question that came back 428 (consent required) and is waiting for PingOne MFA, then a retry.
   const [consentRetry, setConsentRetry] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
-  const [activeSkin, setActiveSkin] = useState('privilege');
+  const [activeSkin, setActiveSkin] = useState(() => {
+    const skin = query.get('skin');
+    return SKINS.includes(skin) ? skin : 'privilege';
+  });
   // 'obo' swaps the chat for the RFC 8693 delegation inspector (deep link: ?tab=obo).
-  const [view, setView] = useState(query.get('tab') === 'obo' ? 'obo' : 'agent');
+  // 'connector' = the 12-step "add this MCP server to ChatGPT/Claude" flow (deep link: ?tab=connector).
+  const [view, setView] = useState(['obo', 'connector'].includes(query.get('tab')) ? query.get('tab') : 'agent');
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
+  // 'stacked' (chat, then the reel and Token Chain under it) or 'cockpit' (chat left; gates, flow, reel and
+  // Token Chain right; client dock along the bottom). Deep link ?layout=cockpit; the choice is remembered per browser.
+  const [layoutMode, setLayoutMode] = useState(() => {
+    const asked = query.get('layout');
+    if (asked === 'stacked' || asked === 'cockpit') return asked;
+    try { if (window.localStorage.getItem('pas-layout') === 'cockpit') return 'cockpit'; } catch (_e) { /* storage blocked: default */ }
+    return 'stacked';
+  });
+  const cockpit = layoutMode === 'cockpit' && view === 'agent';
+  const stacked = layoutMode !== 'cockpit' && view === 'agent';
+  const chooseLayout = useCallback((mode) => {
+    setLayoutMode(mode);
+    try { window.localStorage.setItem('pas-layout', mode); } catch (_e) { /* storage blocked: still switches */ }
+  }, []);
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  // The opening line follows the vertical (the airline one names MileagePlus), wherever it sits in the history.
+  const chatMessages = useMemo(
+    () => messages.map((m) => (m === INITIAL_MESSAGES[0] ? { ...m, text: studioGreeting(vertical) } : m)),
+    [messages, vertical],
+  );
   const [dotMemoryNonce, setDotMemoryNonce] = useState(0);
   const [replayGates, setReplayGates] = useState(null);
   const replayTimer = useRef(null);
@@ -140,13 +175,35 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     };
   }, [workloadContextKey]);
 
+  // True between a "yes" on the consent phone and the gateway's approval gate for that same run.
+  const phoneApproved = useRef(false);
+  const decideRef = useRef(null);
   const executeWorkload = useCallback((uc, approvedChallengeId = null) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
     activeWorkloadRun.current?.abort();
     const controller = new AbortController();
     activeWorkloadRun.current = controller;
     const isCurrentRun = () => activeWorkloadRun.current === controller && !controller.signal.aborted;
-    tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt });
+    // Without a flowTraceId the BFF has no stream to publish this run's authorize decision and tool result to, so the
+    // proof check never saw them and read "incomplete" after a run that actually finished.
+    const flowTraceId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt, flowTraceId });
+    const closeSse = openMcpFlowSse(flowTraceId, (event) => {
+      if (event?.type === 'token-event') {
+        const { type, ...tokenEvent } = event;
+        try { tokenChainTraceStore.ingestTokenEvent({ ...tokenEvent, flowTraceId }); } catch (_) { /* display-only */ }
+      }
+      if (event?.type === 'mcp-result') {
+        try { window.dispatchEvent(new CustomEvent('mcp-tool-result-sse', { detail: { ...event, flowTraceId } })); } catch (_) { /* display-only */ }
+      }
+    });
+    // The stream lags the HTTP reply slightly: keep it open briefly so the tool result still lands.
+    const settle = (ok, failure = null) => {
+      try { tokenChainTraceStore.completeTrace(ok, flowTraceId, failure); } catch (_) { /* display-only */ }
+      setTimeout(closeSse, 3000);
+    };
     setTokenEvents?.(uc.primaryTool, []);
     setRunState({ status: 'running', text: '' });
     fetch('/api/agent/invoke', {
@@ -155,11 +212,13 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       credentials: 'include',
       signal: controller.signal,
       // An approved challenge id is what lets the retry through the gateway's approval gate.
-      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, agentMode, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
+      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, agentMode, flowTraceId, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!isCurrentRun()) return null;
       if (Array.isArray(data.tokenEvents)) setTokenEvents?.(uc.primaryTool, data.tokenEvents);
+      if (data.mcpAuthorizeEvaluation) tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation, flowTraceId);
+      if (data.mcpAuthorizeEvaluations) tokenChainTraceStore.ingestAuthorizeEvaluations(data.mcpAuthorizeEvaluations);
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
       return data;
     }).then((data) => {
@@ -167,12 +226,18 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       // The BFF answers 200 with step_up_required when the sign-in had no MFA.
       if (data.step_up_required) setRunState({ status: 'step-up', prompt: true, text: data.reply || 'Complete multi-factor authentication to continue.' });
       // Human approval: the reply carries the challenge to approve or decline.
-      else if (data.error === 'hitl_required' && (data.hitlChallengeId || data.challengeId)) setRunState({ status: 'approval', prompt: true, challengeId: data.hitlChallengeId || data.challengeId, text: data.reply || 'This action requires your approval.' });
+      else if (data.error === 'hitl_required' && (data.hitlChallengeId || data.challengeId)) {
+        const challengeId = data.hitlChallengeId || data.challengeId;
+        // The consent phone already got this person's yes for this run: record it on the gateway's challenge instead of asking again.
+        if (phoneApproved.current) { phoneApproved.current = false; decideRef.current?.('approve', challengeId); }
+        else setRunState({ status: 'approval', prompt: true, challengeId, text: data.reply || 'This action requires your approval.' });
+      }
       // success:false is a refusal or a failed run, not a completed action.
-      else if (data.success === false) setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' });
-      else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
+      else if (data.success === false) { settle(false, data.reply); setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' }); }
+      else { settle(true); setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' }); }
     }).catch((error) => {
-      if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
+      if (isCurrentRun()) { settle(false, error.message); setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' }); }
+      else closeSse();
     });
   }, [vertical, setTokenEvents, agentMode]);
 
@@ -196,11 +261,13 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const handleSend = useCallback((text, { retry = false } = {}) => {
     if (!retry) setMessages((prev) => [...prev, { role: 'user', text }]);
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
+    tokenChainTraceStore.beginTrace({ prompt: text });
+    setTokenEvents?.(null, []);
     fetch('/api/agent/invoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode }),
+      body: JSON.stringify({ prompt: text, vertical, agentMode }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -209,6 +276,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         return data;
       })
       .then((data) => {
+        if (Array.isArray(data.tokenEvents)) setTokenEvents?.(data.toolsCalled?.[0] || null, data.tokenEvents);
         setMessages((prev) => [
           ...prev.filter((m) => !m.typing),
           { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories, governance: governanceFrom(data) },
@@ -232,7 +300,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
         ]);
       });
-  }, [agentMode, startChallenge]);
+  }, [agentMode, startChallenge, setTokenEvents, vertical]);
 
   // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
   // computer-use action, sequenced so the token chain shows the full path.
@@ -277,8 +345,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   };
   // Approve or decline through the same decision endpoint the chat agent uses,
   // then retry the action carrying the approved challenge.
-  const decideApproval = (decision) => {
-    const { challengeId } = runState;
+  const decideApproval = (decision, challengeId = runState.challengeId) => {
     setRunState({ status: 'running', text: '' });
     fetch(`/api/mcp/decision/${encodeURIComponent(challengeId)}/${decision}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
       .then(async (response) => {
@@ -288,6 +355,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       })
       .catch((error) => setRunState({ status: 'error', text: error.message }));
   };
+  decideRef.current = decideApproval;
   const finishStepUp = () => {
     setMfaChallenge(null);
     if (consentRetry) {
@@ -330,14 +398,26 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     </div>
   );
 
+  // Optional consent step in front of the visible Run button (the digital worker page asks on a mock phone).
+  // consentGate(uc) -> Promise<boolean>. Only this click is gated: the run-nonce effect, the MFA return and the
+  // HITL re-run continue a run someone already agreed to, so they call executeWorkload directly and never re-ask.
+  const runWithConsent = async (uc) => {
+    phoneApproved.current = false;
+    if (consentGate) {
+      if (!(await consentGate(uc))) return;
+      phoneApproved.current = true;
+    }
+    executeWorkload(uc);
+  };
+
   if (workloadScenario) return (
     <div className="workload-agents__run">
-      <h3>{workloadScenario.id}: {workloadScenario.title}</h3>
+      <h3>{workloadScenario.id === 'UC38' ? workloadScenario.title : `${workloadScenario.id}: ${workloadScenario.title}`}</h3>
       <p>{workloadScenario.id === 'UC38'
         ? 'Customer MFA is checked before this protected write. The registered workload agent acts only after step-up succeeds.'
         : 'This customer-data read keeps the signed-in customer as sub and the registered workload agent as act.'}</p>
       <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
-      <button type="button" disabled={runState.status === 'running'} onClick={() => executeWorkload(workloadScenario)}>Run {workloadScenario.id} action</button>
+      <button type="button" disabled={runState.status === 'running'} onClick={() => runWithConsent(workloadScenario)}>{workloadScenario.id === 'UC38' ? `Run ${protectedActionLabel(workloadScenario)}` : `Run ${workloadScenario.id} action`}</button>
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
       <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
       {runState.status === 'step-up' && (
@@ -362,21 +442,25 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         onCancel={() => setRunState((state) => ({ ...state, prompt: false }))}
       />
       {mfaModal}
-      <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
+      <SecurityRail gates={workloadGates} actClaim={actClaim} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
-      <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
+      <div className="workload-agents__chain"><TokenChainFilmstrip emptyState={reelEmptyState} /></div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>
+    // A fixed-height shell (same rule as the IDE sheet, .cur-ide): chat flexes, the reel stays under it.
+    // height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
+    // Bare (/personal-agent/full) has no app chrome to subtract.
+    <>
+    <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : stacked ? ' pas-shell--stacked' : ''}${bare ? ' pas-shell--bare' : ''}`}>
       {/* Page header */}
-      <div style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+      <div className="pas-c-header" style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '6px 20px', minHeight: 52, flexWrap: 'wrap', rowGap: 6, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
 
         {/* View tabs */}
         <div role="tablist" style={{ display: 'flex', gap: 4 }}>
-          {[['agent', 'Agent'], ['obo', 'Delegation proof (OBO)']].map(([id, label]) => (
+          {[['agent', 'Agent'], ['connector', 'Add to ChatGPT / Claude'], ['obo', 'Delegation proof (OBO)']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -396,7 +480,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
             <button
               key={s}
               onClick={() => setActiveSkin(s)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--border, #2e3347)' : 'transparent'}`, background: activeSkin === s ? 'var(--th-bg-inset)' : 'transparent', fontSize: 12, fontWeight: 500, color: activeSkin === s ? 'var(--th-text)' : 'var(--th-text-muted)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-border)'}`, background: activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-bg-card)', fontSize: 12, fontWeight: 600, color: activeSkin === s ? 'var(--pas-pill-on-fg, #ffffff)' : 'var(--th-text)' }}
             >
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: SKIN_DOT_COLORS[s], display: 'inline-block' }} />
               {SKIN_LABELS[s]}
@@ -406,13 +490,21 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
         {/* Actions */}
         {view === 'agent' && <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
+          <span className="pas-vertical" title="The vertical the agent works in: its tools, policies and sample prompts">
+            <span className="pas-vertical__label">Vertical</span>
+            <VerticalSwitcher variant="nav" />
+          </span>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
-          <button
+          <div className="pas-layout-switch" role="group" aria-label="Page layout">
+            <button type="button" aria-pressed={layoutMode === 'stacked'} onClick={() => chooseLayout('stacked')}>Stacked</button>
+            <button type="button" aria-pressed={layoutMode === 'cockpit'} onClick={() => chooseLayout('cockpit')}>Cockpit</button>
+          </div>
+          {!cockpit && <button
             onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'split' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'split' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
           >
             Split
-          </button>
+          </button>}
           <button
             onClick={handlePopOut}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'popped' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'popped' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
@@ -429,31 +521,17 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>}
       </div>
 
-      {view === 'agent' && (
-        <details style={{ flexShrink: 0, padding: '0 16px', borderBottom: '1px solid var(--th-border)' }}>
-          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
-          <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
-            <EmbeddedFlowDiagram
-        testId="pas-flow-diagram"
-        pingStyle
-        title="How a personal-agent request is governed"
-        ariaLabel="Personal agent request flow diagram"
-        diagramLabel="Agent client to BFF, gateway and PingOne Authorize, with MFA and approval detours"
-        lede="Every skin posts to /api/agent/invoke. The three gates match the security rail; MFA and human approval are the two ways a request is held and retried."
-        config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
-      />
-          </div>
-        </details>
-      )}
-      {view === 'obo' ? (
+      {view === 'connector' ? (
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {user ? <ConnectorFlow /> : <SignInPrompt message="The connector flow runs on your signed-in session." />}
+        </div>
+      ) : view === 'obo' ? (
         <div style={{ flex: 1, overflow: 'auto' }}>
           {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
         </div>
       ) : (<>
-      <PersonalAgentClientCards />
-
       {/* Content area */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="pas-c-chat" style={{ display: 'flex', overflow: 'hidden' }}>
         {/* Agent panel */}
         <div style={{ flex: layout.agentFlex, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {layout.placeholderVisible ? (
@@ -488,7 +566,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                   <AgentClientSkin
                     skin={activeSkin}
                     theme={theme}
-                    messages={messages}
+                    messages={chatMessages}
                     onSend={handleSend}
                     showPopOutButton={false}
                     onPopOut={handlePopOut}
@@ -502,9 +580,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                   <AgentClientSkin
                     skin={activeSkin}
                     theme={theme}
-                    messages={messages}
+                    messages={chatMessages}
                     onSend={handleSend}
-                    suggestions={airlineSuggestions(activeSkin)}
+                    suggestions={studioSuggestions(activeSkin, vertical, pageManifest)}
                     showPopOutButton={false}
                     onPopOut={handlePopOut}
                   />
@@ -521,7 +599,6 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           <SecurityRail
             gates={replayGates || gates}
             actClaim={actClaim}
-            tokenEvents={events}
             onReplay={handleReplay}
           />
         )}
@@ -530,11 +607,35 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
       {/* Movie reel — same TokenChainFilmstrip the dashboard uses, so a personal
           agent test shows the RFC 8693 delegation path it exercised. */}
-      <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
-        <TokenChainFilmstrip />
+      {cockpit && <GateChips className="pas-c-gates" gates={replayGates || gates} />}
+      {view === 'agent' && (
+        <details className="pas-c-flow" style={{ flexShrink: 0, borderTop: '1px solid var(--th-border)' }}>
+          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>Expand for Diagram</summary>
+          <p style={{ margin: '0 0 8px', fontSize: 12 }}><Link to="/personal-agent-flow">Open the diagram on its own page</Link></p>
+          <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
+            <SequenceFlowDiagram
+              source={PERSONAL_AGENT_SEQUENCE_SOURCE}
+              details={PERSONAL_AGENT_SEQUENCE_DETAILS}
+              payloads={PERSONAL_AGENT_SEQUENCE_PAYLOADS}
+              reelSync={personalAgentMessageForReelStep}
+              label="How ChatGPT accesses member benefits: CIMD discovery, IdP consent, P1AZ authorization and permitted MCP access"
+            />
+          </div>
+        </details>
+      )}
+      {/* Stacked: the reel on top, the long token-chain detail under it at full width. An inline
+          maxHeight:'45%' used to cap this, but a % can't resolve in this column, so the block grew
+          to ~670px and the fixed-height page clipped it. The class's vh cap does the job. */}
+      <div className="tcfs-float-host tcfs-float-host--stacked pas-c-reel" style={{ minHeight: 120 }}>
+        <TokenChainFilmstrip emptyState={hasTokenCards(events) ? <TokenCards events={events} variant={cockpit ? 'rows' : 'cards'} /> : undefined} />
       </div>
       </>)}
+      {cockpit && <PersonalAgentClientCards variant="dock" />}
       {mfaModal}
     </div>
+    {/* The client cards sit BELOW the fixed-height shell (the page scrolls to them): inside it they took ~500px of the
+        column and were clipped, squeezing the reel. */}
+    {view === 'agent' && !cockpit && <div className="pas-c-cards"><PersonalAgentClientCards /></div>}
+    </>
   );
 }

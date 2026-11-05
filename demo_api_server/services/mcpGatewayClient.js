@@ -367,6 +367,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts && opts.useCaseId) {
         headers['X-Use-Case-Id'] = String(opts.useCaseId);
     }
+    // A readiness lane BFF (docker-compose.readiness.yml) names its lane so the
+    // shared gateway sends its resource-server calls to the lane's own server.
+    if (process.env.DEMO_READINESS_LANE) {
+        headers['X-Readiness-Lane'] = process.env.DEMO_READINESS_LANE;
+    }
     // Tier (groupToTier) — pre-resolved here because neither gateway can map a
     // PingOne group array to a tier locally (no set-membership operator in either
     // P1AZ's DSL or the gateways' own runtimes). Additive: gateways use this only
@@ -1079,19 +1084,29 @@ function _parseGwAuditTrail(response) {
  * PingGateway's real-P1AZ DENY body (p1az-decision.groovy DENY path) carries
  * only error/decision/backend/tool — the human reason lives in the applied deny
  * statement's payload (e.g. `mcp-tier-amount-exceeded`) inside X-Gw-Audit-Trail.
- * Return the first statement message, or '' when the trail has none.
+ *
+ * The policy also attaches a GENERIC `mcp-authorization-denied` statement to every deny
+ * ("...Token audience ... or actor chain validation failed"), and it can come FIRST
+ * (live airlines "pay a $2500 change fee", 2026-10-21: [generic, tier-amount-exceeded]). That text
+ * blames the token even when the token is fine, so the first statement with a message is the
+ * wrong pick: return the first SPECIFIC statement's message, falling back to the generic one only
+ * when it is all there is. '' when the trail has none.
  * @param {object|null} trail parsed X-Gw-Audit-Trail
  * @returns {string}
  */
+const GENERIC_DENY_STATEMENT_CODE = 'mcp-authorization-denied';
 function _denyStatementMessage(trail) {
     const statements = trail?.authorize?.statements;
     if (!Array.isArray(statements)) return '';
+    let generic = '';
     for (const s of statements) {
         let p = s?.payload;
         if (typeof p === 'string') { try { p = JSON.parse(p); } catch (_) { p = null; } }
-        if (p && typeof p.message === 'string' && p.message) return p.message;
+        if (!(p && typeof p.message === 'string' && p.message)) continue;
+        if (s.code === GENERIC_DENY_STATEMENT_CODE) { generic = generic || p.message; continue; }
+        return p.message;
     }
-    return '';
+    return generic;
 }
 
 /**

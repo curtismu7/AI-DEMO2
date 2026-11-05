@@ -122,10 +122,17 @@ async function verifyA2aBearer(token, { vertical, cfg: cfgArg, deps = {} } = {})
   if (depth !== 1) throw invalidToken(`act chain depth ${depth}, expected exactly 1`);
 
   // 5. Actor must be the generalist — only it may call a specialist.
+  //    PingFederate mode: the generalist the BFF acts as is PF's own actor client (the PF
+  //    SP connections stamp it into act), not the PingOne app — accept that one, and only
+  //    in PF mode, only the configured id.
   const generalist = String(cfg.getEffective('pingone_ai_agent_client_id') || '');
+  const pfGeneralist = cfg.getOAuthProvider?.() === 'pingfederate'
+    ? String(cfg.getEffective('pf_ai_agent_actor_client_id') || '')
+    : '';
+  const allowedGeneralists = [generalist, pfGeneralist].filter(Boolean);
   const actor = actorIdOf(claims.act);
-  if (!generalist || actor !== generalist) {
-    throw invalidToken(`actor ${actor || '(none)'} is not the generalist ${generalist || '(unset)'}`);
+  if (!allowedGeneralists.length || !allowedGeneralists.includes(actor)) {
+    throw invalidToken(`actor ${actor || '(none)'} is not the generalist ${allowedGeneralists.join(' | ') || '(unset)'}`);
   }
 
   if (!claims.sub) throw invalidToken('no subject (sub) on the delegated token');

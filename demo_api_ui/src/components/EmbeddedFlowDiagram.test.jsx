@@ -89,3 +89,4 @@ describe('EmbeddedFlowDiagram pingStyle', () => {
     expect(screen.getByTestId('sfd-edge-badge-3').className).toContain('is-shown');
   });
 });
+

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import terms from "../data/idJagTerms.json";
 import sources from "../data/idJagSources.json";
 import { PLAYGROUND_DIAGRAMS, PLAYGROUND_DIAGRAM_MODES, playgroundDiagramPath } from "../utils/idJagPlaygroundDiagrams";
+import IdJagPathBar from "../components/IdJagPathBar";
 import "./IdJagLearnPage.css";
 
 // Learn ID-JAG: the docs for this demo, the glossary the playground uses (#term-<id> anchors) and the source library.
@@ -31,6 +32,7 @@ export default function IdJagLearnPage() {
 
   return (
     <main className="ijl" data-testid="id-jag-learn">
+      <IdJagPathBar />
       <header className="ijl-hero">
         <p className="ijl-eyebrow">Learn</p>
         <h1>Learn ID-JAG</h1>
@@ -50,6 +52,7 @@ export default function IdJagLearnPage() {
           <h2>Try it</h2>
           <ul>
             <li><Link to="/pingfederate-id-jag/playground">ID-JAG Playground</Link>: the flow one step at a time, with every request, response and the code behind it.</li>
+            <li><Link to="/pingfederate-id-jag/inspect">ID-JAG Inspector</Link>: get an ID-JAG with one click, or paste a token, and check it against the draft and the trusted IdPs; each backend's discovery metadata is in a collapsed section (signed-in users).</li>
             <li><Link to="/pingfederate-id-jag/demo">ID-JAG demo</Link>: the same flow as a guided walkthrough.</li>
           </ul>
           <h2>Diagrams</h2>

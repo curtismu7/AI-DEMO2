@@ -10,15 +10,18 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { parseSequence } from "../utils/parseSequence";
 import { markEdges, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { useReelSync } from "../hooks/useReelSync";
 import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize, useFitOnSource } from "../hooks/useFitOnResize";
 import "./SequenceFlowDiagram.css";
+import SequenceActorHeader from "./SequenceActorHeader";
 
 /**
  * SequenceFlowDiagram — a sequence diagram (participants, lifelines, ordered
@@ -30,7 +33,7 @@ import "./SequenceFlowDiagram.css";
 // page width does not shrink the text. Message labels may be wider than a column; each has its own row.
 const colFor = (n) => (n <= 4 ? 270 : n <= 6 ? 225 : n <= 8 ? 185 : 155);
 const PART_H = 64;
-const TOP = 90;
+const TOP = 120; // room for participant boxes of 4 lines before the first row
 const LINE_H = 17;
 const FIT = { padding: 0.04 };
 // Floor for the fitted zoom: 13px message labels stay >= 11px on screen (a little headroom for box bands).
@@ -47,7 +50,7 @@ export function flowWidth(canvasW, bounds) {
 
 function Participant({ data }) {
   return (
-    <div className="sfx-part" style={{ width: data.w }}>
+    <div className={`sfx-part${data.lane ? ` sfx-lane-${data.lane}` : ""}`} style={{ width: data.w }}>
       {data.label.split("\n").map((l, i) => (
         <div key={i} className={i ? "sfx-part__sub" : "sfx-part__title"}>{l}</div>
       ))}
@@ -71,6 +74,23 @@ function Anchor() {
 function Note({ data }) {
   return <div className="sfx-note" style={{ width: data.w }}>{data.text}</div>;
 }
+// A wire form or mock token shown under its message, like the payload boxes of a hand-drawn sequence diagram.
+function Payload({ data }) {
+  return <pre className="sfx-payload" style={{ width: data.w }}>{data.text}</pre>;
+}
+// The issue overlay under a hop's first message: the problem the hop exists to solve, what it does about it, and (when
+// the design is still open) the known gap.
+function Issue({ data }) {
+  const { issue } = data;
+  return (
+    <div className="sfx-issue" style={{ width: data.w }}>
+      <div className="sfx-issue__title">{issue.title}</div>
+      <p className="sfx-issue__row"><b>Issue</b> {issue.problem}</p>
+      <p className="sfx-issue__row"><b>Answer</b> {issue.answer}</p>
+      {issue.gap && <p className="sfx-issue__row sfx-issue__row--gap"><b>Known gap</b> {issue.gap}</p>}
+    </div>
+  );
+}
 function Fragment({ data }) {
   return <div className="sfx-frag" style={{ width: data.w }}>{data.text}</div>;
 }
@@ -82,11 +102,11 @@ function BoxBand({ data }) {
   );
 }
 
-function MessageEdge({ id, sourceX, sourceY, targetX, targetY, style, markerEnd, data }) {
+function MessageEdge({ id, sourceX, sourceY, targetX, targetY, style, markerStart, markerEnd, data }) {
   const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   return (
     <>
-      <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
+      <BaseEdge id={id} path={path} style={style} markerStart={markerStart} markerEnd={markerEnd} />
       <EdgeLabelRenderer>
         <div
           className="sfx-label nodrag nopan"
@@ -113,12 +133,25 @@ function SelfEdge({ id, sourceX, sourceY, style, markerEnd, data }) {
   );
 }
 
-const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, frag: Fragment, box: BoxBand };
+const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, payload: Payload, issue: Issue, frag: Fragment, box: BoxBand };
 const edgeTypes = { msg: MessageEdge, self: SelfEdge };
 
 const ARROW = { type: "arrowclosed", width: 16, height: 16 };
 
-export function buildSequenceFlow(source) {
+// Monospace box width for a payload: the longest line, kept inside the participants' span.
+const PAYLOAD_CH = 7.8; // IBM Plex Mono at the app's size; a system mono is narrower, so it only leaves slack
+const PAYLOAD_LINE_H = 15;
+
+// Height of an issue box: its text wraps at about ISSUE_CH characters a line.
+const ISSUE_W = 600;
+const ISSUE_CH = 82;
+export function issueHeight(issue) {
+  const rows = [issue.problem, issue.answer, issue.gap].filter(Boolean);
+  const lines = rows.reduce((sum, t) => sum + Math.ceil((t.length + 10) / ISSUE_CH), 0);
+  return 18 + 24 + lines * 17 + rows.length * 6;
+}
+
+export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {}) {
   const model = parseSequence(source);
   // Two or more `box` groups are separate flows. Draw them stacked, each with its own
   // participant row, instead of side by side, so the diagram stays narrow enough to read.
@@ -139,6 +172,7 @@ export function buildSequenceFlow(source) {
   const nodes = [];
   const edges = [];
   const steps = [];
+  const rows = []; // y of each message arrow, for scrolling a step into view
   const names = Object.fromEntries(model.participants.map((p) => [p.id, p.label.split("\n")[0]]));
   const spans = {}; // group id -> { head, end }
   let cur = null;
@@ -169,6 +203,8 @@ export function buildSequenceFlow(source) {
       nodes.push({ id: b, type: "anchor", position: { x: cx[it.to] - 3, y: y + (self ? 23 : -3) }, data: {}, draggable: false, selectable: false, zIndex: 3 });
       n += 1;
       const text = model.autonumber ? `${n}. ${it.text}` : it.text;
+      const lane = lanes?.[it.from];
+      const stroke = lane ? `var(--sfx-color-${lane})` : undefined;
       edges.push({
         id: `m${i}`,
         source: a,
@@ -176,14 +212,36 @@ export function buildSequenceFlow(source) {
         sourceHandle: self || rightward ? "sr" : "sl",
         targetHandle: self ? "tr" : rightward ? "tl" : "tr",
         type: self ? "self" : "msg",
-        markerEnd: ARROW,
-        style: it.dashed ? { strokeDasharray: "6 4" } : undefined,
-        data: { text },
+        markerEnd: lane ? { ...ARROW, color: stroke } : ARROW,
+        ...(it.both ? { markerStart: lane ? { ...ARROW, color: stroke } : ARROW } : null),
+        style: { ...(it.dashed ? { strokeDasharray: "6 4" } : null), ...(lane ? { stroke, strokeWidth: 3 } : null) },
+        data: { text, stroke },
         selectable: false,
         zIndex: 2,
       });
       steps.push(`${names[it.from]} → ${names[it.to]}: ${it.text.replace(/\n/g, " ")}`);
+      rows.push(y);
       if (self) y += 26;
+      const payload = payloads[n - 1];
+      if (payload) {
+        const plines = payload.split("\n");
+        const allX = model.participants.map((p) => cx[p.id]);
+        const w = Math.min(780, Math.max(220, Math.ceil(Math.max(...plines.map((l) => l.length)) * PAYLOAD_CH) + 40));
+        const left = Math.min(cx[it.from], cx[it.to]) - 12;
+        const x = Math.max(Math.min(...allX) - 80, Math.min(left, Math.max(...allX) + 80 - w));
+        const h = plines.length * PAYLOAD_LINE_H + 16;
+        y += 8;
+        nodes.push({ id: `pl${n - 1}`, type: "payload", position: { x, y }, data: { text: payload, w }, draggable: false, selectable: false, zIndex: 1 });
+        y += h + 6;
+      }
+      const issue = issues?.[n - 1];
+      if (issue) {
+        const allX = model.participants.map((p) => cx[p.id]);
+        const x = Math.max(Math.min(...allX) - 80, Math.min(Math.min(cx[it.from], cx[it.to]) - 12, Math.max(...allX) + 80 - ISSUE_W));
+        y += 8;
+        nodes.push({ id: `is${n - 1}`, type: "issue", position: { x, y }, data: { issue, w: ISSUE_W }, draggable: false, selectable: false, zIndex: 1 });
+        y += issueHeight(issue) + 6;
+      }
     } else if (it.type === "note") {
       const xs = it.over.map((id) => cx[id]);
       const x0 = Math.min(...xs) - 90;
@@ -210,7 +268,7 @@ export function buildSequenceFlow(source) {
 
   model.participants.forEach((p) => {
     const span = spans[groupOf(p)] || spans[cur];
-    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label, w: PART_W }, draggable: false, zIndex: 4 });
+    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label, w: PART_W, lane: lanes?.[p.id] }, draggable: false, zIndex: 4 });
     nodes.push({ id: `l-${p.id}`, type: "lifeline", position: { x: cx[p.id] - 1, y: span.head + PART_H }, data: { h: Math.max(20, span.end - span.head - PART_H) }, draggable: false, selectable: false, zIndex: 0 });
   });
   model.boxes.forEach((b, i) => {
@@ -237,10 +295,10 @@ export function buildSequenceFlow(source) {
     const [head, ...rest] = p.label.split("\n");
     return { id: p.id, label: head, sub: rest };
   });
-  return { nodes, edges, steps, bounds, messages, people };
+  return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, step, active, details, driver }) {
+function Inner({ source, step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -253,7 +311,8 @@ function Inner({ source, step, active, details, driver }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const { nodes, edges, steps, bounds, messages, people } = useMemo(() => buildSequenceFlow(source), [source]);
+  const { nodes, edges, steps, bounds, messages, people, rows } = useMemo(() => buildSequenceFlow(source, payloads, { lanes, issues }), [source, payloads, lanes, issues]);
+  const rf = useReactFlow();
   // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
   // sequence stays at a readable size instead of shrinking to fit one screen.
   // Too narrow to fit at a readable size: keep MIN_ZOOM and scroll sideways.
@@ -263,17 +322,62 @@ function Inner({ source, step, active, details, driver }) {
   const stepper = useDiagramStepper(steps.length);
   const external = step !== undefined || active !== undefined || driver !== undefined;
   const reelStepper = driver || (external ? null : stepper);
+  useReelSync(reelSync, (driver || stepper).goTo, messages.length, ref);
   const shown = useMemo(() => {
-    if (active !== undefined) return markEdges(edges, active);
-    return stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
-  }, [edges, stepper.step, step, active, driver]);
+    const stepped = active !== undefined ? markEdges(edges, active) : stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
+    // Lane colours stay on the arrows while a step is in focus: the focus shows as weight and motion, never as a hue change.
+    return lanes ? stepped.map((e) => (e.data?.stroke ? { ...e, style: { ...e.style, stroke: e.data.stroke } } : e)) : stepped;
+  }, [edges, stepper.step, step, active, driver, lanes]);
   const reelSteps = useMemo(
-    () => (reelStepper ? buildReelSteps({ edges: messages, nodes: people, details }) : []),
-    [reelStepper, messages, people, details],
+    () => {
+      if (!reelStepper) return [];
+      const built = buildReelSteps({ edges: messages, nodes: people, details });
+      // the payload shown under a message is also its request form in the reel's details row
+      return built.map((r, i) => {
+        const d = stepDetails?.[i];
+        const extra = [
+          ...(d?.what ? [{ who: "What happens", text: d.what }] : []),
+          ...(d?.why ? [{ who: "Why it matters", text: d.why }] : []),
+          ...(d?.open ? [{ who: "Open", text: d.open }] : []),
+          ...(payloads?.[i] ? [{ who: "Payload", code: payloads[i] }] : []),
+        ];
+        return extra.length ? { ...r, lines: [...r.lines, ...extra] } : r;
+      });
+    },
+    [reelStepper, messages, people, details, payloads, stepDetails],
   );
   const [nodeDetail, setNodeDetail] = useState(null);
+  // Header strip state. Mirrors stepEdges: step < 0 leaves everything shown,
+  // otherwise edges past the focus are not reached yet. `active` (page-driven)
+  // lights just those messages.
+  const focus = driver ? driver.step : step !== undefined ? step : stepper.step;
+  const msgState = (i) => {
+    if (active !== undefined) return active.includes(i) ? "active" : "idle";
+    if (focus < 0) return "done";
+    return i === focus ? "active" : i < focus ? "done" : "idle";
+  };
+  const headerActors = people.map((p) => {
+    const states = messages.flatMap((m, i) => (m[0] === p.id || m[1] === p.id ? [msgState(i)] : []));
+    const state = states.includes("active") ? "active" : states.includes("done") ? "done" : "idle";
+    return { id: p.id, name: p.label, description: p.sub[0], state };
+  });
+  const headerSegments = messages.map((_, i) => ({ state: msgState(i) }));
   const current = reelStepper ? reelSteps[reelStepper.step] : null;
-  const lit = useMemo(() => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`] : []), [nodes, current]);
+  const lit = useMemo(
+    () => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`, `pl${reelStepper.step}`] : []),
+    [nodes, current, reelStepper],
+  );
+  // A step picked on the movie reel (or reached by Simulate) scrolls its message into view; the arrow and its payload light up.
+  useEffect(() => {
+    const el = ref.current;
+    if (focus < 0 || !el || rows[focus] === undefined) return;
+    try {
+      const { y, zoom } = rf.getViewport();
+      const top = el.getBoundingClientRect().top + window.scrollY + y + rows[focus] * zoom;
+      const vh = window.innerHeight;
+      if (top < window.scrollY + 120 || top > window.scrollY + vh - 160) window.scrollTo({ top: Math.max(0, top - vh * 0.35), behavior: "smooth" });
+    } catch (_) { /* scrolling is a convenience */ }
+  }, [focus, rows, rf]);
   const onNodeClick = (_, node) => {
     if (!reelStepper || node.type !== "part") return;
     setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === node.id), details));
@@ -284,6 +388,7 @@ function Inner({ source, step, active, details, driver }) {
       {reelStepper && (
         <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
       )}
+      <SequenceActorHeader actors={headerActors} segments={headerSegments} />
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
         <div className="sfx-flow" ref={flowRef} style={flowW > canvasW ? { width: flowW } : undefined}>
         <ReactFlow
@@ -315,14 +420,15 @@ function Inner({ source, step, active, details, driver }) {
  * Leave `step` and `active` undefined for the built-in Play/Step bar. A page that drives the
  * highlight itself passes `step` (one message in focus, later ones fade) or `active` (an
  * array of message indexes to accent). `details` maps a participant id to the text shown in the
- * movie reel's details row. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
+ * movie reel's details row. `stepDetails` is one { what, why, open } per message, shown in the reel's details row
+ * when that step is picked. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
  * the message index) to get the diagram highlight and the movie reel without a second control bar.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
   return (
-    <div className="sfx" role="group" aria-label={label}>
+    <div className={`sfx${lanes ? " sfx--lanes" : ""}`} role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} driver={driver} />
+        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} stepDetails={stepDetails} reelSync={reelSync} lanes={lanes} issues={issues} />
       </ReactFlowProvider>
     </div>
   );

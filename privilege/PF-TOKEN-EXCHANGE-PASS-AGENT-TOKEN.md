@@ -1,0 +1,839 @@
+# PingFederate token exchange into Privilege, with Pass Agent Token
+
+> **Terminology:** Ping's 2026-11-02 release notes (deck "ID4AI Workforce - H2 2026", slide 35) rename **Non-Human Identity** to **Federated Identity** (display name only; the console API object is still `NonHumanIdentity` at `/v1/nonhumanidentities` in the 2026-10-31 swagger). This page was written under the old name and is kept as measured. Not yet seen on our tenant.
+
+
+Set up, deploy and use the agent-presents-token path: a PingFederate token exchange produces a token that acts for an agent, the agent sends it to a P1 Privilege Agent App, and the agent app forwards the verified token to the MCP server (Pass Agent Token). Expected configuration follows the recipe from the Ping thread (Federico Carbone and Suman Sharma, 2026-10-23). Status as of 2026-10-26: **working end to end** on gateway `v1.261024` (see "Working configuration" right below). Each claim below is tagged:
+
+- **[measured]**: seen on our tenant or in the gateway log, 2026-10-22.
+- **[ping]**: stated by Ping engineers in the thread. Not yet verified on our tenant.
+- **[expected]**: our reading of what must be true. Not tested.
+
+Companion docs: `PF-TOKEN-ON-PRIVILEGE-STATUS.md` (where the test stands and the restart checklist) and `PF-CLAIMS-IN-CEDAR-POLICIES.md` (what Cedar can read).
+
+## Use case: federated agents
+
+**Federated agents** are AI agents whose identity already lives in the customer's own identity provider (here PingFederate). The agent presents a token its IdP issued, and Privilege trusts that IdP instead of handing the agent a Privilege-issued static key.
+
+> **Naming.** "Federated Agents" is the new name that is coming for what the Privilege console currently calls **Non-Human Identities** (and the **NHI Agents** page). This guide uses the console's current labels so the steps match the screens; read "Non-Human Identity" as "Federated Agent".
+>
+> **P1 Privilege Agent App** (short: *agent app*) is what this guide calls an MCP server registered in the Privilege console under **Agentic Apps** (here `pftoken` and `pftoken-rs`). Its URL on the gateway is `https://mcpgw.ai-demo.ping-devops.com/<name>/mcp`.
+
+What this covers:
+
+| Covered | How |
+|---|---|
+| An agent authenticates to a P1 Privilege Agent App with a PingFederate-issued JWT | Non-human identity trusting the PF issuer and JWKS |
+| No Privilege secret in the agent | The PF token is the only credential |
+| Only one specific agent is accepted | Required claims `act.sub` and `client_id` pin the agent |
+| The token is bound to one agent app | Audience = the agent app URL |
+| What the agent may do on the agent app | The agent key's grant (tools per agent app) |
+| The MCP server can verify the token itself | Pass Agent Token forwards the verified token (proven with `whoami`, section 15) |
+
+What it does not cover yet:
+
+- **On behalf of a user** (user in `sub`, agent in `act.sub`, via PingFederate token exchange): the identity settings below already fit this shape, but it has not been run end to end. Privilege's OBO support is in staging (Ping, 2026-10-23).
+- **Token claims in Cedar policies**: `context.token.claims` is coming in a later release. Today claim checks live in the identity (required claims) and in the Access Policy step of the agent key.
+- **Per-MCP audiences on a shared identity**: the audience must contain the gateway; an allow-list of audiences is possible on request.
+
+Example: a customer such as NYLife has agents registered in PingFederate and wants Privilege to govern which MCP tools those agents may call, without issuing each agent a Privilege key.
+
+## What Privilege does here, and what it can't
+
+**Privilege does** (all measured on our tenant unless marked):
+
+| What | How |
+|---|---|
+| Trusts PingFederate as the agent's issuer | The identity checks the signature (PingFederate JWKS), `iss`, `aud` (bound to one P1 Privilege Agent App) and token lifetime. Anything else is 401. |
+| Accepts only this agent | Required claims on the identity (`act.sub`, `client_id`) must match exactly, or 401. |
+| Holds no secret for the agent | The PingFederate token is the only credential. |
+| Decides which tools, per agent app | The agent key's grant lists tools per agent app. No rule for the app is 403; unlisted tools are hidden. |
+| Blocks one tool by token scope (Cedar) | An AI policy reads `context.token.scopes`: `SearchIndexTool` is denied unless the scope has `opensearch:search`; other tools still work. The policy must be State Active (part I). Measured 2026-10-27. |
+| Gives different tools by scope (tiers) | Two grant rules for the same app, each with `RequiredClaims` on `scope`: the token's scope picks 3 tools, 9 tools, or 403. Measured 2026-10-27, section 16. |
+| Passes the agent's token through | Pass Agent Token forwards the PingFederate token unchanged; the MCP server verifies it too (section 15). |
+| Finds the tools without a person signing in | The first accepted agent call discovers the app's tools (gateway `v1.261024`). |
+| Switches the agent off | Disable the identity or revoke the key. **Not tested on this path.** |
+
+**Privilege can't (yet):**
+
+| What | Why, and what to use instead |
+|---|---|
+| Token exchange (on behalf of a user) | Privilege does not exchange tokens. A token with the user in `sub` and the agent in `act` has to come from PingFederate. Privilege's OBO support is in staging (Ping, 2026-10-23). |
+| Narrow the token it forwards | The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway. |
+| Cedar rules on other token claims | Cedar reads the token's scopes (part I) but no other claim: `context.token.claims` (`act.sub`, `client_id` …) is due in a later release. Other claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
+| Wildcard audiences | The audience must name the gateway; no wildcard. An allow-list is possible on request. |
+| New grant policies through the API | A POSTed grant is deleted within about a minute (cause unknown). Edit the key's existing grant. |
+
+## Step-by-step setup
+
+Values in angle brackets are yours; the values we used are in brackets. Parts A to E are the core setup (verified 2026-10-26). Parts F to H are optional extras (verified 2026-10-27 unless marked). The result we measured is in "Working configuration" below.
+
+### Before you start
+
+1. The Privilege gateway is `privilege-aigw:v1.261024` or later. (Earlier versions cannot discover tools on a Pass Agent Token agent app.) Tested on `v1.261024` and `v1.261027`.
+2. The P1 Privilege Agent App's backend is reachable from **every** gateway pod. (Ours needed a restored Service and two network policies; see section 14.)
+3. You can change PingFederate (admin console or admin API) and the Privilege console.
+
+### A. PingFederate: make the agent's token
+
+1. **Client.** Create an OAuth client for the agent with the `client_credentials` grant. Leave scopes unrestricted, or allow the scopes from step 2. [`pf-route-c-test`]
+2. **Scopes.** Under the authorization server's scope settings, add the scopes your tiers and policies will use. [`opensearch:admin`, `opensearch:read`, `opensearch:search`, `whoami:read`]
+3. **Access token manager.** Create a JWT token manager for this agent (clone an existing JWT one; give it a unique Key ID).
+   - Audience claim value: the agent app URL. [`https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp`]
+   - Resource URIs: the same agent app URL.
+   - Scope Claim Name: `scope` (the default). Do **not** add `scope` to the attribute contract; the manager then writes the granted scopes itself.
+4. **Access token mapping** for the `CLIENT_CREDENTIALS` context on that token manager:
+   - `sub` ← Context: ClientId
+   - `client_id` ← Context: ClientId
+   - `act` ← Expression: `#{"sub": "<agent id>"}` [`#{"sub": "pf-route-c-test"}`]. It must be an **object**; text `"{}"` will not work.
+5. Set the client's default access token manager to the one from step 3.
+6. **Every token request sends `resource=<agent app URL>`.** Without it, a request that names a scope can be served by a different token manager (we got audience `enduser.ping.demo` and no `sub` or `act`), and the gateway answers 401 `token_not_found`.
+7. **Check:** mint a token and decode it (command in part H). You need `iss`, `sub`, `aud` = the agent app URL, `client_id`, `act.sub` = the agent id, and `scope` = what you asked for.
+
+Screens (PingFederate admin console, 13.1; the client `pf-route-c-test`, token manager `routeCTestAtm`):
+
+The OAuth clients list. Our client is the first row; expand a row to see its tabs.
+
+![PingFederate clients list](images/pf-token-exchange/guide/a1-pf-clients-list.png)
+
+Client, General Info: client ID and authentication type (secret).
+
+![PingFederate client, General Info](images/pf-token-exchange/guide/a2-pf-client-general.png)
+
+Client, OAuth Settings: grant type `CLIENT_CREDENTIALS`; common scopes are not restricted, so the client can request any scope on the list.
+
+![PingFederate client, OAuth Settings](images/pf-token-exchange/guide/a3-pf-client-oauth-settings.png)
+
+Client, Token Manager tab: the default access token manager is `routeCTestAtm`.
+
+![PingFederate client, Token Manager](images/pf-token-exchange/guide/a4-pf-client-token-manager.png)
+
+The scopes added for the demo (System, OAuth Settings, Scope Management, searched for `opensearch`).
+
+![PingFederate scope list](images/pf-token-exchange/guide/a5-pf-scopes-opensearch.png)
+
+Access Token Management: our manager, `routeCTestAtm`, next to the others. The **default** manager is `aiDemoPfJwtAtm`, which is why a request must send `resource=` to be served by `routeCTestAtm`.
+
+![PingFederate token managers list](images/pf-token-exchange/guide/a6-pf-token-managers-list.png)
+
+Token manager summary, middle: Scope Claim Name `scope`, the issuer, and the audience claim value (the agent app URL).
+
+![PingFederate token manager, claims and audience](images/pf-token-exchange/guide/a7-pf-token-manager-audience-scope-claim.png)
+
+Token manager summary, end: the attribute contract has `act`, `client_id`, `spiffeId`, `sub`, `Username` and **no `scope`**; the Resource URI is the agent app URL.
+
+![PingFederate token manager, attribute contract and resource URI](images/pf-token-exchange/guide/a8-pf-token-manager-attribute-contract.png)
+
+The client-credentials access token mapping: `sub`, `client_id` and `Username` from the client ID, and `act` from the expression `#{"sub": "pf-route-c-test"}`.
+
+![PingFederate access token mapping](images/pf-token-exchange/guide/a9-pf-access-token-mapping.png)
+
+### B. Privilege: register the federated agent (Non-Human Identity)
+
+Console: **Non-Human Identities → Register Identity** (or **Edit** on an existing one).
+
+1. **Token issuer type:** OIDC Provider.
+2. **Issuer (iss):** exactly the token's `iss`. [`https://cmuir-pf.ping-devops.com`]
+3. **Key source:** Fetch from URL; **JWKS URL** = the PingFederate JWKS. [`https://cmuir-pf.ping-devops.com/pf/JWKS`]
+4. **Subject (sub):** `*`. (The agent is pinned by the required claims in step 7, so the subject can stay open for an end user later.)
+5. **End user in a presented token:** Opaque; End-user claim empty (= `sub`). Use Resolved instead if the end user exists in Privilege.
+6. **Audience:** the agent app URL, the same value PingFederate puts in `aud`.
+7. **Required claims:** `act.sub` = `<agent id>` and `client_id` = `<client id>`. [both `pf-route-c-test`]
+8. **Permissions:** `mcp` (add `llm` or `a2a` only if the agent needs them).
+9. Save. If the console refuses with "Spec.UserClaim resolves to "sub" …", the subject is pinned while End user reads `sub`: set Subject to `*` as in step 4.
+
+Screens (the finished identity, `PFtoken`):
+
+![Non-Human Identities list](images/pf-token-exchange/guide/b1-nhi-list.png)
+
+![PFtoken edit: issuer, key source, subject](images/pf-token-exchange/working/02-nhi-pftoken-edit-top.png)
+
+![PFtoken edit: end user and audience](images/pf-token-exchange/working/03-nhi-pftoken-edit-end-user.png)
+
+![PFtoken edit: required claims](images/pf-token-exchange/working/04-nhi-pftoken-edit-claims.png)
+
+### C. Privilege: the P1 Privilege Agent App
+
+Console: **Agentic Apps → Add Application → MCP Server** (or **Edit** an existing one).
+
+1. **MCP Server URL:** a backend address that resolves from every gateway pod, ending in exactly `/mcp`. The gateway takes the URL's path as the app's entry path: a URL saved as `…/mc` gave 404 and the log line `outside entry path "/mc"`. [`http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp`]
+2. **Auth Mode:** Pass Agent Token.
+3. **Mesh cluster:** the one your gateway pods serve. [`ai-demo-cmuir`]
+4. Save. The Overview shows "Awaiting first agent call - tools will be discovered from a forwarded assertion".
+
+Screens:
+
+![Agentic Apps list](images/pf-token-exchange/guide/c1-agentic-apps.png)
+
+The Edit dialog of our second agent app, `pftoken-rs`: URL ending in `/mcp`, Auth Mode Pass Agent Token, the mesh cluster.
+
+![pftoken-rs edit dialog](images/pf-token-exchange/guide/c5-pftoken-rs-edit.png)
+
+After the first accepted agent call the Overview lists the discovered tools (ours includes `whoami`).
+
+![pftoken-rs overview with tools](images/pf-token-exchange/guide/c2-pftoken-rs-overview.png)
+
+### D. Privilege: the agent key and its tools
+
+Console: **Agent Registry → Add Agent** (or **Edit** an existing key).
+
+1. **Custodian:** the identity from part B. Scope: `mcp`. [key `pftoken-agent`, custodian `PFtoken`]
+2. **Gateway & Apps:** select the agent app from part C.
+3. **Configure Tool Access:** MCP Server = the agent app; Access tier Everyone; select the tools (selecting none grants every tool).
+4. Save Configuration, finish the wizard and save the key. The agent app's **Agent Registry** tab now lists the key with its grant.
+
+Do **not** create the grant as a separate policy through the API: every such policy was deleted by the gateway within seconds (section 7). Editing the key's own grant works.
+
+Screens: the agent app's **Agent Registry** tab lists the key and the grant that belongs to it, and **View Config** shows the client config for that key.
+
+![pftoken Agent Registry tab](images/pf-token-exchange/guide/d2-pftoken-agent-registry.png)
+
+![pftoken-agent View Config](images/pf-token-exchange/guide/d3-pftoken-agent-view-config.png)
+
+The same tab on the second agent app, `pftoken-rs`:
+
+![pftoken-rs Agent Registry tab](images/pf-token-exchange/guide/c4-pftoken-rs-agent-registry.png)
+
+Grants and keys expire (ours, 2026-10-29: the console shows "Ends in N days"). Renew them before a demo.
+
+### E. First call and test
+
+1. Make one agent call with the PingFederate token (for example `tools/list`). Even if it is refused, it triggers tool discovery; the agent app's Overview then lists the tools.
+2. Call again. Expected: **200** with the tool list. A garbage bearer still gets 401.
+3. Check the gateway log (all three pods, `--all-containers`, section 14): `workload token accepted for key <key>` and no `policy denied`.
+
+### F. Optional: tools by scope (tiers)
+
+Same agent, same agent app, different tools depending on the token's `scope`. Each rule in the key's grant can require token claims (`RequiredClaims`); two rules for the same app make two tiers.
+
+1. Read the key's grant (`GET /api/<tenant>/v1/pacpolicys`, the policy whose rules name your key; ours is `KarunRiver-5a485737526f`). Save a backup.
+2. In `Spec.ActionMap.MCP.PolicyRule`, replace the app's rule with two copies of it, each with its own tools and condition:
+
+```json
+{ "...": "copy of the app's rule",
+  "Capabilities": { "Map": { "tools": { "Elems": ["ListIndexTool", "SearchIndexTool", "CountTool"] } } },
+  "RequiredClaims": { "Map": { "scope": { "Elems": ["opensearch:read"] } } } }
+```
+
+   and the same with all tools and `"Elems": ["opensearch:admin"]`.
+3. `PUT /api/<tenant>/v1/pacpolicys/default/<grant name>` with the whole policy. It takes effect in about 20 seconds.
+4. Test with three tokens (part H): `opensearch:admin` lists every tool, `opensearch:read` lists the three, a token with neither gets 403.
+
+Rules (measured): a value list means any of; each scope in the token is matched on its own (requiring `opensearch:read` matches `openid opensearch:read`; requiring the whole string `openid opensearch:read` does not); claim paths can be dotted (`act.sub`). To remove a condition, delete the `RequiredClaims` field; a PUT with `{"Map": {}}` is ignored. The key wizard's **Add Claim** button may set the same field; we did not check.
+
+### G. Optional: prove the token is passed through
+
+Point a second agent app (Pass Agent Token) at an MCP server that verifies the token itself and can report what it received. Ours is `pftoken-rs` → the demo MCP resource server, whose `whoami` tool returns every claim it verified (section 15). That server must trust the PingFederate issuer and JWKS and accept the token's audience. Add a rule for the second app (tool `whoami`) to the key's grant, then call `whoami`: the issuer, `act` and scopes it reports are the PingFederate token's.
+
+### H. Commands
+
+Mint (replace the values; the secret comes from your own store, never paste it into chat):
+
+```bash
+curl -s https://<pf-host>/as/token.oauth2 -u "<client id>:$CLIENT_SECRET" \
+  -d grant_type=client_credentials \
+  -d "scope=openid opensearch:read" \
+  -d "resource=https://<gateway-host>/<agent app>/mcp"
+```
+
+Decode the payload (`cut -d. -f2 | base64 -d`, add padding if needed) and check the claims from part A step 7. Then list the tools:
+
+```bash
+curl -s https://<gateway-host>/<agent app>/mcp \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+| You get | Means | Where to look |
+|---|---|---|
+| 200 + tools | working | — |
+| 401 | the token was not accepted: issuer, audience, required claim, lifetime, or the wrong PingFederate token manager | gateway log `workload token rejected: …` or `token_not_found` |
+| 403 | token accepted, no grant rule matched (no rule for the app, or no tier's `RequiredClaims` matched) | gateway log `policy denied …` |
+| 404 | the app's MCP Server URL does not end in `/mcp` | gateway log `outside entry path` |
+| 200, no tools | tools not discovered yet, or the backend is unreachable | gateway log `tool discovery … failed` |
+
+Live demo of all of this: `https://ai-demo.ping-devops.com/privilege-pf-token` (sign-in required).
+
+#### What the demo page shows
+
+Screens from `https://ai-demo.ping-devops.com/privilege-pf-token` after pressing **Run** (real calls, 2026-10-27). The page mints PingFederate tokens, calls the P1 Privilege Agent Apps, and shows only outcomes and claims, never a token.
+
+The claims PingFederate put in the token:
+
+![Claims of the PingFederate token](images/pf-token-exchange/guide/pg1-claims.png)
+
+The gateway accepted the token and returned the tools; a garbage token is the control and gets 401:
+
+![Allowed: the tools the gateway returned](images/pf-token-exchange/guide/pg2-allowed.png)
+
+![Control: a garbage token](images/pf-token-exchange/guide/pg3-garbage-control.png)
+
+Same agent, same agent app, three scopes: 9 tools, 3 tools, 403 (part F):
+
+![Same agent, different scope](images/pf-token-exchange/guide/pg4-scope-tiers.png)
+
+Cedar blocks `SearchIndexTool` without `opensearch:search`, and allows it with (part I):
+
+![Cedar blocks by scope](images/pf-token-exchange/guide/pg5-cedar-blocks-by-scope.png)
+
+What the MCP server behind `pftoken-rs` received: every claim of the PingFederate token, unchanged (part G):
+
+![What the backend received](images/pf-token-exchange/guide/pg6-backend-received.png)
+
+The page's table of what Privilege does and can't do:
+
+![What Privilege does here, and what it can't](images/pf-token-exchange/guide/pg7-what-privilege-does.png)
+
+The flow, as drawn on the page (the arrows walk through in order with **Simulate**):
+
+![Flow diagram](images/pf-token-exchange/guide/pg8-flow-diagram.png)
+
+### I. Optional: block one tool by scope with Cedar
+
+The grant decides which tools the agent may see; an AI policy (Cedar) can then refuse a single call based on the token. Cedar reads the PingFederate token's scopes as `context.token.scopes`.
+
+1. Console: **AI Policies → Add** (or `POST /api/<tenant>/v1/aipolicys`). Cedar text:
+
+```cedar
+@reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
+when   { context.app == "pftoken" }
+unless { context has token && context.token.scopes.contains("opensearch:search") };
+```
+
+2. **Make it Active.** A policy created through the API has `State: ""`: it is a candidate, compiled and logged but never enforced. The gateway log then says `candidate policy would have returned deny where the active set returned allow`. Set `State` to `Active` (console, or `PUT /api/<tenant>/v1/aipolicys/default/<name>` with the whole object and `"State": "Active"`). It takes effect within seconds.
+3. Test (part H, `tools/call` instead of `tools/list`):
+
+| Token scope | `SearchIndexTool` | Other tools |
+|---|---|---|
+| `openid opensearch:admin` | **400**, JSON-RPC `-32600` `action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token` | allowed |
+| `openid opensearch:admin opensearch:search` | 200, search results | allowed |
+
+Gateway log for the block: `aipolicy: denied PFtoken calling SearchIndexTool on pftoken (policies=[pftoken-scope-search:1])`. Measured 2026-10-27 on gateway `v1.261027`; our policy is `pftoken-scope-search`.
+
+Screens. The policy page shows the Cedar text, `State: Active`, and the buttons that change the state (**Candidate**, **Disabled**):
+
+![pftoken-scope-search policy page](images/pf-token-exchange/guide/i4-pftoken-scope-search-detail.png)
+
+In the AI Policies list, a policy in **Candidate** (here `llm-response-pii-withhold`) has an **Enforce** button; one that is enforced (`pftoken-scope-search`) shows **Active** and a **Disable** button. Clicking **Enforce** is the console way to do step 2.
+
+![AI Policies list: Candidate with Enforce, and Active](images/pf-token-exchange/guide/i3-ai-policies-page2.png)
+
+Cedar sees only the token's scopes. Other claims (`act.sub`, `client_id`) are not in Cedar yet; use the identity's required claims or the grant's `RequiredClaims` for those.
+
+## Working configuration (verified 2026-10-26, 18:12 UTC)
+
+A PingFederate-issued token was accepted by the gateway and `tools/list` on `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` returned **HTTP 200 with all nine tools**. A garbage bearer still got 401. Gateway log: `workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`, no policy denial. [measured]
+
+Everything below had to be true at the same time:
+
+| Layer | Setting | Value |
+|---|---|---|
+| Gateway | image | `privilege-aigw:v1.261024` or later (discovers tools on a Pass Agent Token agent app from the first agent call) |
+| PF token manager `routeCTestAtm` | audience claim and resource URI | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` |
+| PF mapping `client_credentials\|routeCTestAtm` | `sub`, `client_id` | the client id (`pf-route-c-test`) |
+| PF mapping `client_credentials\|routeCTestAtm` | `act` | expression `#{"sub": "pf-route-c-test"}` (an object, not the text `"{}"`) |
+| NHI `PFtoken` | Issuer / JWKS | `https://cmuir-pf.ping-devops.com` / `https://cmuir-pf.ping-devops.com/pf/JWKS` |
+| NHI `PFtoken` | Subject | `*` (Allow any subject was left **unticked** in the saved, working setup; the agent is pinned by the required claims instead) |
+| NHI `PFtoken` | Audience | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` |
+| NHI `PFtoken` | Required claims | `client_id` = `pf-route-c-test` and `act.sub` = `pf-route-c-test` |
+| NHI `PFtoken` | End user | Opaque — record the end user, never look them up; End-user claim left empty (= `sub`) |
+| Agent key `pftoken-agent` | custodian / scope | NHI `PFtoken` / `mcp` |
+| Agent app `pftoken` | Auth Mode / backend | Pass Agent Token / `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` |
+| Grant | policy | the key's own console-made grant `KarunRiver-5a485737526f`, with a rule added for app `pftoken`, key `pftoken-agent`, the nine tools |
+| Cluster | Service and policies | Service `opensearch-mcp-server` (9900) in `ping-devops-cmuir`; network policies `opensearch-mcp-noget-from-gateways` (cmuir) and `gateways-to-opensearch-mcp-noget` (curtismuir) |
+
+The token that passed (claims only):
+
+```json
+{
+  "iss": "https://cmuir-pf.ping-devops.com",
+  "sub": "pf-route-c-test",
+  "aud": "https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp",
+  "client_id": "pf-route-c-test",
+  "act": { "sub": "pf-route-c-test" },
+  "scope": "openid"
+}
+```
+
+### Screenshots of the working setup (2026-10-26)
+
+Taken with Playwright from the local console after the passing test. Dialogs were opened and cancelled; nothing was saved.
+
+**1. Identity `PFtoken`: issuer, subject `*`, JWKS, End user = Opaque.**
+
+![PFtoken edit, top](images/pf-token-exchange/working/02-nhi-pftoken-edit-top.png)
+
+**2. Identity `PFtoken`: End-user claim empty (uses `sub`), audience = the agent app URL.**
+
+![PFtoken edit, end user and audience](images/pf-token-exchange/working/03-nhi-pftoken-edit-end-user.png)
+
+**3. Identity `PFtoken`: required claims `act.sub` and `client_id` = `pf-route-c-test`.**
+
+![PFtoken edit, required claims](images/pf-token-exchange/working/04-nhi-pftoken-edit-claims.png)
+
+**4. Agent app `pftoken`: Pass Agent Token, noget backend, nine tools discovered.**
+
+![pftoken overview with nine tools](images/pf-token-exchange/working/05-door-pftoken-overview.png)
+
+**5. Agent app `pftoken`, Agent Registry tab: `pftoken-agent` via `KarunRiver-5a485737526f` (the grant that made it work), next to `pftoken-wl`.**
+
+![pftoken agent registry tab](images/pf-token-exchange/working/06-door-pftoken-agent-registry.png)
+
+**6. Agent app `pftoken`, Edit: Auth Mode = Pass Agent Token, MCP Server URL = the noget front.**
+
+![pftoken edit dialog](images/pf-token-exchange/working/09-door-pftoken-edit-auth-mode.png)
+
+### What broke along the way, and the fix
+
+| Symptom (client) | Gateway log | Cause | Fix |
+|---|---|---|---|
+| 401 Unauthorized | `workload token rejected: required claim "act.sub" does not match` | the NHI required `act.sub` = `aud` (a typo), and the token's `act` was the text `"{}"` | set the required claim to the agent id; make PF emit `act` as an object |
+| 401 Unauthorized | no `workload token` line in the first read of the log | same cause as the `act.sub` row above; a later request logged `required claim "act.sub" does not match`. (We first blamed Subject `*` with Allow any subject off; that was wrong: the working setup has exactly that.) | fix the required claim; always read the log line that names the claim |
+| console error on save: "Spec.UserClaim resolves to \"sub\" … every caller reads as the same end user" | — | End user Opaque on `sub` while Subject pins `sub` to one value | widen Subject to `*` + Allow any subject, and pin the agent with a required claim instead |
+| 403 Forbidden | `policy denied PFtoken access to pftoken (agent=true)` | no grant for the key on the agent app | add a rule to the key's existing grant (below) |
+| tools stay empty | `tool discovery for pftoken failed: … no such host` | backend Service deleted | restore the Service; point the agent app at the noget front |
+| 504 / timeouts to the backend | noget log: `upstream timed out` | noget nginx forwards to the deleted Service | restore Service `opensearch-mcp-server`, restart noget |
+| 401, log `auth rejected: reason=token_not_found` (only when a scope is requested) | `auth rejected: reason=token_not_found app=pftoken` | PingFederate served the request from another token manager (audience `enduser.ping.demo`, no `sub`/`act`) | send `resource=<agent app URL>` with the token request |
+| 404 Not found from a new agent app | `rejecting /mcp on app pftoken-rs: outside entry path "/mc"` | the agent app's MCP Server URL was saved ending in `/mc`; the gateway splits the URL path off as the agent app's entry path | edit the agent app: the URL must end in exactly `/mcp` |
+| timeouts from some gateway pods only | — | network policy `ai-demo-internal` blocks the curtismuir gateway pods | add the two narrow policies above |
+
+### How the grant must be made
+
+- **Works:** add a rule to the key's **existing** grant policy (the one the console created for the key, here `KarunRiver-5a485737526f`), through the console's tool-access screen for the key or a `PUT` of that policy. It survived 90 s and the gateway honoured it.
+- **Does not work:** `POST` a **new** separate grant policy for the key. Every one (`pftoken-agent-grant` x4, `tmp-pf-route-c-grant`) was deleted by the gateway within 11 to 80 seconds (`RDP terminate: policy deleted`). The cause is still not known; avoid this route.
+
+## 1. What the agent presents
+
+The token must have the user in `sub` and the agent in `act.sub`. This is the shape from the Ping thread [ping]:
+
+```json
+{
+  "sub": "<user id, e.g. fcarbone>",
+  "aud": "<gateway audience, see section 4>",
+  "act": { "sub": "pf-route-c-test" },
+  "client_id": "pf-route-c-test",
+  "scope": "mcp"
+}
+```
+
+Our route C token is different [measured 2026-10-22]: a client-credentials token with `sub` = `pf-route-c-test`, `client_id` = `pf-route-c-test`, and **no user and no `act`**. That is the autonomous-agent shape. It will not satisfy the recipe in section 3.
+
+## 2. The agent app: `pftoken`
+
+| Setting | Required value | Status |
+|---|---|---|
+| Auth Mode | **Pass Agent Token** (`token-pass`) | **Pass Agent Token, saved 2026-10-26** [measured, console] |
+| MCP Server URL | `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` | Changed 2026-10-26. The old `opensearch-mcp-server…:9900` Service no longer exists; see section 14 [measured] |
+| Mesh cluster | `ai-demo-cmuir` | [measured] |
+| Tools | the nine HITL tools (below) | [measured]: discovery shows none under User Token, and the console can't discover under Pass Agent Token. See section 6. |
+
+The nine tools: `ListIndexTool`, `SearchIndexTool`, `ClusterHealthTool`, `CountTool`, `MsearchTool`, `ExplainTool`, `IndexMappingTool`, `GetShardsTool`, `GenericOpenSearchApiTool`.
+
+Pass Agent Token forwards the agent's verified token to the backend. The backend must accept it. [expected] The `opensearch-mcp-server` does not check PF tokens today; the call is refused before it reaches the backend.
+
+## 3. The identity: NHI `PFtoken` (Suman's recipe)
+
+Suman's configuration [ping], with our names filled in:
+
+| Field | Value | Why |
+|---|---|---|
+| Issuer | `https://cmuir-pf.ping-devops.com` | the PF that signs the token [measured] |
+| JWKS URI | `https://cmuir-pf.ping-devops.com/pf/JWKS` | [measured] |
+| Subject | `*`, Allow any subject **on** | the user is in `sub`; a pinned subject would be the agent |
+| Audience | the gateway audience, see section 4 | RFC 7519: the gateway must be in `aud` |
+| Required claim | `act.sub` = `pf-route-c-test` | accept only tokens acting for this agent |
+| UserClaim | `sub` | the user comes from `sub` |
+| SubjectBinding | `resolved`, or `opaque` if the user is not in Privilege | shows the user in the audit log |
+| Scopes | `mcp` only | least privilege |
+| Max lifetime | 7200 s | [expected] |
+
+Our current `PFtoken` values [measured 2026-10-22]:
+
+| Field | Current |
+|---|---|
+| Subject | `pf-route-c-test`, any-subject off |
+| Required claim | `client_id` = `pf-route-c-test` |
+| Audience | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` |
+| Scopes | `shadowai:write, llm, policy:read, mcp, a2a` |
+| SubjectBinding | empty |
+| UserClaim | empty |
+
+Changing these from the pinned-agent shape to the table above is a change to a live identity. Key `pftoken-agent` depends on it.
+
+## 4. Audience
+
+- Suman [ping]: the gateway must be in `aud`, and the audience cannot be a wildcard. A per-MCP audience is not supported today. The intended route is OBO, which is in staging and due in the release at the end of next week.
+- Suman offered an allow-list of audiences as a possible change. Not built.
+- Our current test uses the agent app URL as the audience [measured], which is per-MCP. The gateway accepted the token on that audience. So an exact-match agent app URL works. Whether a per-MCP audience is allowed in production is open.
+
+## 5. The grant
+
+- Key `pftoken-agent` on app `pftoken`, tools = the nine tools. Create it in the console (Create Policy on the `pftoken` page). [measured] Entities on that page: the policy is attached to the custodian user, and `pftoken-agent`'s custodian is the NHI `PFtoken`, not a user. Whether the console lists NHI-custodied keys is unknown.
+- Do not create it through the API. [measured] Every API-created copy was deleted by the gateway within 11 to 80 seconds. Cause unknown; see section 7.
+- Do not press Sync after saving. [measured]: it did not populate the tools list, and it may reconcile policies.
+
+## 6. Why Pass Agent Token blocks the console
+
+- The console's "Create Policy" dialog needs discovered tools. [measured]: "No Tools, Prompts, or Resources Discovered".
+- Discovery is an admin call with no agent token. Under Pass Agent Token it has nothing to forward, so it finds no tools. [expected]
+- Under User Token discovery did not populate either, even after Sync. [measured] `opensearch-hitl` on the same backend and User Token does discover all nine. So `pftoken`'s own settings differ somewhere. The Activity Logs tab on `pftoken` should show the error.
+
+**Open:** can Privilege discover tools on a Pass Agent Token agent app at all? If not, the grant must come from another route. Ask Privilege.
+
+## 7. Grant deletions (unexplained)
+
+`pftoken-agent-grant` was created through the API three times and deleted by the gateway each time [measured]:
+
+| Created (CDT) | Deleted (CDT) |
+|---|---|
+| 10:24 | 10:24:21 |
+| 10:43:40 (with `ObjectMeta.ID`) | 10:45:06 |
+| 10:48:52 | 10:49:03 |
+
+The log says `RDP terminate: policy deleted — policy=pftoken-agent-grant`. No requester is recorded. The `ObjectMeta.ID` made no difference. Check the Activity Logs tab on `pftoken`, and ask other sessions whether they run grant cleanup.
+
+## 8. Deploy and use
+
+Deploy here means the console configuration above. There is no image or container to ship.
+
+1. **Agent app:** set `pftoken` to Pass Agent Token. Save. (Console, Edit.)
+2. **Identity:** set NHI `PFtoken` to section 3. Read back.
+3. **PF token exchange:** the exchange already exists on the shared token manager `aiDemoPfJwtAtm` [measured 2026-10-25]: token-exchange mappings `aiDemoStandardTePolicy`, `aiDemoPfStep9TePolicy` and `aiDemoSpiffeTePolicy` set `sub` = the subject token's subject, `act` = `{sub: spiffeId, act: priorAct}`, and `client_id`. It was built for the OBO demo. What is not tested is whether an exchange for our agent yields `act.sub` = `pf-route-c-test`, and with the audience in section 4. Next step: run one exchange with a user subject token and read the claims.
+4. **Discovery:** make one agent call with the token (step 7 works for this even before the grant exists; it is refused on policy but triggers discovery). Then confirm the nine tools on `pftoken` (Overview tab). Needs gateway v1.261024 or later and a backend URL that resolves (section 14).
+5. **Grant:** create the policy for `pftoken-agent` with the nine tools. Save. Do not sync.
+6. **Check persistence:** the grant must still exist 90 seconds later. If not, stop and find the deleter.
+7. **Use:** the agent calls `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` with the exchanged token as the bearer, and calls `tools/list` then one tool.
+
+## 9. Test
+
+Expected results when everything is in place:
+
+| Call | Expected |
+|---|---|
+| exchanged token, `tools/list` | 200 with the nine tools |
+| exchanged token, tool call | 200 (a `SearchIndexTool` call is HELD by the HITL rule until approved) |
+| garbage bearer | 401 `Bearer token required` |
+| exchanged token with no `act.sub` | refused at the NHI required claim, not on policy |
+| a client-credentials token (route C shape) | refused at the NHI required claim (`act.sub` missing) |
+
+The gateway log should show, in order: `workload token accepted for key pftoken-agent`, then no `policy denied`. Refusals show as `policy denied PFtoken access to pftoken` (policy) or `auth rejected` (sign-in).
+
+Our current test [measured 2026-10-22] reached the policy step and was refused, because the grant is missing.
+
+## 10. Open questions
+
+1. ~~Can Privilege discover tools on a Pass Agent Token agent app?~~ **Answered (gateway v1.261024):** yes, from the first accepted agent call. It needs a backend URL that resolves (section 14).
+2. Does the console list NHI-custodied keys in Create Policy? (blocks step 5)
+3. What deletes `pftoken-agent-grant`? (blocks step 6)
+4. Is a per-MCP audience acceptable in production, or must it be the gateway? (Suman says gateway)
+5. Does PF issue the exchanged token with `act.sub` and `sub` as section 1 needs? (exchange exists for OBO; the claims for our agent are untested)
+6. When does `context.token.claims["act.sub"]` reach Cedar? (Suman: next release)
+
+## 11. Ping thread, summarized
+
+- Federico (2026-10-23): the agent's token has user in `sub` and agent in `act.sub`; Privilege expects the agent id in `sub`. The attributes are inverted for OBO. Audience should live with the MCP, not the agent. The logs and policies should resolve both attributes.
+- Suman (2026-10-23): the subject config is the issue. Use Subject `*` (or AllowAnySubject), `RequiredClaims["act.sub"]` = the agent, `UserClaim` = `sub`, `SubjectBinding` = `resolved` (or `opaque`). The audience must include the gateway; OBO is the intended route. Cedar `context.token.claims` checks are coming in the next release.
+
+## 12. Test results, 2026-10-25
+
+What was checked, and what could not be checked.
+
+| Check | Result | Tag |
+|---|---|---|
+| Shared manager `aiDemoPfJwtAtm`: Option A `CLIENT_CREDENTIALS` mapping (`sub` = client id, plus `act`, `Username`, `spiffeId`) | **Gone.** Removed. The cleanup item is done. | [measured] |
+| Shared manager: token-exchange mappings | Present. Fill `sub`, `act`, `client_id`, `scope`, `spiffeId`. Built for the OBO demo. | [measured] |
+| Client `pf-route-c-test` | Permanent demo client (renamed "Privilege PF token demo agent" on 2026-10-28; the id stays because the identity's required `client_id` claim, the demo env and the secret all use it). Do not delete. | [measured] |
+| Token manager `routeCTestAtm` | Exists. Audience and resource URI = the `pftoken` agent app URL. | [measured] |
+| Privilege console (`local.procyon.ai:8643`) | **Down** at 2026-10-25, even after reopening PingOne Privilege. Cannot read or change Privilege. Auth mode, grants and tool discovery were not re-read. | [measured] |
+| Demo page `https://ai-demo.ping-devops.com/privilege-ai-policies`, hold scenario | **Not run.** The browser extension was not connected, so the page could not be opened from here. | not tested |
+| Demo user's access to `opensearch-hitl` | **Not settled.** `opensearch-hitl` is on User Token, which should remove the 403 that the demo user saw, but nobody has run it. | not tested |
+| `pftoken` auth mode | **User Token** (saved). The Pass Agent Token seen in a 2026-10-25 dialog was not saved. The target for this guide is Pass Agent Token; switching back is still to do. | [measured, console screenshot] |
+| `pftoken` tool discovery | Overview says "Awaiting first user credential - tools will be discovered on first sign-in". Under User Token, discovery waits for a person to sign in to the agent app once. Nobody has, so Tools is empty. | [measured, console screenshot] |
+| `pftoken` Activity Logs, 2026-10-18 to 2026-10-25 | **No data.** The grant deletions are not recorded on this tab. | [measured, console screenshot] |
+| `pftoken` Agent Registry tab | One access config: key `pftoken-wl`, policy `SlaveRiver-3869364f3144`, expires 2026-11-21. `pftoken-agent` has no access config on this agent app. | [measured, console screenshot] |
+
+Still to run: the demo page's hold scenario in a signed-in browser.
+
+## 13. Console walkthrough (screenshots, 2026-10-25)
+
+Taken with Playwright against the local console (`https://local.procyon.ai:8643`, signed in as the tenant admin). Dialogs were opened and cancelled; nothing was saved.
+
+### Non-Human Identities list
+
+![Non-Human Identities list](images/pf-token-exchange/03-nhi-list.png)
+
+`PFtoken` is an OIDC Provider identity with subject `pf-route-c-test`. End user shows "not resolved". Scopes: `shadowai:write`, `llm`, `policy:read`, `mcp`, `a2a`.
+
+### Edit PFtoken: identity, keys, permissions, end user
+
+![Edit PFtoken, upper half](images/pf-token-exchange/11-nhi-pftoken-edit.png)
+
+Where Suman's recipe goes in this screen:
+
+| Recipe field | Console control | Current | Recipe |
+|---|---|---|---|
+| Subject | Subject (sub) | `pf-route-c-test` | `*`, with Allow any subject on (lower half) |
+| UserClaim + SubjectBinding | End user → "End user in a presented token" | None — the identity is the only principal | Resolved (or Opaque if the user is not in Privilege), claim `sub` |
+| Scopes | Permissions | all five ticked | `mcp` only |
+| JWKS | Key source → Fetch from URL | `https://cmuir-pf.ping-devops.com/pf/JWKS` | unchanged |
+
+The console note under End user: "Only Resolved enables per-user model rules on an access key that names this identity as custodian."
+
+### Edit PFtoken: subject, audience, required claims
+
+![Edit PFtoken, lower half](images/pf-token-exchange/12-nhi-pftoken-edit-lower.png)
+
+| Recipe field | Console control | Current | Recipe |
+|---|---|---|---|
+| Allow any subject | checkbox | off | on |
+| Audience | Audience | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` | the gateway audience (section 4) |
+| Required claims | Required claims | `client_id` = `pf-route-c-test` | `act.sub` = `pf-route-c-test` |
+| Max token lifetime | Max token lifetime (seconds) | 0 (controller default, 3600) | 7200 |
+
+The page header says the audience cannot be changed in the console ("every deployed workload is bound to them"). We changed it through the API on 2026-10-22 and the gateway honoured it. Treat a console-side audience change as "register a new identity".
+
+### The `pftoken` agent app: Overview
+
+![pftoken Overview](images/pf-token-exchange/20-app-pftoken-overview.png)
+
+Auth Mode is User Token. Tools, Prompts and Resources are empty, with the banner "Awaiting first user credential - tools will be discovered on first sign-in".
+
+### The `pftoken` agent app: Edit (Auth Mode)
+
+![pftoken Edit dialog](images/pf-token-exchange/24-app-pftoken-edit.png)
+
+For this guide, set Auth Mode to **Pass Agent Token** and Save. Under User Token, the console says the token "will be sourced automatically from the user's vault credential at request time".
+
+### The `pftoken` agent app: Access Summary and Agent Registry
+
+![pftoken Access Summary](images/pf-token-exchange/21-app-pftoken-access-summary.png)
+
+![pftoken Agent Registry tab](images/pf-token-exchange/23-app-pftoken-agent-registry.png)
+
+The agent app has one entity (AI Agent DemoAdmin) and one policy (`SlaveRiver-3869364f3144`), which is the access config for key `pftoken-wl`. The key the PF token actually maps to, `pftoken-agent`, has no access config here. That is the missing grant.
+
+## 14. Gateway v1.261024 (2026-10-26): what changed, and how to troubleshoot
+
+The gateway was updated to `privilege-aigw:v1.261024`. With it, a Pass Agent Token agent app **discovers its tools from the first agent call** instead of needing a person to sign in.
+
+### What the console shows
+
+Before the first agent call, on Pass Agent Token:
+
+![pftoken on Pass Agent Token, awaiting first agent call](images/pf-token-exchange/31-pftoken-overview-passagent.png)
+
+The banner reads "Awaiting first agent call - tools will be discovered from a forwarded assertion". The equivalent banner on User Token reads "Awaiting first user credential - tools will be discovered on first sign-in" (section 13).
+
+| Banner | Auth mode | What triggers discovery |
+|---|---|---|
+| Awaiting first user credential - tools will be discovered on first sign-in | User Token | A person signs in to the agent app once |
+| Awaiting first agent call - tools will be discovered from a forwarded assertion | Pass Agent Token | The first agent call with a token the gateway accepts |
+
+### What happened on the first agent call
+
+The PF token call (2026-10-26 10:39 UTC) produced, in order [measured, gateway log]:
+
+1. `mcpgw: workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`
+2. `[mcpgw] policy denied PFtoken access to pftoken (agent=true): Access Denied for` (no grant for `pftoken-agent`)
+3. `[mcpgw] tool discovery for pftoken failed: calling "initialize": ... dial tcp: lookup opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local on 172.20.0.10:53: no such host`
+
+So discovery **was** triggered by the agent's call, even though the call itself was refused on policy. It failed because the agent app's backend URL pointed at a Kubernetes Service that no longer exists.
+
+### The backend fix
+
+- `opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local:9900` has no Service in `ping-devops-cmuir`. The OpenSearch MCP server now runs as a container inside the gateway pod, and the in-cluster address is `opensearch-mcp-noget` (port 80, endpoint on 8080; the nginx front that refuses `GET /mcp`).
+- Both `pftoken` and `opensearch-hitl` were moved to `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` on 2026-10-26. Auth modes unchanged: `pftoken` Pass Agent Token, `opensearch-hitl` User Token.
+- `opensearch-hitl` is the agent app behind the AI Policies demo page. Its nine tools were listed from an earlier discovery, but any call forwarded to the backend (the "allow" scenario, a retry after approval) would have failed until this change.
+
+![pftoken after the backend change](images/pf-token-exchange/41-pftoken-overview-after.png)
+
+![opensearch-hitl after the backend change](images/pf-token-exchange/41-opensearch-hitl-overview-after.png)
+
+The second PF call after the change (11:11 UTC) was accepted and refused on policy again, and logged no discovery error. Whether `pftoken` now lists its nine tools has to be read in the console (Overview, Tools). Next step after that: create the policy for `pftoken-agent` (section 5), then rerun the test (section 9).
+
+### Finding the right gateway log
+
+The public host `mcpgw.ai-demo.ping-devops.com` is fronted by `mcpgw-lb`, which spreads requests over **three** gateway pods in two namespaces. A request is logged only on the pod that served it, so search all three:
+
+```bash
+kubectl --context us -n ping-devops-cmuir     get pods | grep agentless-mcpgw
+kubectl --context us -n ping-devops-curtismuir get pods | grep agentless-mcpgw
+# then, for each pod:
+kubectl --context us -n <namespace> logs <pod> --all-containers --since=5m \
+  | grep -E 'workload token|policy denied|tool discovery|auth rejected' | grep -i pftoken
+```
+
+The request lines are in the log-tailer output, so `--all-containers` is needed.
+
+| Log line | Meaning | Fix |
+|---|---|---|
+| `workload token accepted for key <key> issuer=… subject=…` | The NHI check passed (issuer, audience, subject, required claims, lifetime) | none |
+| `policy denied <NHI> access to <app> (agent=true)` | No grant for that key on that agent app | create the policy for the key (section 5) |
+| `tool discovery for <app> failed: … no such host` | The agent app's backend URL does not resolve | fix the MCP Server URL (this section) |
+| `auth rejected: reason=token_not_found` | Logged after a policy denial for the same request; it is the refusal, not a second cause | as above |
+| no `workload token` line at all | The token was not recognised as a workload token: check issuer, audience, subject, required claims and lifetime against the NHI | section 3 |
+
+The client only ever sees a bare `403 Forbidden` for a policy denial, and `401 Bearer token required` for a token the gateway did not accept at all. The log is the only place that says which.
+
+### Claims you can check today (Suman, 2026-10-23)
+
+- Claim conditions can be set today in the **Access Policy** step of the Agent Registry creation flow, on four fixed claims only: **scopes, `client_id`, subject, issuer**.
+- Cedar cannot read token claims yet. `context.token.claims` (including `act.sub`) is coming in the next release.
+- The audience must contain the gateway; a wildcard is not allowed (RFC 7519 §4.1.3). OBO, in staging and due at the end of next week, is the intended route for per-MCP audiences. An allow-list of audiences is possible on request.
+
+## 15. Proving the passthrough: `whoami` behind agent app `pftoken-rs` (2026-10-27 UTC)
+
+**Question:** with Pass Agent Token, does the MCP server really get the agent's PingFederate token, or a gateway credential? **Answer [measured]:** the agent's own token. The MCP server verified it against PingFederate's JWKS and reported its claims.
+
+### What was set up
+
+| Where | Setting | Value |
+|---|---|---|
+| MCP resource server (`demo_mcp_resource_server`) | new tool `whoami` (scope `whoami:read`) | returns the issuer, subject, `act`, audience, `client_id` and scope of the token it verified, plus every claim in it (`claims`); never the token |
+| MCP resource server | trust PingFederate | `PF_ISSUER=https://cmuir-pf.ping-devops.com`, `PF_JWKS_URI=https://cmuir-pf.ping-devops.com/pf/JWKS`; the `pftoken` agent app URL added to `MCP_RESOURCE_SERVER_RESOURCE_URI` (the accepted audiences) |
+| k8s | network policies | `mcp-resource-server-from-gateways` (ingress, port 8081) and `gateways-to-mcp-resource-server` (egress from the curtismuir gateway pods), `k8s/aws/mcp-resource-server-from-gateways.yaml` |
+| PingFederate, mapping `client_credentials\|routeCTestAtm` | scope | TEXT `openid whoami:read` |
+| P1 Privilege Agent App | `pftoken-rs` | MCP Server, URL `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp`, Auth Mode **Pass Agent Token**, mesh `ai-demo-cmuir` |
+| Privilege grant | `KarunRiver-5a485737526f` | a third rule added by `PUT`: agent app `pftoken-rs`, key `pftoken-agent`, tool `whoami` |
+
+No change to the identity `PFtoken` or the key `pftoken-agent`. The same token works on both agent apps: the audience is still the `pftoken` agent app URL, and the identity checks the audience, not the agent app it arrives at.
+
+### What happened
+
+1. First call: 404. Gateway log: `rejecting /mcp on app pftoken-rs: outside entry path "/mc"`. The URL had been saved ending in `/mc`. Fixed in the agent app's Edit dialog.
+2. Second call: 403, `workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`, then `policy denied PFtoken access to pftoken-rs`, then `discovered 35 tools for app pftoken-rs`. Accepted, no grant yet, tools discovered.
+3. After the grant rule: `tools/list` 200 with `["whoami"]`, and `tools/call whoami` 200:
+
+```json
+{
+ "verifiedBy": "mcp-resource-server",
+ "issuer": "https://cmuir-pf.ping-devops.com",
+ "subject": "pf-route-c-test",
+ "actor": { "sub": "pf-route-c-test" },
+ "audience": "https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp",
+ "clientId": "pf-route-c-test",
+ "scope": "openid whoami:read"
+}
+```
+
+Two layers each cut the tool list: the grant (one tool on this agent app) and the MCP server's own scope filter (only tools whose scope is in the token). The 35 is most likely the gateway's own scan of the backend when the agent app is created or re-synced (log line `MCP force-sync app=pftoken-rs: LastDiscoveredAt reset — re-scanning`): that scan uses the gateway's credential, not the agent's token, so it sees the backend's whole catalog. This is an inference from the log, not confirmed with Ping; what the agent can list and call is still cut to the grant and the token's scopes (measured: 9 / 3 / 403).
+
+The demo page shows this live: [https://ai-demo.ping-devops.com/privilege-pf-token](https://ai-demo.ping-devops.com/privilege-pf-token), panel "What the backend received": every claim PingFederate put in the token beside the same claim as the backend verified it, one row per claim. The page's sections collapse.
+
+## 16. Scope tiers with `RequiredClaims` on grant rules (measured 2026-10-27)
+
+A grant rule (`pacpolicys` → `Spec.ActionMap.MCP.PolicyRule[]`) has a `RequiredClaims` field: claims the presented token must carry for that rule to apply. It is not Cedar. We tested it on `pftoken-agent`'s grant `KarunRiver-5a485737526f` with a PingFederate token whose `scope` is `openid whoami:read`.
+
+**Format.** Each claim's value is a list:
+
+```json
+"RequiredClaims": { "Map": { "scope": { "Elems": ["whoami:read"] }, "act.sub": { "Elems": ["pf-route-c-test"] } } }
+```
+
+A plain string value is refused with 400 `cannot unmarshal string into Go value of type map[string]json.RawMessage`.
+
+**What we measured** (each change took effect in about 20 seconds):
+
+| Rule condition | Token | Result |
+|---|---|---|
+| `act.sub` = `pf-route-c-test` | matches | 200 |
+| `act.sub` = `some-other-agent` | does not match | 403 on `tools/list` and `tools/call` |
+| `scope` = `whoami:read` | scope `openid whoami:read` | 200: each scope is matched on its own |
+| `scope` = `openid whoami:read` (whole string) | same token | 403: the whole string is not one scope |
+| `scope` = [`opensearch:admin`, `whoami:read`] | same token | 200: a list means any of |
+
+**Tiers.** Two rules for the same app (`pftoken`) and key, different tools and different conditions:
+
+| Rule 1 (3 read tools) | Rule 2 (all 9 tools) | Result for the same token |
+|---|---|---|
+| `scope` has `whoami:read` | `scope` has `opensearch:admin` | 200, 3 tools |
+| `scope` has `opensearch:admin` | `scope` has `whoami:read` | 200, 9 tools |
+| `scope` has `opensearch:read` | `scope` has `opensearch:admin` | 403, 0 tools |
+
+**Traps.**
+
+- To remove a condition, delete the `RequiredClaims` field from the rule. A PUT with `{"Map": {}}` is ignored and the old condition stays.
+- The gateway log line for a claim mismatch was not found; the client only sees 403.
+
+### The tiers as set up for the demo page
+
+**PingFederate.**
+
+- Scopes `opensearch:admin`, `opensearch:read`, `opensearch:search` and `whoami:read` added to the authorization server's scope list (added only). The client `pf-route-c-test` does not restrict scopes.
+- The `scope` attribute was removed from the token manager `routeCTestAtm` and its client-credentials mapping (it was the fixed text `openid whoami:read`). The manager now writes the granted scopes into `scope` itself (its Scope Claim Name).
+- **Send `resource=<agent app URL>` with every token request.** Without it, a request that names a scope is served by a different token manager: audience `enduser.ping.demo`, no `sub`, no `act`. The gateway then logs `auth rejected: reason=token_not_found` and answers 401. We hit this on 2026-10-27; a request with no scope still picked the client's default manager, which hid it.
+
+**Privilege.** The key's grant `KarunRiver-5a485737526f` has two rules for `pftoken`:
+
+| Rule | Tools | `RequiredClaims` |
+|---|---|---|
+| full | all 9 | `scope` has `opensearch:admin` |
+| read | `ListIndexTool`, `SearchIndexTool`, `CountTool` | `scope` has `opensearch:read` |
+
+`pftoken-rs` (`whoami`) has no condition.
+
+**The page.** Run mints three tokens for the same agent: `openid opensearch:admin whoami:read` (also used for the main answer and `whoami`), `openid opensearch:read`, and `openid whoami:read`, and shows what the agent app answered for each.
+
+## 17. Gateway v1.261029, v1.261030 and v1.261102 (read 2026-11-01 and 2026-11-02, not run)
+
+We found no Ping release notes for these tags, and we tried none of their features; the only runs are gateway 2 of our SE mesh running `v1.261102` and a `tools/list` sent to it (below). This section is what we can read from the public image repository, the `mcpgw` binary in each image and the console API spec. It is **[expected]** at best: every "what it does" line is our reading of a symbol or message name. The live page is `/gateway-claims`, parts 6 and 7. The v1.261028 step (AgentCore governance) is part 5 of that page.
+
+**Method.** Anonymous registry reads only (public ECR token, then tag list, manifests and blobs; nothing sent to a tenant, cluster or gateway). Take the `linux/amd64` manifest (the index also lists two attestation manifests with no `config`; skip them), download the `mcpgw` and `cyctl` layer blobs, check each blob's SHA-256 against its digest, and extract only `/procyon/bin/mcpgw` and `/procyon/bin/cyctl`. No Go toolchain was available, so symbols were listed with `llvm-nm` (type letter and full name kept), `sort -u`, and the two lists compared with `comm`; strings were listed the same way with `strings -a -n 8`. The string diff is noisy because Go packs strings together, so a changed line is not a changed string: read names and messages by searching the binary for them. Counted this way `v1.261029` to `v1.261030` gives 25 added and 22 removed, against the 24 and 22 in the table below, which are left as they were. Keeping only the first whitespace-separated word of each name (2,703 names contain spaces and get cut) gives 25 and 21; keeping the full name without the type letter gives 25 and 22 again.
+
+**[measured]** on 2026-11-02 (the swagger and registry rows re-read that day):
+
+| Fact | Value |
+|---|---|
+| Newest tag in the public repository | `v1.261102` (index digest `sha256:36d29c0a0ea0575706819f23f2783e4f3a6aeb5f604d6d1717de66333b8eae47`, built 2026-11-02 15:43 UTC). No tag is newer. `latest` is still `v1.261030` (digest `sha256:62037874a437b4fb60c85f5f7f889909e9fdb66b9f27558002f331917ee98298`). |
+| Our SE mesh | mixed-version on 2026-11-02. Gateway 2 (the namespace we rolled: gateway container only, explicit tag, not `latest`) ran `v1.261102`: pod became ready, 10 of 10 containers, 0 restarts, empty log tail. Gateway 1, the front node in a different namespace, still runs `v1.261030`, and the public hostname may route to either node. One `initialize` and `tools/list` returned 6 tools, the same as the 2026-11-01 baseline, once through the public gateway hostname with the worker key and once sent straight to gateway 2's in-cluster service. A comparison with a second, lower-entitled key was **not** done, and no release feature was tried |
+| Console API spec (swagger) | byte for byte identical to the 2026-10-31 baseline (and to the 2026-11-01 fetch): 447 operations, 644 definitions |
+| Ping's public release notes | checked 2026-11-02 (PingOne Privilege release notes page and a web search), nothing found for any of these tags or the five features below; last entry 2026-07-13 (an absence seen from one look, not a statement from Ping) |
+
+| Tag | Built (UTC) | `mcpgw` binary (bytes) | Symbols against the tag before |
+|---|---|---|---|
+| `v1.261028` | 2026-10-28 17:30 | 244,454,104 | base |
+| `v1.261029` | 2026-10-29 09:15 | 244,558,704 | 80 added, 26 removed |
+| `v1.261030` | 2026-10-30 16:01 | 244,570,600 | 24 added, 22 removed |
+| `v1.261102` | 2026-11-02 15:43 | 244,584,504 | 32 added, 25 removed (25 of each are compiler temporaries: 7 named added, 0 named removed) |
+
+Symbol counts include compiler temporaries. Only the `mcpgw` and `cyctl` layers and a small time-zone data layer differ between the tags. Between `v1.261030` and `v1.261102`, 4 of 10 layers differ (time-zone data, directory setup, `mcpgw`, `cyctl`) and 6 are byte-identical, on both `linux/amd64` and `linux/arm64`; the start command (`/procyon/bin/mcpgw`, no entrypoint), the 7 environment variable names and the 3 labels are identical. Compressed layers: 286,802,980 to 286,812,214 bytes (`amd64`), 262,394,144 to 262,402,758 (`arm64`); `cyctl` goes 239,959,232 to 239,959,016 bytes.
+
+**[expected]** what changed since `v1.261028` (readings of the binary, none run). All `v1.261102` rows were read on 2026-11-02:
+
+| Tag | Change | Evidence in the binary |
+|---|---|---|
+| `v1.261029` | A rejected human-approval hold is remembered, so the same request is not held again | `aipolicy.(*PendingIndex).RememberRejected`, `LookupRejected`; message "the same request will not be held again". `watcher.rejectionHorizon` is a symbol in `v1.261029` and gone as a symbol in `v1.261030`; we do not know why |
+| `v1.261029` | Alias handling in the AI policy engine | `Registry.Canonicalize`, `ResolveIdentities`, `aliasIndex`, `groupAliasIndex`, `rewriteAliasUIDs` |
+| `v1.261029` | A login refusal path | `mcpgw.(*Server).refuseLogin`, `aiPolicyPrincipal` |
+| `v1.261029` | GitHub Copilot as a managed coding agent | `codingagent.copilotArgs`, `copilotEvent`, `copilotResult`, `copilotTool`; path `/etc/github-copilot/policy.d/privilege.json` |
+| `v1.261029` | More AgentCore inventory and rate-limit helpers | `aws.MergeAgentCoreInventoryJSON`, `RegionFromARN`, `listGatewayRateLimits`, `updateGatewayRateLimit` |
+| `v1.261029` | Workload pinning steered to the runtime authorizer | one message naming runtime-level pinning (`hostingEnvironments`) as the supported control |
+| `v1.261030` | AgentCore rate-limit delete, resource-policy grading, rule listing | `aws.DeleteAgentCoreGatewayRateLimit`, `gradeResourcePolicy`, `listOneGatewayRules`; the message says `<gatewayID>/<rateLimitID>` where `v1.261029` says `<ruleID>` |
+| `v1.261102` | Claims read from the sign-in token, and a warning when there are none | `mcpgw.withIDPClaims`, `(*AccessToken).EndUserResolved`, `(*AccessToken).KeyType`; `workloadid.SessionClaims`, `readClaims`, `ErrNotJWT`; `llmgw.endUserOf`; message "[mcpgw] login token for app %s carries no usable claims, so claim-conditioned rules will not match". We do not know when it triggers or what `KeyType` returns |
+| `v1.261102` | Two names we cannot place | `RequesterResolved` and `routingError`, neither in `v1.261030` |
+
+The second binary in the image, `cyctl`, gained the same AgentCore helpers and lost none. We have no confirmed reason for the `v1.261030` rebuild.
+
+Apart from the `v1.261102` rows above, the two binaries show no meaningful difference beyond build metadata: the embedded version string, the build time (`Built on` 2026-11-02 15:37 against 2026-10-30 15:55) and the source revision. `cyctl` gains the one symbol `workloadid.ErrNotJWT`. None of this was run.
+
+### Not yet measured: the 2026-11-02 Agent Privilege release
+
+Ping's public notes do not describe the 2026-11-02 release (checked 2026-11-02), and we have not confirmed that `v1.261102`, the tag dated that day, is that release. Gateway 2 of our SE mesh ran `v1.261102` and gateway 1 still runs `v1.261030`; only that pod becoming ready and the same 6 tools from `tools/list` were observed. No symbol or message in `v1.261029`, `v1.261030` or `v1.261102` matches these five features (the nearest, in `v1.261102`, are the claim and end-user names above, which we cannot tie to any of them). All are **UNVERIFIED** on our tenant:
+
+| Feature | Our reading of the name | What a test needs |
+|---|---|---|
+| Entitlement-aware discovery | `tools/list` shows a caller only the tools its entitlements allow | Two agent keys with different entitlements, the same `tools/list` with each, compare. Creating the lower-entitled key is a tenant write |
+| Aggregate cap | A cap counted across calls together, not per key | A low-cap test key and a small burst until the first refusal. Keep the burst small |
+| OBO redeem | An agent redeems a delegated token for a call made for a user | A PingFederate token that acts for a user, and an agent app set to accept it; compare `sub` and `act` at the backend |
+| Scope layers | Tools layered by token scope; may be the same as section 16 | Repeat the section 16 tier run on `v1.261102`: a token with `opensearch:admin` gave 9 tools, `opensearch:read` gave 3, and a token with neither (for example `openid` alone) gave 403 |
+| Hold | A tool call waits for a human to approve it | An AI policy that returns the approval action, then approve one call, reject one, and retry the rejected one |
+
+**When the release is confirmed**, repeat the three checks the baseline was taken for: look for an image tag newer than `v1.261102` (and whether `latest` has moved off `v1.261030`), fetch the console swagger and diff it against the 2026-10-31 baseline, and repeat `tools/list` with a second, lower-entitled key as well as the worker key (6 tools on `v1.261030` and on `v1.261102`), on `v1.261102`.
+
+## Related
+
+- `PF-TOKEN-ON-PRIVILEGE-STATUS.md`: status, object table, restart checklist.
+- `PF-CLAIMS-IN-CEDAR-POLICIES.md`: what Cedar can and cannot read.
+- `WORKLOAD-IDENTITY-AGENT-CALLERS.md`: the workload identity setup.

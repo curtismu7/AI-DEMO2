@@ -33,4 +33,48 @@ describe('ConsentMockPhoneFlow', () => {
     fireEvent.click(screen.getByText('Deny on mock phone'));
     await waitFor(() => expect(screen.getByTestId('consent-outcome').textContent).toMatch(/Denied/));
   });
+
+  describe('embedded in another page', () => {
+    it('drops the page heading and reports the answer once through onDecision', async () => {
+      const onDecision = vi.fn();
+      render(<ConsentMockPhoneFlow embedded scenario={scenario} onDone={vi.fn()} onDecision={onDecision} />);
+      await screen.findByTestId('consent-mock-phone');
+      expect(screen.queryByRole('heading', { name: /Transaction Consent/ })).toBeNull();
+      expect(onDecision).not.toHaveBeenCalled(); // still pending: nothing to report yet
+
+      apiClient.post.mockResolvedValueOnce({ data: { ...pendingView, state: 'approved' } });
+      fireEvent.click(screen.getByText('Approve on mock phone'));
+      await waitFor(() => expect(onDecision).toHaveBeenCalledWith('approved'));
+      expect(onDecision).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a denial', async () => {
+      const onDecision = vi.fn();
+      render(<ConsentMockPhoneFlow embedded scenario={scenario} onDone={vi.fn()} onDecision={onDecision} />);
+      await screen.findByTestId('consent-mock-phone');
+      apiClient.post.mockResolvedValueOnce({ data: { ...pendingView, state: 'denied' } });
+      fireEvent.click(screen.getByText('Deny on mock phone'));
+      await waitFor(() => expect(onDecision).toHaveBeenCalledWith('denied'));
+    });
+
+    it('hands a failed start to onError with the HTTP status so the host can ask for sign-in', async () => {
+      apiClient.post.mockReset();
+      const failure = Object.assign(new Error('Sign in first'), { response: { status: 401, data: { message: 'Sign in first' } } });
+      apiClient.post.mockRejectedValueOnce(failure);
+      const onError = vi.fn();
+      render(<ConsentMockPhoneFlow embedded scenario={scenario} onDone={vi.fn()} onError={onError} />);
+      await waitFor(() => expect(onError).toHaveBeenCalledWith(failure));
+      expect(screen.getByRole('alert')).toHaveTextContent('Sign in first');
+    });
+
+    it('offers Close once answered, not "Pick another scenario"', async () => {
+      render(<ConsentMockPhoneFlow embedded scenario={scenario} onDone={vi.fn()} />);
+      await screen.findByTestId('consent-mock-phone');
+      apiClient.post.mockResolvedValueOnce({ data: { ...pendingView, state: 'approved' } });
+      fireEvent.click(screen.getByText('Approve on mock phone'));
+      await screen.findByTestId('consent-outcome');
+      expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Pick another scenario' })).toBeNull();
+    });
+  });
 });

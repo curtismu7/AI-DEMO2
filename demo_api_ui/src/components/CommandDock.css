@@ -127,3 +127,13 @@
   height: 100%;
   box-sizing: border-box;
 }
+
+/* Quick Config sits above the Session section so its floating panel opens
+   from the top of the dock instead of hanging off the bottom of the screen. */
+.cmd-dock-quickconfig {
+  padding-bottom: 10px;
+}
+.cmd-dock-quickconfig .ba-header-more,
+.cmd-dock-quickconfig .ba-cta-config {
+  width: 100%;
+}

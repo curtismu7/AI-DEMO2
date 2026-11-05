@@ -129,15 +129,20 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
     expect(await screen.findByText('← Back to Authorize Inspector')).toBeInTheDocument();
   });
 
-  test('mode chip is Live when loaded (even when the engine is simulated) and Unavailable when the live-policy fetch fails', async () => {
+  test('opens in Mock; Real P1AZ shows Real P1AZ when loaded and Unavailable when the live-policy fetch fails, while Mock keeps working', async () => {
     const { unmount } = render(<PingOneAuthorizePage />);
     await screen.findByRole('heading', { name: 'Authorize Inspector' });
-    expect(screen.getByText('Live', { selector: '.insp-chip' })).toBeInTheDocument();
+    expect(screen.getByText('Mock', { selector: '.insp-chip' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+    expect(screen.getByText('Real P1AZ', { selector: '.insp-chip' })).toBeInTheDocument();
     unmount();
     bffAxios.get.mockImplementation((url) => (url === '/api/authorize/pingone-live-policy'
       ? Promise.reject(new Error('boom'))
       : Promise.resolve({ data: { policies: [], decisions: [] } })));
     render(<PingOneAuthorizePage />);
+    expect(await screen.findByText('Mock', { selector: '.insp-chip' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
     expect(await screen.findByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
   });
 

@@ -94,6 +94,29 @@ describe('A2A execution wiring', () => {
     expect(tokenEvents.some((e) => e.id === 'a2a-exchange2')).toBe(true);
   });
 
+  // The orchestrator's coordinator picks an investment tool without arguments.
+  it.each(['get_investment_balance', 'get_investment_transactions', 'get_portfolio_summary'])(
+    'fills the first portfolio as account_id for %s, which requires one',
+    async (tool) => {
+      a2a.exchangeAsGeneralist.mockImplementation((_req, opts) => HAPPY_GENERALIST(_req, opts).then((r) => ({ ...r, tool })));
+      client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
+      require('../../services/verticalManifest').verticalManifest.init();
+      const verticalDispatch = require('../../services/verticalDispatch');
+      jest.spyOn(verticalDispatch, 'resolvePlugin').mockReturnValue({
+        getDataStore: () => ({ get: () => ({ portfolios: [{ id: 'PF-01' }] }) }),
+      });
+      await svc.__test.executeA2aDelegation('banking', { tool }, { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' });
+      expect(client.sendA2aProtocolHandoff.mock.calls[0][0].toolArgs).toMatchObject({ account_id: 'PF-01' });
+    },
+  );
+
+  it('does not invent an account_id for a tool that takes none', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation((_req, opts) => HAPPY_GENERALIST(_req, opts).then((r) => ({ ...r, tool: 'get_investment_accounts' })));
+    client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
+    await svc.__test.executeA2aDelegation('banking', { tool: 'get_investment_accounts' }, { req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1' });
+    expect(client.sendA2aProtocolHandoff.mock.calls[0][0].toolArgs).not.toHaveProperty('account_id');
+  });
+
   it('returns delegated:false and runs no tool when Exchange #1 minted nothing', async () => {
     a2a.exchangeAsGeneralist.mockImplementation(() => Promise.resolve({ error: 'A2A delegation is disabled', token: null }));
     const out = await svc.__test.executeA2aDelegation('banking', {}, { req: {}, tokenEvents: [], sessionId: 's' });
@@ -142,5 +165,40 @@ describe('A2A execution wiring', () => {
     expect(out.verticalResult.render).toBe('portfolio_summary');
     expect(out.verticalResult.descriptor).toBeTruthy();
     expect(out.verticalResult.descriptor.type).toBe('fieldList');
+  });
+
+  // PingOne Authorize holds a consent tool the specialist calls (PingFederate
+  // A2A, 2026-10-31): the gateway answers 428 with a challenge, which reaches
+  // the user as the same approval envelope a held vertical tool gets.
+  it('surfaces a held specialist call as hitl_required with the challenge, and the retry carries the receipt', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation(HAPPY_GENERALIST);
+    client.sendA2aProtocolHandoff.mockImplementation(({ tokenEvents }) => Promise.resolve({
+      ok: true, tokenEvents, result: { error: 'hitl_required', challengeId: 'ch-1' }, toolError: 'hitl_required', actChainDepth: 2, scopes: [],
+    }));
+    const heuristic = { vertical: 'banking', action: 'delegate_to_specialist', params: {} };
+    const opts = { userId: 'u1', userToken: 't', req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1' };
+    const held = await svc.__test.dispatchVerticalIntent(heuristic, opts);
+
+    expect(held).toMatchObject({ success: false, error: 'hitl_required', hitlChallengeId: 'ch-1', action: 'get_portfolio_summary' });
+    expect(client.sendA2aProtocolHandoff.mock.calls[0][0].toolArgs).not.toHaveProperty('_hitl_challenge_id');
+
+    client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
+    const retried = await svc.__test.dispatchVerticalIntent(heuristic, { ...opts, hitlChallengeId: 'ch-1' });
+
+    expect(client.sendA2aProtocolHandoff.mock.calls[1][0].toolArgs).toMatchObject({ _hitl_challenge_id: 'ch-1' });
+    expect(retried).toMatchObject({ success: true });
+    expect(retried.error).toBeUndefined();
+  });
+
+  it('a specialist tool error that is not a hold stays a plain failure', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation(HAPPY_GENERALIST);
+    client.sendA2aProtocolHandoff.mockImplementation(({ tokenEvents }) => Promise.resolve({
+      ok: true, tokenEvents, result: { error: 'mcp_error' }, toolError: 'mcp_error', actChainDepth: 2, scopes: [],
+    }));
+    const out = await svc.__test.dispatchVerticalIntent({ vertical: 'banking', action: 'delegate_to_specialist', params: {} }, {
+      userId: 'u1', userToken: 't', req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1',
+    });
+    expect(out).toMatchObject({ success: false, reply: expect.stringContaining('mcp_error') });
+    expect(out.hitlChallengeId).toBeUndefined();
   });
 });

@@ -1,0 +1,335 @@
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>United Demos</title>
+
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&display=swap');
+
+  :root {
+    --bg: #f6f5f3;
+    --surface: #ffffff;
+    --ink: #1c2129;
+    --ink-soft: #4d5563;
+    --ink-faint: #79818f;
+    --line: #e3e1dd;
+    --accent: #b5231a;
+    --accent-deep: #8f1a13;
+    --accent-soft: #faeceb;
+    --ok: #1d6f4a;
+    --ok-soft: #e8f4ee;
+    --warn: #8a5a12;
+    --warn-soft: #faf1e0;
+    --code-bg: #22262e;
+    --code-fg: #e8e6e1;
+    --rail-bg: #ffffff;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #14171c;
+    --surface: #1d2128;
+    --ink: #ecebe8;
+    --ink-soft: #b4bac4;
+    --ink-faint: #7f8794;
+    --line: #2c313a;
+    --accent: #e5544a;
+    --accent-deep: #f0776f;
+    --accent-soft: #3a2422;
+    --ok: #5cc193;
+    --ok-soft: #1f3329;
+    --warn: #d9a759;
+    --warn-soft: #352c1a;
+    --code-bg: #10131a;
+    --code-fg: #d9d7d2;
+    --rail-bg: #1d2128;
+    color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg: #14171c;
+    --surface: #1d2128;
+    --ink: #ecebe8;
+    --ink-soft: #b4bac4;
+    --ink-faint: #7f8794;
+    --line: #2c313a;
+    --accent: #e5544a;
+    --accent-deep: #f0776f;
+    --accent-soft: #3a2422;
+    --ok: #5cc193;
+    --ok-soft: #1f3329;
+    --warn: #d9a759;
+    --warn-soft: #352c1a;
+    --code-bg: #10131a;
+    --code-fg: #d9d7d2;
+    --rail-bg: #1d2128;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding-block: 28px 64px; }
+
+  h1, h2, h3 { font-family: 'Barlow', 'Avenir Next', 'Segoe UI', sans-serif; text-wrap: balance; margin: 0; }
+  a { color: var(--accent-deep); }
+
+  /* Header */
+  .masthead { border-bottom: 3px solid var(--ink); padding-bottom: 18px; margin-bottom: 22px; }
+  .eyebrow {
+    font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 8px;
+  }
+  .masthead h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.01em; }
+  .standfirst { max-width: 62ch; color: var(--ink-soft); margin: 10px 0 0; }
+
+  /* Credentials block */
+  .creds {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin-top: 18px; display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center;
+  }
+  .creds .label {
+    font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 4px;
+  }
+  .creds code {
+    font: 600 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg); color: var(--code-fg); padding: 6px 10px; border-radius: 6px;
+    display: inline-block; max-width: 100%; overflow-wrap: anywhere;
+  }
+  .copybtn {
+    font: 600 12px 'Barlow', sans-serif; letter-spacing: 0.04em;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; margin-left: 8px;
+  }
+  .copybtn:hover { border-color: var(--accent); color: var(--accent-deep); }
+  .creds .how { flex-basis: 100%; color: var(--ink-soft); font-size: 13.5px; margin: 0; }
+  .creds .how strong { color: var(--ink); }
+
+  /* Layout: rail + cards */
+  .layout { display: grid; grid-template-columns: 218px minmax(0, 1fr); gap: 28px; margin-top: 30px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; gap: 18px; } }
+
+  .rail { position: sticky; top: 16px; align-self: start; }
+  @media (max-width: 760px) { .rail { position: static; } }
+  .rail-title {
+    font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 10px;
+  }
+  .rail a {
+    display: block; padding: 7px 10px; border-left: 3px solid var(--line);
+    color: var(--ink-soft); text-decoration: none; font-size: 13.5px; line-height: 1.35;
+  }
+  .rail a:hover { border-left-color: var(--accent); color: var(--ink); background: var(--surface); }
+  .rail .count {
+    font-family: 'Barlow', sans-serif; font-weight: 700; font-size: 11px; color: var(--accent);
+    float: right; padding-top: 2px;
+  }
+
+  section { margin-bottom: 34px; scroll-margin-top: 16px; }
+  section > h2 {
+    font-size: 21px; font-weight: 700; letter-spacing: -0.01em;
+    padding-bottom: 8px; border-bottom: 2px solid var(--line); margin-bottom: 14px;
+  }
+  section > .sec-note { color: var(--ink-soft); font-size: 14px; max-width: 68ch; margin: -6px 0 16px; }
+
+  /* Demo cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 12px;
+  }
+  .card-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-bottom: 6px; }
+  .card h3 { font-size: 16.5px; font-weight: 700; }
+  .card .route {
+    font: 500 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink-faint);
+  }
+  .card p { margin: 4px 0 10px; color: var(--ink-soft); font-size: 14px; }
+  .card p strong { color: var(--ink); }
+  .run {
+    display: inline-block; font-family: 'Barlow', sans-serif; font-weight: 700; font-size: 13px;
+    color: #fff; background: var(--accent); text-decoration: none;
+    padding: 7px 14px; border-radius: 7px; letter-spacing: 0.02em;
+  }
+  .run:hover { background: var(--accent-deep); }
+  .run.ghost {
+    background: transparent; color: var(--accent-deep); border: 1.5px solid var(--accent);
+  }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .badge {
+    font-family: 'Barlow', sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.accent { background: var(--accent-soft); color: var(--accent-deep); }
+
+  .steps { margin: 6px 0 10px; padding-left: 20px; color: var(--ink-soft); font-size: 13.5px; }
+  .steps li { margin-bottom: 3px; }
+  .steps li strong { color: var(--ink); }
+
+  .doclist { list-style: none; padding: 0; margin: 0; }
+  .doclist li {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+    padding: 10px 2px; border-bottom: 1px solid var(--line);
+  }
+  .doclist li:last-child { border-bottom: none; }
+  .doclist .doc-name { font-weight: 600; font-size: 14.5px; }
+  .doclist .doc-desc { color: var(--ink-soft); font-size: 13.5px; flex-basis: 100%; margin: 0; }
+  .doclist a { text-decoration: none; font-weight: 600; font-size: 13px; }
+  .doclist a:hover { text-decoration: underline; }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 3px solid var(--ink); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Ping Identity &middot; AI IAM Demo &middot; United</p>
+    <h1>United Demos</h1>
+    <p class="standfirst">The airline personal-agent demos in one place, each linked to where it runs. Start with Muse: it is real end to end, from the PingOne sign-in to the tool call.</p>
+  </header>
+
+  <div class="layout">
+    <nav class="rail" aria-label="Sections">
+      <p class="rail-title">Contents</p>
+      <a href="#muse">Muse &mdash; the airline agent</a>
+      <a href="#inside">Inside the AI-DEMO2 console</a>
+      <a href="#standalone">Standalone demos</a>
+      <a href="#read">Read</a>
+    </nav>
+
+    <main>
+      <section id="muse">
+        <h2>Muse &mdash; the airline agent</h2>
+        <p class="sec-note">A personal agent that signs the member in at PingOne, then acts for them through Agent Gateway and Privilege. The hosted copy is the real thing: PingOne sign-in, DaVinci, Protect, MFA, consent, token exchange and PingOne Authorize.</p>
+        <div class="card">
+          <div class="card-top">
+            <h3>Muse (hosted, Real mode)</h3>
+            <span class="badge ok">Real</span>
+          </div>
+          <p class="route">https://agent-connect.ai-demo.ping-devops.com/</p>
+          <p>Ask for airline points. Muse is turned away with a 401, sends the member to PingOne, then asks again with a token that names Muse as the actor. On the page the name turns <strong>red</strong> when PingOne Protect detected the agent and <strong>blue</strong> when only the client id did.</p>
+          <ul class="steps">
+            <li>Press <strong>Show my airline points</strong>, then <strong>Continue to PingOne</strong>.</li>
+            <li>Sign in with the demo user you were given. The password is not on this page.</li>
+            <li>Accept the consent. Muse answers with the points and tier.</li>
+            <li>Open any step under <strong>What Muse did</strong> to see the raw request and response.</li>
+          </ul>
+          <div class="btnrow">
+            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Run Muse &rarr;</a>
+            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/how-muse-works.html" target="_blank" rel="noopener">How it works</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-top">
+            <h3>Connect from your assistant</h3>
+            <span class="badge ok">Real</span>
+          </div>
+          <p class="route">ChatGPT, Claude, Meta AI</p>
+          <p>Customers never type a server address. The airline lists its connector once in each assistant's directory; a customer finds it there, clicks Connect and signs in at PingOne. The directory card on the page is a stand-in; everything after Connect is real.</p>
+          <ul class="steps">
+            <li>Pick ChatGPT, Claude or Meta AI and click <strong>Connect</strong>.</li>
+            <li>PingOne names that assistant on the "AI agent detected" screen and asks you to allow it to act for you.</li>
+            <li>Back on the page, the assistant has asked for your points with a token that names it as the actor.</li>
+          </ul>
+          <div class="btnrow">
+            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Connect from your assistant &rarr;</a>
+            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/how-muse-works.html#pick" target="_blank" rel="noopener">Which connector gets picked</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="inside">
+        <h2>Inside the AI-DEMO2 console</h2>
+        <p class="sec-note">The same story in the main demo, with the token chain, diagrams and policy views around it. These pages need a signed-in session.</p>
+        <div class="card">
+          <div class="card-top">
+            <h3>Muse page</h3>
+            <span class="badge warn">Signed in</span>
+          </div>
+          <p class="route">/personal-agent/muse</p>
+          <p>Real PingOne sign-in and delegation from inside the console.</p>
+          <div class="btnrow">
+            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/muse" target="_blank" rel="noopener">Open Muse &rarr;</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-top">
+            <h3>Personal Agent studio</h3>
+            <span class="badge ok">Live</span>
+          </div>
+          <p class="route">/personal-agent</p>
+          <p>The customer's own agent, with Ping governing every tool call it makes.</p>
+          <div class="btnrow">
+            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent" target="_blank" rel="noopener">Open the studio &rarr;</a>
+            <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agents-handoff.html" target="_blank" rel="noopener">Field guide</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-top">
+            <h3>United Agent MCP Door (sequence)</h3>
+            <span class="badge ok">Diagram</span>
+          </div>
+          <p class="route">/united-personal-agent-flow</p>
+          <p>The request path for a member's own agent reaching the airline's tools: discover, register, consent, per-call exchange, gateway, Authorize and Protect.</p>
+          <div class="btnrow">
+            <a class="run" href="https://ai-demo.ping-devops.com/united-personal-agent-flow" target="_blank" rel="noopener">Open the sequence &rarr;</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="standalone">
+        <h2>Standalone demos</h2>
+        <p class="sec-note">Self-contained apps from the demo shelf. Each runs locally; the ones with an SE link also run on the cluster.</p>
+        <div class="card">
+          <div class="card-top">
+            <h3>Agent MCP Door demo</h3>
+            <span class="badge warn">Mock</span>
+          </div>
+          <p class="route">agent-door.ai-demo.ping-devops.com</p>
+          <p>A hosted, mock-only copy of the agent-to-MCP door pattern. Nothing leaves the page.</p>
+          <div class="btnrow">
+            <a class="run" href="https://agent-door.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Open the demo &rarr;</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-top">
+            <h3>Muse on the shelf</h3>
+            <span class="badge ok">Local + SE</span>
+          </div>
+          <p class="route">demo-shelf: Muse</p>
+          <p>Listed on the demo shelf (local port 5100). The local build is Mock; the SE copy above is Real.</p>
+          <div class="btnrow">
+            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Hosted Muse &rarr;</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="read">
+        <h2>Read</h2>
+        <p class="sec-note">The design behind all of this.</p>
+        <div class="card">
+          <div class="card-top">
+            <h3>On Users' Personal Agent Design</h3>
+            <span class="badge ok">HTML &middot; PDF &middot; Markdown</span>
+          </div>
+          <p class="route">docs/personal-agent/ in the repo</p>
+          <p>MileagePlus, the customer's own agent, and the security between them. One rule is absolute: the member's token is an input to an exchange, never a credential on a tool call.</p>
+          <div class="btnrow">
+            <a class="run" href="https://github.com/cmuir_pingcorp/AI-demo/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.md" target="_blank" rel="noopener">Read on GitHub &rarr;</a>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        Ping Identity AI IAM demo &middot; links checked 2026-10-27 &middot; no credentials on this page; use the demo user you were given.
+      </footer>
+    </main>
+  </div>
+</div>

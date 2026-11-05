@@ -6,6 +6,7 @@
  * facade, real identity — governed execution is UC44's lane.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC, DRAFT } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (customer)", sub: ["signs in", "Agent Builder"], x: 40, y: 150, detail: "Session-authenticated customer; her register click drives the flow, and ownership provenance starts with her session." },
@@ -71,11 +72,61 @@ const walk = [
   },
 ];
 
+// Per-step detail: request forms use placeholders, tokens are decoded MOCK values, refs are published RFCs/specs or marked emerging drafts.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent-builder/agent\nCookie: <session cookie>\nContent-Type: application/json\n\n{ }   (optional: { \"grantTypes\": [\"client_credentials\"] })\n\n-> 201 { created: true, agent: ... } | 200 (existing agent returned)\none agent per user: never duplicated",
+      tokens: [],
+      refs: [SPEC("OIDC Core 1.0", "The signed-in session that owns the registration")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "GET /api/cimd/personal-agents/:registrationId/client-metadata.json   (public, no auth)\n\n-> 200\n{ \"client_id\": \"<this document URL>\",\n  \"grant_types\": [\"client_credentials\"],\n  \"scope\": \"agent:invoke airlines:read airlines:write\",\n  \"token_endpoint_auth_method\": \"client_secret_basic\" }\n\nResolved through the local CIMD mock (engine: mock). No PingOne secret and no user token are stored.",
+      tokens: [],
+      refs: [DRAFT("draft-ietf-oauth-client-id-metadata-document", "Client ID Metadata Documents: the client_id is the document URL"), RFC(7591, "Dynamic Client Registration (the pre-registration model CIMD replaces)")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST /environments/{ENV_ID}/applications   (PingOne Management API)\nAuthorization: Bearer <worker access token>\nContent-Type: application/json\n\n{ \"type\": \"AI_AGENT\", \"protocol\": \"OPENID_CONNECT\", \"name\": \"AI Agent - <user>\" }",
+      tokens: [{
+        note: "Worker access token that calls the Management API (decoded mock)",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "<worker client id>", aud: "https://api.pingone.com", exp: 1790000000 },
+      }],
+      refs: [RFC(6749, "Client credentials grant used by the worker"), RFC(6750, "Bearer token usage")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "GET /api/agent-registry\nCookie: <session cookie>\n\n-> 200 rows read live from every source\n{ \"agent\": \"AI Agent - <user>\", \"registrationType\": \"cimd-facade\",\n  \"metadataUrl\": \"<client-metadata.json URL>\", \"registrationStatus\": \"registered\",\n  \"scopeStatus\": \"match\" | \"drift\" }",
+      tokens: [],
+      refs: [DRAFT("draft-ietf-oauth-client-id-metadata-document", "Provenance of the client_id metadata document")],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "GET /api/agent-builder/state\nCookie: <session cookie>\n\n-> 200 { \"agent\": { \"cimd\": { \"status\": \"registered\", \"metadataUrl\": \"<client-metadata.json URL>\" } } }\n\nRegistration only: no token chain runs here (governed execution is UC44).",
+      tokens: [],
+      refs: [],
+    },
+  },
+];
+
 export default {
   id: "UC43",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

@@ -20,6 +20,11 @@ describe('PR Vitest selection', () => {
     ['shared service', 'demo_api_ui/src/services/apiClient.js'],
     ['shared context', 'demo_api_ui/src/context/AgentUiModeContext.js'],
     ['util', 'demo_api_ui/src/utils/formatAxiosError.js'],
+    ['page stylesheet', 'demo_api_ui/src/pages/MusePage.css'],
+    ['component stylesheet', 'demo_api_ui/src/components/AgentGatewayTester.css'],
+    ['config module', 'demo_api_ui/src/config/navPagePaths.js'],
+    ['route table', 'demo_api_ui/src/routes/PublicRoutes.js'],
+    ['data module', 'demo_api_ui/src/data/example.js'],
   ])('selects related tests for %s changes', (_label, filename) => {
     expect(selectVitestMode([{ filename, status: 'modified' }])).toMatchObject({
       mode: 'related',
@@ -51,15 +56,51 @@ describe('PR Vitest selection', () => {
   })
 
   it.each([
-    ['App shell', 'demo_api_ui/src/App.js'],
     ['theme stylesheet', 'demo_api_ui/src/index.css'],
-    ['component stylesheet', 'demo_api_ui/src/components/AgentGatewayTester.css'],
+    ['global stylesheet', 'demo_api_ui/src/App.css'],
+    ['shared styles dir', 'demo_api_ui/src/styles/tokens.css'],
     ['test setup', 'demo_api_ui/src/setupTests.js'],
     ['build configuration', 'demo_api_ui/vite.config.js'],
+    ['JSON config', 'demo_api_ui/src/config/example.json'],
   ])('runs the full suite for %s changes', (_label, filename) => {
     expect(selectVitestMode([{ filename, status: 'modified' }])).toMatchObject({
       mode: 'full',
     })
+  })
+
+  it('runs related tests plus guards for the App root', () => {
+    expect(selectVitestMode([{ filename: 'demo_api_ui/src/App.js', status: 'modified' }])).toMatchObject({
+      mode: 'related',
+      sourceFiles: ['src/App.js'],
+    })
+  })
+
+  it.each([
+    ['Dockerfile', 'demo_api_ui/Dockerfile'],
+    ['public page', 'demo_api_ui/public/united-demos.html'],
+    ['e2e spec', 'demo_api_ui/tests/e2e/session-lab.spec.js'],
+  ])('runs only the filesystem guards for %s changes', (_label, filename) => {
+    expect(selectVitestMode([{ filename, status: 'modified' }])).toEqual({
+      mode: 'related',
+      reason: 'static files read only by filesystem guards',
+      sourceFiles: [],
+      testFiles: [],
+      guardsOnly: true,
+    })
+  })
+
+  it('keeps guards-only files from hiding a real source change', () => {
+    expect(selectVitestMode([
+      { filename: 'demo_api_ui/public/x.html', status: 'modified' },
+      { filename: 'demo_api_ui/src/components/Card.jsx', status: 'modified' },
+    ])).toMatchObject({ mode: 'related', sourceFiles: ['src/components/Card.jsx'], guardsOnly: true })
+  })
+
+  it('still runs everything when a dependency manifest changes alongside static files', () => {
+    expect(selectVitestMode([
+      { filename: 'demo_api_ui/public/x.html', status: 'modified' },
+      { filename: 'demo_api_ui/package-lock.json', status: 'modified' },
+    ])).toMatchObject({ mode: 'full' })
   })
 
   it('fails closed when changed paths are missing or invalid', () => {

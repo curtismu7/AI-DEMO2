@@ -184,6 +184,16 @@ function resolveCrossDomainConfig(store = configStore) {
 // With the web approver on, CIBA uses its own PingFederate client (tied to the stand-in authenticator).
 const WEB_APPROVER_CLIENT_ID = 'ai-demo-pf-ciba-web';
 
+// Email channel: like the mock phone, it never calls PingFederate (the request waits in the
+// BFF), but the answer arrives from a real SMTP round trip and a one-time emailed link, so it
+// takes precedence over the mock. Never on in production. Mutually exclusive with the mock
+// phone and the web approver, which keep their own gates.
+function emailChannelOn(store) {
+  return process.env.NODE_ENV !== 'production'
+    && value(store, 'pf_ai_ciba_email_enabled').toLowerCase() === 'true'
+    && !webApproverOn(store);
+}
+
 function webApproverOn(store) {
   return process.env.NODE_ENV !== 'production'
     && value(store, 'pf_ai_ciba_web_approver_enabled').toLowerCase() === 'true'
@@ -200,6 +210,26 @@ function resolveCibaConfig(store = configStore) {
   if (!clientSecret) missing.push('PF_AI_CIBA_CLIENT_SECRET');
   if (missing.length) throw configError('PF_AI_CIBA_CONFIG_INVALID', 'CIBA', missing);
   return { ...pf, clientId, clientSecret };
+}
+
+// Dynamic client registration: the PingFederate endpoints plus the client that mints the initial access token.
+// PingFederate serves registration at a fixed path on its runtime origin.
+function resolveDcrConfig(store = configStore) {
+  const missing = [];
+  let pf = null;
+  try { pf = resolveCimdConfig(store); } catch (error) { missing.push(...(error.details?.missing || ['PF_ISSUER'])); }
+  const iatClientId = value(store, 'pf_ai_dcr_iat_client_id');
+  const iatClientSecret = value(store, 'pf_ai_dcr_iat_client_secret');
+  if (!iatClientId) missing.push('PF_AI_DCR_IAT_CLIENT_ID');
+  if (!iatClientSecret) missing.push('PF_AI_DCR_IAT_CLIENT_SECRET');
+  if (missing.length) throw configError('PF_AI_DCR_CONFIG_INVALID', 'dynamic client registration', missing);
+  return {
+    issuer: pf.issuer,
+    tokenEndpoint: pf.tokenEndpoint,
+    registrationEndpoint: new URL('/as/clients.oauth2', pf.tokenEndpoint).toString(),
+    iatClientId,
+    iatClientSecret,
+  };
 }
 
 function enabled(store, key) {
@@ -222,8 +252,10 @@ function getFeatureStatus(store = configStore) {
     // RAR can also bind its token to the BFF's key (DPoP) once a DPoP-requiring client is named.
     rarDpop: rar && Boolean(value(store, 'pf_ai_rar_dpop_client_id')),
     ciba: enabled(store, 'pf_ai_ciba_enabled') && available(resolveCibaConfig, store),
-    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled') && !webApproverOn(store),
+    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled') && !webApproverOn(store) && !emailChannelOn(store),
+    cibaEmail: emailChannelOn(store),
     cibaWebApprover: webApproverOn(store),
+    dcr: enabled(store, 'pf_ai_dcr_enabled') && available(resolveDcrConfig, store),
   };
 }
 
@@ -233,6 +265,8 @@ module.exports = {
   resolveCimdConfig,
   resolveCrossDomainConfig,
   resolveCibaConfig,
+  resolveDcrConfig,
   webApproverOn,
+  emailChannelOn,
   getFeatureStatus,
 };
