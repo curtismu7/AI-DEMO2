@@ -163,6 +163,7 @@ export const NAV_SEARCH_ALIASES = {
   "/pingone-authorize-config": "trust framework attributes conditions policies snapshot p1az decision endpoint obligations fail-closed tiers",
   "/pingone-platform-config": "applications resource servers scopes populations users groups bootstrap worker davinci protect verify",
   "/mcp-scope-topology": "tool scopes mirrored audience allowlist challenge consent step-up topology verify auth requirements",
+  "/pinggateway-routes": "route json oauth resource server filter jwks introspection sideband aam external door weather",
   "/pingone-mcp-inspector": "tools/call tools/list elicitation resources prompts json-rpc mcp client test tool scopes",
   "/pingone-setup": "worker app credentials environment id client secret admin roles hosted remote mcp ide",
   "/pingone-test": "integration worker token management api resource servers scopes applications pkce client credentials agent",

@@ -335,6 +335,7 @@
     "/pingone-authorize-config": "public",
     "/pingone-platform-config": "public",
     "/mcp-scope-topology": "public",
+    "/pinggateway-routes": "public",
     "/pingone-mcp-inspector": "public",
     "/pingone-setup": "public",
     "/pingone-test": "public",
