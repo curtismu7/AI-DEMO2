@@ -1535,7 +1535,6 @@ export default function AdminSideNav({
         searchAlias: "how with ping products configuration explainer what we configured pingfederate pingone authorize platform setup",
         children: [
           {
-<<<<<<< HEAD
             label: "Scope Topology & MCP Gateway",
             path: "/mcp-scope-topology",
             icon: "mcp",
@@ -1544,12 +1543,6 @@ export default function AdminSideNav({
             path: "/pinggateway-routes",
             icon: "lnk",
             searchAlias: "PingGateway IG routes AAM sideband PingAuthorizeFilter OAuth resource server filter JWKS introspection external door weather UC30 UC31 UC32 token exchange what we configured",
-=======
-            label: "DaVinci CIBA Flows",
-            path: "/davinci-ciba-flows",
-            icon: "doc",
-            searchAlias: "DaVinci CIBA flows email SMS consent approved declined screens vertical branding flow policy widget orchestration SDK Protect risk step-up what we configured",
->>>>>>> b77cb8ba4 (feat(ui): DaVinci CIBA flows explainer page (/davinci-ciba-flows))
           },
         ],
       },
