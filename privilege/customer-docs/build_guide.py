@@ -241,7 +241,7 @@ toc_rows = [
     ["1", "Introduction and audience"],
     ["2", "Architecture overview"],
     ["3", "Prerequisites"],
-    ["4", "Configuring the PingOne OIDC application"],
+    ["4", "Configuring the OIDC application (PingFederate or PingOne)"],
     ["5", "Deploying the first gateway"],
     ["6", "Shared Redis state store"],
     ["7", "Deploying the integrated load balancer (with HAProxy, Kong and F5 examples)"],
@@ -343,7 +343,7 @@ table(["Requirement", "Details"], [
     ["Ingress controller", "nginx (or equivalent) with TLS termination and a wildcard or per-host certificate"],
     ["Certificate issuer", "cert-manager with a Let's Encrypt (or corporate CA) ClusterIssuer"],
     ["DNS", "A public hostname for the gateway URL, published from the ingress (for example via external-dns)"],
-    ["PingOne environment", "A PingOne environment with the PingOne Privilege service enabled, tenant administrator access"],
+    ["Identity provider", "PingFederate or PingOne with the Privilege service enabled, and administrator access"],
     ["Container registry access", "Image pull secret for the gateway and sidecar images"],
 ])
 H3("Environment checks")
@@ -359,9 +359,22 @@ callout("note",
 # =====================================================================
 # 4 PINGONE OIDC APP
 # =====================================================================
-H1("4", "Configuring the PingOne OIDC application")
-P("The gateway signs users in through an OIDC application in your PingOne environment. "
-  "Create it in the PingOne admin console before deploying the gateway.")
+H1("4", "Configuring the OIDC application (PingFederate or PingOne)")
+P("The gateway signs users in through an OIDC application in your identity "
+  "provider. Any provider implementing the authorization-code flow with "
+  "<b>Client Secret Basic</b> works; the endpoints are configured per provider "
+  "in the chart's <font name='PlexMono' size='8'>oidc</font> values block.")
+H3("Option A: PingFederate")
+numbered([
+    "In the PingFederate admin console, create an <b>OAuth Client</b> (open access policy or a client with an authorization-code grant).",
+    "Set the client authentication to <b>Client Secret</b> (Basic). Note the <b>client ID</b> and <b>client secret</b>.",
+    "Add the redirect URI <font name='PlexMono' size='8'>https://mcpgw.example.com/callback</font>.",
+    "Grant types: <b>Authorization Code</b> (and <b>Token Exchange</b>, RFC 8693, if you use delegation flows).",
+    "Allowed scopes: <font name='PlexMono' size='8'>openid</font>, <font name='PlexMono' size='8'>profile</font>, <font name='PlexMono' size='8'>email</font>.",
+    "Note the endpoints: authorization <font name='PlexMono' size='8'>/as/authorization.oauth2</font>, "
+    "token <font name='PlexMono' size='8'>/as/token.oauth2</font>, userinfo <font name='PlexMono' size='8'>/idp/userinfo.openid</font>.",
+])
+H3("Option B: PingOne")
 numbered([
     "In the PingOne admin console, go to <b>Applications</b> and click <b>+ Add Application</b>.",
     "Select <b>Web Application</b>. Note the generated <b>client ID</b> and <b>client secret</b>.",
