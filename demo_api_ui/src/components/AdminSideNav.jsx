@@ -185,8 +185,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams"] },
-  { id: "how-with-ping-products", paths: ["/pingfederate-config", "/pingone-authorize-config", "/pingone-platform-config", "/mcp-scope-topology", "/pinggateway-routes"] },
-  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams", "/pinggateway-routes"] },
+  { id: "how-with-ping-products", paths: ["/pingfederate-config", "/pingone-authorize-config", "/pingone-platform-config", "/mcp-scope-topology", "/pinggateway-routes", "/davinci-ciba-flows"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
@@ -1536,6 +1535,7 @@ export default function AdminSideNav({
         searchAlias: "how with ping products configuration explainer what we configured pingfederate pingone authorize platform setup",
         children: [
           {
+<<<<<<< HEAD
             label: "Scope Topology & MCP Gateway",
             path: "/mcp-scope-topology",
             icon: "mcp",
@@ -1544,6 +1544,12 @@ export default function AdminSideNav({
             path: "/pinggateway-routes",
             icon: "lnk",
             searchAlias: "PingGateway IG routes AAM sideband PingAuthorizeFilter OAuth resource server filter JWKS introspection external door weather UC30 UC31 UC32 token exchange what we configured",
+=======
+            label: "DaVinci CIBA Flows",
+            path: "/davinci-ciba-flows",
+            icon: "doc",
+            searchAlias: "DaVinci CIBA flows email SMS consent approved declined screens vertical branding flow policy widget orchestration SDK Protect risk step-up what we configured",
+>>>>>>> b77cb8ba4 (feat(ui): DaVinci CIBA flows explainer page (/davinci-ciba-flows))
           },
         ],
       },
@@ -1578,6 +1584,12 @@ export default function AdminSideNav({
         path: "/pinggateway-routes",
         icon: "lnk",
         searchAlias: "PingGateway IG routes AAM sideband PingAuthorizeFilter OAuth resource server filter JWKS introspection external door weather UC30 UC31 UC32 token exchange what we configured",
+      },
+      {
+        label: "DaVinci CIBA Flows",
+        path: "/davinci-ciba-flows",
+        icon: "doc",
+        searchAlias: "DaVinci CIBA flows email SMS consent approved declined screens vertical branding flow policy widget orchestration SDK Protect risk step-up what we configured",
       },
     ], "doc"),
     productGroup("Identity Journeys", [
