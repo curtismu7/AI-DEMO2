@@ -128,6 +128,7 @@ const PingOneAuthorizeConfigByUseCasePage = lazyWithRetry(() => import("./pages/
 const PingOnePlatformConfigPage = lazyWithRetry(() => import("./pages/PingOnePlatformConfigPage"));
 const McpScopeTopologyPage = lazyWithRetry(() => import("./pages/McpScopeTopologyPage"));
 const PingGatewayRoutesPage = lazyWithRetry(() => import("./pages/PingGatewayRoutesPage"));
+const DavinciCibaFlowsPage = lazyWithRetry(() => import("./pages/DavinciCibaFlowsPage"));
 const PolicyDecisionTracePage = lazyWithRetry(() => import("./components/PolicyDecisionTracePage"));
 const PostmanCollectionsPage = lazyWithRetry(() => import("./components/PostmanCollectionsPage"));
 const Profile = lazyWithRetry(() => import("./components/Profile"));
@@ -2231,6 +2232,10 @@ function AppWithAuth() {
                             <Route
                               path="/pinggateway-routes"
                               element={<PingGatewayRoutesPage />}
+                            />
+                            <Route
+                              path="/davinci-ciba-flows"
+                              element={<DavinciCibaFlowsPage />}
                             />
                             <Route
                               path="/policy-decision-trace"

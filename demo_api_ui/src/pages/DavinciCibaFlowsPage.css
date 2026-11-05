@@ -1,0 +1,59 @@
+.dv-ciba {
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 0 var(--space-4, 16px) 64px;
+}
+
+.dv-ciba__section {
+  margin: 32px 0;
+  padding: 20px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--th-bg-card);
+}
+
+.dv-ciba h2 {
+  margin: 0 0 12px;
+  font-size: var(--font-size-lg, 20px);
+}
+
+.dv-ciba h3 {
+  margin: 0 0 4px;
+  font-size: var(--font-size-md, 15px);
+  font-weight: 700;
+}
+
+.dv-ciba p {
+  margin: 0;
+  color: var(--th-text-body);
+}
+
+.dv-ciba__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.dv-ciba__row {
+  border-left: 3px solid var(--ping-red, #d20e0f);
+  padding: 6px 0 6px 14px;
+}
+
+.dv-ciba code {
+  font-family: var(--font-mono);
+  background: var(--th-bg-inset);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.dv-ciba__secondary {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--ping-red, #d20e0f);
+  border-radius: var(--btn-radius, 8px);
+  color: var(--ping-red, #d20e0f);
+  font-weight: var(--btn-weight, 600);
+  text-decoration: none;
+}
