@@ -2227,6 +2227,8 @@ function AppWithAuth() {
                             <Route
                               path="/mcp-scope-topology"
                               element={<McpScopeTopologyPage />}
+                            />
+                            <Route
                               path="/pinggateway-routes"
                               element={<PingGatewayRoutesPage />}
                             />
