@@ -7,9 +7,9 @@
 .dv-ciba__section {
   margin: 32px 0;
   padding: 20px;
-  border: 1px solid var(--border-subtle, #e0e2e4);
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-lg, 12px);
-  background: var(--surface-primary, #fcfcfc);
+  background: var(--th-bg-card);
 }
 
 .dv-ciba h2 {
@@ -25,7 +25,7 @@
 
 .dv-ciba p {
   margin: 0;
-  color: var(--text-secondary, #263746);
+  color: var(--th-text-body);
 }
 
 .dv-ciba__rows {
@@ -43,7 +43,7 @@
 
 .dv-ciba code {
   font-family: var(--font-mono);
-  background: var(--surface-muted, #eff0f1);
+  background: var(--th-bg-inset);
   padding: 1px 5px;
   border-radius: var(--radius-sm, 4px);
 }
