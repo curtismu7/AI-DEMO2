@@ -65,7 +65,7 @@ S = {
     "lead": st("lead", fontSize=10.5, leading=16, textColor=GRAY600),
     "bullet": st("bullet", leading=13.5, spaceAfter=3),
     "code": ParagraphStyle("code", fontName="PlexMono", fontSize=8, leading=11.5,
-                           textColor=colors.HexColor("#dbe7f0"), backColor=CODE_BG,
+                           textColor=colors.HexColor("#f0f6fa"),
                            borderPadding=(8, 10, 8, 10), spaceBefore=4, spaceAfter=10),
     "tblhead": st("tblhead", fontName="Montserrat-Sb", fontSize=8.5, leading=11,
                   textColor=colors.white, spaceAfter=0),
@@ -167,7 +167,20 @@ def numbered(items):
         bulletType="1", leftIndent=12))
 
 def code(text, title=None):
-    story.append(Preformatted(text, S["code"]))
+    # Background drawn via a table cell (style backColor on Preformatted is
+    # unreliable after pikepdf normalization), text lightened for contrast.
+    inner = Preformatted(text, S["code"])
+    t = Table([[inner]], colWidths=[CONTENT_W])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CODE_BG),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+    ]))
+    story.append(Spacer(1, 4))
+    story.append(t)
+    story.append(Spacer(1, 10))
 
 def callout(kind, text):
     bg, bar = (NOTE_BG, NOTE_BAR) if kind == "note" else (WARN_BG, WARN_BAR)
