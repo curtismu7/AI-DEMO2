@@ -1539,20 +1539,6 @@ export default function AdminSideNav({
           { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
         ],
       },
-      // Every "what did we configure and why" explainer in one sub-group, so one tag shows the whole story.
-      {
-        label: "How with Ping Products",
-        icon: "doc",
-        searchAlias: "how with ping products configuration explainer what we configured pingfederate pingone authorize platform setup",
-        children: [
-          {
-            label: "Authorize Config by Use Case",
-            path: "/pingone-authorize-config",
-            icon: "pol",
-            searchAlias: "PingOne Authorize P1AZ configuration trust framework attributes conditions policies snapshot what we configured step-up HITL tier RAR actor chain",
-          },
-        ],
-      },
     ], "pol"),
     // Every "what did we configure and why" explainer in one group, so one tag shows the whole story.
     productGroup("How with Ping Products", [
@@ -1560,6 +1546,12 @@ export default function AdminSideNav({
         label: "PingFederate Config by Use Case",
         path: "/pingfederate-config",
         searchAlias: "PingFederate configuration provisioning scripts ID-JAG A2A SAML RAR CIMD CIBA token exchange processor policy access token manager SP connection clients what we configured",
+      },
+      {
+        label: "Authorize Config by Use Case",
+        path: "/pingone-authorize-config",
+        icon: "pol",
+        searchAlias: "PingOne Authorize P1AZ configuration trust framework attributes conditions policies snapshot what we configured step-up HITL tier RAR actor chain",
       },
     ], "doc"),
     productGroup("Identity Journeys", [
