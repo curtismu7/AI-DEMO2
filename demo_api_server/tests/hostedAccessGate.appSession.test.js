@@ -15,13 +15,13 @@ const { createHostedAccessGate, hostedAccessCheck } = require('../middleware/hos
 const ENV = {
   HOSTED_ACCESS_GATE_ENABLED: 'true',
   HOSTED_ACCESS_ALLOWED_DOMAINS: 'pingidentity.com,pingone.com',
-  HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'tarunmadiraju@pingidentity.com,demouser',
+  HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'test.user@pingidentity.com,demouser',
   HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL: 'true',
 };
 const policy = loadHostedAccessPolicy(ENV);
 
 // What the user callback does: id token + userinfo -> coherent claims -> decision -> stamp on the (regenerated) session.
-function appSessionAfterLogin({ sub = 'sub-1', email = 'tarunmadiraju@pingidentity.com', verified = true, groups = [], extra = {} } = {}) {
+function appSessionAfterLogin({ sub = 'sub-1', email = 'test.user@pingidentity.com', verified = true, groups = [], extra = {} } = {}) {
   const idToken = { sub, email, email_verified: verified, preferred_username: email, groups };
   const userInfo = { sub, email, email_verified: verified, preferred_username: email, groups };
   const decision = evaluateHostedIdentity(coherentHostedIdentityClaims(idToken, userInfo), policy);
