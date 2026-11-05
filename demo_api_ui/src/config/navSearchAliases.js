@@ -162,6 +162,7 @@ export const NAV_SEARCH_ALIASES = {
   "/pingfederate-config": "pf provisioning scripts processor policy token exchange actor chain sp connection atm id-jag a2a saml ciba cimd rar",
   "/pingone-authorize-config": "trust framework attributes conditions policies snapshot p1az decision endpoint obligations fail-closed tiers",
   "/pingone-platform-config": "applications resource servers scopes populations users groups bootstrap worker davinci protect verify",
+  "/mcp-scope-topology": "tool scopes mirrored scopes audience allowlist challenge consent step-up topology verify auth requirements",
   "/pingone-mcp-inspector": "tools/call tools/list elicitation resources prompts json-rpc mcp client test tool scopes",
   "/pingone-setup": "worker app credentials environment id client secret admin roles hosted remote mcp ide",
   "/pingone-test": "integration worker token management api resource servers scopes applications pkce client credentials agent",
