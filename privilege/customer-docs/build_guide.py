@@ -244,7 +244,7 @@ toc_rows = [
     ["4", "Configuring the PingOne OIDC application"],
     ["5", "Deploying the first gateway"],
     ["6", "Shared Redis state store"],
-    ["7", "Deploying the integrated load balancer"],
+    ["7", "Deploying the integrated load balancer (with HAProxy, Kong and F5 examples)"],
     ["8", "Adding a second gateway node"],
     ["9", "Registering MCP servers as applications"],
     ["10", "Verification"],
@@ -504,6 +504,130 @@ callout("note",
         "<font name='PlexMono' size='8'>sidecars.values.yaml</font>) and "
         "<font name='PlexMono' size='8'>--reuse-values</font>. An upgrade without them resets "
         "sidecar containers and routing to chart defaults.")
+
+H3("7.1  Routing requirements for any load balancer")
+P("If you front the gateways with your own load balancer instead of the integrated one, "
+  "it must implement the following behavior. A conventional round-robin HTTP load balancer "
+  "is not sufficient: each gateway node holds issued access tokens in memory, so a client's "
+  "sign-in, token exchange and MCP calls must all reach the same node.")
+table(["Requirement", "Why"], [
+    ["Pin by client address + application path (first path segment)",
+     "Sign-in state and tokens are per node. One client's /&lt;App&gt;/register, /authorize, /token and /mcp calls must land on the same node while it is healthy."],
+    ["Route the global /callback by OAuth state",
+     "The callback arrives without the application in the path. The authorize redirect appends the issuing node to the state parameter; the callback must be routed back to that node. With the integrated load balancer this is automatic."],
+    ["Long timeouts on streaming paths",
+     "MCP uses long-lived HTTP streams. Configure read/send timeouts of at least 3600 seconds and disable response buffering on the application paths."],
+    ["Active health checks, not passive only",
+     "Probe each node (GET /, any 2xx-4xx counts as up). Hold a failed node out until it passes consecutive checks; a short return window forces clients to re-authenticate twice."],
+    ["Retry to a surviving node on connection failure",
+     "A request that cannot connect should be retried once on another node; the affected client then re-authenticates automatically."],
+])
+H3("7.2  Example: HAProxy")
+P("HAProxy is the engine the integrated load balancer uses (set "
+  "<font name='PlexMono' size='8'>loadBalancer.engine: haproxy</font>). A standalone equivalent:")
+code("""haproxy
+frontend fe
+    bind :443 ssl crt /etc/haproxy/certs/gateway.pem
+    # pin: client address + first path segment (the application)
+    http-request set-var(txn.app) path extracted_string,word(1,/)
+    http-request set-var(txn.pin) concat(src,'|',txn.app)
+    default_backend gateways
+
+backend gateways
+    balance hash var(txn.pin)
+    # gateway 1 speaks HTTPS (its OAuth URL matches its certificate);
+    # additional nodes answer plain HTTP and are reached over the bridge
+    option httpchk GET /
+    default-server check inter 10s fall 3 rise 60
+    server gateway-1 agentless-mcpgw.privilege-gw.svc.cluster.local:443 \\
+        check check-sni mcpgw.example.com ssl verify none
+    server gateway-2 127.0.0.1:8444 check
+
+# OAuth callback: route to the node named in the state tag
+# (the authorize redirect appends ~gateway-N to the state parameter;
+# strip the tag before passing the request on)
+http-request use-service lua.reply-missing if { path /callback }""")
+callout("note",
+        "The state-tag callback routing and the per-node TLS bridge are handled inside the "
+        "integrated load balancer's generated configuration. Reproducing them in a standalone "
+        "HAProxy requires the same two mechanisms: tag the authorize 302 with the issuing node, "
+        "and route untagged traffic by hash only.")
+H3("7.3  Example: Kong")
+P("Kong Gateway can front the gateways as services with hash-based upstream "
+  "balancing. Configure one upstream with consistent hashing on the pin key:")
+code("""# 1. Upstream with consistent hashing
+curl -X POST http://localhost:8001/upstreams \\
+  --data name=gateway-upstream \\
+  --data algorithm=consistent-hashing \\
+  --data hash_on=header \\
+  --data hash_fallback=none
+
+# 2. Targets (one per gateway node)
+curl -X POST http://localhost:8001/upstreams/gateway-upstream/targets \\
+  --data target=agentless-mcpgw.privilege-gw.svc.cluster.local:443
+curl -X POST http://localhost:8001/upstreams/gateway-upstream/targets \\
+  --data target=agentless-mcpgw2.privilege-gw2.svc.cluster.local:8623
+
+# 3. Active health checks (a gateway answering 401 to GET / is healthy)
+curl -X PATCH http://localhost:8001/upstreams/gateway-upstream \\
+  --data healthchecks.active.type=http \\
+  --data healthchecks.active.http_path=/ \\
+  --data healthchecks.active.healthy.interval=10 \\
+  --data healthchecks.active.healthy.successes=2 \\
+  --data healthchecks.active.unhealthy.interval=10 \\
+  --data healthchecks.active.unhealthy.http_failures=3
+
+# 4. Service + route with long streaming timeouts
+curl -X POST http://localhost:8001/services \\
+  --data name=gateway \\
+  --data host=gateway-upstream \\
+  --data protocol=https \\
+  --data connect_timeout=5000 \\
+  --data read_timeout=3600000 \\
+  --data write_timeout=3600000 \\
+  --data retries=1
+
+curl -X POST http://localhost:8001/routes \\
+  --data 'paths[]=/' \\
+  --data service.name=gateway""")
+callout("warn",
+        "Hash on a pin key that includes the client address and the application path "
+        "(a pre-function plugin can compute it into a header). Plain consistent-hashing on "
+        "the source IP alone is close but not equivalent: the callback arrives without the "
+        "application in the path, and clients behind a shared NAT all hash to one node.")
+H3("7.4  Example: F5 BIG-IP")
+P("On BIG-IP, reproduce the requirements with a performance L4 policy or an iRule. "
+  "The essential elements:")
+code("""# Pool with two gateway nodes; HTTPS monitor treats any 2xx-4xx as up
+tmsh create ltm pool pgw-pool \\
+  members add { agentless-mcpgw.privilege-gw.svc.cluster.local:443 \\
+                agentless-mcpgw2.privilege-gw2.svc.cluster.local:8623 } \\
+  monitor /Common/tcp
+
+# Long client- and server-side timeouts for streaming MCP traffic
+tmsh create ltm profile tcp pgw-tcp-l4 \\
+  idle-timeout 3600
+
+tmsh create ltm virtual pgw-vs \\
+  destination 10.0.0.5:443 \\
+  ip-protocol tcp \\
+  pool pgw-pool \\
+  profiles add { pgw-tcp-l4 tcp } \\
+  persist replace { ltm persistence source-addr { \\
+      defaults-from /Common/source-addr \\
+      timeout 3600 } }""")
+table(["BIG-IP element", "Maps to requirement"], [
+    ["Source-address persistence (3600 s)", "Pins one client to one node; combine with a path-scoped iRule for per-application pinning"],
+    ["L4 (performance) virtual server", "Streams pass through unbuffered; HTTP inspection would re-buffer long MCP responses"],
+    ["TCP monitor on the pool", "Active health checking; use an HTTP monitor against / if the gateway's 401-on-GET behavior is acceptable to the monitor"],
+    ["Connection mirroring / HA pair", "Failover of the load balancer itself; gateway pinning state is in the client, not the LB"],
+])
+callout("note",
+        "Whatever the platform, validate the full flow before production: register (201), "
+        "authorize (302), callback (302), token (200), then repeated /mcp calls (200) — all "
+        "answered by the same node (X-Served-By header with the integrated load balancer; "
+        "add an equivalent header when rolling your own). Then kill one node and confirm the "
+        "remaining node keeps serving after a single re-authentication.")
 
 # =====================================================================
 # 8 SECOND NODE
