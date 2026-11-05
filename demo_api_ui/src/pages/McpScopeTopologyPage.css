@@ -1,0 +1,88 @@
+.mcp-topo {
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 0 var(--space-4, 16px) 64px;
+}
+
+.mcp-topo__section {
+  margin: 32px 0;
+  padding: 20px;
+  border: 1px solid var(--border-subtle, #e0e2e4);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface-primary, #fcfcfc);
+}
+
+.mcp-topo h2 {
+  margin: 0 0 12px;
+  font-size: var(--font-size-lg, 20px);
+}
+
+.mcp-topo h3 {
+  margin: 0 0 4px;
+  font-size: var(--font-size-md, 15px);
+  font-weight: 700;
+}
+
+.mcp-topo p {
+  margin: 0;
+  color: var(--text-secondary, #263746);
+}
+
+.mcp-topo__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.mcp-topo__row {
+  border-left: 3px solid var(--ping-red, #d20e0f);
+  padding: 6px 0 6px 14px;
+}
+
+.mcp-topo code {
+  font-family: var(--font-mono);
+  background: var(--surface-muted, #eff0f1);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.92em;
+}
+
+.mcp-topo__flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.mcp-topo__flow-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.mcp-topo__step-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--ping-red, #d20e0f);
+  color: #fff;
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 700;
+}
+
+.mcp-topo__secondary {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--ping-red, #d20e0f);
+  border-radius: var(--btn-radius, 8px);
+  color: var(--ping-red, #d20e0f);
+  font-weight: var(--btn-weight, 600);
+  text-decoration: none;
+}
