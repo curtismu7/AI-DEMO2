@@ -350,7 +350,7 @@ describe('agent consent for consent-gated tools', () => {
   const verify = (request, row, vertical) => createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
     .verifyPrerequisites({ caseRow: row, vertical, prerequisites: row.runtimePrerequisitesByVertical[vertical] });
   // A lane BFF stub: consent state, the grant, and the flag arming every step needs.
-  const lane = ({ authorized, grant = { status: 200, body: { ok: true } } }) => jest.fn(async (path, options) => {
+  const lane = ({ authorized, grant = { status: 200, body: { ok: true } } }) => jest.fn(async (path) => {
     if (path === '/api/agent-authorization/status') return { status: 200, body: { authorized } };
     if (path === '/api/agent-authorization/grant') return grant;
     return { status: 200, body: { success: true, flags: uc48.runtimePrerequisitesByVertical.airlines.requiredFlags } };
@@ -729,4 +729,126 @@ test('a non-200 from the lane BFF is reported as the observed outcome with no ev
   const operations = createCaseOperations({ request: async (path) => (path === '/api/verticals/active' ? { status: 204, body: '' } : { status: 401, body: {} }), provider: PROVIDER, expectedIssuer: ISSUER });
   await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'agent-chip', behavior, authorization }))
     .resolves.toEqual({ observed: 'HTTP_401', evidence: {} });
+});
+
+describe('feature-family adapters', () => {
+  const featureChecks = require('../config/demoReadinessFeatureChecks.json');
+  const GATEWAY_TEST_PATH = '/api/mcp-gateway/test';
+  const ATTACK_SIM_PATH = '/api/demo/attack-sim/run';
+  const ok = (body) => ({ status: 200, body });
+
+  test('every family the manifest registers has a session adapter', () => {
+    const operations = createCaseOperations({ request: jest.fn(), provider: 'pingfederate', expectedIssuer: ISSUER });
+    const { FEATURE_DISPATCHERS } = require('../services/demoReadinessExecutionService');
+    for (const method of Object.values(FEATURE_DISPATCHERS)) {
+      if (method === 'executePfDavinciLoginProof') continue; // no check registers the davinci family
+      expect(typeof operations[method]).toBe('function');
+    }
+    expect(typeof operations.verifyFeaturePrerequisites).toBe('function');
+  });
+
+  test('tool poisoning reports the HITL gate the gateway returned', async () => {
+    const request = jest.fn(async (path) => path === GATEWAY_TEST_PATH
+      ? ok({ ok: false, httpStatus: 428, error: 'hitl_required', message: 'Human approval required' })
+      : ok({}));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeAttackLabToolPoisoning();
+    expect(result.observed).toBe('schema_valid_call_reaches_normal_hitl_gate');
+    expect(result.evidence.feature.attack).toMatchObject({ tool: 'create_transfer', responseStatus: 428, hitlRequired: true });
+    const { validateFeatureFamilyEvidence } = require('../services/demoReadinessExecutionService');
+    const failures = [];
+    validateFeatureFamilyEvidence(failures, { feature: result.evidence.feature }, featureChecks.contracts['PRIV-TOOL-POISONING'], PROVIDER);
+    expect(failures).toEqual([]);
+  });
+
+  test('schema violation reports the 400 the input-schema boundary returned', async () => {
+    const request = jest.fn(async (path) => path === GATEWAY_TEST_PATH
+      ? ok({ ok: false, httpStatus: 400, error: 'invalid_arguments', message: 'Invalid arguments for tool create_transfer' })
+      : ok({}));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeAttackLabSchemaViolation();
+    expect(result.observed).toBe('input_schema_rejected_before_tool_execution');
+    expect(result.evidence.feature.attack).toMatchObject({ boundary: 'mcp-input-schema', schemaRejected: true, toolReached: false });
+  });
+
+  test('inter-agent abuse fires a bare JSON-RPC call at the specialist and reports the 401', async () => {
+    const request = jest.fn(async () => ({ status: 401, body: { error: 'unauthorized' } }));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeAttackLabInterAgentAbuse();
+    expect(result.observed).toBe('a2a_identity_mismatch_denied_before_specialist_tool');
+    expect(result.evidence.feature.attack).toMatchObject({ boundary: 'a2a-wire-gate', delegatedIdentity: 'absent-or-forged', specialistReached: false });
+    expect(request).toHaveBeenCalledWith('/a2a/specialists/sporting-goods', { method: 'POST', body: expect.objectContaining({ jsonrpc: '2.0', method: 'message/send' }) });
+  });
+
+  test('tool abuse reports the sim its DENY decision', async () => {
+    const request = jest.fn(async (path) => path === ATTACK_SIM_PATH
+      ? ok({ sim: 'cross-owner-account', status: 403, authorize: { decision: 'DENY', decisionId: 'dec-1' }, tokenChainEvents: [] })
+      : ok({}));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeAttackLabToolAbuse();
+    expect(result.observed).toBe('authorization_or_resource_owner_denied');
+    expect(result.evidence.feature.attack).toMatchObject({ sim: 'cross-owner-account', tool: 'get_account_balance', crossOwnerAttempt: true, decision: 'DENY', boundary: 'authorization-or-resource-owner' });
+  });
+
+  test('malicious content records the observed decision and model reachability', async () => {
+    const request = jest.fn(async () => ok({ reply: 'refused', provider: 'anthropic', route: '/api/privilege-mcp/llm/call', reachedProvider: false }));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeAttackLabMaliciousContent();
+    expect(result.observed).toBe('observed_privilege_decision_with_model_reachability');
+    expect(result.evidence.feature.attack).toMatchObject({ route: '/api/privilege-mcp/llm/call', provider: 'anthropic', contentSubmitted: true, modelReached: false });
+    expect(typeof result.evidence.feature.attack.decision).toBe('string');
+  });
+
+  test('prompt injection reports the declared route, payload and denial', async () => {
+    const request = jest.fn(async () => ({ status: 403, body: { error: 'llm_policy_denied', reachedProvider: false } }));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executePromptInjection();
+    expect(result.observed).toBe('prefilled_attack_selected_then_denied_provider_not_reached');
+    expect(result.evidence.feature).toMatchObject({
+      route: '/llm-gateway?attack=prompt_injection',
+      selectedAttack: 'prompt_injection',
+      submission: { code: 'llm_policy_denied', denied: true, reachedProvider: false },
+    });
+    expect(result.evidence.feature.prefilledPayload).toBe(featureChecks.contracts['UC-LEARN11-PROMPT-INJECTION'].familyContract.payload);
+  });
+
+  test('A2A FM1 reports the allowlist refusal with no exchange or tool reached', async () => {
+    const request = jest.fn(async (path) => path === '/api/verticals/active'
+      ? { status: 204, body: null }
+      : ok({ success: false, reply: 'The Airlines Specialist can only run: sensitive_passenger_record.', toolsCalled: [], tokenEvents: [] }));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeA2aFm1();
+    expect(result.observed).toBe('clear_allowlist_refusal_before_exchange');
+    expect(result.evidence.feature).toMatchObject({
+      route: '/api/agent/invoke',
+      allowlist: { refused: true, reason: 'tool-not-allowlisted' },
+      exchangeReached: false,
+      toolReached: false,
+    });
+  });
+
+  test('A2A FM3 reports the ordered exchange steps and the dispatched specialist tool', async () => {
+    const request = jest.fn(async (path) => path === '/api/verticals/active'
+      ? { status: 204, body: null }
+      : ok({ success: true, toolsCalled: ['sensitive_passenger_record'], tokenEvents: [
+        { id: 'user-token', status: 'active', claims: { sub: 'u1', iss: ISSUER, scope: 'openid' } },
+        { id: 'a2a-agent1-actor', status: 'acquired', claims: { iss: ISSUER, client_id: 'gen-1' } },
+        { id: 'a2a-exchange1', status: 'exchanged', claims: { sub: 'u1', iss: ISSUER, act: { sub: 'gen-1' } } },
+        { id: 'a2a-agent2-actor', status: 'acquired', claims: { iss: ISSUER, client_id: 'spec-1' } },
+        { id: 'a2a-exchange2', status: 'exchanged', claims: { sub: 'u1', iss: ISSUER, act: { sub: 'spec-1', act: { sub: 'gen-1' } } } },
+        { id: 'gw-authorize', status: 'permit', decision: 'PERMIT' },
+      ] }));
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeA2aFm3();
+    expect(result.evidence.feature.exchange).toMatchObject({ steps: ['exchange1', 'exchange2'], tool: 'sensitive_passenger_record', toolDispatched: true });
+  });
+
+  test('verifyFeaturePrerequisites echoes the declared dependency set only when the lane session is usable', async () => {
+    const good = createCaseOperations({ request: async () => ok({ authenticated: true, user: { id: 'u1' } }), provider: PROVIDER, expectedIssuer: ISSUER });
+    await expect(good.verifyFeaturePrerequisites({ configurationDependencies: ['agent-gateway-runtime-config', 'authorize-policy-definition'] }))
+      .resolves.toEqual({ status: 'pass', verifiedDependencies: ['agent-gateway-runtime-config', 'authorize-policy-definition'] });
+    const bad = createCaseOperations({ request: async () => ({ status: 401, body: { authenticated: false } }), provider: PROVIDER, expectedIssuer: ISSUER });
+    await expect(bad.verifyFeaturePrerequisites({ configurationDependencies: ['agent-gateway-runtime-config'] }))
+      .resolves.toMatchObject({ status: 'blocked' });
+  });
 });

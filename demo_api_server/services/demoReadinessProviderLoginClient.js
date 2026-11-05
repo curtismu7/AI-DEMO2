@@ -52,11 +52,11 @@ async function createDemoReadinessProviderLoginClient({ provider, dedicatedBffUr
   const sameOrigin = (url, origin) => {
     if (url.origin !== origin) throw new Error('Provider login origin mismatch.');
   };
-  async function send(method, url, body, contentType) {
+  async function send(method, url, body, contentType, extraHeaders) {
     assertLive();
     const target = new URL(url);
     const jar = jars.get(target.origin) || new Map();
-    const headers = {};
+    const headers = { ...(extraHeaders || {}) };
     if (jar.size) headers.Cookie = [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
     if (contentType) headers['Content-Type'] = contentType;
     let response;
@@ -165,6 +165,12 @@ async function createDemoReadinessProviderLoginClient({ provider, dedicatedBffUr
         const target = new URL(path, bff);
         sameOrigin(target, bff.origin);
         if (headers) throw new Error('Custom session headers are unavailable.');
+        // Object bodies are JSON route payloads (the login flow's own posts pass
+        // contentType explicitly). Same-origin writes also need this BFF's
+        // frontend origin on Origin, or its CSRF gate refuses them.
+        if (body !== undefined && (typeof body === 'object' && body !== null && !(body instanceof URLSearchParams))) {
+          return send(method, target.href, JSON.stringify(body), 'application/json', { Origin: bff.origin });
+        }
         return send(method, target.href, body);
       },
       // The signed-in session's cookies for the lane BFF only, so a headless
