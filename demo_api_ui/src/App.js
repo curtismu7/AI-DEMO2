@@ -123,6 +123,7 @@ const OAuthDebugLogViewer = lazyWithRetry(() => import("./components/OAuthDebugL
 const OAuthTokenDisplayPage = lazyWithRetry(() => import("./components/OAuthTokenDisplayPage"));
 const PingOneAuthorizePage = lazyWithRetry(() => import("./components/PingOneAuthorizePage"));
 const PingOneAuthorizeCapabilitiesPage = lazyWithRetry(() => import("./pages/PingOneAuthorizeCapabilitiesPage"));
+const PingFederateConfigByUseCasePage = lazyWithRetry(() => import("./pages/PingFederateConfigByUseCasePage"));
 const PolicyDecisionTracePage = lazyWithRetry(() => import("./components/PolicyDecisionTracePage"));
 const PostmanCollectionsPage = lazyWithRetry(() => import("./components/PostmanCollectionsPage"));
 const Profile = lazyWithRetry(() => import("./components/Profile"));
@@ -2206,6 +2207,10 @@ function AppWithAuth() {
                             <Route
                               path="/pingone-authorize-capabilities"
                               element={<PingOneAuthorizeCapabilitiesPage />}
+                            />
+                            <Route
+                              path="/pingfederate-config"
+                              element={<PingFederateConfigByUseCasePage />}
                             />
                             <Route
                               path="/policy-decision-trace"

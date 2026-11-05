@@ -184,7 +184,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
   { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
-  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams"] },
+  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/pingfederate-config", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
@@ -1490,6 +1490,11 @@ export default function AdminSideNav({
             label: "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow",
             path: "/pingfederate-ai-agent",
             searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG XAA cross app access third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD client metadata tester DCR dynamic client registration RFC 7591 CIBA DPoP pi.flow authentication API act claim",
+          },
+          {
+            label: "PingFederate Config by Use Case",
+            path: "/pingfederate-config",
+            searchAlias: "PingFederate configuration provisioning scripts ID-JAG A2A SAML RAR CIMD CIBA token exchange processor policy access token manager SP connection clients what we configured",
           },
           {
             label: "Protocol Playground (PingFederate)",
