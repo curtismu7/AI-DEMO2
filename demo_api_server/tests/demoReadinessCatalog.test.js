@@ -244,14 +244,21 @@ describe('demo readiness catalog', () => {
         expect(contract.pfExchangeContract.credentialRoles.length).toBeGreaterThan(0);
       }
       if (check.providers.includes('pingfederate') && contract.exchangeService !== 'token-exchange') {
-        expect(contract.pfCredentialContract).toMatchObject({
-          status: 'blocked',
-          sourceGap: {
+        // The PF credential contract is exact-or-blocked: either a ready contract
+        // with the profile-resolved roles and a committed readback, or a blocked
+        // one with a named, actionable source gap. Never neither.
+        if (contract.pfCredentialContract.status === 'ready') {
+          expect(contract.pfCredentialContract.sourceGap).toBeNull();
+          expect(typeof contract.pfCredentialContract.readback).toBe('string');
+          expect(contract.pfCredentialContract.readback.length).toBeGreaterThan(0);
+        } else {
+          expect(contract.pfCredentialContract.status).toBe('blocked');
+          expect(contract.pfCredentialContract.sourceGap).toMatchObject({
             code: expect.any(String),
             reason: expect.any(String),
             remediation: expect.any(String),
-          },
-        });
+          });
+        }
         expect(contract.pfCredentialContract.credentialRoles.length).toBeGreaterThan(0);
       }
       if (contract.selectedTool) {

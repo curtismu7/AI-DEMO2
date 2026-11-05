@@ -442,7 +442,7 @@ describe('demo readiness execution service', () => {
     expect(run.results[0].evidence.providerRoleApplicability).toEqual({ userSession: '[REDACTED]' });
   });
 
-  test.each(['PRIV-MALICIOUS-CONTENT', 'UC-LEARN11-PROMPT-INJECTION'])(
+  test.each(['PF-CIMD-VALID', 'PF-CIMD-REJECTED'])(
     'blocks PF feature %s with a named source gap before worker setup or dispatch',
     async (id) => {
       const featureManifest = require('../config/demoReadinessFeatureChecks.json');
@@ -468,7 +468,7 @@ describe('demo readiness execution service', () => {
       expect(run.results[0]).toMatchObject({
         status: 'blocked',
         observed: 'not-dispatched',
-        evidence: { sourceGap: { code: 'pf_exact_credential_contract_source_gap' } },
+        evidence: { sourceGap: { code: 'pf_cimd_runtime_source_gap' } },
       });
       expect(createWorker).not.toHaveBeenCalled();
       expect(executeFeature).not.toHaveBeenCalled();
