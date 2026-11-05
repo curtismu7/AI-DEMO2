@@ -192,7 +192,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "aic", paths: ["/aic-token-exchange"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
-  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
+  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/pingone-authorize-config", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "administration", paths: ["/admin", "/admin/pingone", "/users", "/accounts", "/transactions", "/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage", "/configure", "/settings", "/client-registration"] },
   { id: "observability", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/telemetry", "/tracing", "/transaction-trace", "/mcp-observability", "/check"] },
 ];
@@ -849,6 +849,12 @@ export default function AdminSideNav({
             }]
           : []),
         { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
+        {
+          label: "Authorize Config by Use Case",
+          path: "/pingone-authorize-config",
+          icon: "pol",
+          searchAlias: "PingOne Authorize P1AZ configuration trust framework attributes conditions policies snapshot what we configured step-up HITL tier RAR actor chain",
+        },
         {
           label: "Policy Decision Trace",
           path: "/policy-decision-trace",
