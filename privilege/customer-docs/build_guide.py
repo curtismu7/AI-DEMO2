@@ -709,4 +709,15 @@ story.append(Paragraph(
     "hostnames, namespaces and identifiers.", S["footer-l"]))
 
 doc.build(story)
+
+# Normalize the file structure (ReportLab output occasionally fails in macOS
+# Preview); pikepdf round-trip fixes it. Falls back to the raw file if pikepdf
+# is not installed.
+try:
+    import pikepdf
+    with pikepdf.open(OUT, allow_overwriting_input=True) as p:
+        p.save(OUT)
+    print("Normalized for Preview")
+except ImportError:
+    print("pikepdf not installed; skipped Preview normalization")
 print("Wrote", OUT)
