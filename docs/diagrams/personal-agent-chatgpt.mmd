@@ -1,7 +1,16 @@
 %% Personal agent version of "V2 Agent - GW/Authorize" (Lucid page)
-%% ChatGPT is the personal agent — Desktop app and browser ChatGPT
-%% Colors sampled from the V2 Agent - GW_Authorize.png
+%% ChatGPT is the personal agent — browser + Desktop surfaces, one agent runtime
 flowchart TB
+    USER["User"]
+    PINGSESS["Ping Session"]
+    CHATB["ChatGPT in browser<br/>(user surface)"]
+    GPTD["ChatGPT Desktop<br/>(user surface)"]
+
+    subgraph SHADOW["Shadow IT — personal agent"]
+        AGENT1["ChatGPT Agent runtime<br/>(backend — acts for the user)<br/>OAuth client: chatgpt"]
+        LLM["LLM (OpenAI)"]
+    end
+
     ATS["Agentic Token Service"]
     subgraph ATSSUB[" "]
         direction LR
@@ -12,32 +21,20 @@ flowchart TB
     end
     AUTHZ["Authorization"]
 
-    USER["User"]
-    PINGSESS["Ping Session"]
-    CHATB["ChatGPT in browser<br/>(user surface)"]
-    GPTD["ChatGPT Desktop<br/>(user surface)"]
-
-    HTOK["Human token:<br/>sub: user1<br/>aud: chatgpt.bxf.com<br/>scope: agent1<br/>acr: Single_Factor<br/>may_act: chatgpt"]
+    HTOK["Human token:<br/>sub: user1 · aud: chatgpt.bxf.com<br/>scope: agent1 · acr: Single_Factor<br/>may_act: chatgpt"]
     AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
-    TXTOK["TX Token:<br/>sub: user1<br/>aud: mcp-gw.bxf.com<br/>scope: mcp<br/>act: chatgpt<br/>acr: Single_Factor<br/>transaction details"]
+    TXTOK["TX Token:<br/>sub: user1 · aud: mcp-gw.bxf.com<br/>scope: mcp · act: chatgpt<br/>acr: Single_Factor · transaction details"]
 
-    subgraph SHADOW["Shadow IT — personal agent"]
-        AGENT1["ChatGPT Agent runtime<br/>(backend — acts for the user)<br/>OAuth client: chatgpt"]
-        LLM["LLM (OpenAI)"]
-    end
-
-    DEC{"Control problem:<br/>MCP access governance<br/>or downstream token<br/>mediation?"}
+    DEC{"Control problem:<br/>MCP access governance<br/>or downstream token mediation?"}
 
     subgraph MCPBOX["MCP"]
-        GW["Agent Gateway<br/>(PingGateway, Kong AI Gateway,<br/>Apigee, or any API/AI gateway)<br/><br/>Route:<br/>https://mcp-personal.bxf.com/mcp<br/><br/>Route:<br/>https://mcp-invest.bxf.com/mcp"]
+        GW["Agent Gateway<br/>(PingGateway, Kong AI Gateway,<br/>Apigee, or any API/AI gateway)<br/><br/>Route: mcp-personal.bxf.com/mcp<br/>Route: mcp-invest.bxf.com/mcp"]
         MCPOLB["MCP<br/>mcp-personal.bxf.com"]
         MCPINV["MCP<br/>mcp-invest.bxf.com"]
         RS["RS"]
         API["API"]
     end
-    MOLTOK["Token:<br/>sub: user1<br/>aud:<br/>personal-resource.bxf.com<br/>scope: calendar<br/>act: chatgpt"]
-    MTOK["Token:<br/>client_id: chatgpt<br/>aud: mcp-personal.bxf.com"]
-    INVTOK["investments-resource.bxf.com<br/>/calendar · API key: 12345"]
+    INVTOK["personal-resource.bxf.com<br/>/calendar · API key: 12345"]
 
     AIGW["AI Gateway"]
     GOV["Governance"]
@@ -45,36 +42,26 @@ flowchart TB
     AWS["AWS"]
     GOOGLE["Google"]
 
-    USER -->|"User request"| PINGSESS
+    USER -->|request| PINGSESS
     PINGSESS --> CHATB
     PINGSESS --> GPTD
-    PINGSESS -.->|"User Authentication"| ATS
-    ATS --- ORCH
-    ORCH --- AGT
-    ORCH --- TXE
-    ORCH --- CCRED
-    AUTHZ --- ATS
-    AUTHZ -.->|"Introspect token"| ATS
-    CHATB -->|"Request"| AGENT1
-    GPTD -->|"Request"| AGENT1
-    ATS -.->|"Request token"| AGENT1
-    ATS -.->|"Request"| AUTHZ
-    CHATB --- HTOK
+    CHATB -->|JSON-RPC| AGENT1
+    GPTD -->|JSON-RPC| AGENT1
     AGENT1 --- LLM
-    AGENT1 -.->|"JSON-RPC request"| LLM
-    AGENT1 -->|"JSON-RPC request"| DEC
-    AGENT1 --- AGTOK
-    DEC -->|"Token Mediation"| GW
-    DEC -.->|"Access Governance"| AIGW
-    GW -->|"Forward tool call"| MCPOLB
-    GW -->|"Request"| MCPINV
-    MCPOLB --- MTOK
-    MCPOLB -->|"Request"| RS
+    PINGSESS -.->|authn| ATS
+    ATS --- ATSSUB
+    AUTHZ --- ATS
+    AUTHZ -.->|introspect| ATS
+    ATS -.->|request token| AGENT1
+    AGENT1 --> DEC
+    DEC -->|Token Mediation| GW
+    DEC -.->|Access Governance| AIGW
+    GW -->|tool call| MCPOLB
+    GW -->|request| MCPINV
+    MCPOLB -->|request| RS
+    MCPINV -->|API key via vault| API
     RS --- INVTOK
-    MCPINV -->|"Request · API key (via vault)"| API
-    MCPINV --- MOLTOK
-    DEC --- TXTOK
-    AIGW -->|"Read Agent Meta-Data"| GOV
+    AIGW -->|Read Agent Meta-Data| GOV
     GOV --- AZURE
     GOV --- AWS
     GOV --- GOOGLE
@@ -92,7 +79,7 @@ flowchart TB
 
     class ATS,AUTHZ,GW,AIGW red
     class ORCH,AGT,TXE,CCRED orange
-    class HTOK,AGTOK,TXTOK,MOLTOK,MTOK cream
+    class HTOK,AGTOK,TXTOK,INVTOK cream
     class DEC pink
     class MCPBOX yellow
     class USER,CHATB,GPTD blue
