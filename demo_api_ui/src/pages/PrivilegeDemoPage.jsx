@@ -74,6 +74,18 @@ export default function PrivilegeDemoPage() {
       </div>
 
       <div className="pd-page__body">
+        <section className="pd-guide-callout pd-readiness-callout">
+          <p>
+            <strong>📊 Tool &amp; Agent Safety readiness.</strong> All ten executable feature
+            probes now run live on the PingOne lane (A2A failure modes, the Attack Lab rows,
+            Agent IAM Core, UC-LEARN11) and pass <code>demo:ready:local</code>. The PingFederate-lane
+            rows stay blocked: fourteen on named source gaps, the rest because the PF lane's
+            readiness-user login fails — the local PingFederate admin credential was rotated by an
+            out-of-repo session and is not recorded anywhere, so the lane cannot be re-provisioned
+            until PF admin access is restored. Status and per-row blockers: <code>docs/demo-readiness.md</code>.
+          </p>
+        </section>
+
         <section className="pd-guide-callout">
           <p>{PRIVILEGE_DEMO.overview}</p>
           <a
