@@ -88,7 +88,7 @@
 }
 
 .pii-mark {
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   padding: 0 2px;
 }
 

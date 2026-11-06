@@ -64,6 +64,7 @@ const IdJagPlaygroundPage = lazyWithRetry(() => import("../pages/IdJagPlayground
 const IdJagPlaygroundDiagramPage = lazyWithRetry(() => import("../pages/IdJagPlaygroundDiagramPage"));
 const IdJagLearnPage = lazyWithRetry(() => import("../pages/IdJagLearnPage"));
 const IdJagInspectPage = lazyWithRetry(() => import("../pages/IdJagInspectPage"));
+const IdJagRunnerLabPage = lazyWithRetry(() => import("../pages/IdJagRunnerLabPage"));
 const PingFederateIdJagPage = lazyWithRetry(() => import("../components/PingFederateIdJagPage"));
 const PingFederateAiAgentPage = lazyWithRetry(() => import("../pages/PingFederateAiAgentPage"));
 const AicTokenExchangePage = lazyWithRetry(() => import("../pages/AicTokenExchangePage"));
@@ -404,6 +405,14 @@ export function IdJagLearnPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <IdJagLearnPage />
+    </AppShell>
+  );
+}
+
+export function IdJagRunnerLabPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <IdJagRunnerLabPage />
     </AppShell>
   );
 }

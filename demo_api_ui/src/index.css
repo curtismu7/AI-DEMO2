@@ -394,6 +394,7 @@ textarea::placeholder {
   --radius-lg: 8px;
   --radius-xl: 12px;
   --radius-pill: 999px;
+  --radius-2xs: 2px;
 
   /* ── Elevation ────────────────────────────────────────────────────────────
      365 distinct box-shadow values exist, which is why no two surfaces sit at
