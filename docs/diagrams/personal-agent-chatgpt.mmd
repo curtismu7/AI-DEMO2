@@ -21,18 +21,20 @@ flowchart TB
     end
     AUTHZ["Authorization Server"]
 
-    HTOK["Human token:<br/>sub: user1 · aud: chatgpt.bxf.com<br/>scope: chatgpt · acr: Single_Factor<br/>may_act: chatgpt"]
-    AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
+    HTOK["User token (validated live):<br/>iss: local.ping-devops.com:9031<br/>sub: demouser · aud: enduser.ping.demo<br/>scope: openid profile email… · alg RS256"]
+    AGTOK["Agent token (client_credentials):<br/>client_id: 0b412e8b-cfbc-4c7d-a773-0d46118de09d<br/>aud: enduser.ping.demo · scope: agent:invoke"]
+    TXTOK["Exchanged token (RFC 8693, validated live):<br/>sub: demouser<br/>act.sub: f4dd707d-f78d-4417-ba56-dc8707d10a1f<br/>aud: api.ping.demo:3036/mcp<br/>scope narrowed 7 → 2 (gateway:mcp:invoke read)"]
+    INTTOK["Intent token (minted by the BFF, not the AS):<br/>intent: view_courses · vertical: university<br/>tools allowed: view_courses, view_standing…<br/>prompt_hash: 9711…3e9b"]
 
 
     subgraph MCPBOX["MCP"]
-        GW["Agent Gateway<br/>(PingGateway, Kong AI Gateway,<br/>Apigee, or any API/AI gateway)<br/><br/>Route: mcp-personal.bxf.com/mcp<br/>Route: mcp-invest.bxf.com/mcp"]
-        MCPOLB["MCP<br/>mcp-personal.bxf.com"]
-        MCPINV["MCP<br/>mcp-invest.bxf.com"]
+        GW["Agent Gateway<br/>(PingGateway, Kong AI Gateway,<br/>Apigee, or any API/AI gateway)<br/><br/>Route: api.ping.demo:3036/mcp"]
+        MCPOLB["MCP<br/>api.ping.demo:3036/mcp"]
+        MCPINV["MCP<br/>api.ping.demo:3036/mcp (tools/call)"]
         RS["RS"]
         API["API"]
     end
-    INVTOK["personal-resource.bxf.com<br/>/calendar · API key: 12345"]
+    INVTOK["Downstream: Benefits/Resource API<br/>via API key from vault"]
 
 
     USER -->|request| PINGSESS
@@ -47,6 +49,8 @@ flowchart TB
     AUTHZ -.->|introspect| ATS
     ATS -.->|request token| AGENT1
     AGENT1 -->|tools/call MCP| GW
+    AGENT1 -.- INTTOK
+    GW -.- TXTOK
     GW -->|tool call| MCPOLB
     GW -->|request| MCPINV
     GW -.->|fine-grained authorization| ATS
@@ -67,7 +71,7 @@ flowchart TB
 
     class ATS,AUTHZ,GW red
     class ORCH,AGT,TXE,CCRED orange
-    class HTOK,AGTOK,INVTOK cream
+    class HTOK,AGTOK,TXTOK,INTTOK,INVTOK cream
     class MCPBOX yellow
     class USER,CHATB,GPTD blue
     class RS,API purple

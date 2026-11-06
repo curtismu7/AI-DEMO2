@@ -58,7 +58,7 @@
         </mxCell>
 
         <!-- ===== Human token note (below user) ===== -->
-        <mxCell id="htok" value="Human token:&#10;sub: user1&#10;aud: chatgpt.bxf.com&#10;scope: chatgpt&#10;acr: Single_Factor&#10;may_act: chatgpt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="htok" value="User token (validated live):&#10;iss: https://local.ping-devops.com:9031&#10;sub: demouser&#10;aud: enduser.ping.demo&#10;scope: openid profile email…&#10;alg RS256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="60" y="420" width="150" height="104" as="geometry" />
         </mxCell>
 
@@ -91,7 +91,7 @@
         </mxCell>
 
         <!-- ===== Agent token note (right of ATS, clear of edges) ===== -->
-        <mxCell id="agttok" value="Agent token:&#10;client_id: chatgpt&#10;aud: chatgpt.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="agttok" value="Agent token (client_credentials):&#10;client_id: 0b412e8b-cfbc-4c7d-a773-0d46118de09d&#10;aud: enduser.ping.demo&#10;scope: agent:invoke" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="970" y="130" width="150" height="60" as="geometry" />
         </mxCell>
 
@@ -99,13 +99,13 @@
         <mxCell id="mcpbox" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=12;verticalAlign=top;dashed=1;" vertex="1" parent="1">
           <mxGeometry x="1220" y="240" width="520" height="260" as="geometry" />
         </mxCell>
-        <mxCell id="gw" value="Agent Gateway&#10;(PingGateway, Kong AI Gateway,&#10;Apigee, or any API/AI gateway)&#10;&#10;Route: mcp-personal.bxf.com/mcp&#10;Route: mcp-invest.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="gw" value="Agent Gateway&#10;(PingGateway, Kong AI Gateway,&#10;Apigee, or any API/AI gateway)&#10;&#10;Route: api.ping.demo:3036/mcp&#10;Route: api.ping.demo:3036/mcp (tools/call)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1250" y="280" width="170" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="mcpolb" value="MCP&#10;mcp-personal.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="mcpolb" value="MCP&#10;api.ping.demo:3036/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1490" y="280" width="110" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="mcpinv" value="MCP&#10;mcp-invest.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="mcpinv" value="MCP&#10;api.ping.demo:3036/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1490" y="390" width="110" height="50" as="geometry" />
         </mxCell>
         <mxCell id="rs" value="RS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
@@ -114,8 +114,13 @@
         <mxCell id="api" value="API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1650" y="395" width="60" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="invtok" value="personal-resource.bxf.com&#10;/calendar · API key: 12345" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="invtok" value="Downstream: Benefits/Resource API&#10;via API key from vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="1250" y="430" width="170" height="44" as="geometry" />
+        </mxCell>
+
+
+        <mxCell id="inttok" value="Intent token (minted by the BFF, not the AS):&#10;intent: view_courses&#10;vertical: university&#10;tools allowed: view_courses, view_standing…&#10;prompt_hash: 9711…3e9b" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="830" y="430" width="200" height="90" as="geometry" />
         </mxCell>
 
         <!-- Agent runtime -> gateway (straight horizontal, same height) -->
