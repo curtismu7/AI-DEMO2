@@ -147,16 +147,36 @@
         </mxCell>
 
         <mxCell id="toknote1" value="1 · Human token: sub=user1, aud=agent1.bxf.com, may_act=agent1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="100" y="320" width="220" height="30" as="geometry" />
+          <mxGeometry x="20" y="480" width="220" height="30" as="geometry" />
         </mxCell>
         <mxCell id="toknote2" value="2 · Agent token: client_credentials, client agent1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="100" y="358" width="220" height="30" as="geometry" />
+          <mxGeometry x="250" y="480" width="220" height="30" as="geometry" />
         </mxCell>
         <mxCell id="toknote3" value="3 · TX token: RFC 8693 — sub=user1, act=agent1, scope narrowed per MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="100" y="396" width="260" height="30" as="geometry" />
+          <mxGeometry x="480" y="480" width="280" height="30" as="geometry" />
         </mxCell>
         <mxCell id="toknote45" value="4/5 · MCP tokens: aud mcp-olb.bxf.com (scope: balance, transfer) · aud mcp-invest.bxf.com (/balance · API key via vault)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="100" y="434" width="380" height="30" as="geometry" />
+          <mxGeometry x="770" y="480" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Original page token boxes (yellow, restored) ===== -->
+        <mxCell id="orig_txtok" value="TX Token:&#10;&#10;{&#10;  &quot;client_id&quot;: &quot;a98e8bec-23f5-4281-aa74-f00b28307759&quot;,&#10;  &quot;iss&quot;: &quot;https://auth.pingone.com/3f720e3e-…/as&quot;,&#10;  &quot;aud&quot;: [&quot;http://MCPServer1:3100&quot;],&#10;  &quot;scope&quot;: &quot;mcp:travel_tools&quot;,&#10;  &quot;sub&quot;: &quot;9eb6be12-7b7b-437e-a470-c1c800dac079&quot;,&#10;  &quot;sid&quot;: &quot;c98f54d8-770e-45a0-a912-1c4b5f7ed476&quot;,&#10;  &quot;auth_time&quot;: 1776864815,&#10;  &quot;acr&quot;: &quot;af0a5f9d31c856f6cc230012087a8768&quot;,&#10;  &quot;act&quot;: { &quot;sub&quot;: &quot;a98e8bec-23f5-4281-aa74-f00b28307759&quot; },&#10;  &quot;env&quot;: &quot;3f720e3e-…&quot;,&#10;  &quot;org&quot;: &quot;7e9f838e-…&quot;,&#10;  &quot;p1.userId&quot;: &quot;9eb6be12-…&quot;&#10;}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=8;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="700" y="150" width="150" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="orig_flow" value="Person authenticates to WebApp — App token returned to App&#10;Person opens the Chat UX — silent request for Person (Agent) token&#10;Person (Agent) token passed to Agent&#10;Agent authenticates to its client_id&#10;Prompt instructs Agent to leverage an MCP Server tool — if the tool receives the incorrect token from the Agent, 400 returned&#10;Agent performs a token exchange to get the MCP Server Token (TX Token)&#10;Token passed to MCP Server and validated (aud)&#10;Tool executes and response returned to Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=8;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="20" y="520" width="440" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="orig_rules" value="Agent MUST have a Person token&#10;MCP Tools MUST have MCP Server token&#10;&#10;Incoming token has proper scope and aud for the MCP Tools — this Agent is explicit in the act claim" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=8;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="480" y="520" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="orig_why" value="Why Token Exchange?&#10;&#10;Mitigated Risks:&#10;• Person token used by Agent directly to the API Server&#10;• Person token exfiltrated and sent directly to the MCP Server&#10;• Person token injected into a rogue Agent connected to the MCP Server&#10;• Agent token exfiltrated and sent to MCP Server&#10;&#10;Complexity:&#10;• App needs a separate Person (Agent) token — can be done with prompt=none&#10;• Agent needs to retrieve its own token (separate Client)&#10;• Agent needs to perform OAuth Token Exchange&#10;• Agent manages multiple tokens — one for each MCP Server (aud). Potentially solved with RFC 8707&#10;• Where does this exchange happen? 1 ClientID for all MCP Servers, or 1 per MCP Server?&#10;• Token Exchange MUST require Subject &amp;&amp; Actor tokens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=8;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="780" y="520" width="420" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="orig_appconfig" value="App Config&#10;MCP Server(s): ClientID&#10;App performs Token Management?&#10;How does App know which token to pass to Agent?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=8;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="520" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="orig_agentconfig" value="Agent Config&#10;MCP Server(s): URL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=8;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="520" width="140" height="50" as="geometry" />
         </mxCell>
 
       </root>
