@@ -24,10 +24,13 @@
         </mxCell>
 
         <!-- Authorization (top right) -->
-        <mxCell id="authz" value="Authorization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="43" width="150" height="50" as="geometry" />
+        <mxCell id="authz" value="Authorization Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="43" width="170" height="50" as="geometry" />
         </mxCell>
         <mxCell id="e_authz" value="Introspect token" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=none;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="ats" target="authz">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gw_authz" value="Validate / introspect token" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="gw" target="authz">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 

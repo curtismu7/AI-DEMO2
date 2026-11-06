@@ -19,7 +19,7 @@ flowchart TB
         TXE["Token Exc"]
         CCRED["Client Cred"]
     end
-    AUTHZ["Authorization"]
+    AUTHZ["Authorization Server"]
 
     HTOK["Human token:<br/>sub: user1 · aud: chatgpt.bxf.com<br/>scope: agent1 · acr: Single_Factor<br/>may_act: chatgpt"]
     AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
@@ -58,6 +58,7 @@ flowchart TB
     DEC -.->|Access Governance| AIGW
     GW -->|tool call| MCPOLB
     GW -->|request| MCPINV
+    GW -.->|validate / introspect token| AUTHZ
     MCPOLB -->|request| RS
     MCPINV -->|API key via vault| API
     RS --- INVTOK
