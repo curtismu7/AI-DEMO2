@@ -1,0 +1,103 @@
+%% Personal agent version of "V2 Agent - GW/Authorize" (Lucid page)
+%% ChatGPT is the personal agent — Desktop app and browser ChatGPT
+%% Colors sampled from the V2 Agent - GW_Authorize.png
+flowchart TB
+    ATS["Agentic Token Service"]
+    subgraph ATSSUB[" "]
+        direction LR
+        ORCH["Orchestration"]
+        AGT["Agent"]
+        TXE["Token Exc"]
+        CCRED["Client Cred"]
+    end
+    AUTHZ["Authorization"]
+
+    USER["User"]
+    PINGSESS["Ping Session"]
+    APP["OLB<br/>Application"]
+    CHATBOT["chatbot<br/>(ChatGPT session)"]
+
+    HTOK["Human token:<br/>sub: user1<br/>aud: chatgpt.bxf.com<br/>scope: agent1<br/>acr: Single_Factor<br/>may_act: chatgpt"]
+    AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
+    TXTOK["TX Token:<br/>sub: user1<br/>aud: mcp-gw.bxf.com<br/>scope: mcp<br/>act: chatgpt<br/>acr: Single_Factor<br/>transaction details"]
+
+    subgraph SHADOW["Shadow IT — personal agent"]
+        AGENT1["chatgpt"]
+        LLM["LLM"]
+    end
+
+    DEC{"Control problem:<br/>MCP access governance<br/>or downstream token<br/>mediation?"}
+
+    subgraph MCPBOX["MCP"]
+        GW["Agent Gateway<br/><br/>Route:<br/>https://mcp-olb.bxf.com/mcp<br/><br/>Route:<br/>https://mcp-invest.bxf.com/mcp"]
+        MCPOLB["MCP<br/>mcp-olb.bxf.com"]
+        MCPINV["MCP<br/>mcp-invest.bxf.com"]
+        RS["RS"]
+        API["API"]
+    end
+    MOLTOK["Token:<br/>sub: user1<br/>aud:<br/>olb-resource.bxf.com<br/>scope: balance<br/>act: chatgpt"]
+    MTOK["Token:<br/>client_id: chatgpt<br/>aud: mcp-olb.bxf.com"]
+    INVTOK["investments-resource.bxf.com<br/>/balance · API key: 12345"]
+
+    AIGW["AI Gateway"]
+    GOV["Governance"]
+    AZURE["Azure"]
+    AWS["AWS"]
+    GOOGLE["Google"]
+
+    USER -->|"User request"| PINGSESS
+    PINGSESS --> APP
+    APP --- CHATBOT
+    PINGSESS -.->|"User Authentication"| ATS
+    ATS --- ORCH
+    ORCH --- AGT
+    ORCH --- TXE
+    ORCH --- CCRED
+    AUTHZ --- ATS
+    AUTHZ -.->|"Introspect token"| ATS
+    APP -->|"Request"| AGENT1
+    ATS -.->|"Request token"| AGENT1
+    ATS -.->|"Request"| AUTHZ
+    CHATBOT --- HTOK
+    AGENT1 --- LLM
+    AGENT1 -.->|"JSON-RPC request"| LLM
+    AGENT1 -->|"JSON-RPC request"| DEC
+    AGENT1 --- AGTOK
+    DEC -->|"Token Mediation"| GW
+    DEC -.->|"Access Governance"| AIGW
+    GW -->|"Forward tool call"| MCPOLB
+    GW -->|"Request"| MCPINV
+    MCPOLB --- MTOK
+    MCPOLB -->|"Request"| RS
+    RS --- INVTOK
+    MCPINV -->|"Request · API key (via vault)"| API
+    MCPINV --- MOLTOK
+    DEC --- TXTOK
+    AIGW -->|"Read Agent Meta-Data"| GOV
+    GOV --- AZURE
+    GOV --- AWS
+    GOV --- GOOGLE
+
+    classDef red fill:#ee6a68,stroke:#8a2f2a,color:#1a1a1a
+    classDef orange fill:#f0952a,stroke:#8a5410,color:#1a1a1a
+    classDef cream fill:#fcefc7,stroke:#b8a66a,color:#1a1a1a
+    classDef pink fill:#f272c8,stroke:#a12a76,color:#1a1a1a
+    classDef yellow fill:#fbf3c0,stroke:#b8ac60,color:#1a1a1a
+    classDef blue fill:#cfe2ff,stroke:#6b9bd2,color:#1a1a1a
+    classDef green fill:#d5e8d4,stroke:#6a936a,color:#1a1a1a
+    classDef dgreen fill:#5cb85c,stroke:#2d6a2d,color:#1a1a1a
+    classDef purple fill:#d6d0ea,stroke:#8077ad,color:#1a1a1a
+    classDef grey fill:#d0d0d0,stroke:#777777,color:#1a1a1a
+
+    class ATS,AUTHZ,GW,AIGW red
+    class ORCH,AGT,TXE,CCRED orange
+    class HTOK,AGTOK,TXTOK,MOLTOK,MTOK cream
+    class DEC pink
+    class MCPBOX yellow
+    class USER,APP,CHATBOT blue
+    class AZURE,AWS,GOOGLE green
+    class GOV dgreen
+    class RS,API purple
+    class AGENT1 red
+    class LLM green
+    class PINGSESS grey
