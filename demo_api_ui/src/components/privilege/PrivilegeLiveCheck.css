@@ -1,0 +1,63 @@
+/* PrivilegeLiveCheck — the "go through live Privilege" control. */
+
+.plc {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--th-border);
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.plc__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.plc__run {
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-raised);
+  color: var(--th-text);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.75rem;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.plc__run:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.plc__hint {
+  font-size: var(--font-size-3xs);
+  opacity: 0.7;
+}
+
+.plc__result {
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--font-size-xs);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.plc-allowed { background: rgba(46, 160, 67, 0.12); }
+.plc-denied { background: rgba(218, 54, 51, 0.12); }
+.plc-tool-error { background: rgba(154, 103, 0, 0.12); }
+.plc-error { background: rgba(154, 103, 0, 0.12); }
+
+.plc__meta {
+  font-size: var(--font-size-3xs);
+  opacity: 0.75;
+}
+
+.plc__upstream {
+  margin: 0;
+  font-size: var(--font-size-3xs);
+  max-height: 8rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

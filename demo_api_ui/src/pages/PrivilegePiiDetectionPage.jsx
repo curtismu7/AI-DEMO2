@@ -15,6 +15,7 @@
 // ones it can verify correctly offline.
 
 import { useMemo, useState } from 'react';
+import PrivilegeLiveCheck from '../components/privilege/PrivilegeLiveCheck';
 import PageHeader from '../components/common/PageHeader';
 import {
   PII_KINDS,
@@ -101,6 +102,11 @@ export default function PrivilegePiiDetectionPage() {
             )}
             <p className="pii-muted">{PII_DEMO_NOTES.ownFormats}</p>
             <p className="pii-muted">{PII_DEMO_NOTES.graduated}</p>
+            <PrivilegeLiveCheck
+              tool="get_investment_transactions"
+              args={{ subject: 'alice' }}
+              label="Fetch a real record through the Privilege gateway"
+            />
           </section>
 
           <section className="pii-panel" aria-labelledby="pii-kinds">

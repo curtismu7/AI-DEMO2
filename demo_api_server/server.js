@@ -1111,6 +1111,7 @@ app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 app.use('/api/privilege-user-api-keys', require('./routes/privilegeUserApiKeys'));
+app.use('/api/privilege', require('./routes/privilegeDecisionDemo').router);
 app.use('/api/admin/mcp-discovery', mcpDiscoveryRoutes);
 
 // OpenAPI / Swagger UI. The document is introspected from this app's own router

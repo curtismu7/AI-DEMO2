@@ -11,6 +11,7 @@
 // Inspector (/intent-inspector), which fires at a real decision endpoint.
 
 import { useMemo, useState } from 'react';
+import PrivilegeLiveCheck from '../components/privilege/PrivilegeLiveCheck';
 import { Link } from 'react-router-dom';
 import InspectorShell from '../components/shared/InspectorShell';
 import InspectorListItem from '../components/shared/InspectorListItem';
@@ -131,11 +132,18 @@ export default function PrivilegeIntentTriagePage() {
       />
       <div className="inspector-shell-output-body">
         {activeTab === 'signals' && (
-          <div className={`triage-outcome ${outcome.cls}`} data-testid="triage-verdict" role="status">
-            <strong>{outcome.label}</strong>
-            <p>{outcome.note}</p>
-            <p className="triage-expect">{scenario.expect}</p>
-          </div>
+          <>
+            <div className={`triage-outcome ${outcome.cls}`} data-testid="triage-verdict" role="status">
+              <strong>{outcome.label}</strong>
+              <p>{outcome.note}</p>
+              <p className="triage-expect">{scenario.expect}</p>
+            </div>
+            <PrivilegeLiveCheck
+              tool="list_entitlements"
+              args={{ user: 'alice' }}
+              label="Check the same subject through live Privilege"
+            />
+          </>
         )}
         {activeTab === 'tier' && (
           <div className="triage-tier">
@@ -165,7 +173,7 @@ export default function PrivilegeIntentTriagePage() {
       <InspectorShell
         title="Agent call triage"
         statusOn
-        statusText="documented-behaviour model — not a live gateway call"
+        statusText="documented-behaviour model — with a live gateway check below the verdict"
         fullHeight={false}
         left={left}
         middle={middle}

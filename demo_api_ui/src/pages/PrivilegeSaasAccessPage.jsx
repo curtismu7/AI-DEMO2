@@ -10,6 +10,7 @@
 // connected-platform table restates the platform matrix from the update.
 
 import { useMemo, useState } from 'react';
+import PrivilegeLiveCheck from '../components/privilege/PrivilegeLiveCheck';
 import PageHeader from '../components/common/PageHeader';
 import {
   SAAS_PLATFORMS,
@@ -155,6 +156,11 @@ export default function PrivilegeSaasAccessPage() {
           <p className="psa-muted">
             Walkthrough only: this page does not grant anything on GitHub, Snowflake or any connected platform.
           </p>
+          <PrivilegeLiveCheck
+            tool="get_access_grants"
+            args={{ resource: 'payments-api' }}
+            label="Read the live entitlement ledger through Privilege"
+          />
         </section>
       </div>
     </div>
