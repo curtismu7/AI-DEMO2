@@ -11,6 +11,7 @@
 // call is made from this page.
 
 import { useMemo, useState } from 'react';
+import PrivilegeLiveCheck from '../components/privilege/PrivilegeLiveCheck';
 import InspectorShell from '../components/shared/InspectorShell';
 import InspectorListItem from '../components/shared/InspectorListItem';
 import InspectorTabs from '../components/shared/InspectorTabs';
@@ -127,11 +128,18 @@ export default function PrivilegeCodingAgentsPage() {
       />
       <div className="inspector-shell-output-body">
         {activeTab === 'decision' && (
-          <div className={`pca-verdict pca-verdict--${scenario.decision}`} data-testid="pca-verdict" role="status">
-            <strong>{decisionLabel(scenario.decision)}</strong>
-            <p>{decision?.note}</p>
-            <p className="pca-reason">{scenario.reason}</p>
-          </div>
+          <>
+            <div className={`pca-verdict pca-verdict--${scenario.decision}`} data-testid="pca-verdict" role="status">
+              <strong>{decisionLabel(scenario.decision)}</strong>
+              <p>{decision?.note}</p>
+              <p className="pca-reason">{scenario.reason}</p>
+            </div>
+            <PrivilegeLiveCheck
+              tool="get_access_grants"
+              args={{ user: 'alice', resource: 'payments-api' }}
+              label="See this agent's entitlements through live Privilege"
+            />
+          </>
         )}
         {activeTab === 'wire' && (
           <pre className="inspector-shell-output-code pca-wire-pre" data-testid="pca-wire">
@@ -152,7 +160,7 @@ export default function PrivilegeCodingAgentsPage() {
       <InspectorShell
         title="Hook evaluation"
         statusOn
-        statusText="documented-behaviour walkthrough — no live call"
+        statusText="documented-behaviour walkthrough — with a live gateway check under the decision"
         fullHeight={false}
         left={left}
         middle={middle}

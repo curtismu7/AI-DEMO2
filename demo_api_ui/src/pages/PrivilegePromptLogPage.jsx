@@ -15,6 +15,7 @@
 // browser, never stored opened.
 
 import { useMemo, useState } from 'react';
+import PrivilegeLiveCheck from '../components/privilege/PrivilegeLiveCheck';
 import PageHeader from '../components/common/PageHeader';
 import { SEALED_PROMPT_RECORDS, SEALED_DEMO } from '../config/privilegePlatformUpdateDemos';
 import './PrivilegePromptLogPage.css';
@@ -119,6 +120,11 @@ export default function PrivilegePromptLogPage() {
                 <button type="button" className="ppl-btn" onClick={openRecord} data-testid="ppl-open">Open this record</button>
               </div>
             )}
+            <PrivilegeLiveCheck
+              tool="sensitive_customer_identity"
+              args={{ subject: 'alice' }}
+              label="See what the gateway's own log would hold (live read)"
+            />
           </aside>
         </div>
       </div>
