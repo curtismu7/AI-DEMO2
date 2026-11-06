@@ -107,7 +107,7 @@
         <mxCell id="mcpbox" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=12;verticalAlign=top;dashed=1;" vertex="1" parent="1">
           <mxGeometry x="1120" y="290" width="440" height="220" as="geometry" />
         </mxCell>
-        <mxCell id="gw" value="Agent Gateway&#10;&#10;Route:&#10;https://mcp-personal.bxf.com/mcp&#10;&#10;Route:&#10;https://mcp-invest.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="gw" value="Agent Gateway&#10;(PingGateway, Kong AI Gateway,&#10;Apigee, or any API/AI gateway)&#10;&#10;Route:&#10;https://mcp-personal.bxf.com/mcp&#10;&#10;Route:&#10;https://mcp-invest.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1150" y="320" width="130" height="150" as="geometry" />
         </mxCell>
         <mxCell id="mcpolb" value="MCP&#10;mcp-personal.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">

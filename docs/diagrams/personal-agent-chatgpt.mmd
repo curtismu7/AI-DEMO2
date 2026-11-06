@@ -29,7 +29,7 @@ flowchart TB
     DEC{"Control problem:<br/>MCP access governance<br/>or downstream token<br/>mediation?"}
 
     subgraph MCPBOX["MCP"]
-        GW["Agent Gateway<br/><br/>Route:<br/>https://mcp-personal.bxf.com/mcp<br/><br/>Route:<br/>https://mcp-invest.bxf.com/mcp"]
+        GW["Agent Gateway<br/>(PingGateway, Kong AI Gateway,<br/>Apigee, or any API/AI gateway)<br/><br/>Route:<br/>https://mcp-personal.bxf.com/mcp<br/><br/>Route:<br/>https://mcp-invest.bxf.com/mcp"]
         MCPOLB["MCP<br/>mcp-personal.bxf.com"]
         MCPINV["MCP<br/>mcp-invest.bxf.com"]
         RS["RS"]
