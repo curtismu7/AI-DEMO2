@@ -37,6 +37,12 @@ const PrivilegeGatewayTopologyPage = lazyWithRetry(() => import("./components/Pr
 const GatewayStatsPage = lazyWithRetry(() => import("./components/GatewayStatsPage"));
 const PrivilegeDocsIndexPage = lazyWithRetry(() => import("./pages/PrivilegeDocsIndexPage"));
 const PrivilegeShelfPage = lazyWithRetry(() => import("./pages/PrivilegeShelfPage"));
+// Privilege Platform Update (29 Oct 2026) demos.
+const PrivilegeIntentTriagePage = lazyWithRetry(() => import("./pages/PrivilegeIntentTriagePage"));
+const PrivilegeCodingAgentsPage = lazyWithRetry(() => import("./pages/PrivilegeCodingAgentsPage"));
+const PrivilegeSaasAccessPage = lazyWithRetry(() => import("./pages/PrivilegeSaasAccessPage"));
+const PrivilegePromptLogPage = lazyWithRetry(() => import("./pages/PrivilegePromptLogPage"));
+const PrivilegePiiDetectionPage = lazyWithRetry(() => import("./pages/PrivilegePiiDetectionPage"));
 const PrivilegeMapPage = lazyWithRetry(() => import("./pages/PrivilegeMapPage"));
 const SkillsIndexPage = lazyWithRetry(() => import("./pages/SkillsIndexPage"));
 const InvestDualAuthDiagramPage = lazyWithRetry(() => import("./components/InvestDualAuthDiagramPage"));
@@ -2393,6 +2399,27 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-ai-policies"
                               element={<PrivilegeAiPoliciesDemoPage />}
+                            />
+                            {/* Platform Update (29 Oct 2026) demos: documented-behaviour walkthroughs of the new capabilities. */}
+                            <Route
+                              path="/privilege-intent-triage"
+                              element={<PrivilegeIntentTriagePage />}
+                            />
+                            <Route
+                              path="/privilege-coding-agents"
+                              element={<PrivilegeCodingAgentsPage />}
+                            />
+                            <Route
+                              path="/privilege-saas-access"
+                              element={<PrivilegeSaasAccessPage />}
+                            />
+                            <Route
+                              path="/privilege-prompt-log"
+                              element={<PrivilegePromptLogPage />}
+                            />
+                            <Route
+                              path="/privilege-pii-detection"
+                              element={<PrivilegePiiDetectionPage />}
                             />
                             {/* PingFederate token on Privilege: live run through the BFF (run needs a session; the page is public). */}
                             {/* PingOne token exchange with third-party JWTs (Ping UAT guide, Oct 2026). Mock, no live call. */}

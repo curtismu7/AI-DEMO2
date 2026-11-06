@@ -1421,6 +1421,36 @@ export default function AdminSideNav({
         searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent federated identity",
       },
       {
+        label: "Platform Update: Intent, Purpose and Behaviour",
+        path: "/privilege-intent-triage",
+        icon: "pol",
+        searchAlias: "platform update intent purpose behaviour three signals scored deterministic hard refusal anomaly baseline",
+      },
+      {
+        label: "Platform Update: Coding Agents",
+        path: "/privilege-coding-agents",
+        icon: "pol",
+        searchAlias: "platform update coding agents claude code cursor codex gemini cli copilot antigravity hook machine-level managed configuration allow deny ask secrets laptop",
+      },
+      {
+        label: "Platform Update: SaaS Access Management",
+        path: "/privilege-saas-access",
+        icon: "pol",
+        searchAlias: "platform update saas access management jit just in time time bound github gitlab salesforce snowflake databricks google workspace reaper receipt drift",
+      },
+      {
+        label: "Platform Update: Prompt Logging",
+        path: "/privilege-prompt-log",
+        icon: "pol",
+        searchAlias: "platform update prompt logging sealed encrypted public key private key browser agent insights records",
+      },
+      {
+        label: "Platform Update: Personal Data Detection",
+        path: "/privilege-pii-detection",
+        icon: "pol",
+        searchAlias: "platform update pii personal data 23 kinds checksum validated nino aadhaar pan sin tfn ird gitleaks sanitize block alert",
+      },
+      {
         label: "Gateway v1.261024, v1.261027, v1.261028, v1.261029, v1.261030 and v1.261102: Claims",
         path: "/gateway-claims",
         icon: "key",

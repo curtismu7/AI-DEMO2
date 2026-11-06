@@ -9,7 +9,7 @@
  *
  * Search order (first match wins):
  *   1. Repo root            (where the user typically drops the export)
- *   2. ~/Documents/<file>.json
+ *   2. ~/.config/demo-kit/<file>.json
  *   3. ~/Downloads/<file>.json
  *
  * Successful lookups are memoized per agent name for the process lifetime.
@@ -59,7 +59,7 @@ function readAgentJson(filePath) {
 
 /**
  * Load a Helix agent's API key from `<agentName>.json` in repo root,
- * ~/Documents, or ~/Downloads. Returns the keyValue string, or null if
+ * ~/.config/demo-kit, or ~/Downloads. Returns the keyValue string, or null if
  * no file is found / readable / contains a non-empty keyValue.
  *
  * @param {string} agentName  e.g. "LLM"
@@ -84,7 +84,7 @@ function loadAgentKey(agentName) {
   const candidates = [
     path.join(REPO_ROOT, `${safe}.json`),
     path.join(REPO_ROOT, '.claude', 'skills', 'helix-setup', `${safe}.json`),
-    path.join(HOME, 'Documents', `${safe}.json`),
+    path.join(HOME, '.config', 'demo-kit', `${safe}.json`),
     path.join(HOME, 'Downloads', `${safe}.json`),
   ];
 

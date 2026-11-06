@@ -10,7 +10,7 @@ common locations and lift the keyValue out so the service "just works".
 
 Search order (first match wins):
   1. Repo root            (where the user typically drops the export)
-  2. ~/Documents/<file>.json
+  2. ~/.config/demo-kit/<file>.json
   3. ~/Downloads/<file>.json
 
 Successful lookups are memoized per agent name for the process lifetime.
@@ -53,7 +53,7 @@ def _read_agent_json(path: Path) -> Optional[str]:
 def load_agent_key(agent_name: str) -> Optional[str]:
     """
     Load a Helix agent's API key from <agentName>.json in repo root,
-    ~/Documents, or ~/Downloads.
+    ~/.config/demo-kit, or ~/Downloads.
 
     Returns the keyValue string, or None if no file is found / readable /
     contains a non-empty keyValue.
@@ -74,7 +74,7 @@ def load_agent_key(agent_name: str) -> Optional[str]:
 
     candidates = [
         _REPO_ROOT / f"{safe}.json",
-        _HOME / "Documents" / f"{safe}.json",
+        _HOME / ".config" / "demo-kit" / f"{safe}.json",
         _HOME / "Downloads" / f"{safe}.json",
     ]
 

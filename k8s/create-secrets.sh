@@ -315,7 +315,7 @@ secret_from_envfile() {
 # HELIX_API_KEY is a secret, so it is NOT committed (it is absent from the
 # configmap and usually from .env). Mirror what the BFF does locally
 # (helixAgentKeyLoader.js): read it from <HELIX_AGENT_ID>.json in the repo root
-# (ASSET_ROOT) / ~/Documents / ~/Downloads, and patch it into ai-demo-secrets.
+# (ASSET_ROOT) / ~/.config/demo-kit / ~/Downloads, and patch it into ai-demo-secrets.
 # Skipped (leaving the .env value in place) when HELIX_API_KEY is already set in
 # the BFF .env, and a no-op when no keyfile is present.
 inject_helix_api_key() {
@@ -345,7 +345,7 @@ PY
 
   local keyfile=""
   local f
-  for f in "$ASSET_ROOT/${agent}.json" "$HOME/Documents/${agent}.json" "$HOME/Downloads/${agent}.json"; do
+  for f in "$ASSET_ROOT/${agent}.json" "$HOME/.config/demo-kit/${agent}.json" "$HOME/Downloads/${agent}.json"; do
     [ -f "$f" ] && { keyfile="$f"; break; }
   done
   if [ -z "$keyfile" ]; then
