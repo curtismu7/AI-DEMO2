@@ -123,6 +123,57 @@ router.post('/agent-tool', async (req, res) => {
   };
   const tokenEvents = [];
 
+  // agentPreferencesGate on the NL-agent path: this callback IS an agent tool
+  // execution, so the session user's agentPreferences (allowed tiers, spend
+  // cap, unknown-agent policy) must gate it exactly as /api/mcp/tool does.
+  // The gate is a middleware that answers via res; call it through a promise
+  // with a capture res. The actor (agent identity) comes from the run's intent
+  // token; the detection flag rides the stored session.
+  {
+    const { agentPreferencesGate } = require('../middleware/agentPreferencesGate');
+    let _actor = null;
+    try {
+      const [, payloadB64] = String(intentToken || '').split('.');
+      if (payloadB64) _actor = { sub: JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')).iss || 'bff:intent-token' };
+    } catch { /* malformed intent token — still gate, actor unknown */ }
+    const gateReq = {
+      ...fakeReq,
+      headers: { 'x-mcp-tool': tool, 'x-internal-gateway-secret': req.headers['x-internal-gateway-secret'] },
+      user: { id: userId, actor: _actor || { sub: 'bff:intent-token' } },
+    };
+    const gateResult = await new Promise((resolve) => {
+      const gateRes = {
+        status(code) {
+          this._code = code;
+          return { json(body) { resolve({ status: code, body }); } };
+        },
+        json(body) { resolve({ status: 200, body }); },
+      };
+      agentPreferencesGate(gateReq, gateRes, () => resolve(null));
+    });
+    if (gateResult) {
+      // 428 = the exact HITL body shape the pipeline's gateway-428 path emits
+      // (the UI renders that as the consent modal); 403 = hard deny.
+      if (gateResult.status === 428 && gateResult.body?.taskId) {
+        return res.status(428).json({
+          error: 'hitl_required',
+          isError: false,
+          tool,
+          message: gateResult.body.reason || 'Agent action requires human approval (user agent preferences)',
+          hitl: true,
+          challengeId: gateResult.body.taskId,
+          challenge_type: 'consent',
+        });
+      }
+      return res.status(gateResult.status).json({
+        error: 'mcp_forbidden',
+        message: gateResult.body?.reason || gateResult.body?.error || 'Blocked by user agent preferences',
+        tool,
+      });
+    }
+  }
+
+
   try {
     // A2A fast-path — parity with the heuristic dispatcher
     // (demoAgentLangGraphService.dispatchVerticalIntent): an a2aDelegated tool
