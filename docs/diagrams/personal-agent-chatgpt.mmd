@@ -14,15 +14,15 @@ flowchart TB
 
     USER["User"]
     PINGSESS["Ping Session"]
-    CHATB["ChatGPT in browser"]
-    GPTD["ChatGPT Desktop"]
+    CHATB["ChatGPT in browser<br/>(user surface)"]
+    GPTD["ChatGPT Desktop<br/>(user surface)"]
 
     HTOK["Human token:<br/>sub: user1<br/>aud: chatgpt.bxf.com<br/>scope: agent1<br/>acr: Single_Factor<br/>may_act: chatgpt"]
     AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
     TXTOK["TX Token:<br/>sub: user1<br/>aud: mcp-gw.bxf.com<br/>scope: mcp<br/>act: chatgpt<br/>acr: Single_Factor<br/>transaction details"]
 
     subgraph SHADOW["Shadow IT — personal agent"]
-        AGENT1["ChatGPT Agent<br/>(acts for the user)"]
+        AGENT1["ChatGPT Agent runtime<br/>(backend — acts for the user)<br/>OAuth client: chatgpt"]
         LLM["LLM (OpenAI)"]
     end
 
