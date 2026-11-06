@@ -49,7 +49,7 @@ flowchart TB
     AGENT1 -->|tools/call MCP| GW
     GW -->|tool call| MCPOLB
     GW -->|request| MCPINV
-    GW -.->|validate / introspect token| AUTHZ
+    GW -.->|validate / introspect token| ATS
     MCPOLB -->|request| RS
     MCPINV -->|API key via vault| API
     RS --- INVTOK
