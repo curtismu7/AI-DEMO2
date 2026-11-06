@@ -7,6 +7,12 @@ const { cache: prefsCache } = require('./agentPreferencesCache');
 const { createPendingDecision } = require('../routes/mcpDecisionPolling');
 const simulatedAuthorizeService = require('../services/simulatedAuthorizeService');
 const { logger } = require('../utils/logger');
+const { HITL_CHALLENGE_ARG } = require('../services/hitlServiceClient');
+
+// Challenge ids this gate created and that the human approved. The retry
+// presenting one of these discharges the block once (single-use receipt).
+// Process-local by design: the challenge store (3009) is the durable record.
+const gateChallengeIds = new Set();
 
 // Worker token + PingOne user-attribute fetch, mirroring agentRestrictionsGate.
 let _workerToken = null;
@@ -143,6 +149,17 @@ async function agentPreferencesGate(req, res, next) {
   }
 
   try {
+    // A retry presenting THIS gate's own challenge id is an approved receipt:
+    // permit it once (same single-use rule as the gateway's _hitl_challenge_id).
+    // The modal retry echoes our taskId in params._hitl_challenge_id; anything
+    // else (a foreign or stale id) does not discharge the block.
+    const retryChallengeId = req.body?.params?.[HITL_CHALLENGE_ARG] || null;
+    if (retryChallengeId && typeof retryChallengeId === 'string' && gateChallengeIds.has(retryChallengeId)) {
+      gateChallengeIds.delete(retryChallengeId); // single use
+      logger.info('[agentPreferencesGate] HITL retry with our approved challenge, permitting once', { userId, toolName, taskId: retryChallengeId });
+      return next();
+    }
+
     const prefs = await fetchAgentPreferences(userId);
     const requiredTier = getRequiredTier(toolName);
     const amount = typeof req.body?.params?.amount === 'string' || typeof req.body?.params?.amount === 'number'
@@ -170,6 +187,7 @@ async function agentPreferencesGate(req, res, next) {
       decisionContext: 'AgentPreferences',
       reason: result.reason,
     });
+    gateChallengeIds.add(taskId);
 
     logger.info('[agentPreferencesGate] HITL task created', { taskId, toolName, requiredTier, userId });
 
@@ -191,4 +209,10 @@ async function agentPreferencesGate(req, res, next) {
   }
 }
 
-module.exports = { agentPreferencesGate, markAgentDetected, isAgentDetected };
+// The approval panel calls this when the human approves a challenge the gate
+// created — recording the receipt the retry will spend (single use).
+function markGateChallengeApproved(taskId) {
+  if (typeof taskId === 'string' && taskId) gateChallengeIds.add(taskId);
+}
+
+module.exports = { agentPreferencesGate, markAgentDetected, isAgentDetected, markGateChallengeApproved };

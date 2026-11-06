@@ -168,3 +168,32 @@ describe('agentPreferencesGate', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 });
+
+describe('agentPreferencesGate — HITL single-use receipt', () => {
+  test('a retry presenting the gate-approved challenge id permits once; a foreign id does not', async () => {
+    // First call: read-only prefs → 428 + taskId (createPendingDecision mocked to 'task-prefs-1')
+    spyPrefs({ allowedActions: ['read'] });
+    const req1 = makeReq();
+    const res1 = makeRes();
+    await agentPreferencesGate(req1, res1, mockNext);
+    expect(res1.status).toHaveBeenCalledWith(428);
+    const taskId = res1.json.mock.calls[0][0].taskId;
+    // The approval happened (human approved in the modal); the gate records it:
+    const { markGateChallengeApproved } = require('../middleware/agentPreferencesGate');
+    markGateChallengeApproved(taskId);
+    // Retry WITH the receipt → permit once
+    const req2 = makeReq({ body: { tool: 'create_transfer', params: { _hitl_challenge_id: taskId } } });
+    const res2 = makeRes();
+    await agentPreferencesGate(req2, res2, mockNext);
+    expect(mockNext).toHaveBeenCalled();
+    // Second retry with the same (spent) id → blocked again
+    mockNext.mockClear();
+    const res3 = makeRes();
+    await agentPreferencesGate(req2, res3, mockNext);
+    expect(res3.status).toHaveBeenCalledWith(428);
+    // A foreign id never discharges
+    const res4 = makeRes();
+    await agentPreferencesGate(makeReq({ body: { tool: 'create_transfer', params: { _hitl_challenge_id: 'someone-elses' } } }), res4, mockNext);
+    expect(res4.status).toHaveBeenCalledWith(428);
+  });
+});

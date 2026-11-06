@@ -132,6 +132,14 @@ async function _respond(req, res, decision) {
 
   try {
     await hitlServiceClient.respondToChallenge(req.params.taskId, decision, req.correlationId);
+    // A challenge this gate created becomes a single-use receipt for the retry
+    // (agentPreferencesGate checks the id in params._hitl_challenge_id).
+    if (decision === 'approved' && entry.context?.decisionContext === 'AgentPreferences') {
+      try {
+        const { markGateChallengeApproved } = require('../middleware/agentPreferencesGate');
+        markGateChallengeApproved(req.params.taskId);
+      } catch (_) { /* receipt bookkeeping is best-effort */ }
+    }
   } catch (err) {
     return res.status(502).json({ error: 'hitl_service_error', message: err.message });
   }
