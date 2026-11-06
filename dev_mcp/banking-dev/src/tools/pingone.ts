@@ -243,7 +243,7 @@ function findHelixKeyFile(agentName: string): { path: string; data: HelixKeyFile
     );
   }
   candidates.push(
-    path.join(os.homedir(), "Documents", `${safe}.json`),
+    path.join(os.homedir(), ".config", "demo-kit", `${safe}.json`),
     path.join(os.homedir(), "Downloads", `${safe}.json`),
   );
   for (const candidate of candidates) {
@@ -328,7 +328,7 @@ export async function pingoneCheckBootstrap(): Promise<{
   } else {
     const keyFile = findHelixKeyFile("LLM");
     if (!keyFile) {
-      checks.push({ name: "helix:api_key", ok: false, detail: "LLM.json not found in repo root, ~/Documents, or ~/Downloads" });
+      checks.push({ name: "helix:api_key", ok: false, detail: "LLM.json not found in repo root, ~/.config/demo-kit, or ~/Downloads" });
       checks.push({ name: "helix:base_url", ok: true, detail: "https://openam-helix.forgeblocks.com (hardcoded)" });
       checks.push({ name: "helix:agent_id", ok: true, detail: "LLM (hardcoded)" });
     } else {
