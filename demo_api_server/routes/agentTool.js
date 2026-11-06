@@ -129,6 +129,7 @@ router.post('/agent-tool', async (req, res) => {
   // The gate is a middleware that answers via res; call it through a promise
   // with a capture res. The actor (agent identity) comes from the run's intent
   // token; the detection flag rides the stored session.
+  let gateDecision = null; // { status, body } when the gate blocks; null = permit
   {
     const { agentPreferencesGate } = require('../middleware/agentPreferencesGate');
     let _actor = null;
@@ -141,38 +142,16 @@ router.post('/agent-tool', async (req, res) => {
       headers: { 'x-mcp-tool': tool, 'x-internal-gateway-secret': req.headers['x-internal-gateway-secret'] },
       user: { id: userId, actor: _actor || { sub: 'bff:intent-token' } },
     };
-    const gateResult = await new Promise((resolve) => {
+    gateDecision = await new Promise((resolve) => {
       const gateRes = {
         status(code) {
-          this._code = code;
           return { json(body) { resolve({ status: code, body }); } };
         },
         json(body) { resolve({ status: 200, body }); },
       };
       agentPreferencesGate(gateReq, gateRes, () => resolve(null));
     });
-    if (gateResult) {
-      // 428 = the exact HITL body shape the pipeline's gateway-428 path emits
-      // (the UI renders that as the consent modal); 403 = hard deny.
-      if (gateResult.status === 428 && gateResult.body?.taskId) {
-        return res.status(428).json({
-          error: 'hitl_required',
-          isError: false,
-          tool,
-          message: gateResult.body.reason || 'Agent action requires human approval (user agent preferences)',
-          hitl: true,
-          challengeId: gateResult.body.taskId,
-          challenge_type: 'consent',
-        });
-      }
-      return res.status(gateResult.status).json({
-        error: 'mcp_forbidden',
-        message: gateResult.body?.reason || gateResult.body?.error || 'Blocked by user agent preferences',
-        tool,
-      });
-    }
   }
-
 
   try {
     // A2A fast-path — parity with the heuristic dispatcher
@@ -202,7 +181,34 @@ router.post('/agent-tool', async (req, res) => {
     const a2aVertical = isDelegationTrigger
       ? (session.active_vertical || 'banking')
       : verticalForA2aTool(tool);
-    if (a2aVertical) {
+    if (gateDecision) {
+      // The preference gate blocked the call BEFORE execution. Route it through
+      // the same normalization the raw result gets below: a 428 becomes
+      // { error: 'hitl_required' } and falls into the isHitl branch
+      // (hitlRequired envelope → the SPA's consent modal with
+      // _hitl_challenge_id retry); a 403 becomes a denied result the agent
+      // reports as a refusal.
+      if (gateDecision.status === 428 && gateDecision.body?.taskId) {
+        raw = {
+          error: 'hitl_required',
+          tool,
+          message: gateDecision.body.reason || 'Agent action requires human approval (user agent preferences)',
+          hitl: { type: 'consent' },
+          challengeId: gateDecision.body.taskId,
+          challenge_type: 'consent',
+        };
+      } else {
+        return res.json({
+          result: {
+            error: 'mcp_forbidden',
+            tool,
+            message: gateDecision.body?.reason || gateDecision.body?.error || 'Blocked by the user\'s agent preferences',
+            denied: true,
+          },
+          tokenEvents,
+        });
+      }
+    } else if (a2aVertical) {
       const { executeA2aDelegation } = require('../services/demoAgentLangGraphService');
       raw = await executeA2aDelegation(
         a2aVertical,
