@@ -7,13 +7,13 @@
   padding: 1.25rem 1.5rem;
   border: 1px solid var(--border, #dde3ea);
   border-left: 4px solid var(--accent, #c8102e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface, #fff);
 }
 .ijrl-cta-btn {
   display: inline-block;
   padding: 0.65rem 1.4rem;
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--accent, #c8102e);
   color: #fff;
   font-weight: 700;
@@ -27,7 +27,7 @@
   flex: none;
   width: 2rem;
   height: 2rem;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--accent, #c8102e);
   color: #fff;
   font-weight: 700;
@@ -36,4 +36,4 @@
 }
 .ijrl-act h3 { margin: 0 0 0.25rem; font-size: var(--font-size-h3, 18px); }
 .ijrl-act p { margin: 0; color: var(--text-muted, #5f6b7a); }
-.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.mono { font-family: var(--font-mono, inherit); }
