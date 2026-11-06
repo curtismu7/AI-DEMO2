@@ -223,4 +223,9 @@ export const NAV_SEARCH_ALIASES = {
   "/users": "search manage user accounts admin actions",
   "/weather-mcp": "third-party mcp server weather geographic scope policy gateway geocode texas model context protocol",
   "/workload-agents": "workload agent delegated customer uc38 uc44 mfa protected action read sub act step-up",
+  "/privilege-intent-triage": "platform update intent purpose behaviour three signals scored deterministic hard refusal anomaly baseline new nov 2026",
+  "/privilege-coding-agents": "platform update coding agents claude code cursor codex gemini cli copilot antigravity hook machine-level managed configuration allow deny ask secrets laptop new nov 2026",
+  "/privilege-saas-access": "platform update saas access management jit just in time bound github gitlab salesforce snowflake databricks workspace reaper receipt drift new nov 2026",
+  "/privilege-prompt-log": "platform update prompt logging sealed encrypted public private browser agent insights records new nov 2026",
+  "/privilege-pii-detection": "platform update pii personal data 23 kinds checksum validated nino aadhaar pan sin tfn ird gitleaks sanitize block alert new nov 2026",
 };

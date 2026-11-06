@@ -1,0 +1,196 @@
+/* Privilege SaaS Access Management page. Tokens only; px spacing. */
+
+.psa-page {
+  min-height: 100vh;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.psa-body {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 24px 64px;
+}
+
+.psa-panel {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.psa-panel h2 {
+  margin: 0 0 4px;
+  font-size: var(--font-size-lg);
+  color: var(--th-text);
+}
+
+.psa-panel > p {
+  margin: 0 0 12px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.psa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .psa-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.psa-label {
+  display: block;
+  font-size: var(--font-size-3xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--th-text-muted);
+  margin-bottom: 4px;
+}
+
+.psa-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+}
+
+.psa-justification {
+  margin: 10px 0 4px;
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+}
+
+.psa-muted {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  margin: 4px 0;
+}
+
+.psa-stages {
+  list-style: none;
+  counter-reset: psa-stage;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.psa-stage {
+  counter-increment: psa-stage;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border: 1px solid var(--th-border);
+  border-left: 4px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-page);
+}
+
+.psa-stage::before {
+  content: counter(psa-stage);
+  position: absolute;
+  display: none;
+}
+
+.psa-stage strong {
+  font-size: var(--font-size-xs);
+  color: var(--th-text);
+}
+
+.psa-stage span {
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+}
+
+.psa-stage--done {
+  border-left-color: var(--th-status-success);
+}
+
+.psa-stage--current {
+  border-left-color: var(--th-status-info);
+  background: var(--th-bg-inset);
+}
+
+.psa-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.psa-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.psa-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.psa-btn--ghost {
+  background: transparent;
+  color: var(--th-text);
+}
+
+.psa-receipt {
+  border: 1px solid var(--th-status-success-border);
+  border-left: 4px solid var(--th-status-success);
+  border-radius: var(--radius-sm);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.psa-receipt p {
+  margin: 0 0 4px;
+  font-size: var(--font-size-xs);
+}
+
+.psa-empty {
+  border: 1px dashed var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.psa-h3 {
+  margin: 12px 0 6px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.psa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+}
+
+.psa-table th,
+.psa-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+  vertical-align: top;
+}
+
+.psa-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
