@@ -130,6 +130,23 @@ const Users = ({ user, onLogout }) => {
     }
   };
 
+  const updateAgentPreferences = async (userId, patch) => {
+    setAgentRestrictionsUpdating((prev) => ({ ...prev, [userId]: true }));
+    try {
+      const current = users.find((u) => u.id === userId)?.agentPreferences || {};
+      const merged = { ...current, ...patch };
+      const res = await bffAxios.patch(`/api/admin/management/users/${userId}/agent-preferences`, merged);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, agentPreferences: res.data.agentPreferences } : u))
+      );
+    } catch (err) {
+      console.error('Failed to update agentPreferences:', err);
+      notifyError('Failed to update agent preferences');
+    } finally {
+      setAgentRestrictionsUpdating((prev) => ({ ...prev, [userId]: false }));
+    }
+  };
+
   const deleteUser = async (userId, userName) => {
     if (!window.confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
       return;
@@ -279,6 +296,43 @@ const Users = ({ user, onLogout }) => {
                           {agentRestrictionsUpdating[user.id] && (
                             <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>saving...</span>
                           )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Agent prefs:</label>
+                          <select
+                            value={
+                              (() => {
+                                const prefs = user.agentPreferences || {};
+                                if (prefs.unknownAgentPolicy === 'deny') return 'deny';
+                                if (prefs.unknownAgentPolicy === 'hitl') return 'hitl';
+                                if (Array.isArray(prefs.allowedActions) && prefs.allowedActions.length === 0) return 'none';
+                                return 'allow';
+                              })()
+                            }
+                            disabled={agentRestrictionsUpdating[user.id]}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (v === 'none') {
+                                updateAgentPreferences(user.id, { allowedActions: [] });
+                              } else {
+                                updateAgentPreferences(user.id, { allowedActions: ['read', 'write'], unknownAgentPolicy: v });
+                              }
+                            }}
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '0.15rem 0.3rem',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              background: 'var(--surface-bg)',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <option value="allow">agent allowed</option>
+                            <option value="hitl">approval required</option>
+                            <option value="deny">agent denied</option>
+                            <option value="none">no agent actions</option>
+                          </select>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button

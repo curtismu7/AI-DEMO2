@@ -50,6 +50,20 @@ router.post('/evaluations', requireCsrf, async (req, res) => {
       return res.status(502).json({ error: 'unknown_risk_result' });
     }
     const botDetection = evaluation.details?.botDetection;
+    // Session-start Protect agent-detection signal: when Protect's bot
+    // detection names an AI agent, flag the browser session so
+    // agentPreferencesGate evaluates the user's unknownAgentPolicy on every
+    // agent tool call this session. Signal only — no enforcement happens here.
+    const detectedRuleName = botDetection?.detected?.rule?.name ?? null;
+    const agentDetected = typeof detectedRuleName === 'string' && /AI agent/i.test(detectedRuleName);
+    if (agentDetected) {
+      try {
+        const { markAgentDetected } = require('../middleware/agentPreferencesGate');
+        markAgentDetected(req);
+      } catch (err) {
+        console.warn('[PingOneProtect] failed to flag session agent detection:', err.message);
+      }
+    }
     return res.json({
       level,
       recommendedAction,
@@ -62,7 +76,7 @@ router.post('/evaluations', requireCsrf, async (req, res) => {
           // agentIdentification opt-ins, Protect names the agent type (rules
           // 660-674, e.g. "AI agent - Muse detected"). Surfaces the native
           // detection — not a client-id heuristic — to the demo page.
-          detectedRuleName: botDetection.detected?.rule?.name ?? null,
+          detectedRuleName,
         },
       } : {}),
     });

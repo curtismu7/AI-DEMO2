@@ -460,7 +460,36 @@ router.patch('/users/:userId/agent-restrictions', requireAdmin, async (req, res)
     attrCache.invalidate(userId);
     return res.json({ userId, agentRestrictions, updated: true });
   } catch (error) {
-    console.error('[adminManagement] PATCH /users/:userId/agent-restrictions error:', error.message);
+    console.error('[adminManagement] PATCH /users/:userId/agent-preferences error:', error.message);
+    const n = normalizeAxiosError(error, { label: 'PingOne app update' });
+    return res.status(500).json({ error: 'update_failed', message: n.message });
+  }
+});
+
+const { normalizePreferences, serializePreferences } = require('../services/agentPreferencesService');
+const { cache: prefsCache } = require('../middleware/agentPreferencesCache');
+
+/**
+ * PATCH /api/admin/management/users/:userId/agent-preferences
+ * Update a user's agentPreferences JSON attribute in PingOne.
+ * Also invalidates the local BFF preference cache so the change takes effect within 5s.
+ */
+router.patch('/users/:userId/agent-preferences', requireAdmin, async (req, res) => {
+  const userId = req.params.userId;
+  const prefs = normalizePreferences(req.body);
+
+  try {
+    managementService.initialize();
+    const axios = require('axios');
+    await axios.patch(
+      `${managementService.baseURL}/users/${userId}`,
+      { agentPreferences: serializePreferences(prefs) },
+      { headers: managementService.getHeaders() }
+    );
+    prefsCache.invalidate(userId);
+    return res.json({ userId: req.params.userId, agentPreferences: prefs, updated: true });
+  } catch (error) {
+    console.error('[adminManagement] PATCH /users/:userId/agent-preferences error:', error.message);
     const n = normalizeAxiosError(error, { label: 'PingOne app update' });
     return res.status(500).json({ error: 'update_failed', message: n.message });
   }

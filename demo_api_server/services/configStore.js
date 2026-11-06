@@ -447,6 +447,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
   ff_agent_restrictions:           { public: true, default: 'false' }, // P1AZ resource server gate + AgentRestrictions attribute
+  ff_agent_preferences:            { public: true, default: 'false' }, // Per-user agent preferences (agentPreferences JSON user attribute) + Protect agent-detection HITL
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
   ff_mcp_gateway_pinggateway:      { public: true, default: 'true' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
   ff_privilege_llm_first:          { public: true, default: 'false' }, // Route google/anthropic chat through the PingOne Privilege virtual-key lanes instead of vendor-direct
