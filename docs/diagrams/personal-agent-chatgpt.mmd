@@ -22,8 +22,8 @@ flowchart TB
     TXTOK["TX Token:<br/>sub: user1<br/>aud: mcp-gw.bxf.com<br/>scope: mcp<br/>act: chatgpt<br/>acr: Single_Factor<br/>transaction details"]
 
     subgraph SHADOW["Shadow IT — personal agent"]
-        AGENT1["chatgpt"]
-        LLM["LLM"]
+        AGENT1["ChatGPT Agent<br/>(acts for the user)"]
+        LLM["LLM (OpenAI)"]
     end
 
     DEC{"Control problem:<br/>MCP access governance<br/>or downstream token<br/>mediation?"}
