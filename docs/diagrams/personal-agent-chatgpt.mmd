@@ -46,6 +46,7 @@ flowchart TB
     AUTHZ --- ATS
     AUTHZ -.->|introspect| ATS
     ATS -.->|request token| AGENT1
+    AGENT1 -->|tools/call MCP| GW
     GW -->|tool call| MCPOLB
     GW -->|request| MCPINV
     GW -.->|validate / introspect token| AUTHZ
