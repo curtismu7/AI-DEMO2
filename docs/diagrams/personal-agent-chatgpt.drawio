@@ -94,12 +94,6 @@
         </mxCell>
 
         <!-- ===== Decision diamond ===== -->
-        <mxCell id="dec" value="Control problem:&#10;MCP access governance&#10;or downstream token&#10;mediation?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f272c8;strokeColor=#a12a76;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="920" y="420" width="180" height="120" as="geometry" />
-        </mxCell>
-        <mxCell id="e_dec1" value="JSON-RPC" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="dec" target="chatgpt">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
 
         <!-- ===== MCP container (right) ===== -->
         <mxCell id="mcpbox" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=12;verticalAlign=top;dashed=1;" vertex="1" parent="1">
@@ -123,12 +117,6 @@
         <mxCell id="invtok" value="personal-resource.bxf.com&#10;/calendar · API key: 12345" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="1250" y="490" width="170" height="44" as="geometry" />
         </mxCell>
-        <mxCell id="e_dec_gw" value="Token Mediation" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="dec" target="gw">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_txtok_dec" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b8a66a;endArrow=none;dashed=1;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" edge="1" parent="1" source="agttok" target="dec">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="e_gw1" value="Tool call" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpolb">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
@@ -143,36 +131,6 @@
         </mxCell>
 
         <!-- ===== AI Gateway / Governance / clouds (bottom right) ===== -->
-        <mxCell id="aigw" value="AI Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1290" y="640" width="140" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="e_dec_aigw" value="Access Governance" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="dec" target="aigw">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="gov" value="Governance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5cb85c;strokeColor=#2d6a2d;fontColor=#1a1a1a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1560" y="760" width="120" height="44" as="geometry" />
-        </mxCell>
-        <mxCell id="azure" value="Azure" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1620" y="620" width="80" height="36" as="geometry" />
-        </mxCell>
-        <mxCell id="aws" value="AWS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1520" y="650" width="80" height="36" as="geometry" />
-        </mxCell>
-        <mxCell id="google" value="Google" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1640" y="690" width="80" height="36" as="geometry" />
-        </mxCell>
-        <mxCell id="e_aigw_gov" value="Read Agent Meta-Data" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d22;fontColor=#d22;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="aigw" target="gov">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_gov1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;exitX=0.75;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="gov" target="azure">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_gov2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="gov" target="aws">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_gov3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;exitX=1;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="gov" target="google">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
 
       </root>
     </mxGraphModel>

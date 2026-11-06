@@ -23,9 +23,7 @@ flowchart TB
 
     HTOK["Human token:<br/>sub: user1 · aud: chatgpt.bxf.com<br/>scope: agent1 · acr: Single_Factor<br/>may_act: chatgpt"]
     AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
-    TXTOK["TX Token:<br/>sub: user1 · aud: mcp-gw.bxf.com<br/>scope: mcp · act: chatgpt<br/>acr: Single_Factor · transaction details"]
 
-    DEC{"Control problem:<br/>MCP access governance<br/>or downstream token mediation?"}
 
     subgraph MCPBOX["MCP"]
         GW["Agent Gateway<br/>(PingGateway, Kong AI Gateway,<br/>Apigee, or any API/AI gateway)<br/><br/>Route: mcp-personal.bxf.com/mcp<br/>Route: mcp-invest.bxf.com/mcp"]
@@ -36,11 +34,6 @@ flowchart TB
     end
     INVTOK["personal-resource.bxf.com<br/>/calendar · API key: 12345"]
 
-    AIGW["AI Gateway"]
-    GOV["Governance"]
-    AZURE["Azure"]
-    AWS["AWS"]
-    GOOGLE["Google"]
 
     USER -->|request| PINGSESS
     PINGSESS --> CHATB
@@ -53,19 +46,12 @@ flowchart TB
     AUTHZ --- ATS
     AUTHZ -.->|introspect| ATS
     ATS -.->|request token| AGENT1
-    AGENT1 --> DEC
-    DEC -->|Token Mediation| GW
-    DEC -.->|Access Governance| AIGW
     GW -->|tool call| MCPOLB
     GW -->|request| MCPINV
     GW -.->|validate / introspect token| AUTHZ
     MCPOLB -->|request| RS
     MCPINV -->|API key via vault| API
     RS --- INVTOK
-    AIGW -->|Read Agent Meta-Data| GOV
-    GOV --- AZURE
-    GOV --- AWS
-    GOV --- GOOGLE
 
     classDef red fill:#ee6a68,stroke:#8a2f2a,color:#1a1a1a
     classDef orange fill:#f0952a,stroke:#8a5410,color:#1a1a1a
@@ -78,14 +64,11 @@ flowchart TB
     classDef purple fill:#d6d0ea,stroke:#8077ad,color:#1a1a1a
     classDef grey fill:#d0d0d0,stroke:#777777,color:#1a1a1a
 
-    class ATS,AUTHZ,GW,AIGW red
+    class ATS,AUTHZ,GW red
     class ORCH,AGT,TXE,CCRED orange
-    class HTOK,AGTOK,TXTOK,INVTOK cream
-    class DEC pink
+    class HTOK,AGTOK,INVTOK cream
     class MCPBOX yellow
     class USER,CHATB,GPTD blue
-    class AZURE,AWS,GOOGLE green
-    class GOV dgreen
     class RS,API purple
     class AGENT1 red
     class LLM green
