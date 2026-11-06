@@ -278,6 +278,7 @@ const {
     refreshIfExpiring
 } = require('./middleware/tokenRefresh');
 const { agentRestrictionsGate } = require('./middleware/agentRestrictionsGate');
+const { agentPreferencesGate } = require('./middleware/agentPreferencesGate');
 const { delegationGate } = require('./middleware/delegationGate');
 const { transactionTurnMiddleware } = require('./middleware/transactionTurn');
 
@@ -2351,7 +2352,12 @@ function renderOutcome(res, outcome) {
 // demo-api-server hop — the orphan cluster /transaction-trace could not attach
 // to any turn. After requireSession so an unauthenticated probe never files a
 // record and burns the 500-transaction cap.
-app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddleware, async (req, res, next) => {
+// agentPreferencesGate: per-user agent preferences (agentPreferences JSON user
+// attribute) + the session-start Protect agent-detection signal. Fires only on
+// agent-originated calls (verified `act` claim) when ff_agent_preferences=true;
+// no-op for direct user calls. Mounted before the handler so a DENY/HITL 428
+// short-circuits ahead of token resolution and gateway dispatch.
+app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddleware, agentPreferencesGate, async (req, res, next) => {
   // Defense-in-depth: scrub any JWT-shaped string from EVERY json response on
   // this route (tokenEvents success + all error/expiry paths) without editing
   // each res.json call site — keeps the §1-protected gate/branch logic byte-for-

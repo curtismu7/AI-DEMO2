@@ -3020,6 +3020,19 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
+      // agentPreferences schema attribute (JSON; per-user agent preferences — see
+      // services/agentPreferencesService.js). Always provisioned, same idiom as
+      // the mayAct JSON attribute.
+      steps.push({ step: 'agentPreferences-schema', icon: '·', message: 'Ensuring agentPreferences user schema attribute (JSON)...' });
+      onStep(steps[steps.length - 1]);
+      try {
+        await this._ensureUserSchemaAttribute('agentPreferences', 'JSON', 'Agent Preferences');
+        steps.push({ step: 'agentPreferences-schema', icon: '✅', message: 'agentPreferences attribute → created (or already exists)' });
+      } catch (err) {
+        steps.push({ step: 'agentPreferences-schema', icon: '⚠️', message: `agentPreferences schema attribute failed: ${err.message}` });
+      }
+      onStep(steps[steps.length - 1]);
+
       // Set agentRestrictions default on demoUser
       if (provisioned.demoUser?.id) {
         steps.push({ step: 'agentRestrictions-user', icon: '·', message: 'Setting agentRestrictions default on demo user...' });

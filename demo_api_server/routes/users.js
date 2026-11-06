@@ -21,6 +21,7 @@ function normalizePingOneUser(u) {
     updatedAt: u.updatedAt,
     population: u.population,
     agentRestrictions: u.agentRestrictions ?? 'write',
+    agentPreferences: typeof u.agentPreferences === 'string' ? JSON.parse(u.agentPreferences) : (u.agentPreferences ?? null),
   };
 }
 
