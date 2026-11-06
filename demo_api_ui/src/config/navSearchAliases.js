@@ -157,6 +157,7 @@ export const NAV_SEARCH_ALIASES = {
   "/pingfederate-id-jag/implementation": "uc40 bff pingfederate oauth-mcp gateway mcp server banking api real claims wiring",
   "/pingfederate-id-jag/playground": "step by ietf draft negative tests trusted idps mcp authorization server decoded tokens",
   "/pingfederate-id-jag/playground/diagram/oauth-mcp": "oauth-mcp calls in this step every call pingfederate trusted idps",
+  "/pingfederate-id-jag/runner": "id-jag runner lab standalone browser demo no postman password grant refresh token exchange jwt-bearer redeem introspection jwks refusals demouser",
   "/pingone-authorize": "policy decision point pdp tree trace evaluate endpoints recent decisions abac",
   "/pingone-authorize-capabilities": "contextual runtime authorization least-privilege fail-closed obligations policy tree audit trail attribute-driven agent tool calls",
   "/pingfederate-config": "pf provisioning scripts processor policy token exchange actor chain sp connection atm id-jag a2a saml ciba cimd rar",
