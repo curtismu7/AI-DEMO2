@@ -58,7 +58,7 @@
         </mxCell>
 
         <!-- ===== Human token note (below user) ===== -->
-        <mxCell id="htok" value="Human token:&#10;sub: user1&#10;aud: chatgpt.bxf.com&#10;scope: agent1&#10;acr: Single_Factor&#10;may_act: chatgpt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="htok" value="Human token:&#10;sub: user1&#10;aud: chatgpt.bxf.com&#10;scope: chatgpt&#10;acr: Single_Factor&#10;may_act: chatgpt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="60" y="420" width="150" height="104" as="geometry" />
         </mxCell>
 
