@@ -29,15 +29,15 @@ flowchart TB
     DEC{"Control problem:<br/>MCP access governance<br/>or downstream token<br/>mediation?"}
 
     subgraph MCPBOX["MCP"]
-        GW["Agent Gateway<br/><br/>Route:<br/>https://mcp-olb.bxf.com/mcp<br/><br/>Route:<br/>https://mcp-invest.bxf.com/mcp"]
-        MCPOLB["MCP<br/>mcp-olb.bxf.com"]
+        GW["Agent Gateway<br/><br/>Route:<br/>https://mcp-personal.bxf.com/mcp<br/><br/>Route:<br/>https://mcp-invest.bxf.com/mcp"]
+        MCPOLB["MCP<br/>mcp-personal.bxf.com"]
         MCPINV["MCP<br/>mcp-invest.bxf.com"]
         RS["RS"]
         API["API"]
     end
-    MOLTOK["Token:<br/>sub: user1<br/>aud:<br/>olb-resource.bxf.com<br/>scope: balance<br/>act: chatgpt"]
-    MTOK["Token:<br/>client_id: chatgpt<br/>aud: mcp-olb.bxf.com"]
-    INVTOK["investments-resource.bxf.com<br/>/balance · API key: 12345"]
+    MOLTOK["Token:<br/>sub: user1<br/>aud:<br/>personal-resource.bxf.com<br/>scope: calendar<br/>act: chatgpt"]
+    MTOK["Token:<br/>client_id: chatgpt<br/>aud: mcp-personal.bxf.com"]
+    INVTOK["investments-resource.bxf.com<br/>/calendar · API key: 12345"]
 
     AIGW["AI Gateway"]
     GOV["Governance"]

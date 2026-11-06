@@ -68,7 +68,7 @@
         <mxCell id="txtok" value="TX Token:&#10;sub: user1&#10;aud: mcp-gw.bxf.com&#10;scope: mcp&#10;act: chatgpt&#10;acr: Single_Factor&#10;transaction details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
           <mxGeometry x="990" y="170" width="150" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="mol" value="Token:&#10;client_id: chatgpt&#10;aud: mcp-olb.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
+        <mxCell id="mol" value="Token:&#10;client_id: chatgpt&#10;aud: mcp-personal.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
           <mxGeometry x="1180" y="140" width="140" height="60" as="geometry" />
         </mxCell>
 
@@ -107,10 +107,10 @@
         <mxCell id="mcpbox" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=12;verticalAlign=top;dashed=1;" vertex="1" parent="1">
           <mxGeometry x="1120" y="290" width="440" height="220" as="geometry" />
         </mxCell>
-        <mxCell id="gw" value="Agent Gateway&#10;&#10;Route:&#10;https://mcp-olb.bxf.com/mcp&#10;&#10;Route:&#10;https://mcp-invest.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="gw" value="Agent Gateway&#10;&#10;Route:&#10;https://mcp-personal.bxf.com/mcp&#10;&#10;Route:&#10;https://mcp-invest.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1150" y="320" width="130" height="150" as="geometry" />
         </mxCell>
-        <mxCell id="mcpolb" value="MCP&#10;mcp-olb.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="mcpolb" value="MCP&#10;mcp-personal.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1330" y="320" width="100" height="50" as="geometry" />
         </mxCell>
         <mxCell id="mcpinv" value="MCP&#10;mcp-invest.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
@@ -122,7 +122,7 @@
         <mxCell id="api" value="API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1470" y="430" width="60" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="invtok" value="investments-resource.bxf.com&#10;/balance · API key: 12345" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+        <mxCell id="invtok" value="investments-resource.bxf.com&#10;/calendar · API key: 12345" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
           <mxGeometry x="1440" y="490" width="170" height="40" as="geometry" />
         </mxCell>
         <mxCell id="e_gw1" value="Forward tool call" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;" edge="1" parent="1" source="gw" target="mcpolb">
