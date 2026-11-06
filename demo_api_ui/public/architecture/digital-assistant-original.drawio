@@ -1,183 +1,162 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mxfile host="app.diagrams.net" modified="2026-11-06T00:00:00.000Z" agent="opencode" version="24.0.0">
-  <diagram id="v2-agent-gw-authorize" name="V2 Agent - GW/Authorize (cleaned)">
-    <mxGraphModel dx="2000" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="800" math="0" shadow="0">
+  <diagram id="v2-agent-gw-authorize" name="V2 Agent - GW/Authorize (clean, token overlay)">
+    <mxGraphModel dx="1800" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="620" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- ===== Agentic Token Service ===== -->
-        <mxCell id="ats" value="Agentic Token Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="560" y="30" width="340" height="36" as="geometry" />
+        <!-- ================= flow edges (black) ================= -->
+        <mxCell id="e_left" value="opens app / chat" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="chatbot" target="user">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="orch" value="Orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="565" y="66" width="78" height="30" as="geometry" />
+        <mxCell id="e_authn" value="User Authentication" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="pingsess" target="ats">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="140" y="60" /><mxPoint x="540" y="60" /></Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="agt" value="Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="648" y="66" width="52" height="30" as="geometry" />
+        <mxCell id="e_request" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="chatbot" target="agent1">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="txe" value="Token Exc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="705" y="66" width="64" height="30" as="geometry" />
+        <mxCell id="e_prompt" value="prompt" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="agent1" target="llm">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="ccred" value="Client Cred" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="774" y="66" width="70" height="30" as="geometry" />
+        <mxCell id="e_toolscall" value="JSON-RPC · tools/call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="agent1" target="gw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_authzchk" value="Authorization check" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=1;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="authz">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="940" y="265" /><mxPoint x="940" y="70" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_fwd1" value="Forward tool call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpolb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fwd2" value="Request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpinv">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="1050" y="330" /><mxPoint x="1050" y="417" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_mcp1_gw" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpolb" target="apigw1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gw1_rs" value="Allowed call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw1" target="rs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mcp2_gw" value="Request · API key" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=1;" edge="1" parent="1" source="mcpinv" target="apigw2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="1270" y="417" /><mxPoint x="1270" y="355" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_gw2_api" value="Allowed call" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw2" target="api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="1340" y="355" /><mxPoint x="1340" y="417" /></Array>
+          </mxGeometry>
         </mxCell>
 
-        <!-- Authorization -->
-        <mxCell id="authz" value="Authorization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="1010" y="32" width="150" height="48" as="geometry" />
+        <!-- ================= token edges (blue dashed, numbered) ================= -->
+        <mxCell id="tok1" value="1 · Human token" style="edgeStyle=none;html=1;strokeColor=#2f7bd6;fontSize=10;fontStyle=1;dashed=1;strokeWidth=2;exitX=0.5;exitY=0;entryX=0.5;entryY=0;" edge="1" parent="1" source="pingsess" target="user">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_authz" value="Introspect token" style="edgeStyle=none;html=1;endArrow=none;strokeColor=#333333;fontSize=10;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="authz" target="ats">
+        <mxCell id="tok2" value="2 · Agent token" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2f7bd6;fontSize=10;fontStyle=1;dashed=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=0;entryY=0.35;" edge="1" parent="1" source="ats" target="agent1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="610" y="160" /><mxPoint x="540" y="160" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tok3" value="3 · TX token (sub=user1, act=agent1)" style="edgeStyle=none;html=1;strokeColor=#b8860b;fontSize=10;fontStyle=1;dashed=1;strokeWidth=2;exitX=1;exitY=0.9;entryX=0;entryY=0.9;" edge="1" parent="1" source="agent1" target="gw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tok4" value="4 · MCP token (aud: mcp-olb)" style="edgeStyle=none;html=1;strokeColor=#2f7bd6;fontSize=10;fontStyle=1;dashed=1;strokeWidth=2;exitX=1;exitY=0.1;entryX=0;entryY=0.1;" edge="1" parent="1" source="gw" target="mcpolb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tok5" value="5 · MCP token (aud: mcp-invest)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2f7bd6;fontSize=10;fontStyle=1;dashed=1;strokeWidth=2;exitX=1;exitY=0.9;entryX=0;entryY=0.9;" edge="1" parent="1" source="gw" target="mcpinv">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- ===== Left: user chain ===== -->
+        <!-- ================= nodes ================= -->
+        <mxCell id="ats" value="Agentic Token Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="540" y="30" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="orch" value="Orch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=9.5;" vertex="1" parent="1">
+          <mxGeometry x="545" y="62" width="42" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="agt" value="Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=9.5;" vertex="1" parent="1">
+          <mxGeometry x="592" y="62" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="txe" value="TX Exc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=9.5;" vertex="1" parent="1">
+          <mxGeometry x="637" y="62" width="44" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ccred" value="CC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=9.5;" vertex="1" parent="1">
+          <mxGeometry x="686" y="62" width="30" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="authz" value="Authorization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="990" y="50" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e_intro" value="Introspect token" style="edgeStyle=none;html=1;endArrow=none;strokeColor=#333333;fontSize=10;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="authz" target="ats">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
         <mxCell id="user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="250" y="130" width="80" height="40" as="geometry" />
+          <mxGeometry x="100" y="255" width="80" height="36" as="geometry" />
         </mxCell>
         <mxCell id="pingsess" value="Ping Session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="360" y="135" width="90" height="32" as="geometry" />
+          <mxGeometry x="100" y="200" width="80" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="olb" value="OLB Application" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="215" width="120" height="40" as="geometry" />
+        <mxCell id="olb" value="OLB App" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="150" width="80" height="36" as="geometry" />
         </mxCell>
-        <mxCell id="chatbot" value="chatbot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="345" y="262" width="80" height="24" as="geometry" />
-        </mxCell>
-        <mxCell id="e_user_sess" style="edgeStyle=none;html=1;strokeColor=#333333;endArrow=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="user" target="pingsess">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_sess_olb" style="edgeStyle=none;html=1;strokeColor=#333333;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="pingsess" target="olb">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_olb_chat" style="edgeStyle=none;html=1;strokeColor=#333333;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="olb" target="chatbot">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_userauth" value="User Authentication" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="pingsess" target="ats">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="405" y="95" />
-              <mxPoint x="540" y="95" />
-            </Array>
-          </mxGeometry>
+        <mxCell id="chatbot" value="chatbot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="95" width="80" height="30" as="geometry" />
         </mxCell>
 
-        <!-- ===== Shadow IT agent ===== -->
-        <mxCell id="shadow" value="Shadow IT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#8a2f2a;dashed=1;fontColor=#1a1a1a;fontSize=11;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="560" y="225" width="210" height="140" as="geometry" />
+        <mxCell id="shadow" value="Shadow IT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#8a2f2a;dashed=1;fontColor=#1a1a1a;fontSize=10;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="265" width="140" height="130" as="geometry" />
         </mxCell>
         <mxCell id="agent1" value="agent1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="600" y="250" width="130" height="42" as="geometry" />
+          <mxGeometry x="570" y="290" width="120" height="32" as="geometry" />
         </mxCell>
         <mxCell id="llm" value="LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="615" y="318" width="90" height="34" as="geometry" />
-        </mxCell>
-        <mxCell id="e_chat_agent" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="chatbot" target="agent1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_agent_llm" value="JSON-RPC request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="agent1" target="llm">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_reqtok" value="Request token" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="ats" target="agent1">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="730" y="180" />
-              <mxPoint x="730" y="205" />
-            </Array>
-          </mxGeometry>
+          <mxGeometry x="570" y="352" width="80" height="30" as="geometry" />
         </mxCell>
 
-        <!-- ===== Token notes ===== -->
-        <mxCell id="htok" value="Human token:&#10;sub: user1&#10;aud: agent1.bxf.com&#10;scope: agent1&#10;acr: Single_Factor&#10;may_act: agent1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="200" y="330" width="150" height="105" as="geometry" />
-        </mxCell>
-        <mxCell id="agttok" value="Agent token:&#10;client_id: agent1&#10;aud: agent1.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="640" y="150" width="130" height="55" as="geometry" />
-        </mxCell>
-        <mxCell id="txtok" value="TX Token:&#10;sub: user1&#10;aud: .bxf.com&#10;scope: mcp&#10;act: agent1&#10;acr: Single_Factor&#10;transaction details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="850" y="150" width="140" height="110" as="geometry" />
-        </mxCell>
-        <mxCell id="moltok" value="Token:&#10;client_id: mcp-olb&#10;aud: mcp-olb.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="1090" y="130" width="140" height="55" as="geometry" />
+        <mxCell id="gw" value="Agent Gateway&#10;&#10;Route: mcp-olb.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="860" y="265" width="110" height="80" as="geometry" />
         </mxCell>
 
-        <!-- ===== Agent Gateway ===== -->
-        <mxCell id="gw" value="Agent Gateway&#10;&#10;Route:&#10;https://mcp-olb.bxf.com/mcp&#10;&#10;Route:&#10;https://mcp-invest.bxf.com/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="820" y="330" width="105" height="110" as="geometry" />
-        </mxCell>
-        <mxCell id="e_agent_gw" value="JSON-RPC request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" edge="1" parent="1" source="agent1" target="gw">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="800" y="271" />
-              <mxPoint x="800" y="357" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e_gw_authz" value="Authorization check" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="gw" target="authz">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="872" y="105" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- ===== MCP container ===== -->
         <mxCell id="mcpbox" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=12;fontStyle=1;verticalAlign=top;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="1010" y="240" width="430" height="290" as="geometry" />
+          <mxGeometry x="1070" y="235" width="560" height="240" as="geometry" />
         </mxCell>
-        <mxCell id="mcpolb" value="MCP&#10;mcp-olb.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1150" y="330" width="90" height="46" as="geometry" />
+        <mxCell id="mcpolb" value="MCP · mcp-olb.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="270" width="125" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="mcpinv" value="MCP&#10;mcp-invest.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1150" y="440" width="90" height="46" as="geometry" />
+        <mxCell id="mcpinv" value="MCP · mcp-invest.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="395" width="125" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="apigw" value="API Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1245" y="340" width="90" height="38" as="geometry" />
+        <mxCell id="apigw1" value="API Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="270" width="80" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="apigw2" value="API Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="395" width="80" height="32" as="geometry" />
         </mxCell>
         <mxCell id="rs" value="RS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1370" y="336" width="55" height="38" as="geometry" />
+          <mxGeometry x="1450" y="270" width="50" height="32" as="geometry" />
         </mxCell>
         <mxCell id="api" value="API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1370" y="442" width="55" height="38" as="geometry" />
+          <mxGeometry x="1450" y="395" width="50" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="olbres" value="aud: olb-resource.bxf.com&#10;/balance · /transfer&#10;scope: balance, transfer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="1355" y="270" width="150" height="52" as="geometry" />
+
+        <mxCell id="toknote1" value="1 · Human token: sub=user1, aud=agent1.bxf.com, may_act=agent1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="100" y="320" width="220" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="invtok" value="investments-resource.bxf.com&#10;/balance · API key: 12345" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="1355" y="495" width="150" height="32" as="geometry" />
+        <mxCell id="toknote2" value="2 · Agent token: client_credentials, client agent1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="100" y="358" width="220" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="e_gw_mcpolb" value="Forward tool call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpolb">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="toknote3" value="3 · TX token: RFC 8693 — sub=user1, act=agent1, scope narrowed per MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="100" y="396" width="260" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="e_gw_mcpinv" value="Request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpinv">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="985" y="412" />
-              <mxPoint x="985" y="463" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e_mcpolb_apigw" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpolb" target="apigw">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_apigw_rs" value="Allowed call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw" target="rs">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_mcpinv_apigw" value="Request · API key (via vault)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=1;" edge="1" parent="1" source="mcpinv" target="apigw">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1220" y="463" />
-              <mxPoint x="1220" y="395" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e_apigw_api" value="Allowed call" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw" target="api">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1290" y="398" />
-              <mxPoint x="1290" y="461" />
-            </Array>
-          </mxGeometry>
+        <mxCell id="toknote45" value="4/5 · MCP tokens: aud mcp-olb.bxf.com (scope: balance, transfer) · aud mcp-invest.bxf.com (/balance · API key via vault)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="100" y="434" width="380" height="30" as="geometry" />
         </mxCell>
 
       </root>
