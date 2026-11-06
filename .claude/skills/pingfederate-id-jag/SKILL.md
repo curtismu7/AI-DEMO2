@@ -9,6 +9,9 @@ An ID-JAG is a short-lived JWT (`typ` header `oauth-id-jag+jwt`) that an identit
 
 Verify every step and field against `https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_refresh_token_to_idjag_exchange.md`. A running PingFederate is assumed (`pingfederate-install`).
 
+Local references:
+- `references/PingFederate-IDJAG-SE-Guide.html` — the SE guide for a Postman-led, single-PingFederate ID-JAG demo (one PF as IdP, enterprise IdP, and resource authorization server). Includes the two Postman collections (Setup: builds/verifies/tears down all PF config via admin API; Demo: 15 narrated steps), prerequisites (PF 13.1+, tested 13.1.4; license; Java; Postman; Claude Code recommended for setup), a quick-start flow diagram, and a troubleshooting section. Use it when the user asks to stand up, run, or demo the SE ID-JAG package.
+
 ## Issuing side (PingFederate is the IdP)
 
 Prerequisite: PingFederate already issues refresh tokens to the requesting client, and you know the downstream resource authorization server's identifier.
@@ -39,3 +42,7 @@ Configure the resource AS to accept the ID-JAG as a JWT bearer assertion. If tha
 ## Verify
 
 Decode the ID-JAG (no signature trust needed for inspection) and check `typ`, `iss`, `aud`, `sub`, `exp`. Then test denial cases: wrong `audience`, expired or revoked refresh token (or expired ID token, wrong issuer or `aud` on it), client without the grant, issuance criteria failing. Never log subject tokens or ID-JAGs.
+
+## Scope-check gotcha (proven live on PF 13.1.3)
+
+Processor-policy issuance criteria (e.g. `attributeName: scope, source: SUBJECT_TOKEN`) see the **original grant's** scope, not the `scope` parameter on the token-exchange request. A client can request an exchange scope its grant never had and PF still mints the ID-JAG with it (client `restrictScopes` is not applied to the token-exchange grant). The boundaries that do hold: the client allowlist blocks extra scopes at grant time, and the resource AS rejects redeeming any assertion whose scope contains a scope undefined on the AS (`invalid_scope`). Demo-safe phrasing: "the grant is capped by policy, and anything else dies at redemption" — never "the exchange can't exceed the grant".
