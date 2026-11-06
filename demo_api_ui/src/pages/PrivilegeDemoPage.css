@@ -183,3 +183,7 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+.pd-readiness-callout {
+  border-left: 3px solid var(--th-accent, #b02418);
+}
