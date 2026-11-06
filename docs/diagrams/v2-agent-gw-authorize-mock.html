@@ -69,12 +69,16 @@
     <!-- Agent Gateway -> MCP2 : request -->
     <path d="M925 385 L1000 385 L1000 455 L1035 455" marker-end="url(#arr)"/>
     <text x="928" y="402">Request</text>
-    <!-- MCP1 -> RS -->
-    <line x1="1150" y1="355" x2="1240" y2="355" marker-end="url(#arr)"/>
+    <!-- MCP1 -> API GW -> RS -->
+    <line x1="1150" y1="355" x2="1245" y2="355" marker-end="url(#arr)"/>
     <text x="1160" y="348">Request</text>
-    <!-- MCP2 -> API (API key via vault) -->
-    <line x1="1150" y1="455" x2="1240" y2="455" marker-end="url(#arr)"/>
+    <line x1="1335" y1="355" x2="1370" y2="355" marker-end="url(#arr)"/>
+    <text x="1338" y="348">Allowed call</text>
+    <!-- MCP2 -> API GW -> API -->
+    <path d="M1150 455 L1220 455 L1220 378 L1245 378" marker-end="url(#arr)"/>
     <text x="1155" y="448">Request · API key (via vault)</text>
+    <path d="M1290 398 L1290 461 L1370 461" marker-end="url(#arr)"/>
+    <text x="1295" y="430">Allowed call</text>
     <!-- Token notes attach lines -->
     <line class="dashed" x1="700" y1="200" x2="700" y2="240" stroke="#b8a66a"/>
     <line class="dashed" x1="1155" y1="200" x2="1092" y2="342" stroke="#b8a66a"/>
@@ -127,10 +131,11 @@
   <div class="box grey"   style="left:1035px; top:495px; width:80px;  height:14px; border:none; background:none; padding:0; font-size:9px; color:#555;">mcp-invest.bxf.com</div>
   <div class="box grey"   style="left:1150px; top:335px; width:90px;  height:44px;">MCP<br>mcp-olb.bxf.com</div>
   <div class="box grey"   style="left:1150px; top:435px; width:90px;  height:44px;">MCP<br>mcp-invest.bxf.com</div>
-  <div class="box purple" style="left:1290px; top:338px; width:55px;  height:38px;">RS</div>
-  <div class="box purple" style="left:1290px; top:438px; width:55px;  height:38px;">API</div>
-  <div class="box cream"  style="left:1290px; top:290px; width:140px; height:44px; font-size:9px;">aud: olb-resource.bxf.com<br>/balance · /transfer · scope: balance, transfer</div>
-  <div class="box cream"  style="left:1290px; top:495px; width:140px; height:30px; font-size:9px;">investments-resource.bxf.com<br>/balance · API key: 12345</div>
+  <div class="box purple" style="left:1245px; top:340px; width:90px;  height:38px;">API Gateway</div>
+  <div class="box purple" style="left:1370px; top:338px; width:55px;  height:38px;">RS</div>
+  <div class="box purple" style="left:1370px; top:438px; width:55px;  height:38px;">API</div>
+  <div class="box cream"  style="left:1355px; top:270px; width:150px; height:44px; font-size:9px;">aud: olb-resource.bxf.com<br>/balance · /transfer · scope: balance, transfer</div>
+  <div class="box cream"  style="left:1355px; top:495px; width:150px; height:30px; font-size:9px;">investments-resource.bxf.com<br>/balance · API key: 12345</div>
 </div>
 </body>
 </html>

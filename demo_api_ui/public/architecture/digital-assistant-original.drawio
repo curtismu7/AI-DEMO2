@@ -131,17 +131,20 @@
         <mxCell id="mcpinv" value="MCP&#10;mcp-invest.bxf.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="1150" y="440" width="90" height="46" as="geometry" />
         </mxCell>
+        <mxCell id="apigw" value="API Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1245" y="340" width="90" height="38" as="geometry" />
+        </mxCell>
         <mxCell id="rs" value="RS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1310" y="336" width="55" height="38" as="geometry" />
+          <mxGeometry x="1370" y="336" width="55" height="38" as="geometry" />
         </mxCell>
         <mxCell id="api" value="API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1310" y="442" width="55" height="38" as="geometry" />
+          <mxGeometry x="1370" y="442" width="55" height="38" as="geometry" />
         </mxCell>
         <mxCell id="olbres" value="aud: olb-resource.bxf.com&#10;/balance · /transfer&#10;scope: balance, transfer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="1300" y="275" width="130" height="52" as="geometry" />
+          <mxGeometry x="1355" y="270" width="150" height="52" as="geometry" />
         </mxCell>
         <mxCell id="invtok" value="investments-resource.bxf.com&#10;/balance · API key: 12345" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="1300" y="495" width="130" height="32" as="geometry" />
+          <mxGeometry x="1355" y="495" width="150" height="32" as="geometry" />
         </mxCell>
         <mxCell id="e_gw_mcpolb" value="Forward tool call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpolb">
           <mxGeometry relative="1" as="geometry" />
@@ -154,11 +157,27 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_mcpolb_rs" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpolb" target="rs">
+        <mxCell id="e_mcpolb_apigw" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpolb" target="apigw">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_mcpinv_api" value="Request · API key (via vault)" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpinv" target="api">
+        <mxCell id="e_apigw_rs" value="Allowed call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw" target="rs">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mcpinv_apigw" value="Request · API key (via vault)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=1;" edge="1" parent="1" source="mcpinv" target="apigw">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1220" y="463" />
+              <mxPoint x="1220" y="395" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_apigw_api" value="Allowed call" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw" target="api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1290" y="398" />
+              <mxPoint x="1290" y="461" />
+            </Array>
+          </mxGeometry>
         </mxCell>
 
       </root>
