@@ -8,19 +8,19 @@
 
         <!-- ===== Agentic Token Service (top center) ===== -->
         <mxCell id="ats" value="Agentic Token Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
-          <mxGeometry x="700" y="40" width="300" height="56" as="geometry" />
+          <mxGeometry x="700" y="80" width="300" height="56" as="geometry" />
         </mxCell>
         <mxCell id="orch" value="Orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="700" y="96" width="96" height="34" as="geometry" />
+          <mxGeometry x="700" y="40" width="96" height="34" as="geometry" />
         </mxCell>
         <mxCell id="agt" value="Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="801" y="96" width="56" height="34" as="geometry" />
+          <mxGeometry x="801" y="40" width="56" height="34" as="geometry" />
         </mxCell>
-        <mxCell id="txe" value="Token Exc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="862" y="96" width="72" height="34" as="geometry" />
+        <mxCell id="txe" value="Token Exchange" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="862" y="40" width="72" height="34" as="geometry" />
         </mxCell>
         <mxCell id="ccred" value="Client Cred" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="939" y="96" width="61" height="34" as="geometry" />
+          <mxGeometry x="939" y="40" width="61" height="34" as="geometry" />
         </mxCell>
 
         <!-- Authorization Server (top right) -->
