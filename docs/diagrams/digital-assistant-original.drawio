@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-11-06T00:00:00.000Z" agent="opencode" version="24.0.0">
+  <diagram id="digital-assistant-original" name="Digital Assistant - With 3rd parties (cleaned)">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===== Left: person, webapp, chat UX ===== -->
+        <mxCell id="person" value="Person" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="100" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="app" value="Application&#10;(WebApp)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="260" y="120" width="130" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="chatux" value="Chat UX" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="260" y="200" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_app" value="Person (App) token" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="person" target="app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_chat" value="opens chat" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="person" target="chatux">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- App token notes -->
+        <mxCell id="apptok" value="Person (App) token:&#10;sub: person&#10;scope: openid read_account&#10;aud: APIServer1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="220" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="agptok" value="Person (Agent) token:&#10;sub: person&#10;scope: openid read_account use_agent&#10;aud: Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="310" width="150" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Center: Digital Assistant ===== -->
+        <mxCell id="dabox" value="Digital Assistant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="500" y="100" width="300" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" value="LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="530" y="140" width="100" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="agent" value="Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="670" y="140" width="100" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="tex" value="Agent Token &amp; Exchanges&#10;(Token Exchange:&#10;Person token + Agent token&#10;→ MCP Server scope(s))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="540" y="200" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e_chat_da" value="Person (Agent) token" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.35;" edge="1" parent="1" source="chatux" target="dabox">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Right: MCP servers and API ===== -->
+        <mxCell id="mcp1" value="MCP Server&#10;aud: MCPServer1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="940" y="120" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp2" value="MCP Server&#10;aud: MCPServer2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="940" y="220" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="API Endpoints&#10;aud: APIServer1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="170" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e_agent_mcp1" value="MCP Server Token (TX Token)" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="dabox" target="mcp1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_agent_mcp2" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" parent="1" source="dabox" target="mcp2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mcp1_api" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.3;" edge="1" parent="1" source="mcp1" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mcp2_api" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.7;" edge="1" parent="1" source="mcp2" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_app_api" value="Person (App) token" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="325" y="60" />
+              <mxPoint x="1150" y="60" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Token examples ===== -->
+        <mxCell id="txtok" value="TX Token (example):&#10;{ &quot;client_id&quot;: &quot;a98e8bec-…&quot;,&#10;  &quot;aud&quot;: [&quot;http://MCPServer1:3100&quot;],&#10;  &quot;scope&quot;: &quot;mcp:travel_tools&quot;,&#10;  &quot;sub&quot;: &quot;9eb6be12-…&quot;,&#10;  &quot;act&quot;: { &quot;sub&quot;: &quot;a98e8bec-…&quot; } }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="940" y="310" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="agenttok" value="Agent token:&#10;client_credentials&#10;(agent's own client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="500" y="310" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Rules notes ===== -->
+        <mxCell id="rules" value="Rules (validated):&#10;• Agent MUST have a Person token&#10;• MCP Tools MUST have MCP Server token&#10;• Incoming token has proper scope and aud for the MCP tools; the Agent is explicit in the act claim" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="420" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="flowtxt" value="Flow:&#10;1. Person authenticates to WebApp — App token returned to App&#10;2. Person opens the Chat UX — silent request for Person (Agent) token&#10;3. Person (Agent) token passed to Agent&#10;4. Agent authenticates with its own client_id&#10;5. Agent performs token exchange to get the MCP Server Token (TX Token)&#10;6. Token passed to MCP Server and validated (aud)&#10;7. Tool executes, response returned to Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="500" y="400" width="380" height="120" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
