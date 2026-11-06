@@ -56,12 +56,15 @@ describe('studioSuggestions / studioGreeting (the Studio follows the active vert
     expect(studioSuggestions('dot', undefined, null)).toEqual(airlineSuggestions('dot'));
   });
 
-  it("any other vertical offers its own first three prompts (no recall question outside Dot)", () => {
-    const out = studioSuggestions('claude', 'retail', manifest([chip('a'), chip('b', { mode: 'direct' }), chip('c'), chip('d'), chip('e')]));
+  it("any other vertical offers its own first six prompts (no recall question outside Dot)", () => {
+    const out = studioSuggestions('claude', 'retail', manifest([chip('a'), chip('b', { mode: 'direct' }), chip('c'), chip('d'), chip('e'), chip('f'), chip('g')]));
     expect(out).toEqual([
       { label: 'Label a', message: 'Prompt a' },
       { label: 'Label c', message: 'Prompt c' },
       { label: 'Label d', message: 'Prompt d' },
+      { label: 'Label e', message: 'Prompt e' },
+      { label: 'Label f', message: 'Prompt f' },
+      { label: 'Label g', message: 'Prompt g' },
     ]);
   });
 

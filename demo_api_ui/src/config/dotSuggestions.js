@@ -40,7 +40,7 @@ export function airlineSuggestions(skin) {
 
 /**
  * The Studio's suggested prompts for the ACTIVE vertical. The airline vertical keeps its tuned prompts (a
- * consent-gated fee payment shows the PingOne MFA approval); any other vertical offers its own first three chips,
+ * consent-gated fee payment shows the PingOne MFA approval); any other vertical offers its own first six chips,
  * the same prompts the main agent offers. A guest's stripped manifest, or one still loading, has none: those get
  * the two vertical-neutral preference prompts, never another vertical's prompts. Dot adds the recall question.
  * @returns {{ label: string, message: string }[]}
@@ -49,7 +49,7 @@ export function studioSuggestions(skin, verticalId, pageManifest) {
   if (!verticalId || verticalId === 'airlines') return airlineSuggestions(skin);
   const own = verticalSuggestionChips(pageManifest)
     .filter((c) => c.message && c.mode !== 'direct' && !String(c.tool || '').startsWith('show_'))
-    .slice(0, 3)
+    .slice(0, 6)
     .map((c) => ({ label: c.label, message: c.message }));
   const lead = own.length ? own : NEUTRAL.map((t) => ({ label: t, message: t }));
   return skin === 'dot' ? [...lead, { label: RECALL, message: RECALL }] : lead;
