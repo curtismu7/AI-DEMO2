@@ -39,19 +39,19 @@
         <mxCell id="pingsess" value="Ping Session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="300" y="200" width="100" height="34" as="geometry" />
         </mxCell>
-        <mxCell id="olb" value="OLB Application" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="290" y="250" width="120" height="40" as="geometry" />
+        <mxCell id="chatbot" value="ChatGPT in browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="250" width="120" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="chatbot" value="chatbot&#10;(ChatGPT in browser)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="290" y="305" width="120" height="44" as="geometry" />
+        <mxCell id="gptdesktop" value="ChatGPT Desktop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="300" y="305" width="120" height="40" as="geometry" />
         </mxCell>
         <mxCell id="e_user1" value="User request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;" edge="1" parent="1" source="user" target="pingsess">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_user2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;" edge="1" parent="1" source="pingsess" target="olb">
+        <mxCell id="e_user2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;" edge="1" parent="1" source="pingsess" target="chatbot">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_user3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;" edge="1" parent="1" source="olb" target="chatbot">
+        <mxCell id="e_user3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;" edge="1" parent="1" source="pingsess" target="gptdesktop">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_userauth" value="User Authentication" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;dashed=1;" edge="1" parent="1" source="pingsess" target="ats">
@@ -82,7 +82,10 @@
         <mxCell id="llm" value="LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="680" y="320" width="100" height="34" as="geometry" />
         </mxCell>
-        <mxCell id="e_shadow1" value="JSON-RPC request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;" edge="1" parent="1" source="chatbot" target="chatgpt">
+        <mxCell id="e_shadow1" value="JSON-RPC request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;" edge="1" parent="1" source="gptdesktop" target="chatgpt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_shadow1b" value="JSON-RPC request" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;fontSize=10;" edge="1" parent="1" source="chatbot" target="chatgpt">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_shadow2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;endArrow=none;" edge="1" parent="1" source="chatgpt" target="llm">

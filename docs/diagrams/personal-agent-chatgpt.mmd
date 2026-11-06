@@ -14,8 +14,8 @@ flowchart TB
 
     USER["User"]
     PINGSESS["Ping Session"]
-    APP["OLB<br/>Application"]
-    CHATBOT["chatbot<br/>(ChatGPT session)"]
+    CHATB["ChatGPT in browser"]
+    GPTD["ChatGPT Desktop"]
 
     HTOK["Human token:<br/>sub: user1<br/>aud: chatgpt.bxf.com<br/>scope: agent1<br/>acr: Single_Factor<br/>may_act: chatgpt"]
     AGTOK["Agent token:<br/>client_id: chatgpt<br/>aud: chatgpt.bxf.com"]
@@ -46,8 +46,8 @@ flowchart TB
     GOOGLE["Google"]
 
     USER -->|"User request"| PINGSESS
-    PINGSESS --> APP
-    APP --- CHATBOT
+    PINGSESS --> CHATB
+    PINGSESS --> GPTD
     PINGSESS -.->|"User Authentication"| ATS
     ATS --- ORCH
     ORCH --- AGT
@@ -55,10 +55,11 @@ flowchart TB
     ORCH --- CCRED
     AUTHZ --- ATS
     AUTHZ -.->|"Introspect token"| ATS
-    APP -->|"Request"| AGENT1
+    CHATB -->|"Request"| AGENT1
+    GPTD -->|"Request"| AGENT1
     ATS -.->|"Request token"| AGENT1
     ATS -.->|"Request"| AUTHZ
-    CHATBOT --- HTOK
+    CHATB --- HTOK
     AGENT1 --- LLM
     AGENT1 -.->|"JSON-RPC request"| LLM
     AGENT1 -->|"JSON-RPC request"| DEC
@@ -94,7 +95,7 @@ flowchart TB
     class HTOK,AGTOK,TXTOK,MOLTOK,MTOK cream
     class DEC pink
     class MCPBOX yellow
-    class USER,APP,CHATBOT blue
+    class USER,CHATB,GPTD blue
     class AZURE,AWS,GOOGLE green
     class GOV dgreen
     class RS,API purple
