@@ -222,6 +222,15 @@ const DEFAULT_AUDIT_MCP_URL =
 const MCP_PROTOCOL_VERSION = '2026-07-28';
 const LEGACY_MCP_PROTOCOL_VERSION = '2024-11-05';
 const MCP_CLIENT_INFO = { name: 'PingOne Privilege MCP Client', version: '2.0.0' };
+
+// Client profiles live in config/privilegeClientProfiles.js (what this stand-in presents as its identity).
+const { CLIENT_PROFILES, DEFAULT_CLIENT_PROFILE } = require('../config/privilegeClientProfiles');
+// Process default (env), then the per-session choice, then 'default'. An unknown name
+// falls back to 'default' rather than throwing: a typo must not break sign-in.
+function clientProfileFor(session) {
+  const wanted = (session && session.clientProfile) || process.env.PRIVILEGE_MCP_CLIENT_PROFILE || DEFAULT_CLIENT_PROFILE;
+  return CLIENT_PROFILES[wanted] || CLIENT_PROFILES[DEFAULT_CLIENT_PROFILE];
+}
 const MCP_CLIENT_CAPABILITIES = {
   elicitation: { form: {}, url: {} },
   extensions: { 'io.modelcontextprotocol/tasks': {} },
@@ -639,7 +648,7 @@ function encodeMcpHeaderValue(value) {
   return plainAscii ? text : `=?base64?${Buffer.from(text, 'utf8').toString('base64')}?=`;
 }
 
-function modernRequestBody(body, protocolVersion = MCP_PROTOCOL_VERSION) {
+function modernRequestBody(body, protocolVersion = MCP_PROTOCOL_VERSION, clientInfo = MCP_CLIENT_INFO) {
   if (!body?.method) return body;
   return {
     ...body,
@@ -648,7 +657,7 @@ function modernRequestBody(body, protocolVersion = MCP_PROTOCOL_VERSION) {
       _meta: {
         ...(body.params?._meta || {}),
         'io.modelcontextprotocol/protocolVersion': protocolVersion,
-        'io.modelcontextprotocol/clientInfo': MCP_CLIENT_INFO,
+        'io.modelcontextprotocol/clientInfo': clientInfo,
         'io.modelcontextprotocol/clientCapabilities': MCP_CLIENT_CAPABILITIES,
       },
     },
@@ -808,13 +817,15 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   if (pathname) targetUrl.pathname = pathname;
 
   const requestBody = session.mcpSession.era === 'modern'
-    ? modernRequestBody(body, session.mcpSession.protocolVersion || MCP_PROTOCOL_VERSION)
+    ? modernRequestBody(body, session.mcpSession.protocolVersion || MCP_PROTOCOL_VERSION, clientProfileFor(session).clientInfo)
     : body;
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
     ...originHeader(targetUrl),
   };
+  const profileUserAgent = clientProfileFor(session).userAgent;
+  if (profileUserAgent) headers['User-Agent'] = profileUserAgent;
   if (withAuth && session.oauth.accessToken) {
     headers.Authorization = `Bearer ${session.oauth.accessToken}`;
     // Debug: decode token claims
@@ -984,7 +995,7 @@ async function ensureMcpSessionInitialized(session) {
     params: {
       protocolVersion: LEGACY_MCP_PROTOCOL_VERSION,
       capabilities: MCP_CLIENT_CAPABILITIES,
-      clientInfo: MCP_CLIENT_INFO,
+      clientInfo: clientProfileFor(session).clientInfo,
     },
   };
   const initResponse = await fetchMcp(session, null, initRpc, true);
@@ -1099,7 +1110,7 @@ async function startModernSubscription(session, types) {
   const rpc = modernRequestBody({
     jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'subscriptions/listen',
     params: { types },
-  }, session.mcpSession.protocolVersion);
+  }, session.mcpSession.protocolVersion, clientProfileFor(session).clientInfo);
   const targetUrl = new URL(toInternalMcpUrl(session.config.mcpUrl));
   const headers = {
     'Content-Type': 'application/json', Accept: 'text/event-stream', ...originHeader(targetUrl),
@@ -1575,14 +1586,16 @@ async function isDcrClientStillKnown(tokenUri, client) {
 // Dynamic Client Registration (RFC 7591) against a self-advertising gateway.
 // MCPGW's own /authorize and /token don't recognize PingOne app ids — this is
 // the credential they actually expect.
-async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpointAuthMethod = 'client_secret_post') {
+async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpointAuthMethod = 'client_secret_post', clientName = 'ai-demo-bff') {
   const registerUri = new URL(authorizationUri);
   registerUri.pathname = registerUri.pathname.replace(/\/authorize$/, '/register');
   const registerUrl = registerUri.toString();
   // Keyed by redirect URI too: the gateway binds a client to the redirect URIs
   // it registered, and /facade-link/callback is a different one from
   // /auth/callback for the same app.
-  const cacheKey = `${registerUrl} ${redirectUri}`;
+  // Keyed by client name too: a ChatGPT-profile sign-in must not reuse the client
+  // another profile registered, or the gateway keeps seeing the old name.
+  const cacheKey = `${registerUrl} ${redirectUri} ${clientName}`;
   if (dcrClientCache.has(cacheKey)) {
     const cached = dcrClientCache.get(cacheKey);
     const tokenUri = registerUrl.replace(/\/register$/, '/token');
@@ -1597,7 +1610,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       redirect_uris: [redirectUri],
-      client_name: 'ai-demo-bff',
+      client_name: clientName,
       application_type: 'web',
       // Must match what the AS advertises. The gateway broker supports only
       // 'none' (public + PKCE) and answers 400 to client_secret_post — which the
@@ -1729,7 +1742,7 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
       const dcrAuthMethod = tokenEndpointAuthMethods?.length && !tokenEndpointAuthMethods.includes('client_secret_post')
         ? tokenEndpointAuthMethods[0]
         : 'client_secret_post';
-      const dcr = await getOrRegisterDcrClient(toInternalAs(authorizationUri), redirectUri, dcrAuthMethod);
+      const dcr = await getOrRegisterDcrClient(toInternalAs(authorizationUri), redirectUri, dcrAuthMethod, clientProfileFor(session).clientName);
       clientId = dcr.clientId;
       dcrClientId = dcr.clientId;
       dcrClientSecret = dcr.clientSecret;
@@ -1855,6 +1868,18 @@ router.post('/client-identity', express.json(), (req, res) => {
   }
   session.clientIdentity = mode;
   return res.json({ clientIdentity: session.clientIdentity });
+});
+
+// POST /client-profile — which client this stand-in introduces itself as at the next sign-in
+// and on every call after it: default, chatgpt, claude, gemini or codex.
+router.post('/client-profile', express.json(), (req, res) => {
+  const session = getClientSession(req);
+  const profile = req.body && req.body.profile;
+  if (!Object.prototype.hasOwnProperty.call(CLIENT_PROFILES, profile)) {
+    return res.status(400).json({ error: `profile must be one of: ${Object.keys(CLIENT_PROFILES).join(', ')}` });
+  }
+  session.clientProfile = profile;
+  return res.json({ clientProfile: session.clientProfile });
 });
 
 // GET /state — current session state
@@ -2066,6 +2091,8 @@ router.get('/state', (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     clientIdentity: session.clientIdentity,
+    clientProfile: session.clientProfile || process.env.PRIVILEGE_MCP_CLIENT_PROFILE || DEFAULT_CLIENT_PROFILE,
+    clientProfiles: Object.keys(CLIENT_PROFILES),
     gatewayConfigs: session.gatewayConfigs,
     // What actually supplies the client for each mode, so an empty Client ID
     // field reads as "handled" rather than "missing". Computed here rather than
@@ -2227,6 +2254,8 @@ router.post('/config', express.json(), (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     clientIdentity: session.clientIdentity,
+    clientProfile: session.clientProfile || process.env.PRIVILEGE_MCP_CLIENT_PROFILE || DEFAULT_CLIENT_PROFILE,
+    clientProfiles: Object.keys(CLIENT_PROFILES),
     gatewayConfigs: session.gatewayConfigs,
     oauth: {
       authenticated: Boolean(session.oauth.accessToken),
