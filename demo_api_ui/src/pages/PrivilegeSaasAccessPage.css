@@ -1,81 +1,139 @@
 /* Privilege SaaS Access Management page.
-   Standard: THEMING.md + REGRESSION_PLAN §0. Surfaces, lines and ink are --th-* only, so the
-   page is correct in both themes with no dark block; every ground sets its own ink (H1); type
-   comes from the --font-size-* scale (H2); no inline styles (H3). Buttons are the shared
-   .btn system. Control edges use --control-border (dark-mode control contrast rule). */
+   Standard: THEMING.md + REGRESSION_PLAN §0, and the standalone Ping UI Standard
+   (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md). The standalone stylesheet is not imported
+   (its bare button/input selectors would restyle the app); its pattern classes are re-created here,
+   scoped under .psa-page, with this app's tokens:
+     P2 banner (.psa-banner)  P3 frame (.psa-body, .psa-kicker, .psa-h2)  P4 cards (.psa-card)
+     P5 key-value (.psa-kv)   P7 chips (.psa-chip)                          P9 buttons (.psa-btn)
+   Surfaces, lines and ink are --th-* only, so the page is correct in both themes with no dark
+   block; every ground sets its own ink (H1); type comes from the --font-size-* scale (H2); no inline
+   styles (H3). Control edges use --control-border (dark-mode control contrast rule).
+
+   Colour ownership: the vertical drives the card accent edge (--psa-accent, from --app-primary-red).
+   Buttons never take it: they read the fixed Ping Red --btn-accent* tokens, and the banner edge is
+   fixed Ping Red too, as the standard says. */
 
 .psa-page {
+  --psa-accent: var(--app-primary-red, var(--btn-accent));
   min-height: 100vh;
   background: var(--th-bg-page);
   color: var(--th-text);
 }
 
+/* P2: the banner is the first element, above the title band. */
+.psa-banner-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px 0;
+}
+
+.psa-banner {
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-left: 4px solid var(--btn-accent);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+/* P3: one centred frame, sections labelled by a kicker and an h2. The headings carry .psa-page so they
+   outrank the PingOne end-user-nano skin's bare h2/h3 size and weight. */
 .psa-body {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: 8px 16px 64px;
 }
 
-.psa-panel {
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  box-shadow: var(--shadow-sm);
-  padding: 16px 20px;
-  margin-bottom: 24px;
+.psa-kicker {
+  margin: 32px 0 4px;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
 }
 
-.psa-panel h2 {
+.psa-page .psa-h2 {
   margin: 0 0 4px;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--th-text);
 }
 
-.psa-panel > p {
+.psa-lede {
   margin: 0 0 12px;
-  color: var(--th-text-muted);
+  max-width: 78ch;
   font-size: var(--font-size-sm);
+  color: var(--th-text-body);
 }
 
-.psa-grid {
+/* P4: cards with a 4px accent top edge, in a grid that wraps at phone width. */
+.psa-card-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  margin: 12px 0;
+  align-items: start;
 }
 
-@media (max-width: 860px) {
-  .psa-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.psa-card {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--th-border-strong);
+  border-top: 4px solid var(--psa-accent);
+  border-radius: var(--radius-xl);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.psa-card-grid > .psa-card {
+  margin: 0;
+}
+
+.psa-card--neutral {
+  border-top-color: var(--control-border);
+}
+
+.psa-card--ok {
+  border-top-color: var(--th-status-success);
+}
+
+.psa-card--live {
+  border-top-color: var(--th-status-info);
+}
+
+.psa-page .psa-h3 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
 }
 
 .psa-label {
   display: block;
+  margin-bottom: 4px;
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--th-text-muted);
-  margin-bottom: 4px;
 }
 
 .psa-select {
   width: 100%;
-  min-height: var(--btn-height);
+  min-height: 40px;
   padding: 8px 10px;
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-page);
   color: var(--th-text);
   font-family: inherit;
   font-size: var(--font-size-sm);
-}
-
-.psa-select:focus-visible {
-  outline: 2px solid var(--color-info);
-  outline-offset: 2px;
+  font-weight: var(--font-weight-semibold);
 }
 
 .psa-justification {
@@ -84,12 +142,94 @@
   font-size: var(--font-size-sm);
 }
 
-.psa-muted {
-  color: var(--th-text-muted);
+.psa-note {
+  margin: 8px 0 0;
+  color: var(--th-text-body);
   font-size: var(--font-size-sm);
-  margin: 4px 0;
 }
 
+.psa-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.psa-empty {
+  padding: 12px;
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-lg);
+}
+
+/* P5: key-value list, one column at phone width. */
+.psa-kv {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
+  gap: 4px 14px;
+  margin: 8px 0;
+  font-size: var(--font-size-sm);
+}
+
+.psa-kv dt {
+  color: var(--th-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+.psa-kv dd {
+  margin: 0;
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
+.psa-mono {
+  font-family: var(--font-mono);
+}
+
+/* P7: status chips. Ground and ink from the same set; the word is the status. */
+.psa-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.psa-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.psa-chip--ok {
+  border-color: var(--th-status-success);
+  color: var(--th-status-success-text);
+}
+
+.psa-chip--info {
+  border-color: var(--th-status-info);
+  color: var(--th-status-info-text);
+}
+
+.psa-chip--warn {
+  border-color: var(--th-status-warning);
+  color: var(--th-status-warning-text);
+}
+
+.psa-chip--neutral {
+  color: var(--th-text-body);
+}
+
+/* Stages: one row each, the chip says where the request is. */
 .psa-stages {
   list-style: none;
   margin: 12px 0;
@@ -99,24 +239,32 @@
 .psa-stage {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   padding: 8px 12px;
   margin-bottom: 6px;
   border: 1px solid var(--th-border-strong);
-  border-left: 4px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--control-border);
+  border-radius: var(--radius-md);
   background: var(--th-bg-page);
   color: var(--th-text);
 }
 
-.psa-stage strong {
+.psa-stage__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.psa-stage__head strong {
   font-size: var(--font-size-sm);
   color: var(--th-text);
 }
 
-.psa-stage span {
+.psa-stage__note {
   font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .psa-stage--done {
@@ -128,6 +276,8 @@
   background: var(--th-bg-inset);
 }
 
+/* P9: exactly one primary per view (Ping Red gradient, fixed under every vertical); the rest are
+   bordered secondaries. Specificity sits above the PingOne end-user-nano skin, which flattens .btn. */
 .psa-actions {
   display: flex;
   flex-wrap: wrap;
@@ -135,50 +285,61 @@
   margin-top: 8px;
 }
 
-.psa-actions .btn:focus-visible {
-  outline: 2px solid var(--color-info);
+.psa-page .psa-btn {
+  max-width: 100%;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  background-image: none;
+  color: var(--th-text);
+  -webkit-text-fill-color: currentcolor;
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  white-space: normal;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.psa-page .psa-btn:hover:not(:disabled) {
+  border-color: var(--btn-accent);
+}
+
+.psa-page .psa-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.psa-page button.psa-btn.psa-btn--primary {
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+}
+
+.psa-page button.psa-btn.psa-btn--primary:hover:not(:disabled) {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+}
+
+/* A disabled primary keeps its label readable. */
+.psa-page button.psa-btn.psa-btn--primary:disabled {
+  opacity: 0.88;
+}
+
+.psa-page .psa-btn:focus-visible,
+.psa-page .psa-select:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
 
-.psa-receipt {
-  border: 1px solid var(--th-status-success-border);
-  border-left: 4px solid var(--th-status-success);
-  border-radius: var(--radius-sm);
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-  padding: 10px 12px;
-  margin-bottom: 12px;
-}
-
-.psa-receipt p {
-  margin: 0 0 4px;
-  font-size: var(--font-size-sm);
-}
-
-/* The receipt's own ground is a status tint: keep ink from the same set (H1). */
-.psa-receipt .psa-muted {
-  color: inherit;
-}
-
-.psa-empty {
-  border: 1px dashed var(--control-border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-}
-
-.psa-h3 {
-  margin: 12px 0 6px;
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-semibold);
-  color: var(--th-text);
-}
-
+/* Tables: scroll inside their own wrapper on wide content, stack as labelled rows at phone width. */
 .psa-table-wrap {
   overflow-x: auto;
-}
-
-.psa-table-wrap + .psa-muted {
-  margin-top: 12px;
 }
 
 .psa-table {
@@ -194,6 +355,7 @@
   border-bottom: 1px solid var(--th-border-strong);
   color: var(--th-text);
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 .psa-table th {
@@ -202,4 +364,66 @@
   font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.psa-table-wrap + .psa-note {
+  margin-top: 14px;
+}
+
+/* The live-check block sits inside the live card. */
+.psa-card--live .plc {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+@media (max-width: 600px) {
+  .psa-card {
+    padding: 14px;
+  }
+
+  .psa-kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .psa-kv dd {
+    margin-bottom: 6px;
+  }
+
+  .psa-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .psa-table,
+  .psa-table tbody,
+  .psa-table tr,
+  .psa-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .psa-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .psa-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .psa-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }

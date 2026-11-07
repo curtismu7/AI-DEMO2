@@ -13,12 +13,31 @@ import { callPrivilegeDecision } from '../../lib/privilegeDecisionClient';
 import './PrivilegeLiveCheck.css';
 
 const DECISION_LABEL = {
-  allowed: { label: 'Gateway allowed the call', cls: 'plc-allowed' },
-  denied: { label: 'Gateway denied the call (policy)', cls: 'plc-denied' },
-  tool_error: { label: 'Gateway let the call through; the tool answered with an error', cls: 'plc-tool-error' },
+  allowed: { label: 'Gateway allowed the call', cls: 'plc-allowed', chip: 'Allowed', tone: 'ok' },
+  denied: { label: 'Gateway denied the call (policy)', cls: 'plc-denied', chip: 'Denied', tone: 'danger' },
+  tool_error: { label: 'Gateway let the call through; the tool answered with an error', cls: 'plc-tool-error', chip: 'Tool error', tone: 'warn' },
 };
 
-export default function PrivilegeLiveCheck({ tool, args, label = 'Run through live Privilege', onDone }) {
+// A page that follows the standalone UI standard passes its own button class (so the
+// trigger is a secondary there, one primary per view) and statusChip (a word-bearing
+// chip in the result, P7). The defaults leave every other page exactly as it was.
+function Chip({ tone, children }) {
+  return (
+    <span className={`plc__chip plc__chip--${tone}`}>
+      <span className="plc__chip-dot" aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
+export default function PrivilegeLiveCheck({
+  tool,
+  args,
+  label = 'Run through live Privilege',
+  onDone,
+  buttonClassName = 'btn btn-primary',
+  statusChip = false,
+}) {
   const [state, setState] = useState({ phase: 'idle' });
 
   async function run() {
@@ -37,7 +56,7 @@ export default function PrivilegeLiveCheck({ tool, args, label = 'Run through li
       <div className="plc__row">
         <button
           type="button"
-          className="btn btn-primary plc__run"
+          className={`${buttonClassName} plc__run`}
           onClick={run}
           disabled={state.phase === 'running'}
         >
@@ -47,6 +66,9 @@ export default function PrivilegeLiveCheck({ tool, args, label = 'Run through li
       </div>
       {state.phase === 'done' && (
         <div className={`plc__result ${DECISION_LABEL[state.result.decision]?.cls ?? ''}`} role="status" data-testid="plc-verdict">
+          {statusChip && DECISION_LABEL[state.result.decision] && (
+            <Chip tone={DECISION_LABEL[state.result.decision].tone}>{DECISION_LABEL[state.result.decision].chip}</Chip>
+          )}
           <strong>{DECISION_LABEL[state.result.decision]?.label ?? state.result.decision}</strong>
           <span className="plc__meta">{state.result.latencyMs} ms · HTTP {state.result.status} · decided by {state.result.by}</span>
           {state.result.upstream && <pre className="plc__upstream">{String(state.result.upstream).slice(0, 600)}</pre>}
@@ -54,6 +76,7 @@ export default function PrivilegeLiveCheck({ tool, args, label = 'Run through li
       )}
       {state.phase === 'error' && (
         <div className="plc__result plc-error" role="alert">
+          {statusChip && <Chip tone="warn">Unreachable</Chip>}
           <strong>Could not reach the gateway</strong>
           <p>{state.message}</p>
         </div>

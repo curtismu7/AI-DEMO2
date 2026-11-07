@@ -96,3 +96,42 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Status chip (standalone UI standard P7), shown only when the page passes statusChip: a
+   leading dot plus the word, never colour alone. It sits on the result's own tinted ground, so
+   it carries its own card ground and takes ink and edge from one --th-status-* family (H1). */
+.plc__chip {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.plc__chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.plc__chip--ok {
+  border-color: var(--th-status-success);
+  color: var(--th-status-success-text);
+}
+
+.plc__chip--warn {
+  border-color: var(--th-status-warning);
+  color: var(--th-status-warning-text);
+}
+
+.plc__chip--danger {
+  border-color: var(--th-status-error);
+  color: var(--th-status-error-text);
+}
