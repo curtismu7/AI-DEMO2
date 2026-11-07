@@ -390,7 +390,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: pointer;
   background: var(--signin-accent);
   color: #fff;
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
   transition: var(--btn-transition);
 }
@@ -404,13 +404,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: not-allowed;
 }
 .ba-left-auth-btn.primary {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
 }
 
 /* H1: this block had a tokenized ground under literal ink. The modal surface
@@ -698,31 +694,19 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .banking-agent-panel:not(.ba-mode-inline)
   .ba-left-auth-btn:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
 }
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-auth-btn.primary {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  border-color: var(--app-primary-red-border);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
 }
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-auth-btn.primary:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
 }
 
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-config-btn:not(.configured) {
@@ -1777,24 +1761,16 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-family: inherit;
   line-height: 1.25;
   border-radius: var(--btn-radius);
-  border: 1px solid var(--app-primary-red-border);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  border: 1px solid var(--btn-accent-edge);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
   cursor: pointer;
   transition: var(--btn-transition);
 }
 
 .ba-session-fix-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .banking-agent-panel:not(.ba-mode-light) .ba-session-fix-btn {
@@ -1804,21 +1780,21 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-session-fix-btn--secondary {
-  border-color: var(--app-primary-red-border);
+  border-color: var(--btn-accent-edge);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
+  color: var(--btn-accent);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .ba-session-fix-btn--secondary:hover {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 
 .ba-mode-light .ba-session-fix-btn--secondary {
-  border-color: var(--app-primary-red-border);
+  border-color: var(--btn-accent-edge);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
+  color: var(--btn-accent);
 }
 
 /* ─── Token event inline messages ────────────────────────────────────────── */
@@ -2505,13 +2481,9 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-btn-ghost {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--btn-radius);
   padding: 8px 12px;
   font-size: var(--font-size-sm);
@@ -2520,12 +2492,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-btn-ghost:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  color: var(--btn-accent-text);
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────── */
@@ -2583,23 +2551,15 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* ─── Login action buttons (shown when not authenticated) ────────────── */
 .banking-agent-login-btn {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
   font-weight: 600;
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
 }
 
 .banking-agent-login-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  color: var(--btn-accent-text);
 }
 
 .banking-agent-config-btn {
@@ -3648,13 +3608,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: var(--btn-padding-sm);
   min-height: var(--btn-height-sm);
   border-radius: var(--btn-radius);
-  border: 1px solid var(--app-primary-red-border);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  border: 1px solid var(--btn-accent-edge);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
   font-weight: var(--btn-weight);
   font-size: var(--btn-font-size-sm);
   font-family: inherit;
@@ -3663,12 +3619,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-consent-denied-banner__btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .ba-consent-denied-banner__actions {
@@ -3679,14 +3631,14 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-consent-denied-banner__btn--secondary {
-  border-color: var(--app-primary-red-border);
+  border-color: var(--btn-accent-edge);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
+  color: var(--btn-accent);
 }
 
 .ba-consent-denied-banner__btn--secondary:hover {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 
 /* Floating agent — visually “separate product” vs page-integrated embedded dock */

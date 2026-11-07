@@ -102,9 +102,9 @@
 }
 
 .edu-drawer-tab--active {
-  background: var(--app-primary-red);
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  background: var(--btn-accent);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
 }
 
 .edu-drawer-body {

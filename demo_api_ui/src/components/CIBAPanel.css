@@ -34,7 +34,7 @@
   height: var(--stack-fab-height, 44px);
   min-height: var(--stack-fab-height, 44px);
   padding: 0 12px;
-  background: var(--app-primary-red);
+  background: var(--btn-accent);
   color: #fff;
   -webkit-text-fill-color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -49,14 +49,14 @@
 }
 
 .ciba-fab:hover {
-  background: var(--app-primary-red-hover);
+  background: var(--btn-accent-hover);
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 12px rgba(127, 29, 29, 0.16);
   transform: translateY(-1px);
 }
 
 .ciba-fab--open {
-  background: var(--app-primary-red-hover);
+  background: var(--btn-accent-hover);
   border-color: rgba(255, 255, 255, 0.25);
 }
 
@@ -408,28 +408,28 @@
 }
 
 .ciba-btn--primary {
-  background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
   margin-top: 0.4rem;
   align-self: flex-start;
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
 }
 
 .ciba-btn--primary:hover {
-  background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  color: var(--btn-accent-text);
 }
 
 .ciba-btn--secondary {
-  background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   align-self: flex-start;
 }
 
 .ciba-btn--secondary:hover {
-  background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  color: var(--btn-accent-text);
 }
 
 /* ---------- Live polling view ---------- */

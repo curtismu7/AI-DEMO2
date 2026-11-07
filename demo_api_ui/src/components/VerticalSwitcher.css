@@ -71,6 +71,9 @@
 
 .vertical-switcher__pill--active {
   border-width: 2px;
+  /* A button never takes a vertical's colour; the dot carries the vertical's colour instead. */
+  border-color: var(--btn-accent);
+  background: var(--th-bg-card);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 

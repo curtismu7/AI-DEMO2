@@ -123,6 +123,17 @@ textarea::placeholder {
   --app-primary-red-mid: #d20e0f;
   --app-primary-red-border: #7f1d1d;
   --app-primary-btn-text: #ffffff;
+  /* Buttons: FIXED Ping Red. Verticals, industry presets and the theme picker
+     write --app-primary-red*, --theme-accent and --brand-* onto <html>; none of
+     those may reach a button, so button fills, edges and labels read these
+     instead. Nothing in the vertical manifests or presets sets a --btn-accent*
+     name. */
+  --btn-accent: #d20e0f;
+  --btn-accent-hover: #aa0005;
+  --btn-accent-edge: #7f1d1d;
+  --btn-accent-text: #ffffff;
+  --btn-accent-gradient: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  --btn-accent-gradient-hover: linear-gradient(180deg, #d20e0f 0%, #aa0005 100%);
   /* Top-nav vars resolve to dashboard-header vars so a single manifest override
      (--brand-dashboard-header-*) themes both the dashboard hero and the sticky
      top-nav. Fallback colors retained for the no-manifest case. */
@@ -443,6 +454,9 @@ textarea::placeholder {
   --th-status-info-border: #bfdbfe;
 }
 :root[data-theme="dark"] {
+  /* Deep-red end of the button gradient is under 3:1 on a dark page: the edge goes light
+     (same as --primary-edge in the standalone UI standard). */
+  --btn-accent-edge: #909ea4;
   color-scheme: dark;
   --th-bg-page: #0b1220;
   --th-bg-card: #131c2e;
@@ -899,66 +913,78 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
 }
 
 .btn-primary:focus-visible,
-.btn-secondary:focus-visible,
 .btn-danger:focus-visible,
 .btn-success:focus-visible,
 .btn-outline-primary:focus-visible {
   color: #fff;
 }
 
+/* The secondary button is white with a red label; #fff here made the label vanish. */
+.btn-secondary:focus-visible {
+  color: var(--btn-accent);
+}
+
+/* Buttons ignore the vertical. Anything that reads --theme-accent, --brand-navy or
+   --app-primary-blue* for a fill, edge or label (about 60 rules across 25 stylesheets)
+   gets the fixed Ping value on a button, so a violet vertical (workforce, oauth-teaching)
+   cannot turn one violet. The --app-primary-red* family is repointed rule by rule;
+   it is re-stated here only so a button added later cannot pick up a vertical's red.
+   Inside .user-dashboard the blue tokens are already fixed by that file. */
+:is(button, .btn, [role="button"], input[type="button"], input[type="submit"], a[class*="btn"], a[class*="button"]):not(.user-dashboard *) {
+  --app-primary-red: var(--btn-accent);
+  --app-primary-red-mid: var(--btn-accent);
+  --app-primary-red-hover: var(--btn-accent-hover);
+  --app-primary-red-border: var(--btn-accent-edge);
+  --app-primary-btn-text: var(--btn-accent-text);
+  --theme-accent: var(--btn-accent);
+  --brand-navy: #051727;
+  --app-primary-blue: #051727;
+  --app-primary-blue-hover: #051727;
+  --app-primary-blue-mid: #051727;
+  --app-primary-blue-border: #051727;
+  --app-primary-blue-text: #ffffff;
+  --brand-dashboard-header-start: var(--btn-accent);
+  --brand-dashboard-header-end: var(--btn-accent);
+  --brand-dashboard-header-text: var(--btn-accent-text);
+}
+
 .btn-secondary {
   background: #ffffff;
-  color: var(--app-primary-red);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .btn-secondary:hover {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
-  color: var(--app-primary-red-hover);
+  border-color: var(--btn-accent);
+  color: var(--btn-accent-hover);
 }
 
 /* Outline primary — same red treatment as solid (used by EducationBar, end-user-nano). */
 .btn-outline-primary {
-  color: var(--app-primary-btn-text, #fff);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  background: var(--btn-accent-gradient);
+  border: 1px solid var(--btn-accent-edge);
 }
 
 .btn-outline-primary:hover {
-  color: var(--app-primary-btn-text, #fff);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  color: var(--btn-accent-text);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .btn-danger {
@@ -1149,10 +1175,10 @@ body {
   min-height: 2.9rem;
   margin-top: 0.35rem;
   padding: 0.7rem 1.1rem;
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, var(--app-primary-red-mid), var(--app-primary-red));
-  color: var(--app-primary-btn-text);
+  background: linear-gradient(180deg, var(--btn-accent), var(--btn-accent));
+  color: var(--btn-accent-text);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 700;
@@ -1160,7 +1186,7 @@ body {
 }
 
 .hosted-registration__submit:hover {
-  background: linear-gradient(180deg, var(--app-primary-red), var(--app-primary-red-hover));
+  background: linear-gradient(180deg, var(--btn-accent), var(--btn-accent-hover));
   transform: translateY(-1px);
 }
 
@@ -1227,13 +1253,9 @@ body {
 }
 
 .pagination-btn.active {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
 }
 
 .pagination-btn:disabled {
@@ -1656,19 +1678,15 @@ body {
 }
 
 .end-user-nano .pagination-btn {
-  color: var(--app-primary-red-hover);
+  color: var(--btn-accent-hover);
   border-color: #fca5a5;
   background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%);
 }
 
 .end-user-nano .pagination-btn:hover:not(:disabled) {
-  color: var(--app-primary-btn-text, #fff);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  border-color: var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  background: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
 }
 
 /* ── Reduced motion, app-wide ────────────────────────────────────────────────

@@ -23,7 +23,7 @@
 }
 .cf-clients button[aria-pressed='true'] { background: var(--pas-pill-on-bg, #051727); color: var(--pas-pill-on-fg, #ffffff); border-color: var(--pas-pill-on-bg, #051727); }
 .cf button:disabled { opacity: 0.55; cursor: default; }
-.cf button.cf-primary { background: var(--app-primary-red, #d20e0f); border-color: var(--app-primary-red, #d20e0f); color: #ffffff; padding: 8px 14px; }
+.cf button.cf-primary { background: var(--btn-accent); border-color: var(--btn-accent); color: #ffffff; padding: 8px 14px; }
 
 .cf-chat { border: 1px solid var(--th-border); border-radius: var(--radius-xl); background: var(--th-bg-card); overflow: hidden; }
 .cf-chat > header { padding: 10px 14px; font-weight: 700; border-bottom: 1px solid var(--th-border); }
