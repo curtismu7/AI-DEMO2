@@ -274,7 +274,7 @@
             <a class="run" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Run the 12-step connector flow &rarr;</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gpt" target="_blank" rel="noopener">ChatGPT skin</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/chatgpt-login" target="_blank" rel="noopener">Login diagram</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=chatgpt" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/clients.html?client=chatgpt" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
           </div>
         </div>
 
@@ -291,7 +291,7 @@
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude chat skin</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude-terminal" target="_blank" rel="noopener">Claude Code terminal skin</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Connector flow</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=claude" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/clients.html?client=claude" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
           </div>
         </div>
 
@@ -315,12 +315,12 @@
             <h3>Codex</h3>
             <span class="badge warn">Skin on a stand-in client</span>
           </div>
-          <p class="route">https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex</p>
+          <p class="route">https://local.ping-devops.com:8443/agent-connect/clients.html?client=codex</p>
           <p>The developer path: Codex has its own PingOne app, so Protect can name it on the &ldquo;AI agent detected&rdquo; screen. Shown on Muse&rsquo;s site alongside Claude and ChatGPT, all hitting the same airline back end.</p>
           <p><strong>Triggers Privilege:</strong> the Coding Agents lab also speaks Codex&rsquo;s hook dialect. Pick <strong>Codex</strong> and run the <a href="#privilege-examples">examples below</a>. Codex has no working &ldquo;ask&rdquo; either.</p>
           <div class="btnrow">
             <a class="run" href="http://127.0.0.1:7150/#evaluate" target="_blank" rel="noopener">Emulate Codex &rarr; Privilege</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex" target="_blank" rel="noopener">Codex skin</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/clients.html?client=codex" target="_blank" rel="noopener">Codex skin</a>
           </div>
         </div>
 
@@ -329,12 +329,12 @@
             <h3>Muse</h3>
             <span class="badge ok">Own agent, real PingOne sign-in</span>
           </div>
-          <p class="route">https://agent-connect.ai-demo.ping-devops.com/clients.html</p>
+          <p class="route">https://local.ping-devops.com:8443/agent-connect/clients.html</p>
           <p>Muse is a personal agent with its own back end, like ChatGPT has OpenAI&rsquo;s. It really signs the user in at PingOne and acts for them with token exchanges. <strong>Compare all four agents</strong> (Muse, Claude, ChatGPT, Codex) on one page; the full walkthrough is in the Muse section below.</p>
           <p><strong>Triggers Privilege:</strong> Muse&rsquo;s calls go through Agent Gateway and Agent Privilege. On the walkthrough, <strong>&ldquo;Sign in as Sam (no agent)&rdquo;</strong> shows the gateway refusing a human token, and the agent path shows it accepting Muse&rsquo;s exchanged token. Muse has no hook interface, so it is not in the Coding Agents lab.</p>
           <div class="btnrow">
-            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=muse" target="_blank" rel="noopener">Muse skin &rarr;</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html" target="_blank" rel="noopener">All four agents</a>
+            <a class="run" href="https://local.ping-devops.com:8443/agent-connect/clients.html?client=muse" target="_blank" rel="noopener">Muse skin &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/clients.html" target="_blank" rel="noopener">All four agents</a>
             <a class="run ghost" href="#muse">Muse walkthrough</a>
           </div>
         </div>
@@ -581,13 +581,13 @@
 
       <section id="muse">
         <h2>Muse &mdash; real PingOne agent demo</h2>
-        <p class="sec-note">A standalone app with its own hosted site. Muse is a personal agent that really signs the user in at PingOne (DaVinci, Protect, MFA, agent screen, consent), acts for them with RFC 8693 token exchanges, and reaches the tools through Agent Gateway, Agent Privilege and PingOne Authorize. It is also an OAuth connector for other agents, such as Meta's Muse.</p>
+        <p class="sec-note">A standalone app that runs in local Docker (container <code>muse-local</code>, reached through the lab proxy at <code>/agent-connect/</code>), so it never depends on the hosted SE cluster. Muse is a personal agent that really signs the user in at PingOne (DaVinci, Protect, MFA, agent screen, consent), acts for them with RFC 8693 token exchanges, and reaches the tools through Agent Gateway, Agent Privilege and PingOne Authorize. It is also an OAuth connector for other agents, such as Meta's Muse.</p>
         <div class="card">
           <div class="card-top">
             <h3>Muse</h3>
             <span class="badge ok">Verified live 2026-10-28</span>
           </div>
-          <p class="route">https://agent-connect.ai-demo.ping-devops.com/</p>
+          <p class="route">https://local.ping-devops.com:8443/agent-connect/</p>
           <p>Three paths on one site: <strong>Muse acts for Sam</strong>, <strong>the Airline Connector</strong> (another agent asks Muse), and <strong>just a user</strong> (Sam signs in as himself, no agent, no consent, and his own token is denied at the gateway).</p>
           <ul class="steps">
             <li>Press <strong>&ldquo;Show my airline points&rdquo;</strong>. Muse is turned away with a 401 and PingOne signs Sam in.</li>
@@ -597,9 +597,9 @@
             <li>Open <strong>Diagram</strong> for the Config tab and three Runtime tabs; press Simulate to walk each one.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Run Muse &rarr;</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/diagram" target="_blank" rel="noopener">Diagram</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/how-muse-works.html" target="_blank" rel="noopener">How it works</a>
+            <a class="run" href="https://local.ping-devops.com:8443/agent-connect/" target="_blank" rel="noopener">Run Muse &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/diagram" target="_blank" rel="noopener">Diagram</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/how-agent-connect-works.html" target="_blank" rel="noopener">How it works</a>
           </div>
         </div>
       </section>
@@ -673,7 +673,7 @@
           <ul class="steps">
             <li><strong>403 &ldquo;Access restricted&rdquo;</strong> right after sign-in: the account needs the hosted-access group &mdash; ask the demo owner to re-run the membership step.</li>
             <li><strong>&ldquo;The model did not answer&rdquo;</strong> card: llama.cpp is down; flip the toggle to Heuristics and retry.</li>
-            <li><strong>503 &ldquo;Service Temporarily Unavailable&rdquo;</strong> on a hosted URL: the hosted SE cluster is scaled down. Use the local links on this page (<code>local.ping-devops.com:4000</code>).</li>
+            <li><strong>503 or a page that will not load:</strong> every link on this page now goes to local Docker (<code>local.ping-devops.com:4000</code>, the lab proxy on <code>:8443</code>, the lab on <code>127.0.0.1:7150</code>), so the hosted SE cluster being scaled down no longer matters. If one fails, a local container is down: check that <code>ai-demo-ui</code>, <code>muse-local</code> and the lab proxy show in <code>docker ps</code>.</li>
             <li><strong>Old page after a deploy</strong> (404 on assets): hard-refresh the browser.</li>
             <li>The <strong>Reset dot</strong> button wipes that user's Dot memory &mdash; fine to show, it's the feature.</li>
           </ul>
