@@ -37,7 +37,7 @@ export default function PrivilegeLiveCheck({ tool, args, label = 'Run through li
       <div className="plc__row">
         <button
           type="button"
-          className="plc__run"
+          className="btn btn-primary plc__run"
           onClick={run}
           disabled={state.phase === 'running'}
         >
