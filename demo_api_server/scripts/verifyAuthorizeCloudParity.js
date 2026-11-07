@@ -186,6 +186,33 @@ const RULES = [
       extra: { ResourceOwnerId: '00000000-0000-4000-8000-00000000dead' },
     },
   },
+  {
+    // Per-user consent, absent branch: an agent (ActClientId present) drives a
+    // consent-gated tool and no consent is bridged (MayActSub ''). The permit
+    // control is added by the loop below (MayActSub = the actor), so this proves
+    // the rule discriminates rather than denying every consent-gated call.
+    // Measured live 2026-11-07 after the Personal Agent actor import.
+    code: 'no_user_consent',
+    label: 'user consent — none bridged (UC48)',
+    mockRule: 'Rule 2.6 (absent branch)',
+    deny: {
+      tool: 'book_airline_flight', vertical: 'airlines', depth: 1,
+      extra: { MayActSub: '' },
+    },
+    permit: {},
+  },
+  {
+    // Per-user consent, mismatch branch: the bridged consent names a DIFFERENT
+    // agent than the one acting. Same permit control as above.
+    code: 'may_act_mismatch',
+    label: 'user consent — names another agent',
+    mockRule: 'Rule 2.6 (mismatch branch)',
+    deny: {
+      tool: 'book_airline_flight', vertical: 'airlines', depth: 1,
+      extra: { MayActSub: '00000000-0000-4000-8000-0000000000aa' },
+    },
+    permit: {},
+  },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
