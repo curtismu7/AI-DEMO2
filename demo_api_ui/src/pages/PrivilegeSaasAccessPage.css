@@ -126,26 +126,6 @@
   margin-top: 8px;
 }
 
-.psa-btn {
-  padding: 8px 14px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--th-bg-emphasis);
-  color: var(--th-text-on-emphasis);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-}
-
-.psa-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.psa-btn--ghost {
-  background: transparent;
-  color: var(--th-text);
-}
-
 .psa-receipt {
   border: 1px solid var(--th-status-success-border);
   border-left: 4px solid var(--th-status-success);

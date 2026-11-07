@@ -109,10 +109,10 @@ export default function PrivilegeSaasAccessPage() {
                 ))}
               </ol>
               <div className="psa-actions">
-                <button type="button" className="psa-btn" onClick={advance} disabled={stageIdx >= SAAS_STAGES.length - 1} data-testid="psa-advance">
+                <button type="button" className="btn btn-primary" onClick={advance} disabled={stageIdx >= SAAS_STAGES.length - 1} data-testid="psa-advance">
                   {stageIdx === 0 ? 'Submit for approval' : stageIdx === 1 ? 'Record approval' : stageIdx === 2 ? 'Let the TTL elapse' : 'Complete'}
                 </button>
-                <button type="button" className="psa-btn psa-btn--ghost" onClick={reset} data-testid="psa-reset">Reset</button>
+                <button type="button" className="btn btn-secondary" onClick={reset} data-testid="psa-reset">Reset</button>
               </div>
             </div>
             <div className="psa-col">
