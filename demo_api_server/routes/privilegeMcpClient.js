@@ -223,20 +223,8 @@ const MCP_PROTOCOL_VERSION = '2026-07-28';
 const LEGACY_MCP_PROTOCOL_VERSION = '2024-11-05';
 const MCP_CLIENT_INFO = { name: 'PingOne Privilege MCP Client', version: '2.0.0' };
 
-// Client profiles: what this stand-in client presents to the gateway as ITS identity.
-// 'default' is exactly what the client sent before profiles existed. The others let a
-// costume (ChatGPT, Claude, ...) introduce itself the way the real client would, so the
-// gateway sees a "ChatGPT" or "Claude" instead of one generic client. The clientInfo and
-// User-Agent strings below are best-effort stand-ins, UNVERIFIED against the real
-// products: what Privilege actually reads to classify a client is still being measured.
-const CLIENT_PROFILES = Object.freeze({
-  default: { clientName: 'ai-demo-bff', clientInfo: MCP_CLIENT_INFO, userAgent: null },
-  chatgpt: { clientName: 'ChatGPT', clientInfo: { name: 'openai-mcp', version: '1.0.0' }, userAgent: 'openai-mcp/1.0.0' },
-  claude: { clientName: 'Claude', clientInfo: { name: 'claude-ai', version: '0.1.0' }, userAgent: 'Claude-User' },
-  gemini: { clientName: 'Gemini', clientInfo: { name: 'gemini-cli-mcp-client', version: '1.0.0' }, userAgent: 'gemini-cli-mcp-client/1.0.0' },
-  codex: { clientName: 'Codex', clientInfo: { name: 'codex-mcp-client', version: '1.0.0' }, userAgent: 'codex-mcp-client/1.0.0' },
-});
-const DEFAULT_CLIENT_PROFILE = 'default';
+// Client profiles live in config/privilegeClientProfiles.js (what this stand-in presents as its identity).
+const { CLIENT_PROFILES, DEFAULT_CLIENT_PROFILE } = require('../config/privilegeClientProfiles');
 // Process default (env), then the per-session choice, then 'default'. An unknown name
 // falls back to 'default' rather than throwing: a typo must not break sign-in.
 function clientProfileFor(session) {
