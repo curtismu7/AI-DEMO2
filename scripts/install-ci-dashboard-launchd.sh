@@ -17,7 +17,7 @@ PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG="$HOME/Library/Logs/aidemo2-ci-dashboard.log"
 PORT=57500
 # The repo CI runs in; the checkout's origin can point somewhere else.
-DASH_REPO="${CI_DASHBOARD_REPO:-ping-sandbox/AI-DEMO2}"
+DASH_REPO="${CI_DASHBOARD_REPO:-curtismu7/AI-DEMO2}"
 
 if [ "${1:-install}" = "uninstall" ]; then
   launchctl unload "$PLIST" 2>/dev/null || true
