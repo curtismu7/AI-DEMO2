@@ -221,6 +221,7 @@
       <p class="rail-title">Contents</p>
       <a href="#run-first">Start here <span class="count">1</span></a>
       <a href="#agents">Common personal agents <span class="count">6</span></a>
+      <a href="#privilege-examples">Examples that trigger Privilege <span class="count">2</span></a>
       <a href="#learn">Learning studio <span class="count">1</span></a>
       <a href="#dot">Dot &mdash; the persona agent <span class="count">3</span></a>
       <a href="#studio">Studio &amp; client skins <span class="count">3</span></a>
@@ -268,6 +269,7 @@
           </div>
           <p class="route">/personal-agent/client?skin=gpt &middot; /personal-agent?tab=connector &middot; /chatgpt-login</p>
           <p>The &ldquo;Add to ChatGPT&rdquo; story: CIMD discovery, PKCE authorize, consent, <code>private_key_jwt</code> token exchange, gateway check, then a policy decision. Directory-style connector &mdash; the user never types a server address.</p>
+          <p><strong>Triggers Privilege:</strong> through the gateway, not a hook. ChatGPT is not in the Coding Agents lab (that models agents with hook interfaces). The 12-step flow here is a sandbox whose policy decision is <strong>simulated</strong>, so it does not call Privilege. The real-gateway path is the <strong>ChatGPT skin on Muse&rsquo;s back end</strong> (&ldquo;On Muse&rsquo;s back end&rdquo; below, then &ldquo;Sign in live&rdquo;): it returns the gateway&rsquo;s own answer or refusal (last verified 2026-10-29, not re-run today).</p>
           <div class="btnrow">
             <a class="run" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Run the 12-step connector flow &rarr;</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gpt" target="_blank" rel="noopener">ChatGPT skin</a>
@@ -283,8 +285,10 @@
           </div>
           <p class="route">/personal-agent/client?skin=claude|claude-terminal</p>
           <p>Two shapes of the same agent: the <strong>chat app</strong> (directory connector, like ChatGPT) and <strong>Claude Code in a terminal</strong> (native CLI, the one place a developer adds the server address by hand). Same gates either way.</p>
+          <p><strong>Triggers Privilege:</strong> the Coding Agents lab speaks Claude Code&rsquo;s exact hook dialect (UserPromptSubmit / PreToolUse, <code>permissionDecision</code>) and sends the event to the live gateway. Pick <strong>Claude Code</strong>, then use the <a href="#privilege-examples">examples below</a>.</p>
           <div class="btnrow">
-            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude chat skin &rarr;</a>
+            <a class="run" href="http://127.0.0.1:7150/#evaluate" target="_blank" rel="noopener">Emulate Claude Code &rarr; Privilege</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude chat skin</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude-terminal" target="_blank" rel="noopener">Claude Code terminal skin</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Connector flow</a>
             <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=claude" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
@@ -298,8 +302,10 @@
           </div>
           <p class="route">/personal-agent/client?skin=gemini</p>
           <p>Google&rsquo;s agent as a pop-out client. Open it beside the Studio to show that a third vendor&rsquo;s client hits the identical identity, intent and policy gates.</p>
+          <p><strong>Triggers Privilege:</strong> the Coding Agents lab emulates <strong>Gemini CLI</strong> (not the Gemini chat app) in its own hook dialect. Pick <strong>Gemini CLI</strong> and run the <a href="#privilege-examples">examples below</a>. Gemini CLI has no working &ldquo;ask&rdquo;, so a question becomes an allow or deny there.</p>
           <div class="btnrow">
-            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gemini" target="_blank" rel="noopener">Gemini skin &rarr;</a>
+            <a class="run" href="http://127.0.0.1:7150/#evaluate" target="_blank" rel="noopener">Emulate Gemini CLI &rarr; Privilege</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gemini" target="_blank" rel="noopener">Gemini skin</a>
             <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/full" target="_blank" rel="noopener">Studio (side by side)</a>
           </div>
         </div>
@@ -311,8 +317,10 @@
           </div>
           <p class="route">https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex</p>
           <p>The developer path: Codex has its own PingOne app, so Protect can name it on the &ldquo;AI agent detected&rdquo; screen. Shown on Muse&rsquo;s site alongside Claude and ChatGPT, all hitting the same airline back end.</p>
+          <p><strong>Triggers Privilege:</strong> the Coding Agents lab also speaks Codex&rsquo;s hook dialect. Pick <strong>Codex</strong> and run the <a href="#privilege-examples">examples below</a>. Codex has no working &ldquo;ask&rdquo; either.</p>
           <div class="btnrow">
-            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex" target="_blank" rel="noopener">Codex skin &rarr;</a>
+            <a class="run" href="http://127.0.0.1:7150/#evaluate" target="_blank" rel="noopener">Emulate Codex &rarr; Privilege</a>
+            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex" target="_blank" rel="noopener">Codex skin</a>
           </div>
         </div>
 
@@ -323,6 +331,7 @@
           </div>
           <p class="route">https://agent-connect.ai-demo.ping-devops.com/clients.html</p>
           <p>Muse is a personal agent with its own back end, like ChatGPT has OpenAI&rsquo;s. It really signs the user in at PingOne and acts for them with token exchanges. <strong>Compare all four agents</strong> (Muse, Claude, ChatGPT, Codex) on one page; the full walkthrough is in the Muse section below.</p>
+          <p><strong>Triggers Privilege:</strong> Muse&rsquo;s calls go through Agent Gateway and Agent Privilege. On the walkthrough, <strong>&ldquo;Sign in as Sam (no agent)&rdquo;</strong> shows the gateway refusing a human token, and the agent path shows it accepting Muse&rsquo;s exchanged token. Muse has no hook interface, so it is not in the Coding Agents lab.</p>
           <div class="btnrow">
             <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=muse" target="_blank" rel="noopener">Muse skin &rarr;</a>
             <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html" target="_blank" rel="noopener">All four agents</a>
@@ -337,6 +346,61 @@
           </div>
           <p class="route">/personal-agent/dot/full</p>
           <p>Not a vendor app: Dot is the always-on agent the customer builds. It is the reference for everything above &mdash; the full workbench is in <a href="#run-first">Start here</a>.</p>
+        </div>
+      </section>
+
+      <section id="privilege-examples">
+        <h2>Examples that trigger Privilege</h2>
+        <p class="sec-note">Run these in the <strong>Coding Agents lab</strong>, which emulates Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot and Antigravity through each agent&rsquo;s own hook dialect &mdash; no real editor needed. In <strong>Real</strong> mode the event goes to the tenant&rsquo;s live AI Gateway and the answer is Privilege&rsquo;s own. The gateway judges the content, not which client sent it, so any agent gives the same verdicts.</p>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Coding Agents lab &mdash; Real mode</h3>
+            <span class="badge ok">Measured 2026-11-06 &middot; Claude Code, Codex, Gemini CLI</span>
+          </div>
+          <p class="route">http://127.0.0.1:7150/#evaluate</p>
+          <ul class="steps">
+            <li>Open the lab, make sure the badge says <strong>Mode: real (live AI Guard)</strong>, open <strong>Evaluate</strong>, pick an agent.</li>
+            <li>Click an action below. Each live call takes about 2&ndash;25 seconds.</li>
+            <li>Read panel <strong>2. The gateway&rsquo;s evaluation</strong>: it names the reason code and says <em>decided by the live AI Guard</em>.</li>
+          </ul>
+          <ul class="doclist">
+            <li>
+              <span class="doc-name">&ldquo;A prompt that carries a credential&rdquo;</span>
+              <span class="badge accent">Privilege DENY &middot; DENY-AIGUARD-REDACTED</span>
+              <span class="doc-desc">The secret is redacted by the gateway&rsquo;s data-loss policy before it reaches the model. The audit row shows the prompt with the secret masked.</span>
+            </li>
+            <li>
+              <span class="doc-name">&ldquo;A tool result carrying hidden instructions&rdquo;</span>
+              <span class="badge accent">Privilege DENY &middot; DENY-AIGUARD-BLOCKED</span>
+              <span class="doc-desc">Prompt injection hidden in a file or issue comes back as <em>blocked by security policy</em> and is withheld.</span>
+            </li>
+            <li>
+              <span class="doc-name">&ldquo;An ordinary command&rdquo;</span>
+              <span class="badge ok">Privilege ALLOW &middot; ALLOW-AIGUARD-CLEAN</span>
+              <span class="doc-desc">The control: normal work passes untouched. Run it between the denies to show Privilege is not in the way.</span>
+            </li>
+          </ul>
+          <p class="sec-note"><strong>Be upfront about the other four.</strong> A destructive shell command, a chained command that sends data out, a read of <code>~/.aws/credentials</code> and an MCP call to an unapproved server all came back <strong>ALLOW</strong> from the live AI Guard. In Mock and Live mode the lab shows them as deny or ask, but those verdicts are the lab&rsquo;s own rules, not Privilege. Do not present them as Privilege blocks.</p>
+          <div class="btnrow">
+            <a class="run" href="http://127.0.0.1:7150/#evaluate" target="_blank" rel="noopener">Open the Coding Agents lab &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/" target="_blank" rel="noopener">Demo shelf</a>
+          </div>
+          <p class="sec-note">Loopback only: the lab runs on this machine and the shelf proxy refuses it by design, so use the <code>127.0.0.1</code> link. Real mode needs the gateway bearer in <code>~/Development/.env</code>. The lab&rsquo;s product claims are Ping release claims, unverified on our tenant.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Platform pages with a live Privilege check</h3>
+            <span class="badge ok">Verified live 2026-11-06</span>
+          </div>
+          <p class="route">/privilege-coding-agents &middot; /privilege-intent-triage &middot; /privilege-saas-access &middot; /privilege-prompt-log &middot; /privilege-pii-detection</p>
+          <p>Each page has one button under the verdict that runs that page&rsquo;s scenario as a tool call through the Privilege AI Gateway and shows the real verdict, latency and upstream payload next to the documented behaviour. A gateway 403 is shown as a real policy denial, not an error. Sign in first.</p>
+          <div class="btnrow">
+            <a class="run" href="https://local.ping-devops.com:4000/privilege-coding-agents" target="_blank" rel="noopener">Coding agents page &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/privilege-intent-triage" target="_blank" rel="noopener">Intent triage</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/privilege-saas-access" target="_blank" rel="noopener">SaaS access</a>
+          </div>
         </div>
       </section>
 
