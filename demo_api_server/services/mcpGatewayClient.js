@@ -138,6 +138,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // skip every aud-based reroute below — a routing "correction" would point
     // the attack at a gateway that cannot exercise the control under test.
     const pinNodeGateway = opts.pinNodeGateway === true;
+    // Privilege-first: the transport has already chosen the Privilege door as the
+    // base and attached ITS session token. The "regular calls always go to
+    // PingGateway" guard below must not move that request back to PingGateway —
+    // doing so sent the Privilege bearer and tx-token to the wrong gateway.
+    const pinGatewayBase = opts.pinGatewayBase === true;
     // PingGateway (IG) base — when the gateway IS IG, api-key-disposition tools go
     // to the dedicated /mcp/apikey route (vault-key credential mediation); every
     // other tool (and the Node gateway) uses /mcp.
@@ -248,7 +253,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // matching token before dispatch; this final guard prevents a stale
     // Node-audienced token from being sent to the local mock gateway. A2A and
     // ID-JAG pins above and explicitly Node-only tools remain exceptions.
-    if (!pinnedAud && !isNodeGatewayOnlyTool(tool) && !pinNodeGateway) {
+    if (!pinnedAud && !isNodeGatewayOnlyTool(tool) && !pinNodeGateway && !pinGatewayBase) {
         const claims = decodeJwt(bearerToken)?.claims;
         const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
             : (claims?.aud != null ? [String(claims.aud)] : []);

@@ -36,7 +36,7 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
     assertBedrockPath('gateway');
     return bedrockGatewayClient.callToolViaAgentCore(bearerToken, tool, params, opts);
   }
-  const { callToolViaGateway } = require('./mcpGatewayClient');
+  const { callToolViaGateway, getMcpGatewayHttpUrl } = require('./mcpGatewayClient');
   if (!privilegeFirstOn()) {
     return callToolViaGateway(gatewayUrl, bearerToken, tool, params, opts);
   }
@@ -71,7 +71,11 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
   // completion would draw Privilege AFTER the gateway it sits in front of.
   const startedAt = new Date().toISOString();
   try {
-    const result = await callToolViaGateway(gatewayUrl, gatewayToken, tool, params, { ...opts, extraHeaders });
+    // The caller's gatewayUrl is the PingGateway/Node URL the pipeline picks for a
+    // regular tool. With Privilege in front the request goes to the Privilege door
+    // (what getMcpGatewayHttpUrl returns while the flag is on), and the client is
+    // told not to re-pin it to PingGateway.
+    const result = await callToolViaGateway(getMcpGatewayHttpUrl(), gatewayToken, tool, params, { ...opts, extraHeaders, pinGatewayBase: true });
     recordPrivilegeHop({ startedAt, tool, status: 'ok', decision: { outcome: 'PERMIT' } });
     return result;
   } catch (err) {
