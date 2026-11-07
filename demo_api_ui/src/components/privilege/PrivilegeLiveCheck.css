@@ -17,7 +17,7 @@
 
 .plc__run {
   border: 1px solid var(--th-border);
-  background: var(--th-bg-raised);
+  background: var(--th-bg-card);
   color: var(--th-text);
   border-radius: var(--radius-sm);
   padding: 0.25rem 0.75rem;
