@@ -21,7 +21,7 @@ const S = {
     padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
     border: `1px solid ${active ? '#fca5a5' : '#e2e8f0'}`,
     background: active ? '#fee2e2' : '#f8fafc',
-    color: active ? '#3730a3' : '#334155',
+    color: active ? '#7f1d1d' : '#334155',
   }),
   back: { background: 'none', border: 0, padding: 0, marginBottom: '14px', color: 'var(--th-text)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' },
 };

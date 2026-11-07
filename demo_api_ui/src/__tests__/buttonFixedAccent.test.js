@@ -105,4 +105,12 @@ describe('fixed button accent', () => {
       expect(guard.body, t).toContain(`${t}:`);
     }
   });
+
+  it('has no indigo/violet literal on buttons declared in JS (inline <style> blocks and style objects)', () => {
+    const read = (f) => fs.readFileSync(path.join(SRC, f), 'utf8');
+    const violet = /#(3730a3|4338ca|4f46e5|6366f1|7c3aed|6d28d9|5b21b6|8b5cf6|4c1d95|a78bfa)/i;
+    expect(read('components/UserTransactions.js')).not.toMatch(violet);
+    expect(read('components/PingOneAuthorizePage.jsx')).not.toMatch(violet);
+    expect(read('components/education/AiAttacksPanel.js')).not.toMatch(violet);
+  });
 });
