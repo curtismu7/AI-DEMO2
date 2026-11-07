@@ -207,13 +207,13 @@
     <main>
       <section id="muse">
         <h2>Muse &mdash; the airline agent</h2>
-        <p class="sec-note">A personal agent that signs the member in at PingOne, then acts for them through Agent Gateway and Privilege. The hosted copy is the real thing: PingOne sign-in, DaVinci, Protect, MFA, consent, token exchange and PingOne Authorize.</p>
+        <p class="sec-note">A personal agent that signs the member in at PingOne, then acts for them through Agent Gateway and Privilege. It runs in local Docker against the real PingOne tenant: PingOne sign-in, DaVinci, Protect, MFA, consent, token exchange and PingOne Authorize.</p>
         <div class="card">
           <div class="card-top">
-            <h3>Muse (hosted, Real mode)</h3>
+            <h3>Muse (local Docker, Real mode)</h3>
             <span class="badge ok">Real</span>
           </div>
-          <p class="route">https://agent-connect.ai-demo.ping-devops.com/</p>
+          <p class="route">https://local.ping-devops.com:8443/agent-connect/</p>
           <p>Ask for airline points. Muse is turned away with a 401, sends the member to PingOne, then asks again with a token that names Muse as the actor. On the page the name turns <strong>red</strong> when PingOne Protect detected the agent and <strong>blue</strong> when only the client id did.</p>
           <ul class="steps">
             <li>Press <strong>Show my airline points</strong>, then <strong>Continue to PingOne</strong>.</li>
@@ -222,8 +222,8 @@
             <li>Open any step under <strong>What Muse did</strong> to see the raw request and response.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Run Muse &rarr;</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/how-muse-works.html" target="_blank" rel="noopener">How it works</a>
+            <a class="run" href="https://local.ping-devops.com:8443/agent-connect/" target="_blank" rel="noopener">Run Muse &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/how-agent-connect-works.html" target="_blank" rel="noopener">How it works</a>
           </div>
         </div>
         <div class="card">
@@ -239,8 +239,8 @@
             <li>Back on the page, the assistant has asked for your points with a token that names it as the actor.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Connect from your assistant &rarr;</a>
-            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/how-muse-works.html#pick" target="_blank" rel="noopener">Which connector gets picked</a>
+            <a class="run" href="https://local.ping-devops.com:8443/agent-connect/" target="_blank" rel="noopener">Connect from your assistant &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/how-agent-connect-works.html#pick" target="_blank" rel="noopener">Which connector gets picked</a>
           </div>
         </div>
       </section>
@@ -256,7 +256,7 @@
           <p class="route">/personal-agent/muse</p>
           <p>Real PingOne sign-in and delegation from inside the console.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/muse" target="_blank" rel="noopener">Open Muse &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/muse" target="_blank" rel="noopener">Open Muse &rarr;</a>
           </div>
         </div>
         <div class="card">
@@ -267,8 +267,8 @@
           <p class="route">/personal-agent</p>
           <p>The customer's own agent, with Ping governing every tool call it makes.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent" target="_blank" rel="noopener">Open the studio &rarr;</a>
-            <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agents-handoff.html" target="_blank" rel="noopener">Field guide</a>
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent" target="_blank" rel="noopener">Open the studio &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agents-handoff.html" target="_blank" rel="noopener">Field guide</a>
           </div>
         </div>
         <div class="card">
@@ -279,34 +279,34 @@
           <p class="route">/united-personal-agent-flow</p>
           <p>The request path for a member's own agent reaching the airline's tools: discover, register, consent, per-call exchange, gateway, Authorize and Protect.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/united-personal-agent-flow" target="_blank" rel="noopener">Open the sequence &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:4000/united-personal-agent-flow" target="_blank" rel="noopener">Open the sequence &rarr;</a>
           </div>
         </div>
       </section>
 
       <section id="standalone">
         <h2>Standalone demos</h2>
-        <p class="sec-note">Self-contained apps from the demo shelf. Each runs locally; the ones with an SE link also run on the cluster.</p>
+        <p class="sec-note">Self-contained apps from the demo shelf. Each runs locally in Docker.</p>
         <div class="card">
           <div class="card-top">
             <h3>Agent MCP Door demo</h3>
             <span class="badge warn">Mock</span>
           </div>
-          <p class="route">agent-door.ai-demo.ping-devops.com</p>
-          <p>A hosted, mock-only copy of the agent-to-MCP door pattern. Nothing leaves the page.</p>
+          <p class="route">http://127.0.0.1:6850</p>
+          <p>A mock-only local copy of the agent-to-MCP door pattern (loopback only). Nothing leaves the page.</p>
           <div class="btnrow">
-            <a class="run" href="https://agent-door.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Open the demo &rarr;</a>
+            <a class="run" href="http://127.0.0.1:6850/" target="_blank" rel="noopener">Open the demo &rarr;</a>
           </div>
         </div>
         <div class="card">
           <div class="card-top">
             <h3>Muse on the shelf</h3>
-            <span class="badge ok">Local + SE</span>
+            <span class="badge ok">Local</span>
           </div>
           <p class="route">demo-shelf: Muse</p>
-          <p>Listed on the demo shelf (local port 5100). The local build is Mock; the SE copy above is Real.</p>
+          <p>Listed on the demo shelf (local port 5100). This is the same local container as the Muse card above.</p>
           <div class="btnrow">
-            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Hosted Muse &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:8443/agent-connect/" target="_blank" rel="noopener">Open Muse &rarr;</a>
           </div>
         </div>
       </section>
