@@ -220,6 +220,7 @@
     <nav class="rail" aria-label="Sections">
       <p class="rail-title">Contents</p>
       <a href="#run-first">Start here <span class="count">1</span></a>
+      <a href="#agents">Common personal agents <span class="count">6</span></a>
       <a href="#learn">Learning studio <span class="count">1</span></a>
       <a href="#dot">Dot &mdash; the persona agent <span class="count">3</span></a>
       <a href="#studio">Studio &amp; client skins <span class="count">3</span></a>
@@ -253,6 +254,89 @@
           <div class="btnrow">
             <a class="run" href="https://local.ping-devops.com:4000/personal-agent/dot/full" target="_blank" rel="noopener">Run the Dot workbench &rarr;</a>
           </div>
+        </div>
+      </section>
+
+      <section id="agents">
+        <h2>Common personal agents</h2>
+        <p class="sec-note">The agents customers actually bring: ChatGPT, Claude, Gemini, Codex and Muse. The point is the same for each &mdash; <strong>the agent changes, the governed path does not</strong>. Every agent below signs in through PingOne and every tool call passes the same gates. These are look-alike skins on a stand-in client, not the real vendor apps.</p>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>ChatGPT</h3>
+            <span class="badge warn">Skin on a stand-in client</span>
+          </div>
+          <p class="route">/personal-agent/client?skin=gpt &middot; /personal-agent?tab=connector &middot; /chatgpt-login</p>
+          <p>The &ldquo;Add to ChatGPT&rdquo; story: CIMD discovery, PKCE authorize, consent, <code>private_key_jwt</code> token exchange, gateway check, then a policy decision. Directory-style connector &mdash; the user never types a server address.</p>
+          <div class="btnrow">
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Run the 12-step connector flow &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gpt" target="_blank" rel="noopener">ChatGPT skin</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/chatgpt-login" target="_blank" rel="noopener">Login diagram</a>
+            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=chatgpt" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Claude</h3>
+            <span class="badge warn">Skin on a stand-in client</span>
+          </div>
+          <p class="route">/personal-agent/client?skin=claude|claude-terminal</p>
+          <p>Two shapes of the same agent: the <strong>chat app</strong> (directory connector, like ChatGPT) and <strong>Claude Code in a terminal</strong> (native CLI, the one place a developer adds the server address by hand). Same gates either way.</p>
+          <div class="btnrow">
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude chat skin &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude-terminal" target="_blank" rel="noopener">Claude Code terminal skin</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Connector flow</a>
+            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=claude" target="_blank" rel="noopener">On Muse&rsquo;s back end</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Gemini</h3>
+            <span class="badge warn">Skin on a stand-in client</span>
+          </div>
+          <p class="route">/personal-agent/client?skin=gemini</p>
+          <p>Google&rsquo;s agent as a pop-out client. Open it beside the Studio to show that a third vendor&rsquo;s client hits the identical identity, intent and policy gates.</p>
+          <div class="btnrow">
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gemini" target="_blank" rel="noopener">Gemini skin &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/full" target="_blank" rel="noopener">Studio (side by side)</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Codex</h3>
+            <span class="badge warn">Skin on a stand-in client</span>
+          </div>
+          <p class="route">https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex</p>
+          <p>The developer path: Codex has its own PingOne app, so Protect can name it on the &ldquo;AI agent detected&rdquo; screen. Shown on Muse&rsquo;s site alongside Claude and ChatGPT, all hitting the same airline back end.</p>
+          <div class="btnrow">
+            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=codex" target="_blank" rel="noopener">Codex skin &rarr;</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Muse</h3>
+            <span class="badge ok">Own agent, real PingOne sign-in</span>
+          </div>
+          <p class="route">https://agent-connect.ai-demo.ping-devops.com/clients.html</p>
+          <p>Muse is a personal agent with its own back end, like ChatGPT has OpenAI&rsquo;s. It really signs the user in at PingOne and acts for them with token exchanges. <strong>Compare all four agents</strong> (Muse, Claude, ChatGPT, Codex) on one page; the full walkthrough is in the Muse section below.</p>
+          <div class="btnrow">
+            <a class="run" href="https://agent-connect.ai-demo.ping-devops.com/clients.html?client=muse" target="_blank" rel="noopener">Muse skin &rarr;</a>
+            <a class="run ghost" href="https://agent-connect.ai-demo.ping-devops.com/clients.html" target="_blank" rel="noopener">All four agents</a>
+            <a class="run ghost" href="#muse">Muse walkthrough</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Dot</h3>
+            <span class="badge ok">The customer&rsquo;s own persona agent</span>
+          </div>
+          <p class="route">/personal-agent/dot/full</p>
+          <p>Not a vendor app: Dot is the always-on agent the customer builds. It is the reference for everything above &mdash; the full workbench is in <a href="#run-first">Start here</a>.</p>
         </div>
       </section>
 
