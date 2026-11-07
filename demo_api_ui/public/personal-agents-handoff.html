@@ -581,7 +581,7 @@
 
       <section id="muse">
         <h2>Muse &mdash; real PingOne agent demo</h2>
-        <p class="sec-note">A standalone app that runs in local Docker (container <code>muse-local</code>, reached through the lab proxy at <code>/agent-connect/</code>), so it never depends on the hosted SE cluster. Muse is a personal agent that really signs the user in at PingOne (DaVinci, Protect, MFA, agent screen, consent), acts for them with RFC 8693 token exchanges, and reaches the tools through Agent Gateway, Agent Privilege and PingOne Authorize. It is also an OAuth connector for other agents, such as Meta's Muse.</p>
+        <p class="sec-note">A standalone app that runs in local Docker (container <code>muse-local</code>, reached through the lab proxy at <code>/agent-connect/</code>), so it never depends on the hosted SE cluster. The app&rsquo;s own header now reads <strong>Agent Connect</strong> (it was renamed); it is the same app. Muse is a personal agent that really signs the user in at PingOne (DaVinci, Protect, MFA, agent screen, consent), acts for them with RFC 8693 token exchanges, and reaches the tools through Agent Gateway, Agent Privilege and PingOne Authorize. It is also an OAuth connector for other agents, such as Meta's Muse.</p>
         <div class="card">
           <div class="card-top">
             <h3>Muse</h3>
@@ -598,7 +598,7 @@
           </ul>
           <div class="btnrow">
             <a class="run" href="https://local.ping-devops.com:8443/agent-connect/" target="_blank" rel="noopener">Run Muse &rarr;</a>
-            <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/diagram" target="_blank" rel="noopener">Diagram</a>
+            <a class="run ghost" href="https://local.ping-devops.com:5143/diagram" target="_blank" rel="noopener">Diagram</a>
             <a class="run ghost" href="https://local.ping-devops.com:8443/agent-connect/how-agent-connect-works.html" target="_blank" rel="noopener">How it works</a>
           </div>
         </div>
