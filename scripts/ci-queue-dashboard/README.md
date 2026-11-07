@@ -24,7 +24,7 @@ You normally don't start it by hand: `./run-docker.sh start` installs a LaunchAg
 
 ## Repository and runners
 
-The dashboard reads the repo `gh repo view` reports for this checkout. Set `CI_DASHBOARD_REPO=owner/name` to pin a different one; the LaunchAgent installer pins `ping-sandbox/AI-DEMO2`. GitHub only lists a repo's runners to admins, so when that call is refused the Runners panel shows this Mac's runner services for the repo (running or stopped) instead, without online or busy state.
+The dashboard reads the repo `gh repo view` reports for this checkout. Set `CI_DASHBOARD_REPO=owner/name` to pin a different one; the LaunchAgent installer pins `curtismu7/AI-DEMO2`. GitHub only lists a repo's runners to admins, so when that call is refused the Runners panel shows this Mac's runner services for the repo (running or stopped) instead, without online or busy state.
 
 ## Controls
 
