@@ -15,6 +15,14 @@ all Up. Grafana SSO requires the demo sign-in; the local fallback is
 `http://localhost:3000` (admin / `ai-demo-grafana` unless `GRAFANA_ADMIN_PASSWORD`
 is set). In k8s, Grafana lives under `<public_app_url>/grafana`.
 
+### Optional: show the same logs in the standalone observability-LAB
+
+Loki is published on `127.0.0.1:3100` only. With the `observability` profile up
+(Loki + Alloy ship every container's stdout), start observability-LAB, set
+`OBS_LOKI_URL=http://127.0.0.1:3100` in its `.env` and use its Real toggle. It
+reads Loki read-only and never writes. Alloy tails every container on the
+machine, so stop it afterwards: `./run-docker.sh optional stop observability`.
+
 ## Part 1 — Forensics (~4 min)
 
 1. Sign in as a customer (device-first unified sign-in).

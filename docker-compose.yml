@@ -184,7 +184,10 @@ services:
     restart: unless-stopped
     command: ["-config.file=/etc/loki/local-config.yaml"]
     ports:
-      - "3100:3100"
+      # Loopback only: Loki has no auth, and this port serves its whole query API.
+      # Containers reach it as loki:3100 on the ai-demo network; the host-side
+      # publish is for curl and for the standalone observability-LAB (Real mode).
+      - "127.0.0.1:3100:3100"
     networks:
       - ai-demo
 
