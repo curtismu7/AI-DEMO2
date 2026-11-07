@@ -1,61 +1,96 @@
-/* PrivilegeLiveCheck — the "go through live Privilege" control. */
+/* PrivilegeLiveCheck — the "go through live Privilege" control.
+   The trigger is a shared .btn .btn-primary (see the JSX): it is the one action in its panel
+   on every page that mounts this component, and a filled button is the only variant that
+   keeps its affordance in both themes and every skin (the shared .btn-secondary is redefined
+   by ErrorBoundary.css / AuthErrorBanner.css and can render as a pale chip). Its fill, edge,
+   weight, radius and hover come from the button system, not from this file. Everything here is
+   --th-* so it is correct in both themes; each tinted result takes its ground AND its ink
+   from the same --th-status-* set (REGRESSION_PLAN H1). Status is never colour alone: the
+   result's bold label says allowed / denied / error, and the 4px left edge is a shape cue. */
 
 .plc {
-  margin-top: 0.75rem;
-  border-top: 1px solid var(--th-border);
-  padding-top: 0.75rem;
+  margin-top: 12px;
+  border-top: 1px solid var(--th-border-strong);
+  padding-top: 12px;
   display: grid;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .plc__row {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 8px 12px;
   flex-wrap: wrap;
 }
 
+/* Labels here are full sentences; .btn is nowrap, which pushed a 375px viewport sideways. */
 .plc__run {
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border-radius: var(--radius-sm);
-  padding: 0.25rem 0.75rem;
-  font-size: var(--font-size-xs);
-  cursor: pointer;
+  white-space: normal;
+  text-align: center;
+  max-width: 100%;
 }
 
-.plc__run:disabled {
-  opacity: 0.6;
-  cursor: default;
+/* Visible keyboard ring that reads on both themes. */
+.plc__run:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
 }
 
 .plc__hint {
-  font-size: var(--font-size-3xs);
-  opacity: 0.7;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
 }
 
 .plc__result {
+  border: 1px solid var(--th-border-strong);
+  border-left-width: 4px;
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.75rem;
-  font-size: var(--font-size-xs);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
   display: grid;
-  gap: 0.25rem;
+  gap: 4px;
 }
 
-.plc-allowed { background: rgba(46, 160, 67, 0.12); }
-.plc-denied { background: rgba(218, 54, 51, 0.12); }
-.plc-tool-error { background: rgba(154, 103, 0, 0.12); }
-.plc-error { background: rgba(154, 103, 0, 0.12); }
+.plc__result p {
+  margin: 0;
+}
+
+.plc-allowed {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border-color: var(--th-status-success-border);
+  border-left-color: var(--th-status-success);
+}
+
+.plc-denied {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border-color: var(--th-status-error-border);
+  border-left-color: var(--th-status-error);
+}
+
+.plc-tool-error,
+.plc-error {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  border-color: var(--th-status-warning-border);
+  border-left-color: var(--th-status-warning);
+}
 
 .plc__meta {
-  font-size: var(--font-size-3xs);
-  opacity: 0.75;
+  font-size: var(--font-size-2xs);
 }
 
 .plc__upstream {
   margin: 0;
-  font-size: var(--font-size-3xs);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   max-height: 8rem;
   overflow: auto;
   white-space: pre-wrap;

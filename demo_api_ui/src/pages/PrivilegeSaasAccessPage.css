@@ -1,4 +1,8 @@
-/* Privilege SaaS Access Management page. Tokens only; px spacing. */
+/* Privilege SaaS Access Management page.
+   Standard: THEMING.md + REGRESSION_PLAN §0. Surfaces, lines and ink are --th-* only, so the
+   page is correct in both themes with no dark block; every ground sets its own ink (H1); type
+   comes from the --font-size-* scale (H2); no inline styles (H3). Buttons are the shared
+   .btn system. Control edges use --control-border (dark-mode control contrast rule). */
 
 .psa-page {
   min-height: 100vh;
@@ -9,13 +13,15 @@
 .psa-body {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 24px 64px;
+  padding: 24px 16px 64px;
 }
 
 .psa-panel {
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-sm);
   padding: 16px 20px;
   margin-bottom: 24px;
 }
@@ -23,30 +29,32 @@
 .psa-panel h2 {
   margin: 0 0 4px;
   font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   color: var(--th-text);
 }
 
 .psa-panel > p {
   margin: 0 0 12px;
   color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .psa-grid {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 24px;
 }
 
 @media (max-width: 860px) {
   .psa-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .psa-label {
   display: block;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--th-text-muted);
@@ -55,59 +63,59 @@
 
 .psa-select {
   width: 100%;
+  min-height: var(--btn-height);
   padding: 8px 10px;
-  border: 1px solid var(--th-border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--th-bg-page);
   color: var(--th-text);
-  font-size: var(--font-size-xs);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.psa-select:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
 }
 
 .psa-justification {
   margin: 10px 0 4px;
   color: var(--th-text);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .psa-muted {
   color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   margin: 4px 0;
 }
 
 .psa-stages {
   list-style: none;
-  counter-reset: psa-stage;
   margin: 12px 0;
   padding: 0;
 }
 
 .psa-stage {
-  counter-increment: psa-stage;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px;
   margin-bottom: 6px;
-  border: 1px solid var(--th-border);
+  border: 1px solid var(--th-border-strong);
   border-left: 4px solid var(--th-border-strong);
   border-radius: var(--radius-sm);
   background: var(--th-bg-page);
-}
-
-.psa-stage::before {
-  content: counter(psa-stage);
-  position: absolute;
-  display: none;
+  color: var(--th-text);
 }
 
 .psa-stage strong {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text);
 }
 
 .psa-stage span {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
 }
 
@@ -122,8 +130,14 @@
 
 .psa-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+}
+
+.psa-actions .btn:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
 }
 
 .psa-receipt {
@@ -138,39 +152,54 @@
 
 .psa-receipt p {
   margin: 0 0 4px;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
+}
+
+/* The receipt's own ground is a status tint: keep ink from the same set (H1). */
+.psa-receipt .psa-muted {
+  color: inherit;
 }
 
 .psa-empty {
-  border: 1px dashed var(--th-border-strong);
+  border: 1px dashed var(--control-border);
   border-radius: var(--radius-sm);
   padding: 12px;
 }
 
 .psa-h3 {
   margin: 12px 0 6px;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
   color: var(--th-text);
+}
+
+.psa-table-wrap {
+  overflow-x: auto;
+}
+
+.psa-table-wrap + .psa-muted {
+  margin-top: 12px;
 }
 
 .psa-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .psa-table th,
 .psa-table td {
   text-align: left;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--th-border);
+  border-bottom: 1px solid var(--th-border-strong);
   color: var(--th-text);
   vertical-align: top;
 }
 
 .psa-table th {
   color: var(--th-text-muted);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }

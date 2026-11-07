@@ -101,7 +101,8 @@ export default function PrivilegeSaasAccessPage() {
                 {SAAS_STAGES.map((s, i) => (
                   <li
                     key={s.id}
-                    className={i < stageIdx ? 'psa-stage--done' : i === stageIdx ? 'psa-stage--current' : ''}
+                    className={`psa-stage ${i < stageIdx ? 'psa-stage--done' : i === stageIdx ? 'psa-stage--current' : ''}`.trim()}
+                    aria-current={i === stageIdx ? 'step' : undefined}
                   >
                     <strong>{s.label}</strong>
                     <span>{s.note}</span>
@@ -127,6 +128,7 @@ export default function PrivilegeSaasAccessPage() {
                 <p className="psa-muted psa-empty">Advance the request to the grant stage to see the receipt this cycle would issue.</p>
               )}
               <h3 className="psa-h3">Platform matrix</h3>
+              <div className="psa-table-wrap">
               <table className="psa-table" data-testid="psa-matrix">
                 <thead><tr><th scope="col">Platform</th><th scope="col">Grantable</th><th scope="col">Connection</th></tr></thead>
                 <tbody>
@@ -135,6 +137,7 @@ export default function PrivilegeSaasAccessPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </section>
@@ -145,6 +148,7 @@ export default function PrivilegeSaasAccessPage() {
             Every grant is recorded and reconciled against the platform nightly, so access granted outside
             Privilege is surfaced instead of silently accumulating.
           </p>
+          <div className="psa-table-wrap">
           <table className="psa-table" data-testid="psa-drift-rows">
             <thead><tr><th scope="col">Grant</th><th scope="col">Subject</th><th scope="col">Source</th><th scope="col">Detected by</th></tr></thead>
             <tbody>
@@ -153,6 +157,7 @@ export default function PrivilegeSaasAccessPage() {
               ))}
             </tbody>
           </table>
+          </div>
           <p className="psa-muted">
             Walkthrough only: this page does not grant anything on GitHub, Snowflake or any connected platform.
           </p>
