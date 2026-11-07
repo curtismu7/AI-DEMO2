@@ -109,7 +109,7 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
             alignItems: 'center',
             gap: 8,
             background: '#aa0005',
-            border: '1px solid #3730a3',
+            border: '1px solid var(--btn-accent-edge)',
             color: '#fff',
             borderRadius: 8,
             padding: '10px 16px',
