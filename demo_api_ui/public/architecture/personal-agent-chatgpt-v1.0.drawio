@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-11-06T00:00:00.000Z" agent="opencode" version="24.0.0">
+  <diagram id="personal-agent-chatgpt" name="Personal Agent - ChatGPT (V2 GW-Authorize)">
+    <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===== Agentic Token Service (top center) ===== -->
+        <mxCell id="ats" value="Agentic Token Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="700" y="80" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="orch" value="Orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="700" y="40" width="96" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="agt" value="Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="801" y="40" width="56" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="txe" value="Token Exchange" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="862" y="40" width="72" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="ccred" value="Client Cred" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0952a;strokeColor=#8a5410;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="939" y="40" width="61" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- Authorization Server (top right) -->
+        <mxCell id="authz" value="Authorization Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="43" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e_authz" value="Introspect token" style="edgeStyle=none;html=1;endArrow=none;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="ats" target="authz">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Left column: user, session, surfaces ===== -->
+        <mxCell id="user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="80" y="250" width="90" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="pingsess" value="Ping Session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="260" y="180" width="110" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="chatbot" value="ChatGPT in browser&#10;(user surface)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="250" width="130" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="gptdesktop" value="ChatGPT Desktop&#10;(user surface)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cfe2ff;strokeColor=#6b9bd2;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="320" width="130" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user1" value="User request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="user" target="pingsess">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user2" style="edgeStyle=none;html=1;strokeColor=#333333;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="pingsess" target="chatbot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user3" style="edgeStyle=none;html=1;strokeColor=#333333;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="chatbot" target="gptdesktop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_userauth" value="User Authentication" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=1;" edge="1" parent="1" source="pingsess" target="ats">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Human token note (below user) ===== -->
+        <mxCell id="htok" value="User token (validated live):&#10;iss: https://local.ping-devops.com:9031&#10;sub: demouser&#10;aud: enduser.ping.demo&#10;scope: openid profile email…&#10;alg RS256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="150" height="104" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Shadow IT personal agent ===== -->
+        <mxCell id="shadow" value="Shadow IT — personal agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#8a2f2a;dashed=1;fontColor=#1a1a1a;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="640" y="230" width="220" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="chatgpt" value="ChatGPT Agent runtime&#10;(backend — acts for the user)&#10;OAuth client: chatgpt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="262" width="160" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" value="LLM (OpenAI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#6a936a;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="700" y="345" width="100" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- Browser surface -> agent runtime (straight horizontal) -->
+        <mxCell id="e_shadow1b" value="JSON-RPC" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.35;" edge="1" parent="1" source="chatbot" target="chatgpt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Desktop surface -> agent runtime (straight horizontal) -->
+        <mxCell id="e_shadow1" value="JSON-RPC" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" edge="1" parent="1" source="gptdesktop" target="chatgpt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Agent runtime -> LLM (straight vertical) -->
+        <mxCell id="e_shadow2" style="edgeStyle=none;html=1;strokeColor=#333333;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="chatgpt" target="llm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- ATS -> agent runtime (straight vertical, token request) -->
+        <mxCell id="e_reqtok" value="Request token" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.25;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="ats" target="chatgpt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Agent token note (right of ATS, clear of edges) ===== -->
+        <mxCell id="agttok" value="Agent token (client_credentials):&#10;client_id: 0b412e8b-cfbc-4c7d-a773-0d46118de09d&#10;aud: enduser.ping.demo&#10;scope: agent:invoke" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="970" y="130" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== MCP container (right) ===== -->
+        <mxCell id="mcpbox" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbf3c0;strokeColor=#b8ac60;fontColor=#1a1a1a;fontSize=12;verticalAlign=top;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="240" width="520" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="gw" value="Agent Gateway&#10;(PingGateway, Kong AI Gateway,&#10;Apigee, or any API/AI gateway)&#10;&#10;Route: api.ping.demo:3036/mcp&#10;Route: api.ping.demo:3036/mcp (tools/call)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ee6a68;strokeColor=#8a2f2a;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="280" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="mcpolb" value="MCP&#10;api.ping.demo:3036/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="280" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="mcpinv" value="MCP&#10;api.ping.demo:3036/mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0d0d0;strokeColor=#777777;fontColor=#1a1a1a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="390" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="rs" value="RS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="285" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6d0ea;strokeColor=#8077ad;fontColor=#1a1a1a;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="395" width="60" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="invtok" value="Downstream: Benefits/Resource API&#10;via API key from vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="430" width="170" height="44" as="geometry" />
+        </mxCell>
+
+
+        <mxCell id="inttok" value="Intent token (minted by the BFF, not the AS):&#10;intent: view_courses&#10;vertical: university&#10;tools allowed: view_courses, view_standing…&#10;prompt_hash: 9711…3e9b" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fcefc7;strokeColor=#b8a66a;fontColor=#1a1a1a;fontSize=9;align=left;spacingLeft=8;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="830" y="430" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Agent runtime -> gateway (straight horizontal, same height) -->
+        <mxCell id="e_dec_gw" value="tools/call (MCP)" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="chatgpt" target="gw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Gateway -> AuthZ (straight diagonal-ish, dashed) -->
+        <mxCell id="e_gw_authz" value="Fine-grained authorization" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;dashed=1;exitX=0.5;exitY=0;entryX=1;entryY=0.5;" edge="1" parent="1" source="gw" target="ats">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gw1" value="Tool call" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.3;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpolb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gw2" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.8;entryX=0;entryY=0.5;" edge="1" parent="1" source="gw" target="mcpinv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rs" value="Request" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpolb" target="rs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_api" value="API key (via vault)" style="edgeStyle=none;html=1;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="mcpinv" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

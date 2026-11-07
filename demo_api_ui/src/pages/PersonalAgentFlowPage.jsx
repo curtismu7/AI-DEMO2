@@ -94,9 +94,9 @@ export default function PersonalAgentFlowPage() {
         </p>
         <DiagramExportBar
           items={[
-            { label: 'Personal agent (.drawio)', href: '/architecture/personal-agent-chatgpt.drawio' },
-            { label: 'Personal agent (.mmd)', href: '/architecture/personal-agent-chatgpt.mmd' },
-            { label: 'Digital assistant — original (.drawio)', href: '/architecture/digital-assistant-original.drawio' },
+            { label: 'Personal agent v1.0 (.drawio)', href: '/architecture/personal-agent-chatgpt-v1.0.drawio' },
+            { label: 'Personal agent v1.0 (.mmd)', href: '/architecture/personal-agent-chatgpt-v1.0.mmd' },
+            { label: 'Digital assistant — V2 GW/Authorize v1.0 (.drawio)', href: '/architecture/digital-assistant-v1.0.drawio' },
           ]}
         />
       </section>
