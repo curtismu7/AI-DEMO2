@@ -1077,7 +1077,6 @@ gh pr create \
 - [ ] `CI=true npm test -- --forceExit` green in `demo_api_server`
 - [ ] `npm run topology:verify` clean
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```

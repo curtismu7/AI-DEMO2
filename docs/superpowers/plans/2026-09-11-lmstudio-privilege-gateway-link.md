@@ -1748,9 +1748,6 @@ gh pr create --base main --head worktree-lmstudio-privilege-link \
 
 Write `/tmp/pr-body.md` first with: the problem (the REGRESSION_PLAN "What was broken" paragraph), the flow (the spec's six steps), the two env switches, test evidence from Step 1 and Step 2, what does not change, and the post-merge live check below. End it with:
 
-```text
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-```
 
 Then `gh pr checks <number> --watch` once (not repeated polling). Stop here and report to the user; merging is their call.
 
