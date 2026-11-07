@@ -134,8 +134,8 @@
   display: inline-block;
   margin-top: 0.65rem;
   background: none;
-  border: 1px solid var(--app-primary-red, #d20e0f);
-  color: var(--app-primary-red, #d20e0f);
+  border: 1px solid var(--btn-accent);
+  color: var(--btn-accent);
   border-radius: var(--btn-radius);
   padding: 0.35rem 0.7rem;
   cursor: pointer;
@@ -181,13 +181,13 @@
 }
 
 .ww-btn-primary {
-  background: var(--app-primary-red, #d20e0f);
+  background: var(--btn-accent);
   color: #ffffff;
-  border: 1px solid var(--app-primary-red, #d20e0f);
+  border: 1px solid var(--btn-accent);
 }
 
 .ww-btn-primary:hover {
-  background: var(--app-primary-red-hover, #aa0005);
+  background: var(--btn-accent-hover);
 }
 
 .ww-btn-primary:disabled {

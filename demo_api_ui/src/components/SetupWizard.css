@@ -167,16 +167,12 @@
   transition: var(--btn-transition);
   background: linear-gradient(180deg, #aa0005 0%, #7f1d1d 100%);
   color: #fff;
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 .wizard-btn-primary:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 .wizard-btn-primary:disabled {
   opacity: 0.45;
@@ -198,13 +194,13 @@
   white-space: nowrap;
   transition: var(--btn-transition);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 .wizard-btn-secondary:hover {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 
 /* SSE log entries */

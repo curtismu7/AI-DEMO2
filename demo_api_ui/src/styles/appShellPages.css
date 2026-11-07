@@ -164,24 +164,16 @@
 }
 
 .app-page-toolbar-btn--accent {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
 }
 
 .app-page-toolbar-btn--accent:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
 }
 
 .app-page-toolbar-btn--icon {
@@ -190,23 +182,15 @@
 }
 
 .app-page-toolbar-btn--danger {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
 }
 
 .app-page-toolbar-btn--danger:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
 }
 
 .app-page-toolbar-btn--theme {
@@ -349,23 +333,15 @@
 }
 
 .app-page-shell__btn--solid {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
   border-color: rgba(255, 255, 255, 0.25);
 }
 
 .app-page-shell__btn--solid:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
+  background: var(--btn-accent-gradient-hover);
   border-color: rgba(255, 255, 255, 0.4);
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 /*

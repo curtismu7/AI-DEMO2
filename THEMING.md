@@ -60,6 +60,13 @@ square (`#b3282d`) reads the same in both themes on purpose.
 If a colour answers "what is this thing", it stays literal. If it answers "how
 far from the page ground is this", it becomes a token.
 
+**Buttons are the exception to vertical theming.** Verticals drive headers, heroes
+and dashboard accents (`--brand-*`, `--theme-accent`, `--app-primary-red*`); a
+button never takes them. Button fills, edges and labels read the fixed
+`--btn-accent*` tokens in `index.css` (Ping Red gradient, white label, light edge
+in dark). `buttonFixedAccent.test.js` fails if a button rule reads
+`--app-primary-red*` again.
+
 ### 4. Verify in the DOM, not in the stylesheet.
 
 Grep tells you what a file says. `getComputedStyle` tells you what the user sees,

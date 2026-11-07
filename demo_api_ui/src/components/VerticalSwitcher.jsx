@@ -71,9 +71,6 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
             const pillClass = isActive
               ? 'vertical-switcher__pill vertical-switcher__pill--active'
               : 'vertical-switcher__pill';
-            const activeStyle = isActive
-              ? { borderColor: primaryColor, background: `${primaryColor}10` }
-              : undefined;
             return (
               <button
                 type="button"
@@ -81,7 +78,6 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
                 className={pillClass}
                 onClick={() => handleSwitch(v.id)}
                 disabled={switching}
-                style={activeStyle}
               >
                 <span
                   className="vertical-switcher__dot"

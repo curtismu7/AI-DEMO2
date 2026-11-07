@@ -335,23 +335,15 @@
 }
 
 .demo-data-btn.primary {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 
 .demo-data-btn.primary:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .demo-data-btn.primary:disabled {
@@ -361,14 +353,14 @@
 
 .demo-data-btn.ghost {
   background: #ffffff;
-  color: var(--app-primary-red);
-  border-color: var(--app-primary-red-border);
+  color: var(--btn-accent);
+  border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .demo-data-btn.ghost:hover:not(:disabled) {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 
 /* AI agent layout (floating vs embedded) */
@@ -449,12 +441,8 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
   text-decoration: none;
   transition:

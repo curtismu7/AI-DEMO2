@@ -260,8 +260,8 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .transaction-consent-btn--ghost {
   background: var(--th-bg-card);
-  border-color: var(--app-primary-red-border);
-  color: var(--app-primary-red);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent);
 }
 
 .transaction-consent-rfc-note {
@@ -284,8 +284,8 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .transaction-consent-btn--ghost:hover:not(:disabled) {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
-  color: var(--app-primary-red-hover);
+  border-color: var(--btn-accent);
+  color: var(--btn-accent-hover);
 }
 
 .transaction-consent-btn--primary {

@@ -830,14 +830,14 @@
 }
 
 .App.end-user-nano .btn.btn-primary {
-  --bs-btn-bg: var(--app-primary-red);
-  --bs-btn-border-color: var(--app-primary-red-border);
-  --bs-btn-hover-bg: var(--app-primary-red-hover);
-  --bs-btn-hover-border-color: var(--app-primary-red-border);
-  --bs-btn-active-bg: var(--app-primary-red-hover);
-  --bs-btn-active-border-color: var(--app-primary-red-border);
-  --bs-btn-disabled-bg: var(--app-primary-red);
-  --bs-btn-disabled-border-color: var(--app-primary-red-border);
+  --bs-btn-bg: var(--btn-accent);
+  --bs-btn-border-color: var(--btn-accent-edge);
+  --bs-btn-hover-bg: var(--btn-accent-hover);
+  --bs-btn-hover-border-color: var(--btn-accent-edge);
+  --bs-btn-active-bg: var(--btn-accent-hover);
+  --bs-btn-active-border-color: var(--btn-accent-edge);
+  --bs-btn-disabled-bg: var(--btn-accent);
+  --bs-btn-disabled-border-color: var(--btn-accent-edge);
 }
 
 /* A primary button is filled with --app-primary-red, so its label follows that fill
@@ -852,8 +852,8 @@
     .btn-primary:active,
     .btn-primary:visited
   ) {
-  color: var(--app-primary-btn-text, #ffffff) !important;
-  -webkit-text-fill-color: var(--app-primary-btn-text, #ffffff) !important;
+  color: var(--btn-accent-text) !important;
+  -webkit-text-fill-color: var(--btn-accent-text) !important;
 }
 
 .App.end-user-nano
@@ -872,8 +872,8 @@
 .App.end-user-nano a.dashboard-toolbar-btn:hover,
 .App.end-user-nano a.dashboard-toolbar-btn:focus-visible,
 .App.end-user-nano a.dashboard-toolbar-btn:active {
-  color: var(--app-primary-btn-text, #fff) !important;
-  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
+  color: var(--btn-accent-text) !important;
+  -webkit-text-fill-color: var(--btn-accent-text) !important;
   text-decoration: none !important;
 }
 
@@ -897,8 +897,8 @@
 .App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--accent:hover,
 .App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger,
 .App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger:hover {
-  color: var(--app-primary-btn-text, #fff) !important;
-  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
+  color: var(--btn-accent-text) !important;
+  -webkit-text-fill-color: var(--btn-accent-text) !important;
 }
 
 /* Toolbar uses <button> on MCP Inspector / Demo config — nano still paints link-blue on buttons */
@@ -1418,23 +1418,15 @@
   font-family: inherit;
   cursor: pointer;
   transition: var(--btn-transition);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 
 .otp-step-up-modal__btn-primary:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .otp-step-up-modal__btn-primary:disabled {
@@ -1472,14 +1464,14 @@
   cursor: pointer;
   transition: var(--btn-transition);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .otp-step-up-modal__btn-cancel:hover {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 
 .otp-step-up-modal__btn-ghost {
@@ -1492,14 +1484,14 @@
   cursor: pointer;
   transition: var(--btn-transition);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .otp-step-up-modal__btn-ghost:hover:not(:disabled) {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 
 .otp-step-up-modal__btn-ghost:disabled {
@@ -1629,22 +1621,14 @@
   font-family: inherit;
   cursor: pointer;
   transition: var(--btn-transition);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 .otp-step-up-modal__btn-primary:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 .otp-step-up-modal__btn-primary:disabled {
   opacity: 0.45;
@@ -1660,13 +1644,13 @@
   cursor: pointer;
   transition: var(--btn-transition);
   background: var(--th-bg-card);
-  color: var(--app-primary-red);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 .otp-step-up-modal__btn-ghost:hover:not(:disabled) {
   background: #fef2f2;
-  border-color: var(--app-primary-red);
+  border-color: var(--btn-accent);
 }
 .otp-step-up-modal__btn-ghost:disabled {
   opacity: 0.45;

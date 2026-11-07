@@ -89,8 +89,8 @@
 .p1x-where { flex: 1; text-align: center; font-size: var(--font-size-sm); color: var(--th-text-muted); }
 .p1x-btn { font: inherit; font-weight: 700; padding: 10px 20px; border-radius: var(--radius-pill); border: 1.5px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
 .p1x-btn:disabled { opacity: 0.4; cursor: default; }
-.p1x-btn--go { border: 0; color: #fff; background: linear-gradient(90deg, var(--app-primary-red) 55%, var(--app-primary-red-hover)); }
-.p1x-btn--go:hover:not(:disabled) { background: var(--app-primary-red-hover); }
+.p1x-btn--go { border: 0; color: #fff; background: linear-gradient(90deg, var(--btn-accent) 55%, var(--btn-accent-hover)); }
+.p1x-btn--go:hover:not(:disabled) { background: var(--btn-accent-hover); }
 .p1x-page button:focus-visible, .p1x-page input:focus-visible, .p1x-page summary:focus-visible { outline: 2px solid var(--th-bg-emphasis); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .p1x-step { animation: p1x-in 0.35s ease both; } }
 @keyframes p1x-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

@@ -325,14 +325,14 @@
 }
 
 .scope-audit-btn--primary {
-  background: var(--app-primary-red, #d20e0f);
-  color: var(--app-primary-btn-text, #fff); /* white on Super Sports orange was 1.3:1 in dark (the fill is light there) */
-  border-color: var(--app-primary-red, #d20e0f);
+  background: var(--btn-accent);
+  color: var(--btn-accent-text); /* white on Super Sports orange was 1.3:1 in dark (the fill is light there) */
+  border-color: var(--btn-accent);
 }
 
 .scope-audit-btn--primary:hover {
-  background: var(--app-primary-red-hover, #d20e0f);
-  border-color: var(--app-primary-red-hover, #d20e0f);
+  background: var(--btn-accent-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .scope-audit-btn--sm {

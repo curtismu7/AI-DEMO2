@@ -281,22 +281,14 @@
 }
 
 .acm-btn--primary {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid, #d20e0f) 0%,
-    var(--app-primary-red, #aa0005) 100%
-  );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border, #7f1d1d);
+  background: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 .acm-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red, #aa0005) 0%,
-    var(--app-primary-red-hover, #7f1d1d) 100%
-  );
-  border-color: var(--app-primary-red-hover, #7f1d1d);
+  background: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-hover);
 }
 /* Disabled = "not ready yet": neutral, not a faded brand color */
 .acm-btn--primary:disabled {
@@ -309,14 +301,14 @@
 
 .acm-btn--secondary {
   background: #ffffff;
-  color: var(--app-primary-red, #d20e0f);
-  border-color: var(--app-primary-red-border, #7f1d1d);
+  color: var(--btn-accent);
+  border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 .acm-btn--secondary:hover:not(:disabled) {
   background: #fef2f2;
-  border-color: var(--app-primary-red, #d20e0f);
-  color: var(--app-primary-red-hover, #aa0005);
+  border-color: var(--btn-accent);
+  color: var(--btn-accent-hover);
 }
 .acm-btn--secondary:disabled {
   opacity: 0.5;
