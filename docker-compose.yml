@@ -1369,7 +1369,11 @@ services:
       # validateInboundToken verifies PF-issued tokens against the PF JWKS.
       # Unset/empty = PingOne-only.
       PF_ISSUER_URI: "https://local.ping-devops.com:9031"
-      PF_JWKS_URI: "https://pingfederate:9031/pf/JWKS"
+      # Hostname must match the PF cert SAN (local.ping-devops.com / api.ping.demo);
+      # the docker service name `pingfederate` is NOT in it, so the JWKS fetch died
+      # with "Hostname/IP does not match certificate's altnames". Resolved via
+      # extra_hosts below; trust comes from NODE_EXTRA_CA_CERTS (mkcert bundle).
+      PF_JWKS_URI: "https://local.ping-devops.com:9031/pf/JWKS"
       # Weather/Brave showcase backends — mirrors ping-gateway's PG_WEATHER_BACKEND_URL /
       # PG_BRAVE_BACKEND_URL (~L1100 below). Streamable HTTP, no RFC 8693 exchange
       # (see src/scopePolicies.ts) — the Node gateway forwards the caller's original
@@ -1507,6 +1511,10 @@ services:
       # file from what it decrypts). required:false: no-op pre-migration.
       - path: ./.env.keys
         required: false
+    extra_hosts:
+      # PF_JWKS_URI hostname must match the PF cert SAN; inside the container that
+      # name needs to resolve to the host (PF published on 9031).
+      - "local.ping-devops.com:host-gateway"
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
