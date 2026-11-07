@@ -221,7 +221,7 @@
       <p class="rail-title">Contents</p>
       <a href="#run-first">Start here <span class="count">1</span></a>
       <a href="#learn">Learning studio <span class="count">1</span></a>
-      <a href="#dot">Dot &mdash; the persona agent <span class="count">2</span></a>
+      <a href="#dot">Dot &mdash; the persona agent <span class="count">3</span></a>
       <a href="#studio">Studio &amp; client skins <span class="count">3</span></a>
       <a href="#group">Group policy <span class="count">1</span></a>
       <a href="#design">Design &amp; review pages <span class="count">3</span></a>
@@ -251,7 +251,7 @@
             <li>Scroll to <strong>&ldquo;How Dot handles a message&rdquo;</strong> and press <strong>Simulate</strong> to walk the 10-step flow.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/dot/full" target="_blank" rel="noopener">Run the Dot workbench &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/dot/full" target="_blank" rel="noopener">Run the Dot workbench &rarr;</a>
           </div>
         </div>
       </section>
@@ -268,7 +268,7 @@
           <p class="route">/personal-agent/learn</p>
           <p>Sign in with the shared login above, then work down the path: <strong>run a simple request</strong>, <strong>ask for something sensitive</strong> (watch PingOne hold it for MFA), then <strong>go over your limit</strong> and see which gate stops it. Each step lights up the three real gates and explains the decision in plain English. Learn mode adds a &ldquo;why it matters&rdquo; line under every gate.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/learn" target="_blank" rel="noopener">Open the learning studio &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/learn" target="_blank" rel="noopener">Open the learning studio &rarr;</a>
           </div>
         </div>
       </section>
@@ -289,9 +289,8 @@
             <li>Trigger a sensitive request to see the <strong>MFA step-up</strong> and <strong>HITL approval</strong> detours.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/full" target="_blank" rel="noopener">Run the Studio &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/full" target="_blank" rel="noopener">Run the Studio &rarr;</a>
           </div>
-          <p style="font-size:0.85em;opacity:0.7;margin-top:8px">Note: the hosted demo is offline (503). Run the app locally to use this link.</p>
         </div>
 
         <div class="card">
@@ -302,9 +301,26 @@
           <p class="route">/personal-agent/client?skin=dot|privilege|claude|gpt|gemini</p>
           <p>The agent client as a <strong>separate, independent window</strong> &mdash; the same gates fire no matter which AI client the user brought. Open it beside the Studio to prove client-agnostic governance.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=dot" target="_blank" rel="noopener">Open Dot pop-out &rarr;</a>
-            <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude skin</a>
-            <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=gpt" target="_blank" rel="noopener">ChatGPT skin</a>
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent/client?skin=dot" target="_blank" rel="noopener">Open Dot pop-out &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude skin</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent/client?skin=gpt" target="_blank" rel="noopener">ChatGPT skin</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Add to ChatGPT / Claude &mdash; 12-step connector flow</h3>
+            <span class="badge warn">Sandbox, not the real vendors</span>
+          </div>
+          <p class="route">/personal-agent?tab=connector &middot; Delegation proof: ?tab=obo &middot; Layout: ?layout=stacked|cockpit</p>
+          <p>The connector tab runs the &ldquo;How ChatGPT accesses Optum benefits&rdquo; diagram for real: CIMD discovery, PKCE authorize, a consent screen, a <code>private_key_jwt</code> token exchange, gateway token checks, then a policy decision. The <em>get_other_member_benefits</em> tool shows the Deny.</p>
+          <ul class="steps">
+            <li><strong>Be upfront about the limits:</strong> the PingOne Authorize decision is <strong>simulated</strong> (three rules, labelled as such), and &ldquo;ChatGPT&rdquo; and &ldquo;Claude&rdquo; are skins on one stand-in client.</li>
+            <li>The member is the signed-in demo session; codes, keys and consent records live in memory, so a restart invalidates a run.</li>
+          </ul>
+          <div class="btnrow">
+            <a class="run" href="https://local.ping-devops.com:4000/personal-agent?tab=connector" target="_blank" rel="noopener">Open the connector flow &rarr;</a>
+            <a class="run ghost" href="https://local.ping-devops.com:4000/personal-agent?tab=obo" target="_blank" rel="noopener">Delegation proof</a>
           </div>
         </div>
       </section>
@@ -340,7 +356,7 @@
           </ul>
           <p class="sec-note">Heads up: the toggle adds or removes the signed-in user from a real PingOne group, so it changes that account for everyone using it. Flip it back when you are done.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/group-policy/full" target="_blank" rel="noopener">Open the group policy board &rarr;</a>
+            <a class="run" href="https://local.ping-devops.com:4000/group-policy/full" target="_blank" rel="noopener">Open the group policy board &rarr;</a>
           </div>
         </div>
       </section>
@@ -356,7 +372,7 @@
           </div>
           <p class="route">/personal-agent-design</p>
           <p>The target architecture told step by step with the actual wire shapes: token exchange, gateway enforcement, policy decisions. Mock teaching values only &mdash; never real secrets.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-design" target="_blank" rel="noopener">Open the design page &rarr;</a></div>
+          <div class="btnrow"><a class="run" href="https://local.ping-devops.com:4000/personal-agent-design" target="_blank" rel="noopener">Open the design page &rarr;</a></div>
         </div>
 
         <div class="card">
@@ -366,7 +382,7 @@
           </div>
           <p class="route">/personal-agent-dual-gateway</p>
           <p>The same request path with Agent Privilege in front and Agent Gateway filling what Privilege does not do yet.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-dual-gateway" target="_blank" rel="noopener">Open the dual-gateway page &rarr;</a></div>
+          <div class="btnrow"><a class="run" href="https://local.ping-devops.com:4000/personal-agent-dual-gateway" target="_blank" rel="noopener">Open the dual-gateway page &rarr;</a></div>
         </div>
 
         <div class="card">
@@ -376,7 +392,7 @@
           </div>
           <p class="route">/personal-agent-review</p>
           <p>Why the original design failed, finding by finding, judged against the <strong>five controls an enterprise review treats as non-negotiable</strong>. Findings are pinned to the diagram nodes that carry them.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-review" target="_blank" rel="noopener">Open the review page &rarr;</a></div>
+          <div class="btnrow"><a class="run" href="https://local.ping-devops.com:4000/personal-agent-review" target="_blank" rel="noopener">Open the review page &rarr;</a></div>
         </div>
       </section>
 
@@ -388,27 +404,27 @@
           <ul class="doclist">
             <li>
               <span class="doc-name">Dot Workbench</span>
-              <a href="https://ai-demo.ping-devops.com/personal-agent/dot/full" target="_blank" rel="noopener">bare page</a>
+              <a href="https://local.ping-devops.com:4000/personal-agent/dot/full" target="_blank" rel="noopener">bare page</a>
               <span class="doc-desc">One message end to end: BFF route &rarr; intent gate &rarr; agent run &rarr; governed tool call &rarr; verdict cards. 10 arrows, walked by Simulate.</span>
             </li>
             <li>
               <span class="doc-name">Personal Agent Studio</span>
-              <a href="https://ai-demo.ping-devops.com/personal-agent/full" target="_blank" rel="noopener">bare page</a>
+              <a href="https://local.ping-devops.com:4000/personal-agent/full" target="_blank" rel="noopener">bare page</a>
               <span class="doc-desc">How a request is governed: three gates, MFA step-up and human-approval detours.</span>
             </li>
             <li>
               <span class="doc-name">Personal Agent Design</span>
-              <a href="https://ai-demo.ping-devops.com/personal-agent-design" target="_blank" rel="noopener">live page</a>
+              <a href="https://local.ping-devops.com:4000/personal-agent-design" target="_blank" rel="noopener">live page</a>
               <span class="doc-desc">The Agent-Gateway-only request path with wire-level token shapes per step.</span>
             </li>
             <li>
               <span class="doc-name">Personal Agent Dual Gateway</span>
-              <a href="https://ai-demo.ping-devops.com/personal-agent-dual-gateway" target="_blank" rel="noopener">live page</a>
+              <a href="https://local.ping-devops.com:4000/personal-agent-dual-gateway" target="_blank" rel="noopener">live page</a>
               <span class="doc-desc">Privilege-first variant with Agent Gateway filling the gaps.</span>
             </li>
             <li>
               <span class="doc-name">Personal Agent Design Review</span>
-              <a href="https://ai-demo.ping-devops.com/personal-agent-review" target="_blank" rel="noopener">live page</a>
+              <a href="https://local.ping-devops.com:4000/personal-agent-review" target="_blank" rel="noopener">live page</a>
               <span class="doc-desc">Findings pinned to the nodes that carry them.</span>
             </li>
           </ul>
@@ -453,8 +469,8 @@
           <p>MileagePlus, the customer's own agent, and the security between them. Nine-hop flow: discover &rarr; register (DCR/CIMD) &rarr; consent &rarr; per-call RFC 8693 exchange &rarr; gateway &rarr; Authorize + Protect &rarr; transaction-bound HITL approval &rarr; permit &rarr; audit. Includes the no-BFF/no-DPoP compensating stack, the agent-shape table (native CLI / browser-only / cloud agent), what United has already built, and the Facade's five security controls.</p>
           <p><strong>One rule survives as absolute:</strong> the member's token is an input to an exchange, never a credential on a tool call.</p>
           <div class="btnrow">
-            <a class="run" href="https://github.com/cmuir_pingcorp/AI-demo/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.md" target="_blank" rel="noopener">Read on GitHub (Markdown) &rarr;</a>
-            <a class="run ghost" href="https://github.com/cmuir_pingcorp/AI-demo/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.html" target="_blank" rel="noopener">HTML version</a>
+            <a class="run" href="https://github.com/curtismu7/AI-DEMO2/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.md" target="_blank" rel="noopener">Read on GitHub (Markdown) &rarr;</a>
+            <a class="run ghost" href="https://github.com/curtismu7/AI-DEMO2/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.html" target="_blank" rel="noopener">HTML version</a>
           </div>
         </div>
       </section>
@@ -470,7 +486,7 @@
           </div>
           <p class="route">Academy &rarr; Personal Agents category</p>
           <p>The guided lesson for the studio page, with the three client cards (LibreChat browser client and hosted clients) and the CIMD/DCR chips. Category also carries &ldquo;Classify the agent&rdquo; and &ldquo;Detect the external agent&rdquo;.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/academy/journey" target="_blank" rel="noopener">Open the Academy &rarr;</a></div>
+          <div class="btnrow"><a class="run" href="https://local.ping-devops.com:4000/academy/journey" target="_blank" rel="noopener">Open the Academy &rarr;</a></div>
         </div>
 
         <div class="card">
@@ -480,7 +496,7 @@
           </div>
           <p class="route">Academy &rarr; dots track</p>
           <p><strong>&ldquo;Meet the dot&rdquo;</strong> (what an always-on persona agent is), <strong>&ldquo;The dot remembers&rdquo;</strong> (own working memory), <strong>&ldquo;Governance still holds&rdquo;</strong> (the enterprise governs tool calls, never the memory).</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/academy/demos" target="_blank" rel="noopener">Open standalone demos &rarr;</a></div>
+          <div class="btnrow"><a class="run" href="https://local.ping-devops.com:4000/academy/demos" target="_blank" rel="noopener">Open standalone demos &rarr;</a></div>
         </div>
       </section>
 
@@ -509,6 +525,7 @@
           <ul class="steps">
             <li><strong>403 &ldquo;Access restricted&rdquo;</strong> right after sign-in: the account needs the hosted-access group &mdash; ask the demo owner to re-run the membership step.</li>
             <li><strong>&ldquo;The model did not answer&rdquo;</strong> card: llama.cpp is down; flip the toggle to Heuristics and retry.</li>
+            <li><strong>503 &ldquo;Service Temporarily Unavailable&rdquo;</strong> on a hosted URL: the hosted SE cluster is scaled down. Use the local links on this page (<code>local.ping-devops.com:4000</code>).</li>
             <li><strong>Old page after a deploy</strong> (404 on assets): hard-refresh the browser.</li>
             <li>The <strong>Reset dot</strong> button wipes that user's Dot memory &mdash; fine to show, it's the feature.</li>
           </ul>
@@ -516,7 +533,7 @@
       </section>
 
       <footer>
-        Ping Identity AI IAM demo &middot; personal-agent surfaces verified live 2026-10-20 &middot; login is PingOne-only (redirect flavor for this app &mdash; still PingOne) &middot; Dot autonomous scheduling and cross-channel memory deliberately not built.
+        Ping Identity AI IAM demo &middot; personal-agent surfaces verified live 2026-10-20; links re-checked against local Docker 2026-11-06 (HTTP 200, not click-tested) &middot; login is PingOne-only (redirect flavor for this app &mdash; still PingOne) &middot; Dot autonomous scheduling and cross-channel memory deliberately not built.
       </footer>
     </main>
   </div>
