@@ -459,7 +459,7 @@ Edit `docs/runbooks/privilege-onboarding-email.md`: replace the manual PingOne c
 
 - [ ] **Step 5: Final PR description + merge**
 
-PR body: link the spec + this plan, note the Task 1 spike result (native email on/off and why), note the dress-rehearsal result. End with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+PR body: link the spec + this plan, note the Task 1 spike result (native email on/off and why), note the dress-rehearsal result.
 
 ---
 

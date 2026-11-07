@@ -790,3 +790,12 @@ jobs:
             exit 1
           fi
           echo "main is green across all suites."
+
+  no-ai-attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: No AI attribution (tree and commits since 2026-11-07)
+        run: bash scripts/check-no-ai-attribution.sh

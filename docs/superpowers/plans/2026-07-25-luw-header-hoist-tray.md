@@ -1502,10 +1502,6 @@ git push -u origin worktree-worktree-luw-header-hoist-tray
 
 Open the PR with a body covering: the two problems solved (agent space, demo legibility), the task list with commit SHAs, the `Policy`-cell correctness bug removed in Task 5, the deferred minors from the ledger, and the live-verification results from Task 8. End the body with:
 
-```
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-```
-
 - [ ] **Step 4: Merge**
 
 CI cannot pass while Actions is billing-blocked, so the merge needs `--admin`. Do not use `--delete-branch`: it collides with the worktree that still has this branch checked out.
