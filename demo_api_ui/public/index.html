@@ -37,6 +37,16 @@
       font-family: var(--font-mono, ui-monospace), Menlo, Monaco, Consolas,
         'Courier New', monospace;
     }
+
+    /* The app root carries .end-user-nano, so the PingOne CDN skin's
+       .end-user-nano code rule (specificity 0-1-1) beats a bare code reset. */
+    .end-user-nano code,
+    .end-user-nano pre,
+    .end-user-nano kbd,
+    .end-user-nano samp {
+      font-family: var(--font-mono, ui-monospace), Menlo, Monaco, Consolas,
+        'Courier New', monospace;
+    }
   </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
