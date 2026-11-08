@@ -70,12 +70,55 @@ describe("DelegationChainValuePage on the Ping UI standard", () => {
     render(<DelegationChainValuePage />);
     const words = () => [...document.querySelectorAll(".dcv-page .pu-chip")].map((c) => c.textContent);
     expect(words()).toEqual(["Not run", "Not run"]);
-    await runAndSettle("accountability", "❌ a2a_unauthorized");
+    await runAndSettle("accountability", "Delegation complete - the specialist retrieved the holdings.");
     const chip = within(card("accountability")).getByText("Reply received").closest(".pu-chip");
     expect(chip.classList.contains("pu-chip--ok")).toBe(false);
     expect(chip.classList.contains("pu-chip--info")).toBe(true);
     expect(card("accountability").classList.contains("pu-card--ok")).toBe(false);
     for (const c of document.querySelectorAll(".dcv-page .pu-chip")) expect((c.textContent || "").trim().length).toBeGreaterThan(0);
+  });
+
+  it("treats an error reply as a failed run: Run failed chip, danger card, and the primary stays on that run", async () => {
+    render(<DelegationChainValuePage />);
+    await runAndSettle("accountability", "❌ a2a_unauthorized");
+    const chip = within(card("accountability")).getByText("Run failed").closest(".pu-chip");
+    expect(chip.classList.contains("pu-chip--danger")).toBe(true);
+    expect(within(card("accountability")).queryByText("Reply received")).toBeNull();
+    expect(card("accountability").classList.contains("pu-card--live")).toBe(false);
+    expect(card("accountability").classList.contains("pu-card--danger")).toBe(true);
+    expect(card("accountability").getAttribute("data-state")).toBe("failed");
+    expect(primaries()).toEqual(["dcv-run-button-accountability"]);
+    expect(runButton("accountability").textContent).toBe("Run again");
+    expect(card("accountability").textContent).toContain("a2a_unauthorized");
+    // a good retry hands the primary on to Authorization
+    await runAndSettle("accountability", "Delegation complete.");
+    expect(primaries()).toEqual(["dcv-run-button-authorization"]);
+  });
+
+  it("treats a probe that was not denied (a cross inside the reply) as a failed run too", async () => {
+    render(<DelegationChainValuePage />);
+    await runAndSettle("accountability");
+    await runAndSettle("authorization", "Delegation complete. ❌ The unregistered-agent probe was NOT denied (PERMIT).");
+    expect(within(card("authorization")).getByText("Run failed")).toBeTruthy();
+    expect(primaries()).toEqual(["dcv-run-button-authorization"]);
+  });
+
+  it("keeps a No reply run (empty reply, e.g. a 502) as the primary, never as done", async () => {
+    render(<DelegationChainValuePage />);
+    await runAndSettle("accountability", "");
+    expect(within(card("accountability")).getByText("No reply")).toBeTruthy();
+    expect(card("accountability").getAttribute("data-state")).toBe("empty");
+    expect(primaries()).toEqual(["dcv-run-button-accountability"]);
+    expect(runButton("accountability").textContent).toBe("Run again");
+    await runAndSettle("accountability", "ok");
+    expect(primaries()).toEqual(["dcv-run-button-authorization"]);
+  });
+
+  it("does not claim a token is or is not minted for the unregistered agent beyond what the server code shows", () => {
+    render(<DelegationChainValuePage />);
+    const text = screen.getByTestId("dcv-banner").textContent;
+    expect(text).not.toMatch(/no token is minted/i);
+    expect(text).toMatch(/expected to refuse/i);
   });
 
   it("shows the tools the run called as a key-value row", async () => {

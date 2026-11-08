@@ -8,8 +8,9 @@
 //
 // P9, one primary per view state. The primary is the one action that advances the demo:
 //   - nothing run yet: "Run" on Accountability;
-//   - Accountability done (or failed, so retry it): the first scenario that is not done is the primary, so after
-//     Accountability that is "Run" on Authorization;
+//   - a scenario only counts as done when it came back with a non-error reply: a thrown error, an empty reply
+//     ("No reply") and an error reply ("Run failed") all keep that scenario as the primary so it can be retried;
+//   - Accountability done: the first scenario that is not done is the primary, so that is "Run" on Authorization;
 //   - both done: "Run again" on Accountability stays the primary (the demo starts over there);
 //   - a run in flight: its button is the primary and shows "Running..." (aria-disabled, so focus stays on it).
 // "Clear" and the light/dark toggle are always secondaries. The shared diagram's own Simulate / Reset buttons and the
@@ -65,21 +66,28 @@ const RUNS = [
 ];
 
 // The word is always shown; the tone only adds colour to it (P7). A completed run is "Reply received" in the info
-// tone, never green: the page cannot tell from the reply sentence whether the agent allowed or refused the call
-// (a refusal such as "a2a_unauthorized" also comes back as a reply), so success colouring would be a false verdict.
+// tone, never green: the page cannot tell from the reply sentence whether the agent allowed the call, so success
+// colouring would be a false verdict. The one thing it can tell is that the server marks its own failures with a
+// leading cross (e.g. "❌ a2a_unauthorized", or "... ❌ The unregistered-agent probe was NOT denied"); such a reply is
+// "Run failed", not a calm reply.
 const RUN_CHIP = {
   idle: { tone: "neutral", word: "Not run" },
   running: { tone: "info", word: "Running" },
   done: { tone: "info", word: "Reply received" },
   empty: { tone: "warn", word: "No reply" },
+  failed: { tone: "danger", word: "Run failed" },
   error: { tone: "danger", word: "Failed" },
 };
-const CARD_TONE = { idle: undefined, running: "live", done: "live", empty: "warn", error: "danger" };
+const CARD_TONE = { idle: undefined, running: "live", done: "live", empty: "warn", failed: "danger", error: "danger" };
+const ERROR_MARKER = "\u274C";
 
 function runView(status, result) {
   if (status === "running") return "running";
   if (status === "error") return "error";
-  if (status === "done") return result?.reply ? "done" : "empty";
+  if (status === "done") {
+    if (!result?.reply) return "empty";
+    return result.reply.includes(ERROR_MARKER) ? "failed" : "done";
+  }
   return "idle";
 }
 
@@ -135,8 +143,9 @@ export default function DelegationChainValuePage() {
   }, []);
 
   const hasResults = Object.keys(results).length > 0;
-  // P9: the first scenario that has not completed is the one primary; once both are done it is the first again.
-  const primaryKey = (RUNS.find((e) => status[e.key] !== "done") || RUNS[0]).key;
+  // P9: the first scenario that has not completed with a usable reply is the one primary; once both have, it is the
+  // first again. "No reply" and "Run failed" are not completions.
+  const primaryKey = (RUNS.find((e) => runView(status[e.key], results[e.key]) !== "done") || RUNS[0]).key;
 
   return (
     <PingPage className="dcv-page">
@@ -146,7 +155,8 @@ export default function DelegationChainValuePage() {
         run returned. Before a run it tries to switch on the MCP gateway feature flags the tool call needs
         (admin access only, skipped without it). Not real: the diagram is a drawing, its Simulate button only
         animates it, and its token values are MOCK teaching values. In the identity-mismatch scenario the
-        unregistered agent is made up for the probe and no token is minted for it.
+        unregistered agent is made up for the probe: its identity is only sent as a field in a policy-decision
+        request, and the policy is expected to refuse it.
       </SimBanner>
       <PageHeader
         eyebrow="WHY THIS DEMO EXISTS"
@@ -186,7 +196,7 @@ export default function DelegationChainValuePage() {
               const view = runView(status[entry.key], results[entry.key]);
               const chip = RUN_CHIP[view];
               const busy = view === "running";
-              const label = busy ? "Running..." : view === "done" || view === "empty" ? "Run again" : "Run";
+              const label = busy ? "Running..." : view === "done" || view === "empty" || view === "failed" ? "Run again" : "Run";
               const result = results[entry.key];
               const items = [
                 { label: "Prompt", value: entry.prompt, mono: true },
