@@ -1,202 +1,494 @@
-/* Guided Demo Track — standalone page. Palette from the approved mock
-   (docs/superpowers/specs/assets/2026-08-03-guided-demo-track/demo-track-mock.html).
-   Themed with --th-* per THEMING.md — --dtp-red and --dtp-navy are this
-   page's own brand accents (active-step, act labels, takeaway cards) and
-   stay literal (THEMING.md §1.3); the rest were plain ambient ink/ground/
-   status aliases with no dark pair, so they now point at semantic tokens.
-   --dtp-navy-ink/--dtp-red-ink are for the few spots where the brand
-   accent is used as *text* on a card that itself flips with the theme —
-   there the literal accent goes unreadable on a dark card, so these read
-   from the matching --th-status-*-text pair instead. */
-.dtp-root {
-  --dtp-red: #d20e0f; --dtp-ink: var(--th-text); --dtp-muted: var(--th-text-muted);
-  --dtp-line: var(--th-border); --dtp-bg: var(--th-bg-page); --dtp-card: var(--th-bg-card);
-  --dtp-green: var(--th-status-success); --dtp-green-bg: var(--th-status-success-bg);
-  --dtp-deny: var(--th-status-error); --dtp-deny-bg: var(--th-status-error-bg);
-  --dtp-amber: var(--th-status-warning); --dtp-amber-bg: var(--th-status-warning-bg); --dtp-navy: #051727;
-  --dtp-navy-ink: var(--th-status-info-text); --dtp-red-ink: var(--th-status-error-text);
-  background: var(--dtp-bg); color: var(--dtp-ink); min-height: 100%;
+/* Guided Demo Track: only what is specific to this page.
+   The banner, frame, cards, key-value list, chips, select and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1),
+   type comes from the --font-size-* scale (H2), no inline styles (H3). The vertical colours the card
+   top edges through --pu-accent; no button here takes a vertical colour. */
+
+/* The page-level Heuristics | llama.cpp toggle is a shared component whose selected segment is a literal
+   Ping Red. Red here belongs to the one primary button, so the selected segment reads as an inset fill, bold
+   text and an ink underline. (The dark theme forces white text on this segment, so the fill stays dark there.) */
+.dtp-root .page-agent-mode__opt--on {
+  background: var(--th-bg-inset);
+  box-shadow: inset 0 -3px 0 var(--th-text);
+  color: var(--th-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.dtp-root .page-agent-mode__opt:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.dtp-controls .pu-select {
+  max-width: 32rem;
+}
+
+/* A busy button stays focusable (aria-disabled), so it needs its own disabled look. */
+.dtp-root .pu-btn[aria-disabled='true'] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.dtp-root .pu-btn.dtp-newrun--failed {
+  border-color: var(--th-status-error);
+}
+
+.dtp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dtp-error,
+.dtp-loading {
+  color: var(--th-text-body);
+}
+
+.dtp-loading {
+  padding: 24px 0;
+}
+
+/* Progress dots inside the run card. */
+.dtp-progress {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dtp-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--control-border);
+  border-radius: 50%;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.dtp-dot--done {
+  border-color: var(--th-status-success);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.dtp-dot--active {
+  border-color: var(--pu-accent);
+  color: var(--th-text);
+}
+
+/* Step cards: the head is a real button (an accordion trigger inside an h3). */
+.dtp-root .dtp-step {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dtp-root .dtp-step--active {
+  border-color: var(--pu-accent);
+}
+
+.dtp-step-h {
+  margin: 0;
+}
+
+.dtp-root .dtp-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  width: 100%;
+  padding: 14px 18px;
+  border: 0;
+  background: none;
+  color: var(--th-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dtp-root .dtp-step-head:hover {
+  background: var(--th-bg-hover);
+}
+
+.dtp-root .dtp-step-head:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: -3px;
+}
+
+.dtp-step-num {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--control-border);
+  border-radius: 50%;
+  background: var(--th-bg-page);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+}
+
+.dtp-step--done .dtp-step-num {
+  border-color: var(--th-status-success);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.dtp-step--active .dtp-step-num {
+  border-color: var(--pu-accent);
+  color: var(--th-text);
+}
+
+.dtp-step-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.dtp-step-cap {
+  padding: 2px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dtp-step-ucs {
+  margin-left: auto;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  white-space: nowrap;
+}
+
+.dtp-chev {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+}
+
+.dtp-collapsed-note {
+  padding: 0 18px 12px 62px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.dtp-step-body {
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--th-border-strong);
+}
+
+.dtp-buyer-story {
+  margin: 0 0 14px;
+  padding-left: 12px;
+  border-left: 3px solid var(--control-border);
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  font-style: italic;
+}
+
+/* A run row: tag chip, the prompt, the stamp or a status note, then the Run button. */
+.dtp-run-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.dtp-prompt {
+  padding: 4px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.dtp-stamp {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-left: auto;
+}
+
+.dtp-stamp-meta {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+}
+
+.dtp-run-note {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+}
+
+.dtp-run-note--error {
+  color: var(--th-status-error-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dtp-run-note--running {
+  color: var(--th-status-info-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dtp-run-note--done {
+  color: var(--th-status-success-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.dtp-root .dtp-run-btn {
+  margin-left: auto;
+}
+
+.dtp-run-row .dtp-stamp + .dtp-run-btn,
+.dtp-run-row .dtp-run-note + .dtp-run-btn {
+  margin-left: 0;
+}
+
+/* Plain-language "why" under a filled slot or gauntlet tile. */
+.dtp-reason {
+  margin: -2px 0 8px 12px;
+  font-size: var(--font-size-xs);
   line-height: 1.45;
 }
-.dtp-topbar {
-  background: var(--dtp-card); border-bottom: 1px solid var(--dtp-line);
-  padding: 14px 28px; display: flex; align-items: center; gap: 18px;
-  position: sticky; top: 0; z-index: 10; flex-wrap: wrap;
+
+.dtp-reason--g {
+  color: var(--th-status-success-text);
 }
-.dtp-brand { font-weight: 700; font-size: var(--font-size-base); }
-.dtp-subtitle { color: var(--dtp-muted); font-size: var(--font-size-sm); }
-.dtp-progress { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-.dtp-dot {
-  width: 22px; height: 22px; border-radius: 50%; font-size: var(--font-size-xs); font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 2px solid var(--dtp-line); color: var(--dtp-muted); background: var(--dtp-card);
+
+.dtp-reason--r {
+  color: var(--th-status-error-text);
 }
-.dtp-dot--done { background: var(--dtp-green); border-color: var(--dtp-green); color: #fff; }
-.dtp-dot--active { border-color: var(--dtp-red); color: var(--dtp-red-ink); }
-.dtp-controls { display: flex; align-items: center; gap: 10px; }
-.dtp-theme-toggle {
-  /* REGRESSION_PLAN.md §0 H2: was a literal 12.5px, off the scale entirely. */
-  font-size: var(--font-size-sm); font-weight: 600; padding: 6px 14px; border-radius: var(--radius-pill);
-  border: 1px solid var(--dtp-line); background: var(--dtp-card); color: var(--dtp-ink); cursor: pointer;
-}
-.dtp-theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--dtp-ink);
-}
-.dtp-run-picker { font-size: 12.5px; color: var(--dtp-muted); display: flex; align-items: center; gap: 6px; }
-.dtp-run-picker select { font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--dtp-line); border-radius: var(--radius-md); }
-.dtp-newrun {
-  font-size: 12.5px; font-weight: 600; color: #fff; background: var(--dtp-navy);
-  border: none; border-radius: var(--radius-md); padding: 7px 14px; cursor: pointer;
-}
-.dtp-newrun:disabled { opacity: .6; cursor: default; }
-.dtp-newrun--failed { background: var(--dtp-deny); }
-.dtp-history-badge { font-size: var(--font-size-2xs); font-weight: 700; color: var(--dtp-amber); background: var(--dtp-amber-bg); padding: 4px 10px; border-radius: var(--radius-md); }
-.dtp-wrap { max-width: 880px; margin: 0 auto; padding: 26px 20px 80px; }
-.dtp-act-banner { display: flex; align-items: center; gap: 14px; margin: 30px 0 18px; }
-.dtp-act-label {
-  background: var(--dtp-navy); color: #fff; font-size: var(--font-size-2xs); font-weight: 700;
-  letter-spacing: .08em; padding: 6px 14px; border-radius: var(--radius-sm); white-space: nowrap;
-}
-.dtp-act-tagline { color: var(--dtp-muted); font-size: var(--font-size-body); font-style: italic; }
-.dtp-act-rule { flex: 1; border-top: 1px solid var(--dtp-line); }
-.dtp-step {
-  background: var(--dtp-card); border: 1px solid var(--dtp-line); border-radius: 10px;
-  margin-bottom: 14px; overflow: hidden;
-}
-.dtp-step--active { border-color: var(--dtp-red); }
-.dtp-step-head {
-  display: flex; align-items: center; gap: 14px; padding: 14px 18px; cursor: pointer;
-  width: 100%; background: none; border: none; text-align: left; font: inherit; color: inherit;
-}
-.dtp-step-num {
-  width: 30px; height: 30px; border-radius: 50%; flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: var(--font-size-body); background: var(--dtp-bg); color: var(--dtp-muted);
-  border: 2px solid var(--dtp-line);
-}
-.dtp-step--done .dtp-step-num { background: var(--dtp-green); border-color: var(--dtp-green); color: #fff; }
-.dtp-step--active .dtp-step-num {
-  border-color: var(--dtp-red);
-  color: var(--dtp-red-ink);
-  background: var(--th-bg-card);
-}
-.dtp-step-title { font-weight: 700; font-size: var(--font-size-base); }
-.dtp-step-cap {
-  font-size: var(--font-size-xs); font-weight: 600; color: var(--dtp-navy); background: #eaf1f8;
-  padding: 3px 9px; border-radius: var(--radius-pill); white-space: nowrap;
-}
-.dtp-step-ucs { margin-left: auto; color: var(--dtp-muted); font-size: var(--font-size-2xs); white-space: nowrap; }
-.dtp-step-status { font-size: var(--font-size-2xs); font-weight: 700; color: var(--dtp-green); white-space: nowrap; }
-.dtp-chev { color: var(--dtp-muted); font-size: var(--font-size-2xs); }
-.dtp-collapsed-note { padding: 0 18px 12px 62px; color: var(--dtp-muted); font-size: 12.5px; }
-.dtp-step-body { border-top: 1px solid var(--dtp-line); padding: 18px; }
-.dtp-buyer-story {
-  color: var(--dtp-muted); font-size: 13.5px; margin-bottom: 14px;
-  border-left: 3px solid var(--dtp-line); padding-left: 12px; font-style: italic;
-}
-.dtp-run-row {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border: 1px solid var(--dtp-line); border-radius: var(--radius-lg); margin-bottom: 8px; background: var(--th-bg-card);
-  color: var(--th-text);
-}
-.dtp-run-tag {
-  font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: .06em; padding: 3px 8px;
-  border-radius: var(--radius-sm); flex: none; width: 64px; text-align: center;
-}
-.dtp-run-tag--g { background: var(--dtp-green-bg); color: var(--th-status-success-text); }
-.dtp-run-tag--r { background: var(--dtp-deny-bg); color: var(--th-status-error-text); }
-.dtp-chip {
-  font-size: var(--font-size-sm); background: var(--th-bg-card); border: 1px solid var(--dtp-line);
-  border-radius: var(--radius-pill); padding: 5px 13px;
-  color: var(--th-text);
-}
-.dtp-run-note { color: var(--dtp-muted); font-size: var(--font-size-2xs); }
-.dtp-run-note--error { color: var(--dtp-deny); font-weight: 600; }
-.dtp-run-note--running { color: var(--dtp-navy-ink); font-weight: 600; }
-.dtp-run-note--done { color: var(--dtp-green); font-weight: 700; }
-.dtp-run-btn--done { background: var(--dtp-green); }
-/* Plain-language "why" under a filled slot / gauntlet tile */
-.dtp-reason { font-size: var(--font-size-2xs); line-height: 1.45; margin: -2px 0 8px 76px; }
-.dtp-reason--g { color: var(--dtp-green); }
-.dtp-reason--r { color: var(--dtp-deny); }
-.dtp-reason-code {
-  display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: .02em;
-  background: var(--dtp-deny-bg); color: var(--dtp-deny); border-radius: var(--radius-sm); padding: 1px 7px; margin-right: 7px;
-}
+
+.dtp-reason-code,
 .dtp-g-code {
-  display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; margin-left: 6px;
-  background: var(--dtp-green-bg); color: var(--dtp-green); border-radius: 3px; padding: 0 5px;
+  display: inline-block;
+  margin-right: 7px;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
 }
-.dtp-g-reason { font-size: var(--font-size-2xs); line-height: 1.4; color: var(--dtp-muted); margin-top: 6px; }
-/* What the agent actually returned on a Run — see what happened, not just a stamp */
+
+.dtp-reason-code {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.dtp-g-code {
+  margin: 0 0 0 6px;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+/* What the agent actually returned on a Run: what happened, not just a stamp. */
 .dtp-response {
-  margin: 2px 0 10px 76px; border: 1px solid var(--dtp-line); border-left: 3px solid var(--dtp-navy);
-  border-radius: var(--radius-lg); background: var(--th-bg-card); padding: 10px 12px;
+  margin: 2px 0 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-left: 3px solid var(--th-status-info);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
   color: var(--th-text);
 }
-.dtp-response-head { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: .04em; color: var(--dtp-navy-ink); margin-bottom: 6px; }
-.dtp-response-tool { font-weight: 600; color: var(--dtp-muted); }
-.dtp-response-body { font-size: 12.5px; line-height: 1.5; color: var(--dtp-ink); white-space: pre-wrap; }
-.dtp-response-sim { display: flex; gap: 10px; font-size: var(--font-size-2xs); padding: 2px 0; }
-.dtp-response-sim-name { font-weight: 600; color: var(--dtp-ink); min-width: 150px; }
-.dtp-response-sim-out { color: var(--dtp-deny); font-weight: 600; }
-.dtp-run-btn {
-  margin-left: auto; font-size: 12.5px; font-weight: 600; color: #fff;
-  background: var(--dtp-navy); border: none; border-radius: var(--btn-radius); padding: 7px 16px; cursor: pointer;
+
+.dtp-response-head {
+  margin-bottom: 6px;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
 }
-.dtp-run-btn:hover { background: #1e4066; }
-.dtp-run-btn:disabled { opacity: .6; cursor: default; }
-.dtp-run-btn--gauntlet { margin-left: 0; background: var(--dtp-red); }
-.dtp-run-row .dtp-verdict { margin-left: auto; }
-.dtp-run-row .dtp-verdict + .dtp-run-btn, .dtp-run-row .dtp-run-note + .dtp-run-btn { margin-left: 10px; }
-.dtp-vertical-badge {
-  margin-left: 10px; font-size: var(--font-size-xs); font-weight: 700; color: var(--dtp-navy);
-  background: #eaf1f8; border-radius: var(--radius-pill); padding: 2px 9px;
+
+.dtp-response-tool {
+  color: var(--th-text-muted);
+  font-weight: var(--font-weight-semibold);
 }
-.dtp-verdict { margin-left: auto; font-size: var(--font-size-2xs); font-weight: 800; padding: 5px 11px; border-radius: var(--radius-md); }
-.dtp-verdict--permit { background: var(--dtp-green-bg); color: var(--dtp-green); }
-.dtp-verdict--deny { background: var(--dtp-deny-bg); color: var(--dtp-deny); }
-.dtp-verdict--stepup { background: var(--dtp-amber-bg); color: var(--dtp-amber); }
+
+.dtp-response-body {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dtp-response-sim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 2px 0;
+  font-size: var(--font-size-xs);
+}
+
+.dtp-response-sim-name {
+  min-width: 150px;
+  color: var(--th-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dtp-response-sim-out {
+  color: var(--th-status-error-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* "What this proved" takeaway and the talk track. */
 .dtp-takeaway {
-  margin-top: 14px; border: 1.5px solid var(--dtp-navy); border-radius: 10px;
-  background: linear-gradient(180deg, #f4f8fc 0%, #fff 100%); padding: 16px 18px;
-}
-.dtp-takeaway h4 { font-size: var(--font-size-xs); letter-spacing: .1em; color: var(--dtp-navy); margin: 0 0 10px; }
-.dtp-takeaway-line { display: flex; gap: 10px; font-size: 13.5px; margin-bottom: 7px; }
-.dtp-mark { font-weight: 800; flex: none; width: 16px; text-align: center; }
-.dtp-mark--g { color: var(--dtp-green); }
-.dtp-mark--r { color: var(--dtp-deny); }
-.dtp-talk-track {
-  margin-top: 10px; font-size: var(--font-size-sm); background: var(--dtp-amber-bg);
-  border-radius: var(--radius-md); padding: 9px 12px;
-}
-.dtp-talk-track b { color: var(--dtp-amber); font-size: var(--font-size-xs); letter-spacing: .06em; }
-.dtp-gauntlet-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.dtp-gauntlet-score { font-size: var(--font-size-sm); font-weight: 700; color: var(--dtp-green); }
-.dtp-gauntlet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
-.dtp-g-tile {
-  border: 1px solid var(--dtp-line); border-radius: var(--radius-lg); padding: 11px 12px; background: var(--th-bg-card);
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--th-border-strong);
+  border-left: 4px solid var(--th-status-success);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
   color: var(--th-text);
 }
-.dtp-g-name { font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }
-.dtp-g-uc { font-size: var(--font-size-xs); color: var(--dtp-muted); margin-bottom: 8px; }
-.dtp-g-verdict {
-  font-size: var(--font-size-xs); font-weight: 800; padding: 3px 8px; border-radius: 5px; display: inline-block;
-  background: var(--dtp-bg); color: var(--dtp-muted);
+
+.dtp-takeaway h4 {
+  margin: 0 0 10px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.1em;
 }
-.dtp-g-verdict--blocked { background: var(--dtp-green-bg); color: var(--dtp-green); }
-.dtp-finish {
-  border: 2px dashed var(--dtp-line); border-radius: 10px; padding: 18px; text-align: center;
-  color: var(--dtp-muted); font-size: 13.5px; margin-top: 26px; background: var(--dtp-card);
+
+.dtp-takeaway-line {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 7px;
+  font-size: var(--font-size-sm);
 }
-.dtp-finish--done { border-style: solid; border-color: var(--dtp-green); }
-.dtp-finish b { color: var(--dtp-ink); }
-.dtp-error, .dtp-loading { padding: 40px; text-align: center; color: var(--th-text-muted); }
-@media (max-width: 760px) {
-  .dtp-gauntlet { grid-template-columns: 1fr; }
-  .dtp-step-ucs { display: none; }
+
+.dtp-mark {
+  flex: none;
+  width: 16px;
+  font-weight: var(--font-weight-bold);
+  text-align: center;
 }
+
+.dtp-mark--g {
+  color: var(--th-status-success-text);
+}
+
+.dtp-mark--r {
+  color: var(--th-status-error-text);
+}
+
+.dtp-talk-track {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-left: 4px solid var(--th-status-warning);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.dtp-talk-track b {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.06em;
+}
+
+/* Attack gauntlet. */
+.dtp-gauntlet-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.dtp-root .dtp-gauntlet-bar .dtp-run-btn {
+  margin-left: 0;
+}
+
+.dtp-gauntlet {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.dtp-g-tile {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.dtp-g-name {
+  margin-bottom: 2px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dtp-g-uc {
+  margin-bottom: 8px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.dtp-g-reason {
+  margin-top: 6px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.dtp-finish-text {
+  margin: 0;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.dtp-finish-text b {
+  color: var(--th-text);
+}
+
+@media (max-width: 600px) {
+  .dtp-root .dtp-step-head {
+    padding: 12px 14px;
+  }
+
+  .dtp-step-ucs {
+    display: none;
+  }
+
+  .dtp-collapsed-note {
+    padding: 0 14px 12px;
+  }
+
+  .dtp-step-body {
+    padding: 14px;
+  }
+
+  .dtp-stamp,
+  .dtp-root .dtp-run-btn {
+    margin-left: 0;
+  }
+}
+
 @media print {
-  .dtp-controls, .dtp-newrun { display: none; }
+  .dtp-controls {
+    display: none;
+  }
 }

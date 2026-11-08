@@ -1,3 +1,20 @@
+// /delegation-chain-value: two real agent runs that prove the value of a delegation chain (accountability, then an
+// actor-aware authorization decision), with the token-chain evidence shown under them.
+//
+// Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md) through the shared
+// primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv, P7 chips, P9 buttons.
+// Skipped: P1 (the app has its own shell), P6 (no list-and-detail inspector: two scenario cards and a rail) and P8 (the diagram
+// is the shared EmbeddedFlowDiagram, and the evidence is the shared TokenChainTraceRail, neither is page boxes).
+//
+// P9, one primary per view state. The primary is the one action that advances the demo:
+//   - nothing run yet: "Run" on Accountability;
+//   - a scenario only counts as done when it came back with a non-error reply: a thrown error, an empty reply
+//     ("No reply") and an error reply ("Run failed") all keep that scenario as the primary so it can be retried;
+//   - Accountability done: the first scenario that is not done is the primary, so that is "Run" on Authorization;
+//   - both done: "Run again" on Accountability stays the primary (the demo starts over there);
+//   - a run in flight: its button is the primary and shows "Running..." (aria-disabled, so focus stays on it).
+// "Clear" and the light/dark toggle are always secondaries. The shared diagram's own Simulate / Reset buttons and the
+// token-chain rail's controls are not part of this page's markup; their look is owned by shared files (see the PR).
 import React, { useCallback, useState } from "react";
 import apiClient from "../services/apiClient";
 import { sendAgentMessage } from "../services/demoAgentService";
@@ -5,11 +22,14 @@ import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { useThemeOptional } from "../context/ThemeContext";
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import PageHeader from '../components/common/PageHeader';
+import {
+  PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
+} from '../components/pingUi';
 import {
   DELEGATION_CHAIN_EDGES, DELEGATION_CHAIN_GROUPS, DELEGATION_CHAIN_NODES, DELEGATION_CHAIN_STEPS,
 } from "../config/delegationChainValueDiagram";
 import "./DelegationChainValuePage.css";
-import PageHeader from '../components/common/PageHeader';
 
 const VERTICAL = "sporting-goods";
 
@@ -29,6 +49,7 @@ const RUNS = [
       "(who acted, on whose behalf) is attributable end to end.",
     prompt: "hand off to a specialist",
     primaryTool: "sensitive_holdings",
+    actor: "Registered specialist agent",
   },
   {
     key: "authorization",
@@ -36,11 +57,39 @@ const RUNS = [
     body:
       "A resource server can evaluate not just what the user can do, but whether THIS agent may act " +
       "for them. This run repeats the same governed delegation, then probes the same policy decision " +
-      "with an unregistered agent identity in place of the real one — same user, same shape, denied.",
+      "with an unregistered agent identity in place of the real one — same user, same shape, and the " +
+      "expected outcome is a denial. Read the decision in the evidence below, not in the reply sentence.",
     prompt: "simulate an agent identity mismatch",
     primaryTool: "sensitive_holdings",
+    actor: "Unregistered agent (made up for the probe)",
   },
 ];
+
+// The word is always shown; the tone only adds colour to it (P7). A completed run is "Reply received" in the info
+// tone, never green: the page cannot tell from the reply sentence whether the agent allowed the call, so success
+// colouring would be a false verdict. The one thing it can tell is that the server marks its own failures with a
+// leading cross (e.g. "❌ a2a_unauthorized", or "... ❌ The unregistered-agent probe was NOT denied"); such a reply is
+// "Run failed", not a calm reply.
+const RUN_CHIP = {
+  idle: { tone: "neutral", word: "Not run" },
+  running: { tone: "info", word: "Running" },
+  done: { tone: "info", word: "Reply received" },
+  empty: { tone: "warn", word: "No reply" },
+  failed: { tone: "danger", word: "Run failed" },
+  error: { tone: "danger", word: "Failed" },
+};
+const CARD_TONE = { idle: undefined, running: "live", done: "live", empty: "warn", failed: "danger", error: "danger" };
+const ERROR_MARKER = "\u274C";
+
+function runView(status, result) {
+  if (status === "running") return "running";
+  if (status === "error") return "error";
+  if (status === "done") {
+    if (!result?.reply) return "empty";
+    return result.reply.includes(ERROR_MARKER) ? "failed" : "done";
+  }
+  return "idle";
+}
 
 export default function DelegationChainValuePage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
@@ -94,63 +143,123 @@ export default function DelegationChainValuePage() {
   }, []);
 
   const hasResults = Object.keys(results).length > 0;
+  // P9: the first scenario that has not completed with a usable reply is the one primary; once both have, it is the
+  // first again. "No reply" and "Run failed" are not completions.
+  const primaryKey = (RUNS.find((e) => runView(status[e.key], results[e.key]) !== "done") || RUNS[0]).key;
 
   return (
-    <div className="dcv-page">
-      <button
-        type="button"
-        onClick={toggleDarkMode}
-        className="dcv-theme-toggle"
-        title="Switch this page between light and dark"
-        aria-pressed={darkMode}
-      >
-        {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
-      </button>
-      <PageHeader eyebrow="WHY THIS DEMO EXISTS" title="Prove who acted, and who authorized it" summary={<>Delegated agents create a trust gap: a user may authorize one agent, while a different
-        specialist or tool performs the action. This page makes that gap visible. Each scenario
-        runs through the live token-exchange and authorization path, then shows the evidence in
-        the token-chain panel.</>} />
-      <EmbeddedFlowDiagram
-        testId="dcv-chain-diagram"
-        title="What the two runs do"
-        ariaLabel="Delegation chain diagram"
-        diagramLabel="Generalist to specialist delegation with token exchanges, and the identity-mismatch probe"
-        lede="Both runs go through /api/agent/invoke. The first delegates across two agents with nested act claims; the second probes the same policy decision with an unregistered agent."
-        config={{ GROUPS: DELEGATION_CHAIN_GROUPS, NODES: DELEGATION_CHAIN_NODES, EDGES: DELEGATION_CHAIN_EDGES, STEPS: DELEGATION_CHAIN_STEPS }}
-        pingStyle
-      />
-      {hasResults && (
-        <div className="dcv-controls">
-          <button type="button" onClick={handleClearAll} className="dcv-clear-button">
-            Clear
-          </button>
-        </div>
-      )}
-      {RUNS.map((entry) => (
-        <section key={entry.key} className="dcv-run">
-          <h2>{entry.heading}</h2>
-          <p>{entry.body}</p>
+    <PingPage className="dcv-page">
+      <SimBanner data-testid="dcv-banner">
+        <strong>REAL RUNS, DRAWN DIAGRAM</strong> — Real: each Run button sends its prompt to this app&apos;s
+        /api/agent/invoke (a keyword-matched agent, no LLM), and the evidence panel shows the token claims that
+        run returned. Before a run it tries to switch on the MCP gateway feature flags the tool call needs
+        (admin access only, skipped without it). Not real: the diagram is a drawing, its Simulate button only
+        animates it, and its token values are MOCK teaching values. In the identity-mismatch scenario the
+        unregistered agent is made up for the probe: its identity is only sent as a field in a policy-decision
+        request, and the policy is expected to refuse it.
+      </SimBanner>
+      <PageHeader
+        eyebrow="WHY THIS DEMO EXISTS"
+        title="Prove who acted, and who authorized it"
+        summary={<>Delegated agents create a trust gap: a user may authorize one agent, while a different
+          specialist or tool performs the action. This page makes that gap visible. Each scenario
+          runs through the live token-exchange and authorization path, then shows the evidence in
+          the token-chain panel.</>}
+        actions={(
           <button
             type="button"
-            onClick={() => run(entry)}
-            disabled={status[entry.key] === "running"}
+            onClick={toggleDarkMode}
+            className="pu-btn"
+            data-testid="dcv-theme-toggle"
+            title="Switch this page between light and dark"
           >
-            {status[entry.key] === "running" ? "Running..." : "Run"}
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
-          {results[entry.key]?.reply && <p className="dcv-reply">{results[entry.key].reply}</p>}
-          {results[entry.key]?.error && <p className="dcv-error">{results[entry.key].error}</p>}
-        </section>
-      ))}
-      {lastPrompt && (
-        <section className="dcv-run dcv-chain" aria-label="Token chain evidence">
-          <h2>The chain from that run</h2>
-          <p>
-            Every hop of the run above, with the token claims it carried — subject, audience,
-            scopes, and the nested act chain naming each agent in order.
-          </p>
-          <TokenChainTraceRail />
-        </section>
-      )}
-    </div>
+        )}
+      />
+      <PageFrame>
+        <Section id="dcv-flow-h" kicker="1 · The flow" title="How a delegated call travels">
+          <EmbeddedFlowDiagram
+            testId="dcv-chain-diagram"
+            title="What the two runs do"
+            ariaLabel="Delegation chain diagram"
+            diagramLabel="Generalist to specialist delegation with token exchanges, and the identity-mismatch probe"
+            lede="Both runs go through /api/agent/invoke. The first delegates across two agents with nested act claims; the second probes the same policy decision with an unregistered agent."
+            config={{ GROUPS: DELEGATION_CHAIN_GROUPS, NODES: DELEGATION_CHAIN_NODES, EDGES: DELEGATION_CHAIN_EDGES, STEPS: DELEGATION_CHAIN_STEPS }}
+            pingStyle
+          />
+        </Section>
+
+        <Section id="dcv-run-h" kicker="2 · Run it" title="Run the two scenarios" lede="Run Accountability first, then Authorization. Each run replaces the evidence below.">
+          <CardGrid>
+            {RUNS.map((entry) => {
+              const view = runView(status[entry.key], results[entry.key]);
+              const chip = RUN_CHIP[view];
+              const busy = view === "running";
+              const label = busy ? "Running..." : view === "done" || view === "empty" || view === "failed" ? "Run again" : "Run";
+              const result = results[entry.key];
+              const items = [
+                { label: "Prompt", value: entry.prompt, mono: true },
+                { label: "Acting as", value: entry.actor },
+                { label: "Tool", value: entry.primaryTool, mono: true },
+              ];
+              if (result?.tools) items.push({ label: "Tools called", value: result.tools.length ? result.tools.join(", ") : "none", mono: true });
+              return (
+                <Card key={entry.key} title={entry.heading} tone={CARD_TONE[view]} data-testid={`dcv-run-${entry.key}`} data-state={view}>
+                  <p className="pu-status-line"><StatusChip tone={chip.tone}>{chip.word}</StatusChip></p>
+                  <p className="pu-note">{entry.body}</p>
+                  <KvList items={items} />
+                  <div className="pu-actions">
+                    <button
+                      type="button"
+                      className={primaryKey === entry.key ? "pu-btn pu-btn--primary" : "pu-btn"}
+                      aria-disabled={busy ? "true" : undefined}
+                      aria-label={`${busy ? "Running" : label}: ${entry.heading}`}
+                      onClick={busy ? undefined : () => run(entry)}
+                      data-testid={`dcv-run-button-${entry.key}`}
+                    >
+                      {label}
+                    </button>
+                  </div>
+                  <div className="dcv-result" role="status" aria-live="polite">
+                    {result?.reply && <p className="dcv-reply">{result.reply}</p>}
+                    {result?.error && <p className="dcv-error" role="alert">{result.error}</p>}
+                  </div>
+                </Card>
+              );
+            })}
+          </CardGrid>
+          <div className="pu-actions dcv-clear-row">
+            <button
+              type="button"
+              className="pu-btn"
+              aria-disabled={hasResults ? undefined : "true"}
+              onClick={hasResults ? handleClearAll : undefined}
+              data-testid="dcv-clear"
+            >
+              Clear
+            </button>
+          </div>
+        </Section>
+
+        <Section
+          id="dcv-chain-h"
+          kicker="3 · The evidence"
+          title="The chain from that run"
+          lede="Every hop of the run above, with the token claims it carried: subject, audience, scopes, and the nested act chain naming each agent in order."
+        >
+          <Card tone={lastPrompt ? "live" : "neutral"} data-testid="dcv-chain" data-state={lastPrompt ? "run" : "empty"}>
+            {lastPrompt ? (
+              <>
+                <p className="pu-status-line"><StatusChip tone="info">From the run</StatusChip><span>Prompt: <span className="pu-mono">{lastPrompt}</span></span></p>
+                <TokenChainTraceRail />
+              </>
+            ) : (
+              <p className="pu-empty pu-note">Nothing to show yet. Run a scenario above and its token chain appears here.</p>
+            )}
+          </Card>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
 }

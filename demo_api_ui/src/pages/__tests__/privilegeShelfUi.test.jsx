@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import "@testing-library/jest-dom";
 import PrivilegeShelfPage from "../PrivilegeShelfPage";
+import { PRIVILEGE_MAP_PAGES } from "../../config/privilegeMapPages";
 
 const renderPage = () => render(<MemoryRouter><PrivilegeShelfPage /></MemoryRouter>);
 
@@ -52,5 +54,29 @@ describe("PrivilegeShelfPage on the Ping UI Standard", () => {
     expect(container.querySelector(".pshelf-body")).toBeNull();
     expect(screen.getAllByText("New in the Platform Update").length).toBe(5);
     expect(screen.getByText("Opens in a new tab")).toBeTruthy();
+  });
+
+  it("never prints a section's title twice: the kicker adds the position and the link count instead", () => {
+    const { container } = renderPage();
+    const kickers = [...container.querySelectorAll(".pu-kicker")].map((k) => k.textContent);
+    expect(kickers).toEqual([
+      `1 of 5 \u00b7 ${PRIVILEGE_MAP_PAGES.length} links`,
+      "2 of 5 \u00b7 4 links",
+      "3 of 5 \u00b7 1 link",
+      "4 of 5 \u00b7 8 links",
+      "5 of 5 \u00b7 1 link",
+    ]);
+    for (const region of screen.getAllByRole("region")) {
+      const title = within(region).getByRole("heading", { level: 2 }).textContent;
+      expect(region.querySelector(".pu-kicker").textContent).not.toContain(title);
+    }
+  });
+
+  it("gives the external link its new-tab warning as its accessible description", () => {
+    renderPage();
+    const link = screen.getByRole("link", { name: /privilege-map on GitHub/ });
+    expect(link).toHaveAccessibleDescription("Opens in a new tab");
+    // in-app links have nothing extra to announce
+    expect(screen.getByRole("link", { name: "Privilege Docs Index" })).not.toHaveAttribute("aria-describedby");
   });
 });

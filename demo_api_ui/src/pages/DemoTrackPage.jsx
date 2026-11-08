@@ -1,6 +1,17 @@
 // Guided Demo Track — standalone presenter page (spec surface 1).
 // Live view polls /api/demo-track; the run picker swaps in an archived
 // run from /api/demo-track/runs as a static snapshot (no polling, no mutation).
+//
+// Layout follows the standalone Ping UI Standard through the shared primitives
+// (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards,
+// P5 key-value, P7 chips with a word, P9 buttons. Nothing on this page is mocked, so the banner
+// says what is live (the recorded decisions, the agent call, the gauntlet attacks) and what is an
+// archived snapshot.
+//
+// P9 "one primary per view" is read as one primary ACTION AT A TIME, decided in one place
+// (primaryKey below): the next Run in the step that is open; when that step has nothing left to
+// run (or none is open) "Start new run"; on an archived snapshot "Back to the live run". The
+// run-controls button is one element that swaps its label, so keyboard focus stays on it.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
@@ -8,11 +19,13 @@ import { useThemeOptional } from "../context/ThemeContext";
 import "./DemoTrackPage.css";
 import InlineSpinner from '../components/shared/InlineSpinner';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
+import PageHeader from '../components/common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } from '../components/pingUi';
 
 const POLL_MS = 5000;
 const ACT_META = {
-  1: { label: "ACT 1 — THE CUSTOMER AGENT", tagline: "One user, one agent, real money — prove every action is governed." },
-  2: { label: "ACT 2 — SAME RAILS GOVERN THE ADMINS", tagline: "The AI that manages your identity platform is itself governed by it." },
+  1: { kicker: "Act 1 of 2", title: "The customer agent", tagline: "One user, one agent, real money — prove every action is governed." },
+  2: { kicker: "Act 2 of 2", title: "Same rails govern the admins", tagline: "The AI that manages your identity platform is itself governed by it." },
 };
 
 function fmtTime(iso) {
@@ -35,11 +48,17 @@ function plainText(s) {
   return String(s || "").replace(/\*\*/g, "").replace(/`/g, "").trim();
 }
 
+// A step has started once any of its slots is stamped (or any gauntlet attack was blocked).
+function stepStarted(step, run, gauntletSims) {
+  if (step.stepId === "attack-gauntlet") return gauntletSims.some((g) => run.gauntlet?.[g.sim]);
+  return Boolean(run.slots[`${step.stepId}:green`] || run.slots[`${step.stepId}:red`]);
+}
+
 function SlotResponse({ resp }) {
   if (!resp) return null;
   if (resp.sims) {
     return (
-      <div className="dtp-response">
+      <div className="dtp-response" role="status">
         <div className="dtp-response-head">What happened</div>
         {resp.sims.map((s) => (
           <div key={s.sim} className="dtp-response-sim">
@@ -52,7 +71,7 @@ function SlotResponse({ resp }) {
   }
   if (!resp.reply) return null;
   return (
-    <div className="dtp-response">
+    <div className="dtp-response" role="status">
       <div className="dtp-response-head">
         Agent response{resp.tools?.length ? <span className="dtp-response-tool"> · {resp.tools.join(", ")}</span> : null}
       </div>
@@ -61,36 +80,41 @@ function SlotResponse({ resp }) {
   );
 }
 
-function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
-  const verdictCls =
-    stamp && (stamp.verdict === "PERMIT" ? "dtp-verdict--permit" : stamp.verdict === "STEP_UP" ? "dtp-verdict--stepup" : "dtp-verdict--deny");
+const VERDICT_TONE = { PERMIT: "ok", STEP_UP: "warn" };
+
+function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun, lead }) {
+  const verdictTone = stamp ? (VERDICT_TONE[stamp.verdict] || "danger") : "neutral";
   return (
     <div className="dtp-run-row">
-      <span className={`dtp-run-tag dtp-run-tag--${tag === "GREEN" ? "g" : "r"}`}>{tag}</span>
-      <span className="dtp-chip">{prompt || slot.chipText || slot.label}</span>
+      <StatusChip tone={tag === "GREEN" ? "ok" : "danger"}>{tag}</StatusChip>
+      <span className="dtp-prompt">{prompt || slot.chipText || slot.label}</span>
       {stamp ? (
-        <span className={`dtp-verdict ${verdictCls}`} title={stamp.reason || ""}>
-          {stamp.verdict} {stamp.verdict === "PERMIT" ? "✓" : "✕"} {fmtTime(stamp.at)}
-          {stamp.decisionId ? ` · ${stamp.decisionId}` : ""}
+        <span className="dtp-stamp" title={stamp.reason || ""}>
+          <StatusChip tone={verdictTone}>{stamp.verdict} {stamp.verdict === "PERMIT" ? "✓" : "✕"}</StatusChip>
+          <span className="dtp-stamp-meta pu-mono">
+            {fmtTime(stamp.at)}
+            {stamp.decisionId ? ` · ${stamp.decisionId}` : ""}
+          </span>
         </span>
       ) : runStatus === "error" ? (
-        <span className="dtp-run-note dtp-run-note--error">✕ run failed — check the agent</span>
+        <span className="dtp-run-note dtp-run-note--error" role="status">✕ run failed — check the agent</span>
       ) : runStatus === "running" ? (
-        <span className="dtp-run-note dtp-run-note--running">running through the agent…</span>
+        <span className="dtp-run-note dtp-run-note--running" role="status">running through the agent…</span>
       ) : runStatus === "done" ? (
-        <span className="dtp-run-note dtp-run-note--done">✓ ran — recording verdict…</span>
+        <span className="dtp-run-note dtp-run-note--done" role="status">✓ ran — recording verdict…</span>
       ) : (
         <span className="dtp-run-note">waiting for a matching run</span>
       )}
       {canRun && (
-        <button
-          type="button"
-          className={`dtp-run-btn${runStatus === "done" ? " dtp-run-btn--done" : ""}`}
+        <PuButton
+          lead={lead}
+          className="dtp-run-btn"
           onClick={onRun}
-          disabled={runStatus === "running"}
+          busy={runStatus === "running"}
         >
           {runStatus === "running" ? "Running…" : runStatus === "done" ? "✓ ran" : stamp ? "Run again" : "Run"}
-        </button>
+          <span className="dtp-sr"> ({tag === "GREEN" ? "permit" : "deny"} case)</span>
+        </PuButton>
       )}
     </div>
   );
@@ -292,35 +316,116 @@ export default function DemoTrackPage() {
     }
   }, [promptFor, vertical, load, setSlotRun, agentMode]);
 
-  if (error) return <div className="dtp-error">Demo Track unavailable — {error}</div>;
-  if (!state || !run) return <div className="dtp-loading"><InlineSpinner label="Loading demo track…" /></div>;
-
-  const { track } = state;
-  const { steps } = track;
+  // Every state renders inside the page frame with the banner first, so what is live and what is
+  // not is stated even while loading or when the server did not answer.
+  // A failed poll must not unmount the page (and the focused control in it): once a run has been
+  // received, `ready` stays true and the error shows as an alert card above the last data.
+  const ready = Boolean(state && run);
+  const track = ready ? state.track : null;
+  const steps = ready ? track.steps : [];
   // The support track (config/supportDemoTrack.js) has no gauntlet — the field
   // is absent, not empty, so a bare .filter would throw.
-  const gauntletSims = Array.isArray(track.gauntletSims) ? track.gauntletSims : [];
-  const gauntletBlocked = gauntletSims.filter((g) => run.gauntlet?.[g.sim]?.blocked).length;
-  const allDone = steps.every((s) => stepComplete(s, run, gauntletSims));
-  const doneCount = steps.filter((s) => stepComplete(s, run, gauntletSims)).length;
+  const gauntletSims = ready && Array.isArray(track.gauntletSims) ? track.gauntletSims : [];
+  const hasGauntlet = ready && steps.some((s) => s.stepId === "attack-gauntlet");
+  const gauntletBlocked = ready ? gauntletSims.filter((g) => run.gauntlet?.[g.sim]?.blocked).length : 0;
+  const allDone = ready && steps.every((s) => stepComplete(s, run, gauntletSims));
+  const doneCount = ready ? steps.filter((s) => stepComplete(s, run, gauntletSims)).length : 0;
+
+  const isStepOpen = (step) => (expanded ? expanded === step.stepId : isLive && run.activeStepId === step.stepId);
+
+  // Can this slot's Run button be shown? Same rule the rows used before, in one place so the primary
+  // decision below agrees with what is on screen.
+  const canRunSlot = (step, color) => {
+    const slot = step.slots[color];
+    if (!isLive || !slot) return false;
+    if (step.stepId === "attack-gauntlet") return color === "red";
+    if (color === "green") return Boolean(promptFor(step, "green", slot));
+    return slot.source === "sim" || Boolean(slot.chipText);
+  };
+
+  // P9: exactly one primary at a time. Archived snapshot: back to live. Live: the next unstamped Run
+  // in the open step (green before red; the gauntlet's single button until all attacks are blocked);
+  // when the open step has none, or no step is open, Start new run.
+  let primaryKey = "controls";
+  if (ready && isLive) {
+    const open = steps.find(isStepOpen);
+    if (open) {
+      if (open.stepId === "attack-gauntlet") {
+        if (canRunSlot(open, "red") && gauntletBlocked < gauntletSims.length) primaryKey = `${open.stepId}:red`;
+      } else if (canRunSlot(open, "green") && !run.slots[`${open.stepId}:green`]) primaryKey = `${open.stepId}:green`;
+      else if (canRunSlot(open, "red") && !run.slots[`${open.stepId}:red`]) primaryKey = `${open.stepId}:red`;
+    }
+  }
+
+  // Built before the steps so the banner is the first thing the page defines, as it is the first thing it shows.
+  const runStamp = ready ? fmtTime(run.startedAt) : "";
+  const banner = (
+  <SimBanner data-testid="dtp-banner">
+    {!ready ? (
+      <>
+        <strong>NOT CONNECTED</strong> — this page has not received a run from the server yet, so nothing below is
+        current. It shows no sample data in its place.
+      </>
+    ) : isLive && error ? (
+      <>
+        <strong>LAST RUN RECEIVED</strong> — the server did not answer the latest refresh, so this may be out of
+        date. The page keeps retrying every 5 seconds. It shows no sample data in its place.
+      </>
+    ) : isLive ? (
+      <>
+        <strong>LIVE RUN</strong> — this page follows the run the server is recording now and refreshes every 5
+        seconds. Each verdict stamp is a decision the server logged when the agent or the gateway handled a call;
+        none of it is sample data. Run sends a step&apos;s prompt through this app&apos;s agent (Heuristics routes
+        it with fixed rules, llama.cpp lets the local model choose the tool){hasGauntlet
+          ? `, and the gauntlet sends ${gauntletSims.length} deliberately flawed tokens to the real gateway`
+          : ""}.
+      </>
+    ) : (
+      <>
+        <strong>ARCHIVED RUN</strong> — a saved snapshot of an earlier run (started {runStamp}). It does not refresh,
+        nothing here runs, and nothing you click changes it. Go back to the live run to keep presenting.
+      </>
+    )}
+  </SimBanner>
+  );
 
   const renderStep = (step, idx) => {
     const complete = stepComplete(step, run, gauntletSims);
     const isActive = isLive && run.activeStepId === step.stepId;
-    const isOpen = expanded ? expanded === step.stepId : isActive;
+    const isOpen = isStepOpen(step);
     const green = run.slots[`${step.stepId}:green`];
     const red = run.slots[`${step.stepId}:red`];
     const isGauntlet = step.stepId === "attack-gauntlet";
+    const stepChip = complete
+      ? <StatusChip tone="ok">PROVED</StatusChip>
+      : stepStarted(step, run, gauntletSims)
+        ? <StatusChip tone="warn">In progress</StatusChip>
+        : isActive
+          ? <StatusChip tone="info">Active</StatusChip>
+          : <StatusChip tone="neutral">Not run</StatusChip>;
     return (
-      <div key={step.stepId} className={`dtp-step${complete ? " dtp-step--done" : ""}${isActive ? " dtp-step--active" : ""}`}>
-        <button type="button" className="dtp-step-head" onClick={() => onStepClick(step.stepId)}>
-          <span className="dtp-step-num">{complete ? "✓" : idx + 1}</span>
-          <span className="dtp-step-title">{step.title}</span>
-          <span className="dtp-step-cap">{step.capability}</span>
-          <span className="dtp-step-ucs">{Array.isArray(step.ucIds) ? step.ucIds.join(" · ") : ""}</span>
-          {complete && <span className="dtp-step-status">PROVED</span>}
-          <span className="dtp-chev">{isOpen ? "▾" : "▸"}</span>
-        </button>
+      <Card
+        key={step.stepId}
+        tone={complete ? "ok" : isActive ? undefined : "neutral"}
+        className={`dtp-step${complete ? " dtp-step--done" : ""}${isActive ? " dtp-step--active" : ""}`}
+        data-testid={`dtp-step-${step.stepId}`}
+      >
+        <h3 className="dtp-step-h">
+          <button
+            type="button"
+            className="dtp-step-head"
+            aria-expanded={isOpen}
+            aria-controls={`dtp-body-${step.stepId}`}
+            onClick={() => onStepClick(step.stepId)}
+          >
+            <span className="dtp-step-num" aria-hidden="true">{complete ? "✓" : idx + 1}</span>
+            <span className="dtp-step-title">{step.title}</span>
+            <span className="dtp-step-cap">{step.capability}</span>
+            <span className="dtp-step-ucs pu-mono">{Array.isArray(step.ucIds) ? step.ucIds.join(" · ") : ""}</span>
+            {stepChip}
+            <span className="dtp-chev" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
+          </button>
+        </h3>
         {!isOpen && (
           <div className="dtp-collapsed-note">
             {step.slots.green && <span>✓ {green ? step.proved.green : step.slots.green.chipText}</span>}
@@ -329,24 +434,26 @@ export default function DemoTrackPage() {
           </div>
         )}
         {isOpen && (
-          <div className="dtp-step-body">
-            <div className="dtp-buyer-story">{step.buyerStory}</div>
+          <div className="dtp-step-body" id={`dtp-body-${step.stepId}`}>
+            <p className="dtp-buyer-story">{step.buyerStory}</p>
             {isGauntlet ? (
               <>
                 <div className="dtp-gauntlet-bar">
                   {isLive && step.slots.red && (
-                    <button
-                      type="button"
-                      className="dtp-run-btn dtp-run-btn--gauntlet"
+                    <PuButton
+                      lead={primaryKey === `${step.stepId}:red`}
+                      className="dtp-run-btn"
                       onClick={() => runSlot(step, "red", step.slots.red)}
-                      disabled={slotRuns[`${step.stepId}:red`] === "running"}
+                      busy={slotRuns[`${step.stepId}:red`] === "running"}
                     >
                       {slotRuns[`${step.stepId}:red`] === "running" ? "Running attacks…" : "Run all 6 attacks"}
-                    </button>
+                    </PuButton>
                   )}
-                  <span className="dtp-gauntlet-score">{gauntletBlocked} / {gauntletSims.length} blocked</span>
+                  <StatusChip tone={gauntletSims.length > 0 && gauntletBlocked === gauntletSims.length ? "ok" : "neutral"}>
+                    {gauntletBlocked} / {gauntletSims.length} blocked
+                  </StatusChip>
                   {slotRuns[`${step.stepId}:red`] === "error" && (
-                    <span className="dtp-run-note dtp-run-note--error">✕ a sim call failed</span>
+                    <span className="dtp-run-note dtp-run-note--error" role="status">✕ a sim call failed</span>
                   )}
                 </div>
                 <div className="dtp-gauntlet">
@@ -355,11 +462,11 @@ export default function DemoTrackPage() {
                     return (
                       <div key={g.sim} className="dtp-g-tile">
                         <div className="dtp-g-name">{g.label}</div>
-                        <div className="dtp-g-uc">{g.ucId}</div>
-                        <span className={`dtp-g-verdict${tile?.blocked ? " dtp-g-verdict--blocked" : ""}`}>
+                        <div className="dtp-g-uc pu-mono">{g.ucId}</div>
+                        <StatusChip tone={tile?.blocked ? "ok" : "neutral"}>
                           {tile?.blocked ? "BLOCKED ✓" : "pending"}
-                          {tile?.errorCode ? <span className="dtp-g-code">{tile.errorCode}</span> : null}
-                        </span>
+                        </StatusChip>
+                        {tile?.errorCode ? <span className="dtp-g-code pu-mono">{tile.errorCode}</span> : null}
                         {tile?.reason && <div className="dtp-g-reason">{tile.reason}</div>}
                       </div>
                     );
@@ -374,7 +481,8 @@ export default function DemoTrackPage() {
                     <SlotRow
                       tag="GREEN" slot={step.slots.green} stamp={green}
                       prompt={promptFor(step, "green", step.slots.green)}
-                      canRun={isLive && Boolean(promptFor(step, "green", step.slots.green))}
+                      canRun={canRunSlot(step, "green")}
+                      lead={primaryKey === `${step.stepId}:green`}
                       runStatus={slotRuns[`${step.stepId}:green`]}
                       onRun={() => runSlot(step, "green", step.slots.green)}
                     />
@@ -387,13 +495,14 @@ export default function DemoTrackPage() {
                     <SlotRow
                       tag="RED" slot={step.slots.red} stamp={red}
                       prompt={step.slots.red.source === "sim" ? null : promptFor(step, "red", step.slots.red)}
-                      canRun={isLive && (step.slots.red.source === "sim" || Boolean(step.slots.red.chipText))}
+                      canRun={canRunSlot(step, "red")}
+                      lead={primaryKey === `${step.stepId}:red`}
                       runStatus={slotRuns[`${step.stepId}:red`]}
                       onRun={() => runSlot(step, "red", step.slots.red)}
                     />
                     {red?.reason && (
                       <div className="dtp-reason dtp-reason--r">
-                        {red.errorCode ? <span className="dtp-reason-code">{red.errorCode}</span> : null}
+                        {red.errorCode ? <span className="dtp-reason-code pu-mono">{red.errorCode}</span> : null}
                         {red.reason}
                       </div>
                     )}
@@ -406,101 +515,180 @@ export default function DemoTrackPage() {
               <div className="dtp-takeaway">
                 <h4>WHAT THIS PROVED</h4>
                 {step.proved.green && (
-                  <div className="dtp-takeaway-line"><span className="dtp-mark dtp-mark--g">✓</span><span>{step.proved.green}</span></div>
+                  <div className="dtp-takeaway-line">
+                    <span className="dtp-mark dtp-mark--g"><span aria-hidden="true">✓</span><span className="dtp-sr">Permitted: </span></span>
+                    <span>{step.proved.green}</span>
+                  </div>
                 )}
                 {step.proved.red && (
-                  <div className="dtp-takeaway-line"><span className="dtp-mark dtp-mark--r">✕</span><span>{step.proved.red}</span></div>
+                  <div className="dtp-takeaway-line">
+                    <span className="dtp-mark dtp-mark--r"><span aria-hidden="true">✕</span><span className="dtp-sr">Denied: </span></span>
+                    <span>{step.proved.red}</span>
+                  </div>
                 )}
                 <div className="dtp-talk-track"><b>SAY THIS:</b> {step.proved.sayThis}</div>
               </div>
             )}
           </div>
         )}
-      </div>
+      </Card>
     );
   };
 
+  const controlsBusy = isLive && runState === "busy";
+
   return (
-    <div className="dtp-root">
-      <div className="dtp-topbar">
-        <div>
-          <div className="dtp-brand">🔐 Guided Demo Track <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} /></div>
-          <div className="dtp-subtitle">
-            Two acts · {steps.length} steps · every step ends with a permit AND a deny
-            {vertical && <span className="dtp-vertical-badge">Vertical: {vertical}</span>}
-          </div>
-        </div>
-        <div className="dtp-progress">
-          {steps.map((s, i) => {
-            const complete = stepComplete(s, run, gauntletSims);
-            const active = isLive && run.activeStepId === s.stepId;
-            return (
-              <span key={s.stepId} className={`dtp-dot${complete ? " dtp-dot--done" : ""}${active ? " dtp-dot--active" : ""}`}>
-                {complete ? "✓" : i + 1}
-              </span>
-            );
-          })}
-        </div>
-        <div className="dtp-controls">
-          <button
-            type="button"
-            onClick={toggleDarkMode}
-            className="dtp-theme-toggle"
-            title="Switch this page between light and dark"
-            aria-pressed={darkMode}
-          >
-            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
-          </button>
-          <label className="dtp-run-picker">
-            Run
-            <select aria-label="Run" value={viewRunId} onChange={(e) => setViewRunId(e.target.value)}>
-              <option value="live">Live · started {fmtTime(state.run.startedAt)}</option>
-              {history.map((r) => (
-                <option key={r.runId} value={r.runId}>
-                  {new Date(r.startedAt).toLocaleString()} — {Object.keys(r.slots).length} slots
-                </option>
-              ))}
-            </select>
-          </label>
-          {isLive && (
-            <button
-              type="button"
-              className={`dtp-newrun${runState === "failed" ? " dtp-newrun--failed" : ""}`}
-              onClick={startRun}
-              disabled={runState === "busy"}
-            >
-              {runState === "busy" ? "Starting…"
-                : runState === "done" ? "✓ New run started"
-                : runState === "failed" ? "✕ Failed — retry"
-                : "Start new run"}
-            </button>
-          )}
-          {!isLive && <span className="dtp-history-badge">Viewing history — read-only</span>}
-        </div>
-      </div>
-
-      <div className="dtp-wrap">
-        {[1, 2].map((act) => (
-          <React.Fragment key={act}>
-            <div className="dtp-act-banner">
-              <span className="dtp-act-label">{ACT_META[act].label}</span>
-              <span className="dtp-act-tagline">{ACT_META[act].tagline}</span>
-              <span className="dtp-act-rule" />
-            </div>
-            {steps.filter((s) => s.act === act).map((s) => renderStep(s, steps.indexOf(s)))}
-          </React.Fragment>
-        ))}
-
-        {allDone ? (
-          <div className="dtp-finish dtp-finish--done">
-            <b>Track complete</b> — {steps.length} capabilities proved: {doneCount} permits and denials with decision evidence. Print this page as the leave-behind.
-          </div>
-        ) : (
-          <div className="dtp-finish">
-            {doneCount} of {steps.length} steps proved so far — run the remaining steps from the agent or the use-case launcher.
-          </div>
+    <PingPage className="dtp-root">
+      {banner}
+      <PageHeader
+        eyebrow="AI Experiences · Presenter track"
+        title="Guided Demo Track"
+        summary={ready
+          ? `Two acts · ${steps.length} steps · every step ends with a permit AND a deny`
+          : "Two acts, and every step ends with a permit AND a deny."}
+      />
+      <PageFrame>
+        {error && (
+          <Section id="dtp-error-h" kicker="Status" title="Demo Track unavailable">
+            <Card tone="danger">
+              <p className="pu-status-line" role="alert">
+                <StatusChip tone="danger">Error</StatusChip>
+                <span className="dtp-error">Demo Track unavailable — {error}</span>
+              </p>
+              <p className="pu-note">
+                {ready
+                  ? "The last run received is still shown below, but it is no longer current. The page keeps trying every 5 seconds."
+                  : "The page keeps trying every 5 seconds and fills in as soon as the server answers."}
+              </p>
+            </Card>
+          </Section>
         )}
-      </div>
-    </div>
+        {!ready ? (error ? null : (
+          <Section id="dtp-loading-h" kicker="Status" title="Loading the run">
+            <div className="dtp-loading"><InlineSpinner label="Loading demo track…" /></div>
+          </Section>
+        )) : (
+          <>
+            <Section
+              id="dtp-controls-h"
+              kicker="1 · Your run"
+              title={isLive ? "Live run" : "Archived run"}
+              lede="Pick a saved run to read it back, or start a fresh one."
+            >
+              <Card tone={isLive ? "live" : "neutral"} className="dtp-controls">
+                <p className="pu-status-line">
+                  {isLive
+                    ? <StatusChip tone="ok">Live</StatusChip>
+                    : <StatusChip tone="warn">Viewing history — read-only</StatusChip>}
+                  {vertical && <StatusChip tone="info">Vertical: {vertical}</StatusChip>}
+                  <span>{doneCount} of {steps.length} steps proved</span>
+                </p>
+                <KvList
+                  items={[
+                    {
+                      label: "Run",
+                      value: (
+                        <select className="pu-select" aria-label="Run" value={viewRunId} onChange={(e) => setViewRunId(e.target.value)}>
+                          <option value="live">Live · started {fmtTime(state.run.startedAt)}</option>
+                          {history.map((r) => (
+                            <option key={r.runId} value={r.runId}>
+                              {new Date(r.startedAt).toLocaleString()} — {Object.keys(r.slots).length} slots
+                            </option>
+                          ))}
+                        </select>
+                      ),
+                    },
+                    { label: "Agent mode", value: <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} /> },
+                    {
+                      label: "Progress",
+                      value: (
+                        <span className="dtp-progress" role="img" aria-label={`${doneCount} of ${steps.length} steps proved`}>
+                          {steps.map((s, i) => {
+                            const complete = stepComplete(s, run, gauntletSims);
+                            const active = isLive && run.activeStepId === s.stepId;
+                            return (
+                              <span key={s.stepId} className={`dtp-dot${complete ? " dtp-dot--done" : ""}${active ? " dtp-dot--active" : ""}`}>
+                                {complete ? "✓" : i + 1}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
+                <div className="pu-actions">
+                  {/* One element for both views, so focus stays on it when the view changes. */}
+                  <PuButton
+                    lead={primaryKey === "controls"}
+                    busy={controlsBusy}
+                    onClick={isLive ? startRun : () => setViewRunId("live")}
+                    className={runState === "failed" && isLive ? "dtp-newrun--failed" : ""}
+                  >
+                    {!isLive ? "Back to the live run"
+                      : runState === "busy" ? "Starting…"
+                        : runState === "done" ? "✓ New run started"
+                          : runState === "failed" ? "✕ Failed — retry"
+                            : "Start new run"}
+                  </PuButton>
+                  <PuButton
+                    onClick={toggleDarkMode}
+                    title="Switch this page between light and dark"
+                  >
+                    {darkMode ? "Light mode" : "Dark mode"}
+                  </PuButton>
+                </div>
+              </Card>
+            </Section>
+
+            {[1, 2].map((act) => (
+              <Section
+                key={act}
+                id={`dtp-act-${act}-h`}
+                kicker={ACT_META[act].kicker}
+                title={ACT_META[act].title}
+                lede={ACT_META[act].tagline}
+              >
+                {steps.filter((s) => s.act === act).map((s) => renderStep(s, steps.indexOf(s)))}
+              </Section>
+            ))}
+
+            <Section id="dtp-finish-h" kicker="Result" title="Track status">
+              <Card tone={allDone ? "ok" : "neutral"} className="dtp-finish">
+                <p className="pu-status-line">
+                  {allDone ? <StatusChip tone="ok">Complete</StatusChip> : <StatusChip tone="neutral">In progress</StatusChip>}
+                </p>
+                {allDone ? (
+                  <p className="dtp-finish-text">
+                    <b>Track complete</b> — {steps.length} capabilities proved: {doneCount} permits and denials with decision evidence. Print this page as the leave-behind.
+                  </p>
+                ) : (
+                  <p className="dtp-finish-text">
+                    {doneCount} of {steps.length} steps proved so far — run the remaining steps from the agent or the use-case launcher.
+                  </p>
+                )}
+              </Card>
+            </Section>
+          </>
+        )}
+      </PageFrame>
+    </PingPage>
+  );
+}
+
+// Every button on the page goes through here, so the one-primary rule has one place to read. A busy
+// button stays focusable (aria-disabled, not disabled) so keyboard focus is not thrown to the page
+// when a Run or Start starts; the click is ignored while busy.
+function PuButton({ lead = false, busy = false, onClick, className = "", children, ...rest }) {
+  return (
+    <button
+      type="button"
+      className={`${lead ? "pu-btn pu-btn--primary" : "pu-btn"} ${className}`.trim()}
+      aria-disabled={busy ? "true" : undefined}
+      onClick={busy ? undefined : onClick}
+      {...rest}
+    >
+      {children}
+    </button>
   );
 }

@@ -12,7 +12,7 @@
  * An optional `extra` node is rendered to the left of the zoom block
  * (e.g. a scenario dropdown, a title chip).
  */
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import StepTimeSelector from "./StepTimeSelector";
 import "./DiagramControls.css";
 
@@ -63,6 +63,20 @@ function DiagramControls({
   // Extra content rendered left of zoom block
   extra,
 }) {
+  // Simulate, Pause, Resume and Stop each swap themselves for a different button, which drops keyboard focus to
+  // <body>. A press records which control takes over; once the swap renders, focus moves to it.
+  const barRef = useRef(null);
+  const focusNext = useRef(null);
+  useEffect(() => {
+    const sel = focusNext.current;
+    focusNext.current = null;
+    if (sel) barRef.current?.querySelector(sel)?.focus({ preventScroll: true });
+  }, [isSimulating, isPaused]);
+  const then = (sel, fn) => (e) => {
+    focusNext.current = sel;
+    fn?.(e);
+  };
+
   const hasZoom = zoom !== undefined && zoom !== null;
   const hasStep = currentStep !== undefined && currentStep !== null;
 
@@ -71,7 +85,7 @@ function DiagramControls({
   const canZoomIn  = hasZoom && zoom < zoomMax - 0.001;
 
   return (
-    <div className="dc-toolbar">
+    <div className="dc-toolbar" ref={barRef}>
       {extra}
 
       {extra && (hasZoom || hasStep) && <div className="dc-divider" />}
@@ -125,7 +139,7 @@ function DiagramControls({
             <button
               type="button"
               className="dc-ctrl-btn dc-ctrl-btn--simulate"
-              onClick={onSimulate}
+              onClick={then(".dc-ctrl-btn--pause", onSimulate)}
             >
               Simulate
             </button>
@@ -143,7 +157,7 @@ function DiagramControls({
                 <button
                   type="button"
                   className="dc-ctrl-btn dc-ctrl-btn--pause"
-                  onClick={onPause}
+                  onClick={then(".dc-ctrl-btn--resume", onPause)}
                 >
                   Pause
                 </button>
@@ -151,7 +165,7 @@ function DiagramControls({
                 <button
                   type="button"
                   className="dc-ctrl-btn dc-ctrl-btn--resume"
-                  onClick={onResume}
+                  onClick={then(".dc-ctrl-btn--pause", onResume)}
                 >
                   Resume
                 </button>
@@ -167,7 +181,7 @@ function DiagramControls({
               <button
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--stop"
-                onClick={onStop}
+                onClick={then(".dc-ctrl-btn--simulate", onStop)}
               >
                 Stop
               </button>
