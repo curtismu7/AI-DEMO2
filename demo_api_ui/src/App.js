@@ -38,6 +38,7 @@ const GatewayStatsPage = lazyWithRetry(() => import("./components/GatewayStatsPa
 const PrivilegeDocsIndexPage = lazyWithRetry(() => import("./pages/PrivilegeDocsIndexPage"));
 const PrivilegeShelfPage = lazyWithRetry(() => import("./pages/PrivilegeShelfPage"));
 // Privilege Platform Update (29 Oct 2026) demos.
+const PrivilegeDemoPage = lazyWithRetry(() => import("./pages/PrivilegeDemoPage"));
 const PrivilegeIntentTriagePage = lazyWithRetry(() => import("./pages/PrivilegeIntentTriagePage"));
 const PrivilegeCodingAgentsPage = lazyWithRetry(() => import("./pages/PrivilegeCodingAgentsPage"));
 const PrivilegeSaasAccessPage = lazyWithRetry(() => import("./pages/PrivilegeSaasAccessPage"));
@@ -273,7 +274,6 @@ import PublicRoutes, {
   AgentGatewayAuthorizationLessonPageRoute,
   ExternalAgentLessonPageRoute,
   OAuthAcademyPageRoute,
-  PrivilegeDemoPageRoute,
   EnterpriseMcpDemoPageRoute,
   PingFederateIdJagExplainerPageRoute,
   PingFederateIdJagDemoPageRoute,
@@ -1618,7 +1618,9 @@ function AppWithAuth() {
                 <Route
                   path="/privilege-demo"
                   element={
-                    <PrivilegeDemoPageRoute user={user} logout={logout} />
+                    <AppShell user={user} logout={logout}>
+                      <PrivilegeDemoPage />
+                    </AppShell>
                   }
                 />
                 <Route
