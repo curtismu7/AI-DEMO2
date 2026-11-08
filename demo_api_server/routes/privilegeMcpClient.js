@@ -2860,7 +2860,12 @@ async function consoleInventory(session) {
     consoleGet(session, `/api/${envId}/v1/applications?ObjectMeta.Namespace=default`),
     consoleGet(session, `/api/${envId}/v1/pacpolicys`),
   ]);
-  const applications = (appsBody.Applications || []).map((app) => {
+  // Only MCP apps are doors. The same list also returns Remote Agent apps
+  // (Spec.AppType 'http', e.g. workeragentdemo2); offered as a door they answer
+  // POST /mcp with the backend's own 404 "Cannot POST /mcp". Every app carries
+  // every *Config block, so AppType ('mcp' / 'mcp-aggregate') is the only tell.
+  // An app with no AppType (older console build) is kept.
+  const applications = (appsBody.Applications || []).filter((app) => !app.Spec?.AppType || String(app.Spec.AppType).startsWith('mcp')).map((app) => {
     const cfg = app.Spec?.McpAppConfig || {};    // McpAppConfig, NOT MCPAppConfig
     const st = app.Status?.McpServerStatus || {};
     const guard = cfg.AIGuardConfig;

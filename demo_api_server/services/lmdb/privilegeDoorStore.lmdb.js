@@ -41,11 +41,26 @@ function _db() { return getDb(DB_NAME); }
  * persisted: only the answer survives the console token, and a lapsed policy
  * is the most common cause of a 403 that reads as misconfiguration.
  */
+// The live console names an app inside a policy rule only as
+// ObjectRef.RefID = base64("<tenant>@@@default@@@<appName>") (read 2026-11-07),
+// so the plain name never appears in the text. Decode those refs too.
+function refAppNames(json) {
+  const names = [];
+  for (const m of json.matchAll(/"RefID":"([A-Za-z0-9+/=]+)"/g)) {
+    const parts = Buffer.from(m[1], 'base64').toString('utf8').split('@@@');
+    if (parts.length === 3) names.push(parts[2]);
+  }
+  return names;
+}
+
 function policiesMentioning(policies, appName) {
   if (!appName) return [];
   return policies
     .filter((p) => {
-      try { return JSON.stringify(p.spec || {}).includes(appName); } catch { return false; }
+      try {
+        const json = JSON.stringify(p.spec || {});
+        return json.includes(appName) || refAppNames(json).includes(appName);
+      } catch { return false; }
     })
     .map((p) => p.name);
 }
