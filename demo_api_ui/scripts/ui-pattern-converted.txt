@@ -8,3 +8,4 @@
 /privilege-prompt-log
 /privilege-shelf
 /privilege-for-ai
+/privilege-ai-policies
