@@ -239,4 +239,49 @@ describe('InspectorShell', () => {
     expect(leftHandle).toHaveAttribute('aria-hidden', 'true');
     expect(leftHandle).toHaveStyle({ pointerEvents: 'none' });
   });
+
+  // KB-9: keyboard and heading structure.
+  it('takes the collapsed column out of the tab order with inert', () => {
+    const { container } = render(
+      <InspectorShell title="X" left={<button type="button">tool-row</button>} />,
+    );
+    const leftCol = container.querySelector('.inspector-shell-col-left');
+    expect(leftCol).not.toHaveAttribute('inert');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide tools' }));
+    expect(leftCol).toHaveAttribute('inert');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show tools' }));
+    expect(leftCol).not.toHaveAttribute('inert');
+  });
+
+  it('renders the title as an h1 by default and an h2 when titleLevel is 2 (embedded under the page h1)', () => {
+    const { rerender } = render(<InspectorShell title="Full" />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Full' })).toBeInTheDocument();
+
+    rerender(<InspectorShell title="Full" fullHeight={false} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Full' })).toBeInTheDocument();
+
+    rerender(<InspectorShell title="Embedded" fullHeight={false} titleLevel={2} />);
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Embedded' })).toBeInTheDocument();
+  });
+
+  it('gives the theme toggle one name and lets aria-pressed carry the state', () => {
+    render(<InspectorShell title="X" />);
+    const toggle = screen.getByRole('button', { name: 'Dark mode' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(toggle);
+    // Same accessible name after the click; only the state changed.
+    expect(screen.getByRole('button', { name: 'Dark mode' })).toBeInTheDocument();
+  });
+
+  it('does not expose the mouse-only dividers as separators', () => {
+    const { container } = render(<InspectorShell title="X" />);
+    expect(screen.queryAllByRole('separator')).toHaveLength(0);
+    container.querySelectorAll('.inspector-shell-resize-handle').forEach((h) => {
+      expect(h).not.toHaveAttribute('role');
+      expect(h).not.toHaveAttribute('aria-orientation');
+    });
+  });
 });

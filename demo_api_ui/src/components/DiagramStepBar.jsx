@@ -7,11 +7,13 @@ import "./DiagramStepBar.css";
  * useDiagramStepper. Renders nothing when the diagram has no
  * arrows to walk. Reset clears the walkthrough back to the plain diagram.
  */
-export default function DiagramStepBar({ stepper, caption, testId = "diagram-step-bar" }) {
+export default function DiagramStepBar({ stepper, caption, testId = "diagram-step-bar", label }) {
   if (!stepper || stepper.total < 1) return null;
   const { step, total, active, paused } = stepper;
   return (
-    <div className="dstep-bar" data-testid={testId}>
+    // `label` names this bar when a page carries several diagrams, so the identical Simulate / Zoom / Reset
+    // buttons are told apart by their toolbar.
+    <div className="dstep-bar" data-testid={testId} {...(label ? { role: "toolbar", "aria-label": label } : {})}>
       <DiagramControls
         currentStep={step + 1}
         totalSteps={total}
