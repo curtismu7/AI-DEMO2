@@ -359,6 +359,22 @@
   }
 }
 
+/* Phones and a collapsed side menu: the wrapped cluster above collapsed to zero width. Its overflow-y: hidden turns the
+   overflow-x: visible above into auto, `min-width: 0` let a sibling-sharing nowrap row squeeze it to nothing, and its
+   flex-end justification then pushed search and Favorites out past the left edge, where scrolling cannot reach them
+   (measured at 375px: search at x -304). Letting the row wrap, and the wrapped cluster take its content width, keeps
+   every control on screen. */
+@media (max-width: 1280px) {
+  .topnav-right {
+    flex-wrap: wrap;
+  }
+  .topnav-right-scroll {
+    flex: 1 1 auto;
+    min-width: auto;
+    overflow-y: visible;
+  }
+}
+
 .topnav-search {
   display: flex;
   align-items: center;
