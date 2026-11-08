@@ -9,6 +9,7 @@
 /demo-summary
 /privilege-pii-detection
 /privilege-demo
+/ungoverned-agent
 /privilege-intent-triage
 /privilege-prompt-log
 /privilege-pf-token
