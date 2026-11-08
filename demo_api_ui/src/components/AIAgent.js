@@ -13950,7 +13950,7 @@ export default function BankingAgent({
                   ) && (
                     <button
                       type="button"
-                      className="ba-left-auth-btn primary"
+                      className="ba-left-auth-btn ba-left-nav-btn"
                       style={{ display: "block" }}
                       onClick={() => {
                         setIsOpen(false);

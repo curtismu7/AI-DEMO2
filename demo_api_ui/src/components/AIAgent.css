@@ -7904,7 +7904,8 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
 .ba-send-btn:disabled {
   background: #aa0005 !important;
   color: #fff !important;
-  opacity: 0.6 !important;
+  /* 0.6 left the white label at 3.7:1 on a light ground; 0.75 is 5.2:1 light and 6.1:1 dark. */
+  opacity: 0.75 !important;
 }
 
 /* 7. BOTTOM DOCK — Fix clipping */
@@ -8290,4 +8291,21 @@ button.ba-action-btn:hover {
 :root[data-theme="dark"] .banking-agent-panel.ba-mode-light .ba-actions-trigger:hover,
 :root[data-theme="dark"] .banking-agent-panel.ba-mode-light .ba-actions-trigger.active {
   color: var(--th-status-info-text);
+}
+
+/* The assistant's Dashboard navigation button is a secondary, never a primary: the assistant docks inside converted
+   pages that already carry the view's one Ping Red primary (STANDALONE-RULES "one primary per view state"). Bordered
+   on the control edge, --th-* ground and ink, so it reads in both themes. Declared last so it outranks the panel's
+   per-mode .ba-left-auth-btn fills. */
+.banking-agent-panel .ba-left-auth-btn.ba-left-nav-btn {
+  background: var(--th-bg-card);
+  background-image: none;
+  color: var(--th-text);
+  border: 1px solid var(--control-border);
+  box-shadow: none;
+}
+.banking-agent-panel .ba-left-auth-btn.ba-left-nav-btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  border-color: var(--th-text);
+  color: var(--th-text);
 }

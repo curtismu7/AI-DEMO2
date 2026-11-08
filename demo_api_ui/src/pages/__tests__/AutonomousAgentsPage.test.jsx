@@ -191,4 +191,73 @@ describe('AutonomousAgentsPage (standalone UI standard)', () => {
     expect(css).not.toMatch(/rgba?\(/i);
     expect(css).not.toMatch(/font-size:\s*[0-9.]+(px|rem|em)/);
   });
+
+  it('F1: opening run A then run B shows B\'s record under B, and a late answer for A never lands there or brings its Approve', async () => {
+    let releaseA;
+    const base = api.get.getMockImplementation();
+    api.get.mockImplementation((url) => (url === `/api/autonomous-runs/${parked.runId}`
+      ? new Promise((resolve) => { releaseA = () => resolve({ data: { run: parked } }); })
+      : base(url)));
+    render(<AutonomousAgentsPage />);
+    const rowA = await screen.findByTestId('aap-run-r-parked');
+    const rowB = screen.getByTestId('aap-run-r-done');
+    fireEvent.click(within(rowA).getByRole('button', { name: /balance-sweep/ }));
+    fireEvent.click(within(rowB).getByRole('button', { name: /fraud-watch/ }));
+    await waitFor(() => expect(within(rowB).getByText('Fraud Agent')).toBeTruthy());
+    await act(async () => { releaseA(); });
+    expect(within(rowB).getByText('Fraud Agent')).toBeTruthy();
+    expect(within(rowB).queryByText('Sweep Agent')).toBeNull();
+    expect(screen.queryByTestId('aap-approve')).toBeNull();
+    expect(within(rowA).queryByText('Sweep Agent')).toBeNull();
+  });
+
+  it('F1: Approve acts on the run it is shown under', async () => {
+    render(<AutonomousAgentsPage />);
+    const rowA = await screen.findByTestId('aap-run-r-parked');
+    fireEvent.click(within(rowA).getByRole('button', { name: /balance-sweep/ }));
+    const approve = await screen.findByTestId('aap-approve');
+    expect(rowA.contains(approve)).toBe(true);
+    fireEvent.click(approve);
+    expect(api.post).toHaveBeenCalledWith('/api/autonomous-runs/r-parked/approve');
+  });
+
+  it('F1: a failed load of an earlier row does not close the row opened after it', async () => {
+    let failA;
+    const base = api.get.getMockImplementation();
+    api.get.mockImplementation((url) => (url === `/api/autonomous-runs/${parked.runId}`
+      ? new Promise((_resolve, reject) => { failA = () => reject(new Error('boom')); })
+      : base(url)));
+    render(<AutonomousAgentsPage />);
+    const rowA = await screen.findByTestId('aap-run-r-parked');
+    const rowB = screen.getByTestId('aap-run-r-done');
+    fireEvent.click(within(rowA).getByRole('button', { name: /balance-sweep/ }));
+    fireEvent.click(within(rowB).getByRole('button', { name: /fraud-watch/ }));
+    await waitFor(() => expect(within(rowB).getByText('Fraud Agent')).toBeTruthy());
+    await act(async () => { failA(); });
+    expect(within(rowB).getByText('Fraud Agent')).toBeTruthy();
+  });
+
+  it('F9: a failed flag read shows Unavailable with a Retry, and Retry reads it again', async () => {
+    let calls = 0;
+    const base = api.get.getMockImplementation();
+    api.get.mockImplementation((url) => {
+      if (url === '/api/autonomous-runs/flag') {
+        calls += 1;
+        return calls === 1 ? Promise.reject(new Error('500')) : Promise.resolve({ data: { enabled: true } });
+      }
+      return base(url);
+    });
+    const { container } = render(<AutonomousAgentsPage />);
+    const retry = await screen.findByTestId('aap-flag-retry');
+    expect(within(screen.getByTestId('aap-switch-card')).getByText('Unavailable', { selector: '.pu-chip' }).className).toContain('pu-chip--danger');
+    expect(screen.queryByText('Checking')).toBeNull();
+    expect(screen.getByTestId('aap-switch-card').textContent).toMatch(/could not read the setting/i);
+    // one primary: the Retry, not the locked switch
+    expect(primaries(container)).toEqual([retry]);
+    fireEvent.click(retry);
+    await screen.findByTestId('aap-run-fraud-watch');
+    expect(screen.queryByTestId('aap-flag-retry')).toBeNull();
+    expect(screen.getByTestId('aap-switch').textContent).toBe('Turn off');
+    expect(calls).toBe(2);
+  });
 });

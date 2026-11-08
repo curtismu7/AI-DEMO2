@@ -119,7 +119,7 @@ export default function ExternalDoorDiagramPage() {
 
         <p className="pmd-footer">
           Source:{" "}
-          <a href="https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/docs/EXTERNAL_DOOR_MCP_FLOW.md" className="pmd-link">
+          <a href="https://github.com/curtismu7/AI-DEMO2/blob/main/docs/EXTERNAL_DOOR_MCP_FLOW.md" className="pmd-link">
             docs/EXTERNAL_DOOR_MCP_FLOW.md
           </a>
           , Phase 0. The dashed line marks the OAuth AS endpoints as reaching mcp-server
@@ -185,7 +185,7 @@ export default function ExternalDoorDiagramPage() {
 
         <p className="mgof-footer">
           Source:{" "}
-          <a href="https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/docs/EXTERNAL_DOOR_MCP_FLOW.md" className="pmd-link">
+          <a href="https://github.com/curtismu7/AI-DEMO2/blob/main/docs/EXTERNAL_DOOR_MCP_FLOW.md" className="pmd-link">
             docs/EXTERNAL_DOOR_MCP_FLOW.md
           </a>
           , Phase 7b (<code>TokenResolver.resolve()</code>,{" "}

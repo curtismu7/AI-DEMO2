@@ -552,10 +552,12 @@ jobs:
         run: |
           npm --prefix demo_api_ui exec -- playwright install-deps chromium
           npm --prefix demo_api_ui exec -- playwright install chromium
-      - name: Movie reel is on screen (Playwright)
+      # The shell keyboard spec rides the same job and browser: it presses the real Tab key (skip link first,
+      # no off-screen stops, one <main>) and is mocked the same way, so it needs no stack.
+      - name: Movie reel is on screen and the shell is keyboard-reachable (Playwright)
         if: steps.reel.outputs.needed == 'true'
         working-directory: demo_api_ui
-        run: node_modules/.bin/playwright test tests/e2e/movie-reel-visible.spec.js
+        run: node_modules/.bin/playwright test tests/e2e/movie-reel-visible.spec.js tests/e2e/shell-keyboard.spec.js
         env:
           CI: 'true'
           BANKING_UI_PORT: '4173'

@@ -49,14 +49,28 @@
 /* Narrow viewports: the panel never outgrows the screen, and a floating panel (not the right-docked one) sits inside
    it even when its stored drag position or its default width came from a wider window (a 360px panel at 375px
    otherwise lost its title-bar controls off the right edge). !important beats the inline left the drag hook sets. */
+/* 100%, not 100vw: a fixed panel resolves 100% against the zoomed layout viewport, 100vw does not (under the app's text
+   zoom of 1.125 a 100vw cap let a 360px panel's right edge reach 408px in a 371px viewport; measured). */
 .dm-panel {
-  max-width: calc(100vw - 16px);
+  max-width: calc(100% - 16px);
+}
+
+/* The right-docked drawer is one window tall: its inline height is 100vh, and vh ignores the app's page zoom (same cause
+   as above), so at 1.125 the drawer ran 12.5% past the bottom of the window. Divide by --app-zoom as index.css does. */
+.dm-panel[data-placement="right"] {
+  height: calc(100vh / var(--app-zoom, 1)) !important;
 }
 
 @media (max-width: 480px) {
   .dm-panel[data-placement="center"] {
     left: 8px !important;
   }
+}
+
+/* The panel is focused (tabindex -1) when it opens so a keyboard or screen-reader user starts inside it; it is not a
+   control, so it gets no ring (its buttons and fields keep theirs). */
+.dm-panel:focus {
+  outline: none;
 }
 
 /* ── Title bar ─────────────────────────────────────────────────────────── */

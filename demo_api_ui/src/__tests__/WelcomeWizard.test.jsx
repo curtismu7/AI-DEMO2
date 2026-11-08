@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import WelcomeWizard from "../components/WelcomeWizard";
@@ -127,5 +129,66 @@ describe("WelcomeWizard", () => {
     for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole("button", { name: "Next ›" }));
     fireEvent.click(screen.getByRole("button", { name: /guided tour/i }));
     expect(tourStart).toHaveBeenCalled();
+  });
+});
+
+describe("WelcomeWizard keyboard", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("moves focus into the dialog on open and keeps Tab inside it", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <button type="button">page behind</button>
+        <WelcomeWizard open onClose={vi.fn()} />
+      </MemoryRouter>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Welcome wizard" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    for (let i = 0; i < 10; i += 1) {
+      await user.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+    for (let i = 0; i < 10; i += 1) {
+      await user.tab({ shift: true });
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+  });
+
+  it("Escape closes it and marks it seen, same as the X", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(
+      <MemoryRouter>
+        <WelcomeWizard open onClose={onClose} />
+      </MemoryRouter>,
+    );
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("demo_welcome_seen")).toBe("1");
+  });
+
+  it("returns focus to the control that opened it", async () => {
+    const user = userEvent.setup();
+    function Host() {
+      const [open, setOpen] = useState(false);
+      return (
+        <MemoryRouter>
+          <button type="button" onClick={() => setOpen(true)}>Welcome</button>
+          <WelcomeWizard open={open} onClose={() => setOpen(false)} />
+        </MemoryRouter>
+      );
+    }
+    render(<Host />);
+    const opener = screen.getByRole("button", { name: "Welcome" });
+    opener.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 });

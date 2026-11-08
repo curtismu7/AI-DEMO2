@@ -10,10 +10,11 @@
 // Auto-opens once per browser (demo_welcome_seen in localStorage); re-openable
 // from the Learning Hub and the TopNav "Welcome" button.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDemoTour } from "../context/DemoTourContext";
 import apiClient from "../services/apiClient";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import "./WelcomeWizard.css";
 
 const STORAGE_KEY = "demo_welcome_seen";
@@ -40,8 +41,6 @@ export const WelcomeWizard = ({ open, onClose }) => {
     }
   }, [open]);
 
-  if (!open) return null;
-
   const markSeen = () => {
     try {
       localStorage.setItem(STORAGE_KEY, "1");
@@ -50,6 +49,24 @@ export const WelcomeWizard = ({ open, onClose }) => {
     }
     onClose();
   };
+
+  // Keyboard: focus moves into the dialog on open, Tab stays inside it, focus returns to the opener on close, and
+  // Escape closes it (same as the X). The docked card is a non-blocking side card, so it neither traps Tab nor
+  // answers Escape.
+  const dialogRef = useRef(null);
+  useDialogFocus(dialogRef, { active: open, trap: !docked });
+  const markSeenRef = useRef(markSeen);
+  markSeenRef.current = markSeen;
+  useEffect(() => {
+    if (!open || docked) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") markSeenRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, docked]);
+
+  if (!open) return null;
 
   const finish = () => {
     markSeen();
@@ -168,7 +185,7 @@ export const WelcomeWizard = ({ open, onClose }) => {
 
   if (docked) {
     return (
-      <div className="ww-docked" role="dialog" aria-label="Welcome wizard">
+      <div className="ww-docked" role="dialog" aria-label="Welcome wizard" ref={dialogRef} tabIndex={-1}>
         <div className="ww-card ww-card-docked">
           <div className="ww-progress"><div className="ww-progress-bar" style={{ width: `${progress}%` }} /></div>
           <div className="ww-body">
@@ -203,7 +220,7 @@ export const WelcomeWizard = ({ open, onClose }) => {
   }
 
   return (
-    <div className="ww-backdrop" role="dialog" aria-modal="true" aria-label="Welcome wizard">
+    <div className="ww-backdrop" role="dialog" aria-modal="true" aria-label="Welcome wizard" ref={dialogRef} tabIndex={-1}>
       <div className="ww-card">
         <div className="ww-progress"><div className="ww-progress-bar" style={{ width: `${progress}%` }} /></div>
         <button type="button" className="ww-close" aria-label="Close welcome wizard" onClick={markSeen}>✕</button>

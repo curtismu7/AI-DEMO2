@@ -20,10 +20,12 @@
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
+/pingfederate-config
 /privilege-prompt-log
 /governance-timeline
 /demo-config
 /privilege-pf-token
+/ping-products/verify-recognize
 /autonomous-agents
 /p1-third-party-exchange
 /privilege-shelf

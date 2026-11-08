@@ -89,8 +89,8 @@ export default function PrivilegePromptLogPage() {
       <SimBanner data-testid="ppl-banner">
         <strong>SAMPLE RECORDS</strong> — the prompt records, the sealed content and the decrypted text on this
         page are sample data, and no encryption runs here: any non-empty key opens the sample. Nothing you type
-        leaves this browser. The one real call is the gateway check at the bottom: it goes through this
-        machine&apos;s BFF to the Privilege AI Gateway.
+        leaves this browser. The one live call is the gateway check at the bottom: it goes through this
+        machine&apos;s BFF to the Privilege AI Gateway, but the tool it calls returns a fictional sample record, not this log.
       </SimBanner>
       <PageHeader
         eyebrow="Ping products · Privilege · Platform Update Nov 2026 (new)"
@@ -132,7 +132,7 @@ export default function PrivilegePromptLogPage() {
                         <td data-label="Agent">{r.agent}</td>
                         <td data-label="Detected">{r.category}</td>
                         <td data-label="Decision"><DecisionChip decision={r.decision} /></td>
-                        <td data-label="Content" className="ppl-sealed-cell">{unsealedId === r.id ? 'decrypted in browser' : r.sealed}</td>
+                        <td data-label="Content" className="ppl-sealed-cell">{unsealedId === r.id ? 'sample opened' : r.sealed}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -141,12 +141,12 @@ export default function PrivilegePromptLogPage() {
               <p className="pu-note">Select a record to see its detail. Selecting another record closes any record you had open and forgets the key you typed.</p>
             </Card>
 
-            <Card title={`Record ${record.id}`} tone={isOpen ? 'ok' : undefined} data-testid="ppl-detail">
+            <Card title={`Record ${record.id}`} tone={isOpen ? 'neutral' : undefined} data-testid="ppl-detail">
               <p className="pu-status-line">
                 {isOpen
-                  ? <StatusChip tone="ok">Decrypted</StatusChip>
+                  ? <StatusChip tone="info">Sample opened</StatusChip>
                   : <StatusChip tone="neutral">Sealed</StatusChip>}
-                {isOpen ? 'Open in this browser only.' : 'Content is sealed to your public key.'}
+                {isOpen ? 'Sample text shown. No decryption ran.' : 'Content is sealed to your public key.'}
               </p>
               <KvList
                 items={[
@@ -160,7 +160,7 @@ export default function PrivilegePromptLogPage() {
               />
               {isOpen ? (
                 <div className="ppl-plaintext" data-testid="ppl-plaintext">
-                  <strong>Decrypted (in this browser only)</strong>
+                  <strong>Sample plaintext (no decryption ran)</strong>
                   <p>{SEALED_DEMO.plaintextByRecord[record.id] ?? 'Sample plaintext: the prompt and response this record sealed. In the product this came from the sealed blob, decrypted with the private key you entered, and it is never stored opened.'}</p>
                 </div>
               ) : (
@@ -195,13 +195,13 @@ export default function PrivilegePromptLogPage() {
           </div>
         </Section>
 
-        <Section id="ppl-live-h" kicker="2 · Live check" title="Read what the gateway's own log holds">
+        <Section id="ppl-live-h" kicker="2 · Live check" title="Call a tool through the gateway (sample data)">
           <Card tone="live">
-            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> Not simulated: the verdict below comes from the gateway.</p>
+            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> The allow or deny decision below comes from the gateway. The tool behind it is a fictional sample, so any record it returns is made-up data.</p>
             <PrivilegeLiveCheck
               tool="sensitive_customer_identity"
               args={{ subject: 'alice' }}
-              label="See what the gateway's own log would hold (live read)"
+              label="Call a sample tool through the gateway"
               buttonClassName="pu-btn"
               statusChip
             />

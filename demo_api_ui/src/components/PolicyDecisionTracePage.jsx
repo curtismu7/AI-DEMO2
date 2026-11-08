@@ -146,7 +146,7 @@ export default function PolicyDecisionTracePage() {
       <PageHeader
         eyebrow="Ping products · PingOne Authorize"
         title="Policy Decision Trace"
-        summary="The policy set, policies and rules behind one decision, with the path the decision took."
+        summary="The policy set, policies and rules behind one decision, with the nodes that match the statements it returned."
         actions={(
           <HeaderActions
             modalOpen={showStaleModal}
@@ -180,9 +180,9 @@ export default function PolicyDecisionTracePage() {
             </Section>
             <Section
               id="pdt-path"
-              kicker="2 · Execution path"
+              kicker="2 · Matched nodes"
               title="Policy set, policy, rule"
-              lede="Green nodes are on the path the decision took. Inactive branches are collapsed; open them to see what did not apply."
+              lede="Green nodes are matched by name to a statement the engine returned. The engine does not return the path it executed, so this is not a recorded path. Inactive branches are collapsed; open them to see what did not match."
             >
               <Card tone="neutral" title="Policy tree" data-testid="pdt-tree-card">
                 <PolicyDecisionTree policies={policies} result={result} embedded />
@@ -220,10 +220,8 @@ export default function PolicyDecisionTracePage() {
         }
       >
         <div className="dm-scroll">
-          <p>
-            You&apos;re viewing your last policy evaluation from PingOne Authorize,
-            saved {savedAtLabel}. This may not reflect the current policy
-            configuration.
+          <p data-testid="pdt-modal-text">
+            {modalSentence(historical?.result, savedAtLabel)}
           </p>
         </div>
       </DraggableModal>
@@ -249,6 +247,18 @@ function HeaderActions({ modalOpen, darkMode, onBack, onToggleDark }) {
       </button>
     </div>
   );
+}
+
+// The saved-run modal names who answered from the stored engine, the same source as the Engine row.
+function modalSentence(result, savedAtLabel) {
+  const engine = engineLabel(result?.engine);
+  const when = savedAtLabel ? `saved ${savedAtLabel}` : 'saved earlier';
+  const who = engine.real
+    ? 'from PingOne Authorize'
+    : engine.label === 'Not recorded'
+      ? '(the saved result does not say which engine produced it)'
+      : `from ${engine.label}, not from PingOne`;
+  return `You're viewing your last policy evaluation ${who}, ${when}. This may not reflect the current policy configuration.`;
 }
 
 function sentenceFor(engine) {

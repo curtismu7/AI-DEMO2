@@ -45,6 +45,9 @@ function useIsNarrow() {
  * `hideThemeToggle` when the page already has its own page-level toggle
  * covering this shell too (e.g. a tabbed page where this shell renders
  * inside only one tab) — otherwise that tab would show two.
+ *
+ * The title is the page's h1. Pass `titleLevel={2}` when the shell is one
+ * section of a page that already has its own h1.
  */
 export default function InspectorShell({
   title,
@@ -57,6 +60,7 @@ export default function InspectorShell({
   middle,
   right,
   hideThemeToggle = false,
+  titleLevel = 1,
 }) {
   // Widths moved from one combined JSON key to per-column keys when the drag
   // logic converged on useDividerDrag — a stored pre-migration width resets
@@ -76,6 +80,17 @@ export default function InspectorShell({
   const [leftCollapsed, setLeftCollapsed] = useState(loadLeftCollapsed);
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const isNarrow = useIsNarrow();
+  // The dividers are mouse-drag only, so they are not exposed as separators: a role=separator
+  // that cannot take focus or answer the arrow keys is a control a keyboard user is told about
+  // and cannot use.
+  const dragOnly = (props) => {
+    const rest = { ...props };
+    delete rest.role;
+    delete rest['aria-orientation'];
+    return rest;
+  };
+  // A shell embedded under its page's own h1 passes titleLevel={2}; a second h1 breaks the heading outline.
+  const TitleTag = titleLevel === 2 ? 'h2' : 'h1';
 
   const toggleLeftCollapsed = useCallback(() => {
     setLeftCollapsed((prev) => {
@@ -99,7 +114,7 @@ export default function InspectorShell({
               : 'inspector-shell-topbar__dot inspector-shell-topbar__dot--off'
           }
         />
-        <h1>{title}</h1>
+        <TitleTag>{title}</TitleTag>
         {left != null && (
           <button
             type="button"
@@ -122,7 +137,8 @@ export default function InspectorShell({
               title="Switch this page between light and dark"
               aria-pressed={darkMode}
             >
-              {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+              {/* One name for the control; aria-pressed carries the state (a name that flipped with it read as inverted). */}
+              <span aria-hidden="true">{darkMode ? '☀️' : '🌙'}</span> Dark mode
             </button>
           )}
         </div>
@@ -154,24 +170,24 @@ export default function InspectorShell({
               : 'inspector-shell-col-left'
           }
           aria-hidden={leftCollapsed || undefined}
+          // Clipped to 0px, not removed: inert keeps the collapsed rows out of the tab order.
+          inert={leftCollapsed || undefined}
         >
           {left}
         </div>
         {!isNarrow && (
           <div
             className="inspector-shell-resize-handle"
-            aria-label="Resize tool list column"
             aria-hidden={leftCollapsed || undefined}
             style={leftCollapsed ? { pointerEvents: 'none' } : undefined}
-            {...leftHandleProps}
+            {...dragOnly(leftHandleProps)}
           />
         )}
         <div className="inspector-shell-col-middle">{middle}</div>
         {!isNarrow && (
           <div
             className="inspector-shell-resize-handle"
-            aria-label="Resize form column"
-            {...middleHandleProps}
+            {...dragOnly(middleHandleProps)}
           />
         )}
         <div className="inspector-shell-col-right">{right}</div>
