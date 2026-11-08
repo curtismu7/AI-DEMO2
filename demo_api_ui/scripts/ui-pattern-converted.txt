@@ -6,6 +6,7 @@
 /privilege-map
 /demo-track
 /privilege-coding-agents
+/delegated-commerce
 /demo-summary
 /privilege-pii-detection
 /agent-lifecycle
