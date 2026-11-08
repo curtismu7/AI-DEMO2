@@ -88,6 +88,61 @@ describe("McpObservabilityPage", () => {
     expect(user.setup).toBe(false);
   });
 
+  it("puts the live-data banner first and carries exactly one primary button", async () => {
+    const { container } = render(<McpObservabilityPage />);
+    await screen.findAllByText("transfer_funds");
+
+    const banner = screen.getByTestId("mcp-obs-banner");
+    expect(banner.getAttribute("role")).toBe("note");
+    expect(banner.textContent).toMatch(/LIVE DATA/);
+    expect(banner.textContent).toMatch(/calls nothing/);
+    // The banner is the first thing in the page, above the title band.
+    expect(container.querySelector(".pu-page").firstElementChild.contains(banner)).toBe(true);
+    // The page owns exactly one primary: Refresh. (The diagram's Simulate is the shared DiagramStepBar's.)
+    const primaries = [...container.querySelectorAll(".pu-btn--primary")];
+    expect(primaries).toHaveLength(1);
+    expect(primaries[0].textContent).toBe("Refresh");
+  });
+
+  it("gives every outcome a word and makes each request a real button with a state", async () => {
+    render(<McpObservabilityPage />);
+    await screen.findAllByText("transfer_funds");
+
+    const rows = screen.getAllByRole("button", { name: /(transfer_funds|approve_transfer)/ });
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText("Success")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Denied")).toBeInTheDocument();
+    // The first request is opened by default; choosing the other moves aria-current.
+    expect(rows[0].getAttribute("aria-current")).toBe("true");
+    fireEvent.click(rows[1]);
+    expect(rows[1].getAttribute("aria-current")).toBe("true");
+    expect(rows[0].getAttribute("aria-current")).toBeNull();
+    // The chart is a described image, not bars alone.
+    expect(screen.getByRole("img", { name: /1 success, 0 failure, 1 denied/ })).toBeInTheDocument();
+  });
+
+  it("keeps Refresh mounted and says what it did, without moving focus", async () => {
+    render(<McpObservabilityPage />);
+    await screen.findAllByText("transfer_funds");
+
+    const refresh = screen.getByRole("button", { name: "Refresh" });
+    refresh.focus();
+    fireEvent.click(refresh);
+    expect(await screen.findByText(/Refreshed at .*: 2 audit events loaded\./)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBe(refresh);
+    expect(document.activeElement).toBe(refresh);
+  });
+
+  it("says so when the audit read fails, and never shows a live chip", async () => {
+    apiClient.get.mockImplementation((url) => (url.startsWith("/api/mcp/audit?limit") ? Promise.reject(new Error("down")) : Promise.resolve({ data: {} })));
+    render(<McpObservabilityPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/MCP audit data is unavailable/);
+    expect(screen.getByText("Audit unavailable")).toBeInTheDocument();
+    expect(screen.queryByText(/^Live ·/)).toBeNull();
+    expect(screen.getByText("No MCP requests yet.")).toBeInTheDocument();
+  });
+
   it("draws where the data comes from in the Ping style with Simulate and Reset", async () => {
     render(<McpObservabilityPage />);
 

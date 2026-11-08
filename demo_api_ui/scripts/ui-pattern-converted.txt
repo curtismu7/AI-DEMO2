@@ -7,6 +7,7 @@
 /privilege-pii-detection
 /privilege-demo
 /privilege-intent-triage
+/mcp-observability
 /privilege-prompt-log
 /privilege-pf-token
 /privilege-shelf
