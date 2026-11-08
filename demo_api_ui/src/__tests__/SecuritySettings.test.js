@@ -44,13 +44,14 @@ async function ready() {
 }
 
 describe('SecuritySettings on the Ping UI Standard', () => {
-  it('puts a role=note banner first, then the page title, and says the page is live', async () => {
+  it('puts a role=note banner first, then the page title, and says the settings are live', async () => {
     const { container } = await ready();
     const page = container.querySelector('.pu-page');
     expect(page.firstElementChild).toHaveClass('pu-banner-wrap');
     const banner = screen.getByTestId('sset-banner');
     expect(banner).toHaveAttribute('role', 'note');
-    expect(banner).toHaveTextContent(/nothing on this page is simulated/i);
+    expect(banner).toHaveTextContent(/live settings/i);
+    expect(banner).not.toHaveTextContent(/nothing on this page is simulated/i);
     expect(banner).toHaveTextContent(/server.s memory/i);
     expect(screen.getByRole('heading', { level: 1, name: 'Security Settings' })).toBeInTheDocument();
   });
@@ -171,12 +172,74 @@ describe('SecuritySettings on the Ping UI Standard', () => {
     expect(screen.queryByText(/push approval/i)).not.toBeInTheDocument();
   });
 
-  it('draws the Authorize status and the auth gate rows from the server status, with a word on every chip', async () => {
-    const { container } = await ready();
-    expect(screen.getAllByText('Active').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/mode: simulated, policy: pol-1/)).toBeInTheDocument();
-    container.querySelectorAll('.pu-chip').forEach((chip) => {
-      expect(chip.textContent.trim().length).toBeGreaterThan(0);
+  const loadWith = (authorizeStatus) =>
+    apiClient.get.mockResolvedValue({ data: { settings: SETTINGS, history: HISTORY, authorizeStatus } });
+  const statusRow = () => screen.getByTestId('sset-field-authorizeEnabled');
+  const gateRow = () => screen.getByText('PingOne Authorize gate').nextElementSibling;
+  const chipsIn = (el) => [...el.querySelectorAll('.pu-chip')];
+
+  describe('Authorize engine wording follows activeEngine', () => {
+    it('simulated: a neutral-info "Simulated engine" chip, never green Active, banner says the engine is simulated', async () => {
+      await ready();
+      const chip = chipsIn(statusRow())[0];
+      expect(chip).toHaveTextContent('Simulated engine');
+      expect(chip).toHaveClass('pu-chip--info');
+      expect(chip).not.toHaveClass('pu-chip--ok');
+      expect(screen.queryByText('Active')).not.toBeInTheDocument();
+      expect(statusRow()).toHaveTextContent(/settings are real, the decision engine is simulated/i);
+      const gate = chipsIn(gateRow())[0];
+      expect(gate).toHaveTextContent('Simulated engine');
+      expect(gateRow()).toHaveTextContent(/policy: pol-1/);
+      const banner = screen.getByTestId('sset-banner');
+      expect(banner).toHaveTextContent(/settings are real, but the Authorize decision engine is simulated/i);
+      expect(banner).not.toHaveTextContent(/nothing on this page is simulated/i);
+    });
+
+    it('pingone: the only case that gets the green Active chip', async () => {
+      loadWith({ authorizeEnabledConfig: true, activeEngine: 'pingone' });
+      await ready();
+      const chip = chipsIn(statusRow())[0];
+      expect(chip).toHaveTextContent('Active');
+      expect(chip).toHaveClass('pu-chip--ok');
+      expect(chipsIn(gateRow())[0]).toHaveClass('pu-chip--ok');
+      expect(screen.getByTestId('sset-banner')).toHaveTextContent(/decisions come from PingOne/i);
+      expect(screen.getByTestId('sset-banner')).not.toHaveTextContent(/simulated/i);
+    });
+
+    it('pending_config: an amber "Not configured yet" chip, never Active, and not the raw engine key', async () => {
+      loadWith({ authorizeEnabledConfig: true, activeEngine: 'pending_config' });
+      const { container } = await ready();
+      const chip = chipsIn(statusRow())[0];
+      expect(chip).toHaveTextContent('Not configured yet');
+      expect(chip).toHaveClass('pu-chip--warn');
+      expect(screen.queryByText('Active')).not.toBeInTheDocument();
+      expect(chipsIn(gateRow())[0]).toHaveClass('pu-chip--warn');
+      expect(container).not.toHaveTextContent('pending_config');
+      expect(screen.getByTestId('sset-banner')).toHaveTextContent(/no decision endpoint or policy yet/i);
+    });
+
+    it('off (authorizeEnabledConfig false): amber Inactive', async () => {
+      loadWith({ authorizeEnabledConfig: false, activeEngine: 'off' });
+      await ready();
+      expect(chipsIn(statusRow())[0]).toHaveTextContent('Inactive');
+      expect(chipsIn(statusRow())[0]).toHaveClass('pu-chip--warn');
+      expect(screen.queryByText('Active')).not.toBeInTheDocument();
+      expect(screen.getByTestId('sset-banner')).toHaveTextContent(/Authorize is off/i);
+    });
+
+    it('an engine key the page does not know: neutral, no green, raw key not shown', async () => {
+      loadWith({ authorizeEnabledConfig: true, activeEngine: 'quantum' });
+      const { container } = await ready();
+      expect(chipsIn(statusRow())[0]).toHaveClass('pu-chip--neutral');
+      expect(screen.queryByText('Active')).not.toBeInTheDocument();
+      expect(container).not.toHaveTextContent('quantum');
+    });
+
+    it('every chip carries a word', async () => {
+      const { container } = await ready();
+      container.querySelectorAll('.pu-chip').forEach((chip) => {
+        expect(chip.textContent.trim().length).toBeGreaterThan(0);
+      });
     });
   });
 
@@ -185,6 +248,7 @@ describe('SecuritySettings on the Ping UI Standard', () => {
     await ready();
     expect(screen.queryByText('Active')).not.toBeInTheDocument();
     expect(screen.getAllByText('Status unavailable').length).toBe(2);
+    expect(screen.getByTestId('sset-banner')).toHaveTextContent(/did not report which/i);
   });
 
   it('renders history as a focusable region with removed and added values, and tolerates a missing previous', async () => {
@@ -229,6 +293,44 @@ describe('SecuritySettings on the Ping UI Standard', () => {
       await waitFor(() => expect(document.activeElement).toBe(form));
       expect(primaries()).toHaveLength(1);
       expect(primaries()[0]).toHaveTextContent('Save Changes');
+    });
+
+    it('a second failed Try again changes the alert text and re-mounts it, so it is announced again', async () => {
+      apiClient.get.mockRejectedValueOnce(new Error('down')).mockRejectedValueOnce(new Error('down')).mockRejectedValueOnce(new Error('down'));
+      render(<SecuritySettings />);
+      const first = await screen.findByTestId('sset-load-error');
+      const firstText = first.textContent;
+      expect(firstText).not.toMatch(/attempt/i);
+      const retry = screen.getByRole('button', { name: 'Try again' });
+      retry.focus();
+
+      fireEvent.click(retry);
+      await waitFor(() => expect(screen.getByTestId('sset-load-error').textContent).toMatch(/attempt 2/i));
+      const second = screen.getByTestId('sset-load-error');
+      expect(second.textContent).not.toBe(firstText);
+      expect(second).not.toBe(first); // a fresh role=alert node
+      expect(second).toHaveAttribute('role', 'alert');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      await waitFor(() => expect(screen.getByTestId('sset-load-error').textContent).toMatch(/attempt 3/i));
+      expect(screen.getByTestId('sset-load-error').textContent).not.toBe(second.textContent);
+    });
+
+    it('after a failed retry focus stays on Try again, and a later success still moves focus to the form', async () => {
+      apiClient.get.mockRejectedValueOnce(new Error('down')).mockRejectedValueOnce(new Error('down'));
+      render(<SecuritySettings />);
+      const retry = await screen.findByRole('button', { name: 'Try again' });
+      retry.focus();
+      fireEvent.click(retry);
+      await waitFor(() => expect(screen.getByTestId('sset-load-error').textContent).toMatch(/attempt 2/i));
+      const again = screen.getByRole('button', { name: 'Try again' });
+      expect(document.activeElement).toBe(again);
+      expect(primaries()).toHaveLength(1);
+
+      fireEvent.click(again);
+      await screen.findByText('Step-up MFA Enabled');
+      const form = screen.getByRole('region', { name: 'Security settings form' });
+      await waitFor(() => expect(document.activeElement).toBe(form));
     });
   });
 });

@@ -127,6 +127,60 @@ const RELATED = [
 const errorText = (err, fallback) =>
   err?.response?.data?.error_description || err?.response?.data?.error || fallback;
 
+// What the server's authorizeStatus means for a person. activeEngine is the server's own key
+// (transactionAuthorizationService.getAuthorizationStatusSummary): 'off' | 'simulated' | 'pingone' | 'pending_config'.
+// Only a real PingOne engine gets the green chip; the raw key is never shown. The page's own settings are always
+// real, so the banner says that and then says which engine decides.
+//   tone/chip  the status chip; detail  the words after it; banner  the engine sentence for the page banner.
+function engineView(status) {
+  if (!status) {
+    return {
+      tone: 'neutral',
+      chip: 'Status unavailable',
+      detail: '',
+      banner: 'The server did not report which PingOne Authorize engine is in use.',
+    };
+  }
+  if (!status.authorizeEnabledConfig) {
+    return {
+      tone: 'warn',
+      chip: 'Inactive',
+      detail: '',
+      banner: 'PingOne Authorize is off, so no Authorize engine is deciding.',
+    };
+  }
+  switch (status.activeEngine) {
+    case 'simulated':
+      return {
+        tone: 'info',
+        chip: 'Simulated engine',
+        detail: 'the settings are real, the decision engine is simulated',
+        banner: 'The settings are real, but the Authorize decision engine is simulated: decisions are not coming from PingOne.',
+      };
+    case 'pingone':
+      return {
+        tone: 'ok',
+        chip: 'Active',
+        detail: 'decisions come from PingOne',
+        banner: 'Authorize decisions come from PingOne.',
+      };
+    case 'pending_config':
+      return {
+        tone: 'warn',
+        chip: 'Not configured yet',
+        detail: 'PingOne Authorize is on but has no decision endpoint or policy yet',
+        banner: 'PingOne Authorize is on but has no decision endpoint or policy yet, so it is not deciding anything.',
+      };
+    default:
+      return {
+        tone: 'neutral',
+        chip: 'Status unavailable',
+        detail: 'the server reported an engine this page does not know',
+        banner: 'The server reported an Authorize engine this page does not know.',
+      };
+  }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 const SecuritySettings = () => {
@@ -143,7 +197,9 @@ const SecuritySettings = () => {
   const [authorizeStatus, setAuthorizeStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
+  // Last failed load: { text, count, at }. count is how many loads in a row have failed; it changes the alert text
+  // (and re-mounts the alert) so a screen reader announces every failed "Try again", not just the first.
+  const [loadFailure, setLoadFailure] = useState(null);
   const [retrying, setRetrying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -167,9 +223,15 @@ const SecuritySettings = () => {
       setAuthorizeStatus(res.data.authorizeStatus || null);
       setHistory(res.data.history || []);
       setDirty(false);
-      setLoadError(null);
+      setLoadFailure(null);
     } catch (err) {
-      setLoadError(errorText(err, 'Failed to load settings.'));
+      // A failed retry must not leave the "move focus to the form" request armed: focus stays on Try again.
+      focusFormNext.current = false;
+      setLoadFailure((prev) => ({
+        text: errorText(err, 'Failed to load settings.'),
+        count: (prev?.count || 0) + 1,
+        at: new Date(),
+      }));
     } finally {
       setLoading(false);
       setRetrying(false);
@@ -233,6 +295,8 @@ const SecuritySettings = () => {
     setStatus(null);
   };
 
+  const engine = engineView(authorizeStatus);
+
   const renderField = (key) => {
     const meta = FIELD_META[key];
     // 'status' rows are read-only server-computed values — they are
@@ -257,18 +321,8 @@ const SecuritySettings = () => {
 
         {meta.type === 'status' && (
           <p className="pu-status-line">
-            {authorizeStatus ? (
-              authorizeStatus.authorizeEnabledConfig ? (
-                <>
-                  <StatusChip tone="ok">Active</StatusChip>
-                  <span>mode: {authorizeStatus.activeEngine}</span>
-                </>
-              ) : (
-                <StatusChip tone="warn">Inactive</StatusChip>
-              )
-            ) : (
-              <StatusChip tone="neutral">Status unavailable</StatusChip>
-            )}
+            <StatusChip tone={engine.tone}>{engine.chip}</StatusChip>
+            {engine.detail ? <span>{engine.detail}</span> : null}
           </p>
         )}
 
@@ -353,16 +407,13 @@ const SecuritySettings = () => {
     },
     {
       label: 'PingOne Authorize gate',
-      value: authorizeStatus ? (
-        authorizeStatus.authorizeEnabledConfig ? (
-          <>
-            <StatusChip tone="ok">Active</StatusChip> mode: {authorizeStatus.activeEngine}, policy: {settings.authorizePolicyId || 'not set'}
-          </>
-        ) : (
-          <StatusChip tone="warn">Inactive</StatusChip>
-        )
-      ) : (
-        <StatusChip tone="neutral">Status unavailable</StatusChip>
+      value: (
+        <>
+          <StatusChip tone={engine.tone}>{engine.chip}</StatusChip>
+          {authorizeStatus?.authorizeEnabledConfig
+            ? ` ${engine.detail}; policy: ${settings.authorizePolicyId || 'not set'}`
+            : null}
+        </>
       ),
     },
     {
@@ -382,10 +433,10 @@ const SecuritySettings = () => {
   return (
     <PingPage className="sset-page">
       <SimBanner data-testid="sset-banner">
-        <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. Save Changes writes to the running API
-        server and applies to every session on it at once, no restart needed. The values are held in the server&rsquo;s
-        memory (the history too), so a restart can reset them. The PingOne Authorize status is only displayed here: the
-        server works it out from the engine now in use.
+        <strong>LIVE SETTINGS</strong> — Save Changes writes to the running API server and applies to every session on
+        it at once, no restart needed. The values are held in the server&rsquo;s memory (the history too), so a restart
+        can reset them. {engine.banner} The PingOne Authorize status is only displayed here: the server works it out
+        from the engine now in use.
       </SimBanner>
       <PageHeader
         eyebrow="Admin · Security"
@@ -464,10 +515,15 @@ const SecuritySettings = () => {
                         )}
                       </>
                     ) : (
-                      <div role="alert" data-testid="sset-load-error">
+                      <div role="alert" data-testid="sset-load-error" key={loadFailure?.count}>
                         <p className="pu-status-line">
                           <StatusChip tone="danger">Error</StatusChip>
-                          <span>{loadError}</span>
+                          <span>
+                            {loadFailure?.text}
+                            {loadFailure?.count > 1
+                              ? ` (still failing: attempt ${loadFailure.count} at ${loadFailure.at.toLocaleTimeString()})`
+                              : ''}
+                          </span>
                         </p>
                         <p className="pu-note">
                           Settings could not be read from the server, so nothing here can be edited yet.
