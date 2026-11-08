@@ -1,30 +1,33 @@
 /* ============================================================
-   AuditPage.css — MCP Audit Trail floating window
+   AuditPage.css — MCP Audit Trail floating window / pop-out page.
 
-   The --color-* family used throughout (--color-surface, --color-border,
-   --color-header-bg, --color-text-primary/-secondary) are real aliases onto
-   --th-* (see index.css) and already track the theme correctly. The bug was
-   everywhere ELSE: status badges, the error banner, group-check text, and
-   the token-chain row/detail highlight were all literal hex (#dcfce7,
-   #fef2f2, #12538d, ...) that never varied with the toggle. Converted those
-   to --th-status-*; .audit-json (the JSON preview) stays deliberately
-   always-dark, matching the JsonHighlight component's dark-only syntax
-   theme elsewhere in the app. This page had no dark/light toggle at all —
-   added one to both the floating and popout title bars.
+   Banner, frame, cards, chips and buttons come from the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). This file keeps only what is specific to the page:
+   the draggable window shell, the table, and the expanded JSON / token-chain rows. Surfaces, lines and ink are
+   --th-* tokens, so light and dark need no second block. .audit-json (the JSON preview) stays deliberately
+   always-dark, matching the JsonHighlight component's dark-only syntax theme elsewhere in the app.
    ============================================================ */
 
 /* ── Floating window shell ── */
 .audit-float-window {
   position: fixed;
   z-index: 9000;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #cdd1d4);
-  border-radius: 10px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-xl);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* No min/max — constrained by JS */
+  /* Width and height are set by JS (drag/resize); never wider or taller than the screen. The root's text-zoom
+     (--app-zoom) scales layout px, but vw/vh are not zoom-aware, so divide it back out. */
+  max-width: calc(100vw / var(--app-zoom, 1));
+  max-height: calc(100vh / var(--app-zoom, 1));
+}
+
+/* Focus is moved here when the dialog opens; it is a container, not a control. */
+.audit-float-window:focus {
+  outline: none;
 }
 
 /* ── Title bar (drag handle) ── */
@@ -32,9 +35,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 10px 14px 10px 16px;
-  background: var(--color-header-bg, #eff0f1);
-  border-bottom: 1px solid var(--color-border, #cdd1d4);
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border-strong);
   cursor: grab;
   user-select: none;
   flex-shrink: 0;
@@ -45,9 +49,9 @@
 }
 
 .audit-float-title {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--color-text-primary, #1a1a2e);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-md);
+  color: var(--th-text);
 }
 
 .audit-float-titlebar-actions {
@@ -56,100 +60,55 @@
   gap: 6px;
 }
 
-.audit-float-btn {
-  background: none;
+/* Secondary icon controls in the window chrome. Never the vertical colour, never a second primary. */
+.audit-float-btn,
+.audit-float-close {
+  min-width: 32px;
+  min-height: 32px;
+  background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--btn-radius);
-  color: var(--color-text-secondary, var(--th-text));
-  font-size: 1rem;
+  border-radius: var(--radius-md);
+  color: var(--th-text);
+  font-size: var(--font-size-md);
+  line-height: 1;
   cursor: pointer;
-  padding: 2px 7px;
-  line-height: 1.4;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.audit-float-btn:hover:not(:disabled) {
-  background: var(--color-primary, #12538d);
-  color: var(--th-text-invert);
-}
-
-.audit-float-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .audit-float-close {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  color: var(--color-text-secondary, var(--th-text));
-  font-size: 1.3rem;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0 6px 2px;
-  transition:
-    background 0.12s,
-    color 0.12s;
+  font-size: var(--font-size-xl);
 }
 
+.audit-float-btn:hover,
 .audit-float-close:hover {
-  background: #aa0005;
-  color: var(--th-text-invert);
+  background: var(--th-bg-hover);
+  border-color: var(--control-border);
 }
 
-/* ── Auto-refresh cadence control + last-refreshed stamp ── */
-.audit-refresh-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--color-text-secondary, var(--th-text));
-  cursor: pointer;
-}
-
-.audit-refresh-control__icon {
-  font-size: 0.9rem;
-  opacity: 0.7;
-}
-
-.audit-refresh-select {
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #cdd1d4);
-  border-radius: 5px;
-  color: var(--color-text-secondary, var(--th-text));
-  font-size: 0.8rem;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.audit-last-updated {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary, var(--th-text));
-  font-variant-numeric: tabular-nums;
-  opacity: 0.75;
-  margin-right: 2px;
-}
-
-body.admin-skin-p1 .audit-refresh-control,
-body.admin-skin-p1 .audit-last-updated {
-  /* The skinned title bar is --th-bg-inset (light or dark), so the ink follows the theme. */
-  color: var(--th-text-body);
-}
-
-body.admin-skin-p1 .audit-refresh-select {
-  /* Was a white-on-translucent-white select built for the old dark title bar. */
-  background: var(--th-bg-card);
-  border-color: var(--th-border-strong);
-  color: var(--th-text);
+.audit-float-btn:focus-visible,
+.audit-float-close:focus-visible,
+.audit-view-tab:focus-visible,
+.audit-details-toggle:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 /* ── Scrollable content ── */
-.audit-float-content {
+.audit-float-content,
+.audit-popout-content {
   flex: 1;
+  background: var(--th-bg-page);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px;
+  min-height: 0;
+}
+
+/* The shared page ground is a full-viewport page; here it fills the window instead. */
+.pu-page.audit-pu {
+  min-height: 0;
+}
+
+.audit-pu .pu-kicker {
+  margin-top: 14px;
 }
 
 /* ── Resize handles (8-directional) ── */
@@ -158,110 +117,108 @@ body.admin-skin-p1 .audit-refresh-select {
   z-index: 10;
 }
 
-/* Corners — 12×12 */
-.audit-resize-nw {
-  top: -5px;
-  left: -5px;
-  width: 12px;
-  height: 12px;
-  cursor: nw-resize;
-}
-.audit-resize-ne {
-  top: -5px;
-  right: -5px;
-  width: 12px;
-  height: 12px;
-  cursor: ne-resize;
-}
-.audit-resize-se {
-  bottom: -5px;
-  right: -5px;
-  width: 12px;
-  height: 12px;
-  cursor: se-resize;
-}
-.audit-resize-sw {
-  bottom: -5px;
-  left: -5px;
-  width: 12px;
-  height: 12px;
-  cursor: sw-resize;
-}
+.audit-resize-nw { top: -5px; left: -5px; width: 12px; height: 12px; cursor: nw-resize; }
+.audit-resize-ne { top: -5px; right: -5px; width: 12px; height: 12px; cursor: ne-resize; }
+.audit-resize-se { bottom: -5px; right: -5px; width: 12px; height: 12px; cursor: se-resize; }
+.audit-resize-sw { bottom: -5px; left: -5px; width: 12px; height: 12px; cursor: sw-resize; }
+.audit-resize-n { top: -4px; left: 12px; right: 12px; height: 8px; cursor: n-resize; }
+.audit-resize-s { bottom: -4px; left: 12px; right: 12px; height: 8px; cursor: s-resize; }
+.audit-resize-e { top: 12px; bottom: 12px; right: -4px; width: 8px; cursor: e-resize; }
+.audit-resize-w { top: 12px; bottom: 12px; left: -4px; width: 8px; cursor: w-resize; }
 
-/* Edges */
-.audit-resize-n {
-  top: -4px;
-  left: 12px;
-  right: 12px;
-  height: 8px;
-  cursor: n-resize;
-}
-.audit-resize-s {
-  bottom: -4px;
-  left: 12px;
-  right: 12px;
-  height: 8px;
-  cursor: s-resize;
-}
-.audit-resize-e {
-  top: 12px;
-  bottom: 12px;
-  right: -4px;
-  width: 8px;
-  cursor: e-resize;
-}
-.audit-resize-w {
-  top: 12px;
-  bottom: 12px;
-  left: -4px;
-  width: 8px;
-  cursor: w-resize;
-}
-
-/* ── Summary stats bar ── */
-.audit-page__summary {
+/* ── View switch (Events / Compliance Report) ── */
+.audit-view-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 4px;
+  margin: 12px 0 0;
+  border-bottom: 1px solid var(--th-border-strong);
 }
 
-.audit-stat {
-  background: var(--color-surface, #f7f8f8);
-  border: 1px solid var(--color-border, #e0e2e4);
-  border-radius: var(--radius-lg);
-  padding: 10px 16px;
+.audit-view-tab {
+  min-height: 36px;
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  color: var(--th-text-body);
+  font-family: inherit;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.audit-view-tab:hover {
+  color: var(--th-text);
+}
+
+.audit-view-tab[aria-pressed='true'] {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border-color: var(--th-border-strong);
+}
+
+/* ── Toolbar: Refresh (the one primary), cadence, stamp, exports ── */
+.audit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0 12px;
+}
+
+.audit-refresh-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.audit-pu .audit-refresh-select,
+.audit-pu .audit-filter-select {
+  width: auto;
+  min-width: 0;
+  max-width: min(100%, 22rem);
+}
+
+.audit-last-updated {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Summary stat cards (shared .pu-card, compact) ── */
+.audit-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.pu-card.audit-stat {
+  margin: 0;
+  padding: 10px 12px;
   text-align: center;
-  min-width: 80px;
 }
 
 .audit-stat__value {
   display: block;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--color-text-primary, #1a1a2e);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+  overflow-wrap: anywhere;
 }
 
 .audit-stat__label {
   display: block;
-  font-size: 0.7rem;
-  color: var(--color-text-secondary, var(--th-text));
+  margin-top: 2px;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-body);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-top: 2px;
-}
-
-.audit-stat--success {
-  border-color: #22c55e;
-}
-.audit-stat--failure {
-  border-color: #d20e0f;
-}
-.audit-stat--partial {
-  border-color: #f59e0b;
-}
-.audit-stat--type {
-  border-color: var(--th-text-muted);
+  overflow-wrap: break-word;
 }
 
 /* ── Filters row ── */
@@ -269,23 +226,8 @@ body.admin-skin-p1 .audit-refresh-select {
   display: flex;
   gap: 8px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
-}
-
-.audit-filter-select {
-  padding: 6px 10px;
-  border: 1px solid var(--color-border, #e0e2e4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface, #fff);
-  font-size: 0.875rem;
-  color: var(--color-text-primary, #1a1a2e);
-  cursor: pointer;
-}
-
-.audit-filter-select:focus {
-  outline: 2px solid var(--color-primary, #12538d);
-  outline-offset: 2px;
 }
 
 /* ── Error ── */
@@ -296,10 +238,16 @@ body.admin-skin-p1 .audit-refresh-select {
   padding: 12px 16px;
   color: var(--th-status-error-text);
   margin-bottom: 14px;
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
 
-/* ── Table ── */
+/* ── Table (inside a neutral .pu-card) ── */
+.pu-card.audit-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
 .audit-page__table-wrap {
   overflow-x: auto;
 }
@@ -307,158 +255,88 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
-  background: var(--color-surface, #fff);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  border: 1px solid var(--color-border, #e0e2e4);
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
 }
 
 .audit-table thead {
-  background: var(--color-header-bg, #eff0f1);
+  background: var(--th-bg-inset);
 }
 
 .audit-table th {
   text-align: left;
-  padding: 9px 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary, var(--th-text));
+  padding: 9px 10px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--th-text-body);
   text-transform: uppercase;
-  font-size: 0.72rem;
+  font-size: var(--font-size-2xs);
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
 .audit-table td {
-  padding: 9px 12px;
-  border-top: 1px solid var(--color-border, #e0e2e4);
+  padding: 9px 10px;
+  border-top: 1px solid var(--th-border-strong);
   vertical-align: top;
+  color: var(--th-text);
 }
 
 .audit-table__empty {
   text-align: center;
-  color: var(--color-text-secondary, var(--th-text));
+  color: var(--th-text-body);
   padding: 28px !important;
 }
 
-/* Row outcome coloring */
+/* Row outcome edge (the chip carries the word) */
 .audit-row--failure td:first-child {
-  border-left: 3px solid #d20e0f;
+  border-left: 3px solid var(--th-status-error);
 }
 .audit-row--partial td:first-child {
-  border-left: 3px solid #f59e0b;
+  border-left: 3px solid var(--th-status-warning);
 }
 .audit-row--success td:first-child {
-  border-left: 3px solid #22c55e;
+  border-left: 3px solid var(--th-status-success);
+}
+
+.audit-row--clickable {
+  cursor: pointer;
 }
 
 .audit-cell--time {
   white-space: nowrap;
-  color: var(--color-text-secondary, var(--th-text));
-  font-size: 0.78rem;
+  color: var(--th-text-body);
 }
 
-.audit-cell--user {
-  font-family: inherit;
-  font-size: 0.78rem;
-  color: var(--color-text-secondary, var(--th-text));
+.audit-table td.audit-cell--user {
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--th-text-body);
 }
 
 .audit-cell--details {
   min-width: 70px;
 }
 
-/* ── Badges ── */
-.audit-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: var(--radius-pill);
-  font-size: 0.72rem;
-  font-weight: 500;
+.audit-cell--duration {
   white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.audit-badge--type {
-  background: var(--th-bg-inset);
+/* A second line under a cell value (scopes, "from outcome") */
+.audit-cell-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-body);
 }
 
-.audit-badge--outcome--success {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-}
-.audit-badge--outcome--failure {
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-}
-.audit-badge--outcome--partial {
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-}
-
-/* Scenario 4 — unauthorized-tool (insufficient scope) alert */
-.audit-badge--alert {
+.audit-alert {
   margin-left: 8px;
-  background: #7f1d1d;
-  color: #fee2e2;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
-/* Scenario 5 — Compliance Report tab + table */
-.audit-view-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--th-border);
-}
-.audit-view-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  padding: 8px 16px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--th-text-muted);
-  cursor: pointer;
-}
-.audit-view-tab.active {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border-color: var(--th-border);
-}
-.audit-export-btn {
-  background: #1f6feb;
-  color: var(--th-text-invert);
-  border: none;
-  border-radius: var(--btn-radius);
-  padding: 7px 14px;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.audit-export-btn:hover { background: #1a5fd0; }
-.audit-badge--status--permit {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-  border-radius: var(--radius-pill); padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
-}
-.audit-badge--status--deny {
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-  border-radius: var(--radius-pill); padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
-}
-.audit-badge--status--stepup {
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-  border-radius: var(--radius-pill); padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
-}
-.audit-group--pass { color: var(--th-status-success-text); font-weight: 700; }
-.audit-group--fail { color: var(--th-status-error-text); font-weight: 700; }
 .audit-row--alert td:first-child {
   border-left: 3px solid var(--th-status-error);
 }
@@ -467,33 +345,22 @@ body.admin-skin-p1 .audit-refresh-select {
   color: var(--th-text);
 }
 
-/* ── Details pre ── */
-.audit-details-pre {
-  margin: 6px 0 0;
-  font-size: 0.75rem;
-  background: var(--color-header-bg, #eff0f1);
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  overflow-x: auto;
-  max-width: 320px;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
 /* ── Details toggle + full-width JSON detail row ── */
 .audit-details-toggle {
-  border: 1px solid var(--color-border, #cdd1d4);
-  background: var(--color-surface, #fff);
-  color: var(--color-text-primary, #1a1a2e);
+  min-height: 28px;
+  border: 1px solid var(--control-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: var(--radius-sm);
   padding: 2px 8px;
-  font-size: 0.78rem;
+  font-family: inherit;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .audit-details-toggle:hover {
-  background: var(--color-header-bg, #eff0f1);
+  background: var(--th-bg-hover);
 }
 
 tr.audit-detail-row > td {
@@ -507,7 +374,7 @@ tr.audit-detail-row > td {
   width: 100%;
   box-sizing: border-box;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   background: #1e2433;
   color: #ffffff;
@@ -517,67 +384,55 @@ tr.audit-detail-row > td {
   white-space: pre;
 }
 
-/* ── Popout page mode (standalone OS window) ── */
+.audit-details-pre {
+  margin: 6px 0 0;
+  font-size: var(--font-size-2xs);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  overflow-x: auto;
+  max-width: 320px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Pop-out page mode (standalone OS window) ── */
 .audit-popout-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--color-surface, #fff);
+  background: var(--th-bg-card);
 }
 
 .audit-popout-titlebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 10px 16px;
-  background: var(--color-header-bg, #eff0f1);
-  border-bottom: 1px solid var(--color-border, #cdd1d4);
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border-strong);
   flex-shrink: 0;
-}
-
-.audit-popout-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.audit-cell--duration {
-  white-space: nowrap;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.85em;
-  color: var(--text-muted, var(--th-text));
 }
 
 /* ── Token chain row styles ── */
 tr.token-chain-row {
   background-color: var(--th-status-info-bg);
-  border-left: 4px solid var(--th-status-info);
   color: var(--th-text);
+}
+
+tr.token-chain-row td:first-child {
+  border-left: 4px solid var(--th-status-info);
 }
 
 tr.token-chain-row:hover {
-  background-color: color-mix(in srgb, var(--th-status-info-bg) 80%, var(--th-status-info) 20%);
-  color: var(--th-text);
+  background-color: var(--th-bg-hover);
 }
 
 .token-chain-row .tool-name {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--th-status-info-text);
-}
-
-.token-chain-row .scopes {
-  font-size: 0.85em;
-  color: var(--th-text-muted);
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.token-chain-row .exchanged-token {
-  font-family: inherit;
-  font-size: 0.85em;
 }
 
 .token-chain-row .no-exchange {
@@ -587,7 +442,7 @@ tr.token-chain-row:hover {
 
 tr.token-chain-detail-row td {
   padding: 12px;
-  background-color: var(--th-bg-inset);
+  background-color: var(--th-bg-card);
   color: var(--th-text);
   border: none;
 }
@@ -599,188 +454,125 @@ tr.token-chain-detail-row td {
   background-color: var(--th-bg-card);
   border-radius: var(--radius-sm);
   padding: 12px;
-  border: 1px solid var(--th-border);
+  border: 1px solid var(--th-border-strong);
+}
+
+.token-detail .token-section {
+  min-width: 0;
 }
 
 .token-detail .token-section h4 {
   margin: 0 0 8px 0;
-  font-size: 0.9em;
+  font-size: var(--font-size-sm);
   color: var(--th-status-info-text);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--th-border);
+  border-bottom: 1px solid var(--th-border-strong);
   padding-bottom: 4px;
 }
 
+/* Values that never break (ids, 100-character strings) wrap inside their cell instead of widening the page. */
+.audit-pu .audit-table td {
+  overflow-wrap: anywhere;
+}
+
+.audit-pu .audit-stat__value {
+  overflow-wrap: break-word;
+}
+
+/* Scope and ACR values (banking:read, Multi_factor) keep their word whole, so a 100-character value in another
+   column is the one that wraps. */
+.audit-pu .audit-table td.audit-cell--token {
+  overflow-wrap: normal;
+}
+
+/* ── Phone width: the table stacks into labelled rows (same pattern as .psa-table) ── */
 @media (max-width: 768px) {
   .token-detail {
     grid-template-columns: 1fr;
   }
 }
 
-/* ============================================================================
-   Ping2026 admin skin — MCP Audit Trail window.
-   Scoped under body.admin-skin-p1 (toggled by useAdminSkin from
-   ff_admin_skin_ping2026). With the flag off these rules are inert and the
-   classic styling above renders untouched. Palette mirrors
-   adminSkinPing2026.css: white surfaces, #e4e5e9 borders, #12538d accent,
-   #d20e0f / #d20e0f reds, 6px radii.
-   ========================================================================= */
+@media (max-width: 600px) {
+  .audit-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
 
-/* ── Window shell + title bars ──────────────────────────────────────────── */
-body.admin-skin-p1 .audit-float-window {
-  background: var(--th-bg-card);
-  border: 1px solid #e4e5e9;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 56px rgba(35, 36, 42, 0.22);
-}
-body.admin-skin-p1 .audit-float-titlebar,
-body.admin-skin-p1 .audit-popout-titlebar {
-  background: var(--th-bg-inset);
-  border-bottom: 1px solid #e4e5e9;
-}
-body.admin-skin-p1 .audit-float-title {
-  color: var(--th-text);
-}
-body.admin-skin-p1 .audit-float-btn {
-  color: var(--th-text-body);
-  border-radius: var(--radius-md);
-}
-body.admin-skin-p1 .audit-float-btn:hover:not(:disabled) {
-  background: #12538d;
-  color: var(--th-text-invert);
-}
-body.admin-skin-p1 .audit-float-close {
-  color: var(--th-text-body);
-  border-radius: var(--radius-md);
-}
-body.admin-skin-p1 .audit-float-close:hover {
-  background: #aa0005;
-  color: var(--th-text-invert);
-}
+  .audit-table,
+  .audit-table tbody,
+  .audit-table tr,
+  .audit-table td {
+    display: block;
+    width: 100%;
+  }
 
-/* Standalone pop-out OS window: white page shell so the (already-skinned)
-   title bar + refresh button sit on a console-matching surface. */
-body.admin-skin-p1 .audit-popout-page {
-  background: var(--th-bg-card);
-}
+  .audit-table tr {
+    padding: 6px 0;
+    border-top: 1px solid var(--th-border-strong);
+  }
 
-/* ── Summary stat cards ─────────────────────────────────────────────────── */
-body.admin-skin-p1 .audit-stat {
-  background: var(--th-bg-inset);
-  border: 1px solid #e4e5e9;
-  border-radius: var(--radius-md);
-}
-body.admin-skin-p1 .audit-stat__value {
-  color: var(--th-text);
-}
-body.admin-skin-p1 .audit-stat__label {
-  color: var(--th-text-body);
-}
+  .audit-table td {
+    padding: 2px 12px;
+    border-top: 0;
+    text-align: left;
+    max-width: none;
+  }
 
-/* ── Filters + inputs ───────────────────────────────────────────────────── */
-body.admin-skin-p1 .audit-filter-select {
-  background: var(--th-bg-card);
-  border: 1px solid #e4e5e9;
-  border-radius: var(--radius-md);
-  color: var(--th-text);
-}
-body.admin-skin-p1 .audit-filter-select:focus {
-  outline-color: #12538d;
-}
+  .audit-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 
-/* ── View tabs (Events / Compliance Report) ─────────────────────────────── */
-body.admin-skin-p1 .audit-view-tabs {
-  border-bottom-color: #e4e5e9;
-}
-body.admin-skin-p1 .audit-view-tab {
-  color: var(--th-text-body);
-  border-radius: 6px 6px 0 0;
-}
-body.admin-skin-p1 .audit-view-tab:hover {
-  color: var(--th-text);
-}
-body.admin-skin-p1 .audit-view-tab.active {
-  background: var(--th-bg-card);
-  color: var(--th-status-info-text);
-  border-color: #e4e5e9;
-}
+  .audit-table td {
+    overflow-wrap: anywhere;
+  }
 
-/* ── Export buttons ─────────────────────────────────────────────────────── */
-body.admin-skin-p1 .audit-export-btn {
-  background: #12538d;
-  border-radius: var(--radius-md);
-}
-body.admin-skin-p1 .audit-export-btn:hover {
-  background: #1f57b8;
-}
+  .audit-pu .audit-table td.audit-cell--token {
+    overflow-wrap: anywhere;
+  }
 
-/* ── Table ──────────────────────────────────────────────────────────────── */
-body.admin-skin-p1 .audit-table {
-  background: var(--th-bg-card);
-  border: 1px solid #e4e5e9;
-  border-radius: var(--radius-md);
-}
-body.admin-skin-p1 .audit-table thead {
-  background: var(--th-bg-inset);
-}
-body.admin-skin-p1 .audit-table th {
-  color: var(--th-text-body);
-}
-body.admin-skin-p1 .audit-table td {
-  border-top-color: #eceef1;
-}
-body.admin-skin-p1 .audit-table__empty,
-body.admin-skin-p1 .audit-cell--time,
-body.admin-skin-p1 .audit-cell--user {
-  color: var(--th-text-body);
-}
+  .audit-table td.audit-cell--user {
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
 
-/* ── Detail toggle + expanded rows ──────────────────────────────────────── */
-body.admin-skin-p1 .audit-details-toggle {
-  background: var(--th-bg-card);
-  border: 1px solid #e4e5e9;
-  border-radius: var(--radius-md);
-  color: var(--th-text);
-}
-body.admin-skin-p1 .audit-details-toggle:hover {
-  background: var(--th-bg-inset);
-}
-body.admin-skin-p1 tr.audit-detail-row > td {
-  background: var(--th-bg-card);
-}
-body.admin-skin-p1 .audit-details-pre {
-  background: var(--th-bg-inset);
-}
+  .audit-table td.audit-cell--duration {
+    text-align: left;
+  }
 
-/* ── Badges + token-chain rows ──────────────────────────────────────────── */
-/* Realign the neutral type badge and the delegation (token-chain) highlight
-   to the console accent (#12538d). Semantic outcome/status badges keep their
-   green/red/amber meaning. */
-body.admin-skin-p1 .audit-badge--type {
-  background: #eef0f3;
-  color: #4b4c55;
-}
-body.admin-skin-p1 tr.token-chain-row {
-  background-color: var(--th-status-info-bg);
-  border-left-color: #12538d;
-}
-body.admin-skin-p1 tr.token-chain-row:hover {
-  background-color: var(--th-bg-hover);
-}
-body.admin-skin-p1 .token-chain-row .tool-name,
-body.admin-skin-p1 .token-detail .token-section h4 {
-  color: var(--th-status-info-text);
-}
-/* Expanded token-chain detail sub-panel (visible when a token_chain row is
-   opened) — console surfaces + accent header rule. */
-body.admin-skin-p1 tr.token-chain-detail-row td {
-  background-color: var(--th-bg-card);
-}
-body.admin-skin-p1 .token-detail {
-  background-color: var(--th-bg-card);
-  border-color: #e4e5e9;
-}
-body.admin-skin-p1 .token-detail .token-section h4 {
-  border-bottom-color: #e4e5e9;
-}
+  /* The outcome edge moves from each row's first cell to the whole stacked row. */
+  .audit-row--failure td:first-child,
+  .audit-row--partial td:first-child,
+  .audit-row--success td:first-child,
+  .audit-row--alert td:first-child,
+  tr.token-chain-row td:first-child {
+    border-left: 0;
+  }
 
+  .audit-row--failure { border-left: 3px solid var(--th-status-error); }
+  .audit-row--partial { border-left: 3px solid var(--th-status-warning); }
+  .audit-row--success { border-left: 3px solid var(--th-status-success); }
+  .audit-row--alert { border-left: 3px solid var(--th-status-error); }
+  tr.token-chain-row { border-left: 4px solid var(--th-status-info); }
+
+  .audit-alert {
+    display: block;
+    margin: 4px 0 0;
+    white-space: normal;
+  }
+
+  .audit-float-titlebar,
+  .audit-popout-titlebar {
+    padding: 8px 10px;
+  }
+}

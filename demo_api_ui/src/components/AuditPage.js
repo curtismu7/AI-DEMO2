@@ -4,6 +4,7 @@ import JsonHighlight from './shared/JsonHighlight';
 import { useThemeOptional } from '../context/ThemeContext';
 import './AuditPage.css';
 import InlineSpinner from './shared/InlineSpinner';
+import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip } from './pingUi';
 
 const EVENT_TYPES = ['', 'tool_call', 'banking_operation', 'authentication', 'authorization', 'session_management', 'token_chain'];
 const OUTCOMES = ['', 'success', 'failure', 'partial'];
@@ -46,15 +47,17 @@ function projectComplianceRow(ev) {
     group,
     groupPass,
     acr: d.acr || '—',
+    // true when the gateway recorded no explicit decision and the status is inferred from the outcome
+    derived: !d.decision,
     delegated: !!(ev.agentId || d.exchangedToken),
     denyReason: d.deny_reason || null,
     raw: ev,
   };
 }
 function toCsv(rows) {
-  const head = ['Time', 'User', 'Action', 'Status', 'Scope', 'Group check', 'ACR', 'Delegated', 'Reason'];
+  const head = ['Time', 'User', 'Action', 'Status', 'Status source', 'Scope', 'Group check', 'ACR', 'Delegated', 'Reason'];
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lines = rows.map((r) => [r.time, r.user, r.action, r.status, r.scope,
+  const lines = rows.map((r) => [r.time, r.user, r.action, r.status, r.derived ? 'outcome' : 'decision', r.scope,
     r.groupPass === null ? '' : (r.groupPass ? `pass (${r.group})` : `fail (${r.group})`),
     r.acr, r.delegated ? 'yes' : 'no', r.denyReason || ''].map(esc).join(','));
   return [head.map(esc).join(','), ...lines].join('\n');
@@ -72,6 +75,10 @@ const MIN_W = 420;
 const MIN_H = 300;
 const DEFAULT_W = 1200;
 const DEFAULT_H = 620;
+// Tall enough to show the summary, filters and the first rows without scrolling, but never taller than the screen.
+function initialHeight() {
+  return Math.max(DEFAULT_H, Math.min(820, window.innerHeight - 64));
+}
 
 // Auto-refresh cadence options. 0 = off. Default is a quiet 5 minutes so the
 // window doesn't hammer the gateway when left open; dial it down for a live demo.
@@ -136,12 +143,25 @@ export default function AuditPage({ onClose } = {}) {
   // Floating window position + size — centred on first render (not used in popout mode)
   const [pos, setPos] = useState(() => ({
     x: Math.max(0, (window.innerWidth - DEFAULT_W) / 2),
-    y: Math.max(0, (window.innerHeight - DEFAULT_H) / 2),
+    y: Math.max(0, (window.innerHeight - initialHeight()) / 2),
   }));
-  const [size, setSize] = useState({ w: DEFAULT_W, h: DEFAULT_H });
+  const [size, setSize] = useState(() => ({ w: DEFAULT_W, h: initialHeight() }));
 
   const dragRef = useRef(null);
   const resizeRef = useRef(null);
+  const windowRef = useRef(null);
+
+  // The floating window is a modal dialog: move focus into it when it opens and hand it back on close.
+  useEffect(() => {
+    if (isPopout) return undefined;
+    const opener = document.activeElement;
+    windowRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (opener && opener !== document.body && document.contains(opener) && typeof opener.focus === 'function') {
+        opener.focus({ preventScroll: true });
+      }
+    };
+  }, [isPopout]);
 
   useEffect(() => {
     if (isPopout) {
@@ -253,194 +273,21 @@ export default function AuditPage({ onClose } = {}) {
     return new Date(ts).toLocaleString();
   }
 
-  const eventsContent = (
-    <>
-      {summary && (
-        <div className="audit-page__summary">
-          <div className="audit-stat">
-            <span className="audit-stat__value">{summary.totalEvents ?? 0}</span>
-            <span className="audit-stat__label">Total Events</span>
-          </div>
-          {Object.entries(summary.byOutcome ?? {}).map(([k, v]) => (
-            <div key={k} className={`audit-stat audit-stat--${k}`}>
-              <span className="audit-stat__value">{v}</span>
-              <span className="audit-stat__label">{k}</span>
-            </div>
-          ))}
-          {Object.entries(summary.byEventType ?? {}).map(([k, v]) => (
-            <div key={k} className="audit-stat audit-stat--type">
-              <span className="audit-stat__value">{v}</span>
-              <span className="audit-stat__label">{k}</span>
-            </div>
-          ))}
-        </div>
+  // P2: the banner comes first in the file and in the window. It says what is real on THIS page:
+  // every row is an event the gateway recorded; the page itself simulates nothing.
+  const banner = (
+    <SimBanner data-testid="audit-banner">
+      <strong>Real gateway data, nothing simulated on this page.</strong> Every row is an event the MCP gateway
+      recorded in its durable audit store; calls made by demo agents and mock tools are recorded the same way.
+      Admins see every caller&apos;s events, anyone else sees only their own.
+      {view === 'compliance' && (
+        <>
+          {' '}
+          Status is the decision the gateway recorded. Where it recorded none, the status is derived from the call
+          outcome (success is Permit, failure is Deny, partial is Step-up) and marked <em>from outcome</em>.
+        </>
       )}
-      <div className="audit-page__filters">
-        <select value={filterEventType} onChange={e => setFilterEventType(e.target.value)} className="audit-filter-select" aria-label="Filter by event type">
-          <option value="">All event types</option>
-          {EVENT_TYPES.filter(Boolean).map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select value={filterOutcome} onChange={e => setFilterOutcome(e.target.value)} className="audit-filter-select" aria-label="Filter by outcome">
-          <option value="">All outcomes</option>
-          {OUTCOMES.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-        <select
-          value={filterAgentId}
-          onChange={e => setFilterAgentId(e.target.value)}
-          className="audit-filter-select"
-          aria-label="Filter by agent ID"
-          disabled={agentIdOptions.length === 0}
-        >
-          <option value="">{agentIdOptions.length ? 'All agents' : 'No agents yet'}</option>
-          {agentIdOptions.map((id) => <option key={id} value={id}>{id}</option>)}
-        </select>
-        <select
-          value={filterOperation}
-          onChange={e => setFilterOperation(e.target.value)}
-          className="audit-filter-select"
-          aria-label="Filter by tool or operation"
-          disabled={operationOptions.length === 0}
-        >
-          <option value="">{operationOptions.length ? 'All tools / operations' : 'No tools yet'}</option>
-          {operationOptions.map((op) => <option key={op} value={op}>{op}</option>)}
-        </select>
-      </div>
-      {error && (
-        <div className="audit-page__error">
-          Failed to load audit log: {error}
-          {(error.includes('401') || error.includes('403')) ? ' — admin access required.' : ''}
-        </div>
-      )}
-      {!error && (
-        <div className="audit-page__table-wrap">
-          <table className="audit-table">
-            <thead>
-              <tr>
-                <th>Time</th><th>Event Type</th><th>Agent ID</th><th>User ID</th><th>Tool / Operation</th><th>Outcome</th><th>Duration</th><th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={8} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
-              {!loading && events.length === 0 && <tr><td colSpan={8} className="audit-table__empty">No audit events found.</td></tr>}
-              {!loading && events.map((ev, i) => {
-                // Special rendering for token_chain events
-                if (ev.eventType === 'token_chain') {
-                  const detail = ev.details || {};
-                  const userToken = detail.userToken || {};
-                  const exchangedToken = detail.exchangedToken;
-                  const result = detail.result || {};
-                  const isExpanded = expandedEventId === (ev.eventId ?? i);
-                  return (
-                    <React.Fragment key={ev.eventId ?? i}>
-                      <tr
-                        className={`audit-row audit-row--${ev.outcome} token-chain-row`}
-                        onClick={() => setExpandedEventId(isExpanded ? null : (ev.eventId ?? i))}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <td className="audit-cell--time">{formatTime(ev.timestamp)}</td>
-                        <td className="tool-name">{detail.toolName || '—'}</td>
-                        <td className="audit-cell--user" title={userToken.sub}>{userToken.sub ? userToken.sub.substring(0, 20) : '—'}</td>
-                        <td className="scopes">{(userToken.scope || []).join(', ') || 'none'}</td>
-                        <td className="exchanged-token">
-                          {exchangedToken ? (
-                            <span title={`Sub: ${exchangedToken.sub || ''}\nScopes: ${(exchangedToken.scope || []).join(', ')}`}>
-                              {(exchangedToken.sub || '').substring(0, 15)}{exchangedToken.act ? ' (delegated)' : ''}
-                            </span>
-                          ) : (
-                            <span className="no-exchange">Direct</span>
-                          )}
-                        </td>
-                        <td><span className={`audit-badge audit-badge--outcome audit-badge--outcome--${result.success ? 'success' : 'failure'}`}>{result.success ? '✓ Success' : '❌ Failed'}</span></td>
-                        <td className="audit-cell--duration">{result.duration != null ? `${result.duration}ms` : '—'}</td>
-                        <td className="audit-cell--details">{isExpanded ? '▾' : '▸'}</td>
-                      </tr>
-                      {isExpanded && (
-                        <tr className="token-chain-detail-row">
-                          <td colSpan={8}>
-                            <div className="token-detail">
-                              <div className="token-section">
-                                <h4>User Token</h4>
-                                <pre className="audit-details-pre"><JsonHighlight value={userToken} /></pre>
-                              </div>
-                              {exchangedToken && (
-                                <div className="token-section">
-                                  <h4>Exchanged Token (Delegation)</h4>
-                                  <pre className="audit-details-pre"><JsonHighlight value={exchangedToken} /></pre>
-                                </div>
-                              )}
-                              <div className="token-section">
-                                <h4>Execution</h4>
-                                <pre className="audit-details-pre"><JsonHighlight value={result} /></pre>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                }
-
-                // Default rendering for other event types
-                // Scenario 4 — an insufficient-scope denial is flagged as an
-                // "unauthorized tool attempt" alert (details.alert from the gateway audit).
-                const isScopeAlert = ev?.details?.alert === true && ev?.details?.reason === 'insufficient_scope';
-                const rowKey = ev.eventId ?? i;
-                const detailObj = (ev.details || ev.scope || ev.requestSummary) ? {
-                  ...(ev.scope ? { scope: ev.scope } : {}),
-                  ...(ev.tokenType ? { tokenType: ev.tokenType } : {}),
-                  ...(ev.requestSummary ? { requestSummary: ev.requestSummary } : {}),
-                  ...(ev.responseSummary ? { responseSummary: ev.responseSummary } : {}),
-                  ...(ev.details ?? {}),
-                } : null;
-                const isExpanded = expandedEventId === rowKey;
-                return (
-                  <React.Fragment key={rowKey}>
-                  <tr className={`audit-row audit-row--${ev.outcome}${isScopeAlert ? ' audit-row--alert' : ''}`}>
-                    <td className="audit-cell--time">{formatTime(ev.timestamp)}</td>
-                    <td><span className="audit-badge audit-badge--type">{ev.eventType}</span></td>
-                    <td className="audit-cell--user" title={ev.agentId ?? ''}>{ev.agentId ? ev.agentId.slice(0, 16) + (ev.agentId.length > 16 ? '…' : '') : '—'}</td>
-                    <td className="audit-cell--user">{ev.userId ?? '—'}</td>
-                    <td>
-                      {ev.operation ?? ev.resourceType ?? '—'}
-                      {isScopeAlert && (
-                        <span
-                          className="audit-badge audit-badge--alert"
-                          title={`Agent attempted unauthorized tool — required [${(ev.details.requiredScopes || []).join(', ')}], had [${(ev.details.availableScopes || []).join(', ') || 'none'}]`}
-                        >
-                          ALERT · unauthorized tool
-                        </span>
-                      )}
-                    </td>
-                    <td><span className={`audit-badge audit-badge--outcome audit-badge--outcome--${ev.outcome}`}>{ev.outcome}</span></td>
-                    <td className="audit-cell--duration">{ev.duration != null ? `${ev.duration}ms` : '—'}</td>
-                    <td className="audit-cell--details">
-                      {detailObj ? (
-                        <button
-                          type="button"
-                          className="audit-details-toggle"
-                          aria-expanded={isExpanded}
-                          onClick={() => setExpandedEventId(isExpanded ? null : rowKey)}
-                        >
-                          {isExpanded ? '▾ hide' : '▸ show'}
-                        </button>
-                      ) : '—'}
-                    </td>
-                  </tr>
-                  {detailObj && isExpanded && (
-                    <tr className="audit-detail-row">
-                      <td colSpan={8}>
-                        <pre className="audit-json jh-dark"><JsonHighlight value={detailObj} /></pre>
-                      </td>
-                    </tr>
-                  )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </>
+    </SimBanner>
   );
 
   // ── Scenario 5: Compliance Report (formal PERMIT/DENY · Scope · Group · ACR) ──
@@ -466,82 +313,314 @@ export default function AuditPage({ onClose } = {}) {
     }
   };
 
+  // P9: ONE primary in every view state, and it is Refresh: the only control that fetches data. The exports
+  // (Compliance view) and the title-bar icons are secondaries. aria-disabled, not disabled, so keyboard focus
+  // stays on the button while a refresh runs.
+  const toolbar = (
+    <div className="audit-toolbar">
+      <button
+        type="button"
+        className="pu-btn pu-btn--primary"
+        aria-disabled={loading || undefined}
+        aria-label="Refresh audit log now"
+        onClick={() => { if (!loading) fetchEvents(); }}
+      >
+        {loading ? 'Refreshing…' : 'Refresh'}
+      </button>
+      <label className="audit-refresh-control" title="Auto-refresh interval: dial down for a live demo">
+        <span>Auto-refresh</span>
+        <select
+          className="pu-select audit-refresh-select"
+          value={refreshMs}
+          onChange={(e) => onChangeRefresh(Number(e.target.value))}
+          aria-label="Auto-refresh interval"
+        >
+          {REFRESH_OPTIONS.map((o) => (
+            <option key={o.ms} value={o.ms}>{o.ms === 0 ? 'Off' : `Every ${o.label}`}</option>
+          ))}
+        </select>
+      </label>
+      {lastUpdated ? (
+        <span className="audit-last-updated" title="Last refreshed">
+          Updated {new Date(lastUpdated).toLocaleTimeString()}
+        </span>
+      ) : null}
+      {view === 'compliance' && (
+        <>
+          <button type="button" className="pu-btn" onClick={() => exportCompliance('csv')}>Export CSV</button>
+          <button type="button" className="pu-btn" onClick={() => exportCompliance('json')}>Export JSON</button>
+        </>
+      )}
+    </div>
+  );
+
+  const errorNote = error ? (
+    <div className="audit-page__error" role="alert">
+      <StatusChip tone="danger">Error</StatusChip>{' '}
+      Failed to load audit log: {error}
+      {view === 'events' && (error.includes('401') || error.includes('403')) ? ' — admin access required.' : ''}
+    </div>
+  ) : null;
+
+  const eventsContent = (
+    <>
+      {summary && (
+        <Section id="audit-summary" kicker="1 · Totals" title="What the gateway recorded">
+          <div className="audit-stats">
+            <Stat value={summary.totalEvents ?? 0} label="Total events" />
+            {Object.entries(summary.byOutcome ?? {}).map(([k, v]) => (
+              <Stat key={`o-${k}`} value={v} label={k} tone={OUTCOME_TONE[k] || 'neutral'} />
+            ))}
+            {Object.entries(summary.byEventType ?? {}).map(([k, v]) => (
+              <Stat key={`t-${k}`} value={v} label={k} tone="neutral" />
+            ))}
+          </div>
+        </Section>
+      )}
+      <Section id="audit-log" kicker={summary ? '2 · Log' : '1 · Log'} title="Events">
+        {toolbar}
+        <div className="audit-page__filters">
+          <select value={filterEventType} onChange={e => setFilterEventType(e.target.value)} className="pu-select audit-filter-select" aria-label="Filter by event type">
+            <option value="">All event types</option>
+            {EVENT_TYPES.filter(Boolean).map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={filterOutcome} onChange={e => setFilterOutcome(e.target.value)} className="pu-select audit-filter-select" aria-label="Filter by outcome">
+            <option value="">All outcomes</option>
+            {OUTCOMES.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select
+            value={filterAgentId}
+            onChange={e => setFilterAgentId(e.target.value)}
+            className="pu-select audit-filter-select"
+            aria-label="Filter by agent ID"
+            disabled={agentIdOptions.length === 0}
+          >
+            <option value="">{agentIdOptions.length ? 'All agents' : 'No agents yet'}</option>
+            {agentIdOptions.map((id) => <option key={id} value={id}>{id}</option>)}
+          </select>
+          <select
+            value={filterOperation}
+            onChange={e => setFilterOperation(e.target.value)}
+            className="pu-select audit-filter-select"
+            aria-label="Filter by tool or operation"
+            disabled={operationOptions.length === 0}
+          >
+            <option value="">{operationOptions.length ? 'All tools / operations' : 'No tools yet'}</option>
+            {operationOptions.map((op) => <option key={op} value={op}>{op}</option>)}
+          </select>
+        </div>
+        {errorNote}
+        {!error && (
+          <Card tone="neutral" className="audit-table-card">
+            <div className="audit-page__table-wrap">
+              <table className="audit-table">
+                <thead>
+                  <tr>
+                    <th>Time</th><th>Event Type</th><th>Agent ID</th><th>User ID</th><th>Tool / Operation</th><th>Outcome</th><th>Duration</th><th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading && <tr><td colSpan={8} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
+                  {!loading && events.length === 0 && <tr><td colSpan={8} className="audit-table__empty">No audit events found.</td></tr>}
+                  {!loading && events.map((ev, i) => {
+                    const rowKey = ev.eventId ?? i;
+                    const isExpanded = expandedEventId === rowKey;
+                    const toggle = () => setExpandedEventId(isExpanded ? null : rowKey);
+                    // Special rendering for token_chain events
+                    if (ev.eventType === 'token_chain') {
+                      const detail = ev.details || {};
+                      const userToken = detail.userToken || {};
+                      const exchangedToken = detail.exchangedToken;
+                      const result = detail.result || {};
+                      const scopes = (userToken.scope || []).join(', ') || 'none';
+                      return (
+                        <React.Fragment key={rowKey}>
+                          {/* The whole row is a mouse target; the Details button is the keyboard control. */}
+                          <tr
+                            className={`audit-row audit-row--${ev.outcome} token-chain-row audit-row--clickable`}
+                            onClick={toggle}
+                          >
+                            <td data-label="Time" className="audit-cell--time">{formatTime(ev.timestamp)}</td>
+                            <td data-label="Event type"><StatusChip tone="info">token_chain</StatusChip></td>
+                            <td data-label="Agent ID" className="audit-cell--user" title={exchangedToken?.sub || ''}>
+                              {exchangedToken
+                                ? <>{(exchangedToken.sub || '').substring(0, 15)}{exchangedToken.act ? ' (delegated)' : ''}</>
+                                : <span className="no-exchange">Direct</span>}
+                            </td>
+                            <td data-label="User ID" className="audit-cell--user" title={userToken.sub}>{userToken.sub ? userToken.sub.substring(0, 20) : '—'}</td>
+                            <td data-label="Tool / operation">
+                              <span className="tool-name">{detail.toolName || '—'}</span>
+                              <span className="audit-cell-sub">scopes: {scopes}</span>
+                            </td>
+                            <td data-label="Outcome"><OutcomeChip outcome={result.success ? 'success' : 'failure'} /></td>
+                            <td data-label="Duration" className="audit-cell--duration">{result.duration != null ? `${result.duration}ms` : '—'}</td>
+                            <td data-label="Details" className="audit-cell--details">
+                              <button
+                                type="button"
+                                className="audit-details-toggle"
+                                aria-expanded={isExpanded}
+                                aria-label={`${isExpanded ? 'Hide' : 'Show'} token details: ${detail.toolName || 'token chain'}`}
+                                onClick={(e) => { e.stopPropagation(); toggle(); }}
+                              >
+                                {isExpanded ? '▾ hide' : '▸ show'}
+                              </button>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="token-chain-detail-row">
+                              <td colSpan={8}>
+                                <div className="token-detail">
+                                  <div className="token-section">
+                                    <h4>User Token</h4>
+                                    <pre className="audit-details-pre"><JsonHighlight value={userToken} /></pre>
+                                  </div>
+                                  {exchangedToken && (
+                                    <div className="token-section">
+                                      <h4>Exchanged Token (Delegation)</h4>
+                                      <pre className="audit-details-pre"><JsonHighlight value={exchangedToken} /></pre>
+                                    </div>
+                                  )}
+                                  <div className="token-section">
+                                    <h4>Execution</h4>
+                                    <pre className="audit-details-pre"><JsonHighlight value={result} /></pre>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    }
+
+                    // Default rendering for other event types
+                    // Scenario 4 — an insufficient-scope denial is flagged as an
+                    // "unauthorized tool attempt" alert (details.alert from the gateway audit).
+                    const isScopeAlert = ev?.details?.alert === true && ev?.details?.reason === 'insufficient_scope';
+                    const detailObj = (ev.details || ev.scope || ev.requestSummary) ? {
+                      ...(ev.scope ? { scope: ev.scope } : {}),
+                      ...(ev.tokenType ? { tokenType: ev.tokenType } : {}),
+                      ...(ev.requestSummary ? { requestSummary: ev.requestSummary } : {}),
+                      ...(ev.responseSummary ? { responseSummary: ev.responseSummary } : {}),
+                      ...(ev.details ?? {}),
+                    } : null;
+                    const opName = ev.operation ?? ev.resourceType ?? '—';
+                    return (
+                      <React.Fragment key={rowKey}>
+                      <tr className={`audit-row audit-row--${ev.outcome}${isScopeAlert ? ' audit-row--alert' : ''}`}>
+                        <td data-label="Time" className="audit-cell--time">{formatTime(ev.timestamp)}</td>
+                        <td data-label="Event type"><StatusChip>{ev.eventType || 'unknown'}</StatusChip></td>
+                        <td data-label="Agent ID" className="audit-cell--user" title={ev.agentId ?? ''}>{ev.agentId ? ev.agentId.slice(0, 16) + (ev.agentId.length > 16 ? '…' : '') : '—'}</td>
+                        <td data-label="User ID" className="audit-cell--user">{ev.userId ?? '—'}</td>
+                        <td data-label="Tool / operation">
+                          {opName}
+                          {isScopeAlert && (
+                            <span
+                              className="audit-alert"
+                              title={`Agent attempted unauthorized tool — required [${(ev.details.requiredScopes || []).join(', ')}], had [${(ev.details.availableScopes || []).join(', ') || 'none'}]`}
+                            >
+                              <StatusChip tone="danger">Alert · unauthorized tool</StatusChip>
+                            </span>
+                          )}
+                        </td>
+                        <td data-label="Outcome"><OutcomeChip outcome={ev.outcome} /></td>
+                        <td data-label="Duration" className="audit-cell--duration">{ev.duration != null ? `${ev.duration}ms` : '—'}</td>
+                        <td data-label="Details" className="audit-cell--details">
+                          {detailObj ? (
+                            <button
+                              type="button"
+                              className="audit-details-toggle"
+                              aria-expanded={isExpanded}
+                              aria-label={`${isExpanded ? 'Hide' : 'Show'} details: ${opName}`}
+                              onClick={toggle}
+                            >
+                              {isExpanded ? '▾ hide' : '▸ show'}
+                            </button>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                      {detailObj && isExpanded && (
+                        <tr className="audit-detail-row">
+                          <td colSpan={8}>
+                            <pre className="audit-json jh-dark"><JsonHighlight value={detailObj} /></pre>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </Section>
+    </>
+  );
+
   const complianceContent = (
     <>
-      <div className="audit-page__summary">
-        <div className="audit-stat"><span className="audit-stat__value">{complianceSummary.total}</span><span className="audit-stat__label">Total</span></div>
-        <div className="audit-stat audit-stat--success"><span className="audit-stat__value">{complianceSummary.permit}</span><span className="audit-stat__label">Permit</span></div>
-        <div className="audit-stat audit-stat--failure"><span className="audit-stat__value">{complianceSummary.deny}</span><span className="audit-stat__label">Deny</span></div>
-        <div className="audit-stat audit-stat--partial"><span className="audit-stat__value">{complianceSummary.stepup}</span><span className="audit-stat__label">Step-ups</span></div>
-        <div className="audit-stat audit-stat--type"><span className="audit-stat__value">{complianceSummary.delegated}/{complianceSummary.total}</span><span className="audit-stat__label">Delegation (act)</span></div>
-      </div>
-      <div className="audit-page__filters">
-        <button type="button" className="audit-export-btn" onClick={() => exportCompliance('csv')}>Export CSV</button>
-        <button type="button" className="audit-export-btn" onClick={() => exportCompliance('json')}>Export JSON</button>
-      </div>
-      {error && <div className="audit-page__error">Failed to load audit log: {error}</div>}
-      {!error && (
-        <div className="audit-page__table-wrap">
-          <table className="audit-table">
-            <thead>
-              <tr><th>Time</th><th>User</th><th>Action</th><th>Status</th><th>Scope</th><th>Group check</th><th>ACR</th></tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={7} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
-              {!loading && complianceRows.length === 0 && <tr><td colSpan={7} className="audit-table__empty">No audit events found.</td></tr>}
-              {!loading && complianceRows.map((r, i) => (
-                <tr key={r.eventId ?? i} className={`audit-row audit-row--${r.status === 'PERMIT' ? 'success' : r.status === 'DENY' ? 'failure' : 'partial'}`}>
-                  <td className="audit-cell--time">{formatTime(r.time)}</td>
-                  <td className="audit-cell--user" title={r.agentId ? `agent: ${r.agentId}` : ''}>{r.user}</td>
-                  <td>{r.action}</td>
-                  <td><span className={`audit-badge audit-badge--status--${r.status === 'PERMIT' ? 'permit' : r.status === 'DENY' ? 'deny' : 'stepup'}`}>{r.status}</span></td>
-                  <td className="scopes">{r.scope}</td>
-                  <td title={r.denyReason || ''}>
-                    {r.groupPass === null
-                      ? '—'
-                      : <span className={r.groupPass ? 'audit-group--pass' : 'audit-group--fail'}>{r.groupPass ? `✓ ${r.group}` : `❌ ${r.group}`}</span>}
-                  </td>
-                  <td>{r.acr}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Section id="audit-summary" kicker="1 · Totals" title="Compliance summary">
+        <div className="audit-stats">
+          <Stat value={complianceSummary.total} label="Total" />
+          <Stat value={complianceSummary.permit} label="Permit" tone="ok" />
+          <Stat value={complianceSummary.deny} label="Deny" tone="danger" />
+          <Stat value={complianceSummary.stepup} label="Step-ups" tone="warn" />
+          <Stat value={`${complianceSummary.delegated}/${complianceSummary.total}`} label="Delegation (act)" tone="neutral" />
         </div>
-      )}
+      </Section>
+      <Section id="audit-log" kicker="2 · Report" title="Compliance report">
+        {toolbar}
+        {errorNote}
+        {!error && (
+          <Card tone="neutral" className="audit-table-card">
+            <div className="audit-page__table-wrap">
+              <table className="audit-table">
+                <thead>
+                  <tr><th>Time</th><th>User</th><th>Action</th><th>Status</th><th>Scope</th><th>Group check</th><th>ACR</th></tr>
+                </thead>
+                <tbody>
+                  {loading && <tr><td colSpan={7} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
+                  {!loading && complianceRows.length === 0 && <tr><td colSpan={7} className="audit-table__empty">No audit events found.</td></tr>}
+                  {!loading && complianceRows.map((r, i) => (
+                    <tr key={r.eventId ?? i} className={`audit-row audit-row--${r.status === 'PERMIT' ? 'success' : r.status === 'DENY' ? 'failure' : 'partial'}`}>
+                      <td data-label="Time" className="audit-cell--time">{formatTime(r.time)}</td>
+                      <td data-label="User" className="audit-cell--user" title={r.agentId ? `agent: ${r.agentId}` : ''}>{r.user}</td>
+                      <td data-label="Action">{r.action}</td>
+                      <td data-label="Status">
+                        <StatusChip tone={STATUS_TONE[r.status] || 'neutral'}>{r.status === '—' ? 'Unknown' : r.status}</StatusChip>
+                        {r.derived && <span className="audit-cell-sub">from outcome</span>}
+                      </td>
+                      <td data-label="Scope" className="scopes audit-cell--token">{r.scope}</td>
+                      <td data-label="Group check" title={r.denyReason || ''}>
+                        {r.groupPass === null
+                          ? '—'
+                          : <StatusChip tone={r.groupPass ? 'ok' : 'danger'}>{r.groupPass ? `Pass: ${r.group}` : `Fail: ${r.group}`}</StatusChip>}
+                      </td>
+                      <td data-label="ACR" className="audit-cell--token">{r.acr}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </Section>
     </>
   );
 
   const auditContent = (
-    <>
-      <div className="audit-view-tabs">
-        <button type="button" className={`audit-view-tab${view === 'events' ? ' active' : ''}`} onClick={() => setView('events')}>Events</button>
-        <button type="button" className={`audit-view-tab${view === 'compliance' ? ' active' : ''}`} onClick={() => setView('compliance')}>Compliance Report</button>
-      </div>
-      {view === 'compliance' ? complianceContent : eventsContent}
-    </>
+    <PingPage className="audit-pu">
+      {banner}
+      <PageFrame>
+        <div className="audit-view-tabs" role="group" aria-label="Audit view">
+          <button type="button" className="audit-view-tab" aria-pressed={view === 'events'} onClick={() => setView('events')}>Events</button>
+          <button type="button" className="audit-view-tab" aria-pressed={view === 'compliance'} onClick={() => setView('compliance')}>Compliance Report</button>
+        </div>
+        {view === 'compliance' ? complianceContent : eventsContent}
+      </PageFrame>
+    </PingPage>
   );
 
-  // Shared titlebar controls: auto-refresh cadence picker + last-refreshed stamp.
-  const refreshControl = (
-    <label className="audit-refresh-control" title="Auto-refresh interval — dial down for a live demo">
-      <span className="audit-refresh-control__icon" aria-hidden="true">⟳</span>
-      <select
-        className="audit-refresh-select"
-        value={refreshMs}
-        onChange={(e) => onChangeRefresh(Number(e.target.value))}
-        aria-label="Auto-refresh interval"
-      >
-        {REFRESH_OPTIONS.map((o) => (
-          <option key={o.ms} value={o.ms}>{o.ms === 0 ? 'Off' : `Every ${o.label}`}</option>
-        ))}
-      </select>
-    </label>
-  );
-  const lastUpdatedLabel = lastUpdated ? (
-    <span className="audit-last-updated" title="Last refreshed">
-      {new Date(lastUpdated).toLocaleTimeString()}
-    </span>
-  ) : null;
   const themeToggleButton = (
     <button
       type="button"
@@ -562,12 +641,7 @@ export default function AuditPage({ onClose } = {}) {
         <div className="audit-popout-titlebar">
           <span className="audit-float-title">MCP Audit Trail</span>
           <div className="audit-float-titlebar-actions">
-            {lastUpdatedLabel}
-            {refreshControl}
             {themeToggleButton}
-            <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh now">
-              {loading ? '…' : '↻'}
-            </button>
             <button type="button" className="audit-float-close" onClick={() => window.close()} title="Close" aria-label="Close audit window">
               ✕
             </button>
@@ -581,6 +655,8 @@ export default function AuditPage({ onClose } = {}) {
   // ── Floating window mode (within-browser, draggable + resizable) ──
   return (
     <div
+      ref={windowRef}
+      tabIndex={-1}
       className="audit-float-window"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
       role="dialog"
@@ -593,12 +669,7 @@ export default function AuditPage({ onClose } = {}) {
       <div className="audit-float-titlebar" onMouseDown={onTitleBarMouseDown}>
         <span className="audit-float-title">MCP Audit Trail</span>
         <div className="audit-float-titlebar-actions">
-          {lastUpdatedLabel}
-          {refreshControl}
           {themeToggleButton}
-          <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh audit log now">
-            {loading ? '…' : '↻'}
-          </button>
           <button type="button" className="audit-float-btn" onClick={openPopout} title="Open in new window (move to any screen)" aria-label="Pop out to new window">
             🪟
           </button>
@@ -610,4 +681,25 @@ export default function AuditPage({ onClose } = {}) {
       <div className="audit-float-content">{auditContent}</div>
     </div>
   );
+}
+
+// Presentational helpers, below the page so the banner is the first markup in the file (P2).
+function Stat({ value, label, tone }) {
+  return (
+    <Card tone={tone} className="audit-stat">
+      <span className="audit-stat__value">{value}</span>
+      {/* A break opportunity after each underscore (token_chain, banking_operation) keeps long labels in whole words. */}
+      <span className="audit-stat__label">
+        {String(label).split('_').map((part, i) => (i === 0 ? part : <React.Fragment key={i}><wbr />{`_${part}`}</React.Fragment>))}
+      </span>
+    </Card>
+  );
+}
+
+// The word is what the gateway recorded; the tone only restates it (never a check this page ran).
+const OUTCOME_TONE = { success: 'ok', failure: 'danger', partial: 'warn' };
+const STATUS_TONE = { PERMIT: 'ok', DENY: 'danger', 'STEP-UP': 'warn' };
+
+function OutcomeChip({ outcome }) {
+  return <StatusChip tone={OUTCOME_TONE[outcome] || 'neutral'}>{outcome || 'unknown'}</StatusChip>;
 }

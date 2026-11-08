@@ -40,5 +40,6 @@
 /ai-products/privilege-mcp
 /privilege-a2a
 /transaction-consent
+/audit
 /privilege-for-ai
 /privilege-ai-policies
