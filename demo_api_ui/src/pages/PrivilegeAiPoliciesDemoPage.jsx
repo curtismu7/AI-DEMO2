@@ -217,19 +217,21 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
   const approvedRetry = Boolean(state?.result) && s.expect === 'hold' && state.previous === 'hold' && state.result.outcome === 'allow';
 
   // Retry unmounts when the answer is no longer HELD, so a keyboard user who pressed it would drop to the page body.
-  // After that run settles, if focus is no longer inside this card, move it to the verdict (the thing they were waiting for).
+  // We remember the Retry button that was pressed. After that run settles, focus moves to the verdict only if that button is
+  // gone AND focus really fell to the page body. If the user moved on during the call (another card's Run, a link ...),
+  // focus is somewhere real and is left alone.
   const verdictRef = useRef(null);
-  const wantFocus = useRef(false);
+  const pressedRetry = useRef(null);
   const settled = Boolean(state?.result) && !state?.running;
   useEffect(() => {
-    if (!wantFocus.current || !settled) return;
-    wantFocus.current = false;
-    const verdict = verdictRef.current;
+    const pressed = pressedRetry.current;
+    if (!pressed || !settled) return;
+    pressedRetry.current = null;
     const active = document.activeElement;
-    // The verdict's parent is the scenario card.
-    if (verdict && (!active || active === document.body || !verdict.parentElement.contains(active))) verdict.focus();
+    const focusLost = !active || active === document.body;
+    if (!pressed.isConnected && focusLost) verdictRef.current?.focus();
   }, [settled, state?.result]);
-  const retry = () => { wantFocus.current = true; onRun(s); };
+  const retry = (e) => { pressedRetry.current = e.currentTarget; onRun(s); };
 
   return (
     <Card title={s.title} tone={tone} data-testid={`apd-scn-${s.id}`}>
@@ -296,7 +298,7 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
           )}
           <p className="pu-status-line">
             {approvedRetry
-              ? <><StatusChip tone="ok">Approved</StatusChip><span>Held first, then allowed once approved: the expected end of this walk-through.</span></>
+              ? <><StatusChip tone="ok">Allowed on retry</StatusChip><span>Held, then allowed on retry: the expected end of this walk-through.</span></>
               : matches
               ? <><StatusChip tone="ok">Match</StatusChip><span>Matches what was expected.</span></>
               : <><StatusChip tone="warn">Differs</StatusChip><span>{`Expected ${OUTCOMES[s.expect].label}, got ${OUTCOMES[state.result.outcome].label}.`}</span></>}

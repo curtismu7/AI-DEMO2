@@ -73,6 +73,34 @@ describe('PrivilegePfTokenDemoPage', () => {
     expect(screen.getByTestId('ppt-run')).toBeEnabled();
   });
 
+  it.each([
+    ['a 500 with an empty body', () => ({ status: 500, data: {} })],
+    ['a 503 (secret not set)', () => ({ status: 503, data: {} })],
+  ])('clears the previous result when a later run fails with %s', async (_name, failure) => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValueOnce({ status: 200, data: PASS }).mockResolvedValueOnce(failure());
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await screen.findByTestId('ppt-result');
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await screen.findByTestId('ppt-problem');
+    expect(screen.queryByTestId('ppt-result')).toBeNull();
+    expect(screen.queryByTestId('ppt-claims')).toBeNull();
+  });
+
+  it('clears the previous result when a later run throws', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValueOnce({ status: 200, data: PASS }).mockRejectedValueOnce(new Error('network down'));
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await screen.findByTestId('ppt-result');
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    expect(await screen.findByTestId('ppt-problem')).toHaveTextContent('network down');
+    expect(screen.queryByTestId('ppt-result')).toBeNull();
+  });
+
   it('still shows the mint failure card when PingFederate refuses to mint (no pfToken in the body)', async () => {
     getState.mockResolvedValue({ status: 200, data: STATE });
     runDemo.mockResolvedValue({ status: 200, data: { at: 'now', mint: { status: 401, error: 'invalid_client' } } });

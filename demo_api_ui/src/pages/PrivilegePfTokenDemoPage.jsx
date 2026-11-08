@@ -67,6 +67,7 @@ export default function PrivilegePfTokenDemoPage() {
     if (running) return; // aria-disabled while running, not disabled: a disabled button drops keyboard focus
     setRunning(true);
     setProblem('');
+    setResult(null); // a failure must never sit beside the previous run's success
     try {
       const { status, data } = await runDemo();
       if (status === 401) setState((s) => ({ ...s, signedOut: true }));

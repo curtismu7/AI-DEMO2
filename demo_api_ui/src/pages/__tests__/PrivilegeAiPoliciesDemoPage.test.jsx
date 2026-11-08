@@ -44,8 +44,11 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     // The designed path (HELD, approve, retry, ALLOWED) reads as the expected end of the walk-through, not as a mismatch.
     expect(within(scn).queryByTestId('apd-changed')).toBeNull();
     expect(within(scn).queryByText('Differs')).toBeNull();
-    expect(within(scn).getByText('Approved')).toBeInTheDocument();
-    expect(scn).toHaveTextContent('the expected end of this walk-through');
+    expect(within(scn).getByText('Allowed on retry')).toBeInTheDocument();
+    expect(scn).toHaveTextContent('Held, then allowed on retry: the expected end of this walk-through');
+    // The page cannot see an approval, so it must not claim one happened.
+    expect(scn).not.toHaveTextContent(/once approved/i);
+    expect(within(scn).queryByText('Approved')).toBeNull();
   });
 
   it('a HELD scenario that is simply ALLOWED on its first run is still a mismatch', async () => {
@@ -57,7 +60,7 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     const scn = screen.getByTestId('apd-scn-hold');
     await waitFor(() => expect(within(scn).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'allow'));
     expect(within(scn).getByText('Differs')).toBeInTheDocument();
-    expect(within(scn).queryByText('Approved')).toBeNull();
+    expect(within(scn).queryByText('Allowed on retry')).toBeNull();
   });
 
   it('moves keyboard focus to the verdict when Retry succeeds and its button unmounts', async () => {
@@ -74,6 +77,28 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     await waitFor(() => expect(within(scn).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'allow'));
     expect(within(scn).queryByTestId('apd-retry')).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(within(scn).getByTestId('apd-verdict')));
+  });
+
+  it('does not pull focus to the verdict when the user moved focus to another card during the Retry call', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    let release;
+    runTool.mockResolvedValueOnce(HOLD).mockReturnValueOnce(new Promise((r) => { release = r; }));
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-hold')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('apd-run-hold'));
+    const scn = screen.getByTestId('apd-scn-hold');
+    const retry = await within(scn).findByTestId('apd-retry');
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(runTool).toHaveBeenCalledTimes(2));
+    // The user moves on to another card's Run button while the slow call is still going.
+    const other = screen.getByTestId('apd-run-deny');
+    other.focus();
+    expect(document.activeElement).toBe(other);
+    release(ALLOW);
+    await waitFor(() => expect(within(scn).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'allow'));
+    expect(within(scn).queryByTestId('apd-retry')).toBeNull();
+    expect(document.activeElement).toBe(other);
   });
 
   it('leaves focus on Retry when the answer is still HELD (the button is still there)', async () => {
