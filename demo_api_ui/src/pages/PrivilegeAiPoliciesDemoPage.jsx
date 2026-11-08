@@ -12,7 +12,7 @@
 //   - connected, a scenario is HELD: "Retry after approval" on that scenario (the only action that advances it);
 //   - connected otherwise: "Run through Privilege" on the first scenario not yet run (the first one once all have run).
 // Every other button is a secondary. The standalone walkthrough (live=false) has no buttons: its only actions are links.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import PageHeader from '../components/common/PageHeader';
@@ -195,10 +195,11 @@ function PolicyState({ state }) {
 // Only these outcomes are an answer the gateway actually gave; sign-in and error come from this page or the BFF.
 const GATEWAY_ANSWERS = new Set(['allow', 'hold', 'deny', 'tool-error']);
 
-function Verdict({ result }) {
+// tabIndex -1: not in the tab order, but a run that unmounts the button the keyboard user pressed (Retry) can park focus here.
+function Verdict({ result, verdictRef }) {
   const o = OUTCOMES[result.outcome];
   return (
-    <div className="apd-verdict" data-testid="apd-verdict" data-outcome={result.outcome} role="status">
+    <div className="apd-verdict" data-testid="apd-verdict" data-outcome={result.outcome} role="status" tabIndex={-1} ref={verdictRef}>
       <p className="pu-status-line"><StatusChip tone={VERDICT_TONE[result.outcome] ?? 'neutral'}>{o.label}</StatusChip> {GATEWAY_ANSWERS.has(result.outcome) ? 'The gateway\u2019s answer to this call' : 'No gateway answer: the call did not reach a verdict'}</p>
       <p className="pu-note">{o.note}</p>
       {result.instructionId && <p className="pu-note">Approval id from the gateway: <code data-testid="apd-ins">{result.instructionId}</code></p>}
@@ -211,6 +212,25 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
   const policies = s.policies.map((id) => ({ id, ...POLICIES[id] }));
   const matches = state && state.result && state.result.outcome === s.expect;
   const tone = state?.result ? VERDICT_TONE[state.result.outcome] : undefined;
+  // The designed walk-through for a HELD scenario is: held, approve in the console, retry, allowed. That last step is the
+  // expected outcome of the walk-through, not a mismatch with the "Expected HELD" of the first run.
+  const approvedRetry = Boolean(state?.result) && s.expect === 'hold' && state.previous === 'hold' && state.result.outcome === 'allow';
+
+  // Retry unmounts when the answer is no longer HELD, so a keyboard user who pressed it would drop to the page body.
+  // After that run settles, if focus is no longer inside this card, move it to the verdict (the thing they were waiting for).
+  const verdictRef = useRef(null);
+  const wantFocus = useRef(false);
+  const settled = Boolean(state?.result) && !state?.running;
+  useEffect(() => {
+    if (!wantFocus.current || !settled) return;
+    wantFocus.current = false;
+    const verdict = verdictRef.current;
+    const active = document.activeElement;
+    // The verdict's parent is the scenario card.
+    if (verdict && (!active || active === document.body || !verdict.parentElement.contains(active))) verdict.focus();
+  }, [settled, state?.result]);
+  const retry = () => { wantFocus.current = true; onRun(s); };
+
   return (
     <Card title={s.title} tone={tone} data-testid={`apd-scn-${s.id}`}>
       <p className="pu-note">{s.story}</p>
@@ -252,8 +272,8 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
 
       {state?.result && (
         <>
-          <Verdict result={state.result} />
-          {state.previous && state.previous !== state.result.outcome && (
+          <Verdict result={state.result} verdictRef={verdictRef} />
+          {state.previous && state.previous !== state.result.outcome && !approvedRetry && (
             <p className="pu-status-line apd-changed" data-testid="apd-changed">
               <StatusChip tone="info">Changed</StatusChip>
               <span>
@@ -267,7 +287,7 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
               <ActionButton
                 next={nextAction === 'retry'}
                 busy={state.running}
-                onClick={() => onRun(s)}
+                onClick={retry}
                 data-testid="apd-retry"
               >
                 Retry after approval
@@ -275,7 +295,9 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
             </div>
           )}
           <p className="pu-status-line">
-            {matches
+            {approvedRetry
+              ? <><StatusChip tone="ok">Approved</StatusChip><span>Held first, then allowed once approved: the expected end of this walk-through.</span></>
+              : matches
               ? <><StatusChip tone="ok">Match</StatusChip><span>Matches what was expected.</span></>
               : <><StatusChip tone="warn">Differs</StatusChip><span>{`Expected ${OUTCOMES[s.expect].label}, got ${OUTCOMES[state.result.outcome].label}.`}</span></>}
           </p>

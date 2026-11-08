@@ -44,6 +44,9 @@ const SETUP_LAYERS = WORKING_SETUP.reduce((acc, r) => {
   return acc;
 }, []);
 
+// A /run body is usable when PingFederate refused to mint (mint.error, shown on its own) or when both gateway answers are there.
+const hasAnswers = (data) => Boolean(data?.mint?.error || (data?.pfToken && data?.garbage));
+
 // A recorded "Status" is a measurement; anything else is a gap and gets the warning tone.
 const measured = (status) => /^measured/i.test(status);
 
@@ -68,7 +71,11 @@ export default function PrivilegePfTokenDemoPage() {
       const { status, data } = await runDemo();
       if (status === 401) setState((s) => ({ ...s, signedOut: true }));
       else if (status === 503) setProblem('The PingFederate client secret is not set on the api-server (PF_TOKEN_DEMO_CLIENT_SECRET).');
-      else setResult(data);
+      else if (!hasAnswers(data)) {
+        // A 500, a proxy error page or error JSON: there is nothing to show as a result, so say so in words.
+        const why = typeof data?.message === 'string' ? data.message : typeof data?.error === 'string' ? data.error : '';
+        setProblem(`The run did not return a result (HTTP ${status}).${why ? ` ${why}` : ''}`);
+      } else setResult(data);
     } catch (e) {
       setProblem(e.message);
     } finally {

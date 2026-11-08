@@ -56,6 +56,32 @@ describe('PrivilegePfTokenDemoPage', () => {
     expect(screen.getByTestId('ppt-backend-jti')).toHaveAttribute('data-same', 'true');
   });
 
+  it.each([
+    ['a 500 with an empty body', 500, {}],
+    ['a 500 with error JSON', 500, { error: 'upstream_failed', message: 'The gateway timed out.' }],
+    ['a 200 whose body has no pfToken', 200, { at: 'now', mint: { status: 200, claims: { iss: 'x' } } }],
+  ])('treats %s as an error state instead of crashing', async (_name, status, data) => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status, data });
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    const problem = await screen.findByTestId('ppt-problem');
+    expect(problem).toHaveTextContent('did not return a result');
+    expect(problem).toHaveTextContent('Failed');
+    expect(screen.queryByTestId('ppt-result')).toBeNull();
+    expect(screen.getByTestId('ppt-run')).toBeEnabled();
+  });
+
+  it('still shows the mint failure card when PingFederate refuses to mint (no pfToken in the body)', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status: 200, data: { at: 'now', mint: { status: 401, error: 'invalid_client' } } });
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    expect(await screen.findByTestId('ppt-mint-error')).toHaveTextContent('invalid_client');
+  });
+
   it('falls back to the named fields from an older whoami that sends no claims', async () => {
     getState.mockResolvedValue({ status: 200, data: STATE });
     runDemo.mockResolvedValue({ status: 200, data: { ...PASS, backend: { status: 200, verdict: 'allowed', detail: '', received: { issuer: 'https://cmuir-pf.ping-devops.com', subject: 'pf-route-c-test' } } } });

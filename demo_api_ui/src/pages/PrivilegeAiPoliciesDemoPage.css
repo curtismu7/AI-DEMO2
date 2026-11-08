@@ -68,6 +68,11 @@
   color: var(--th-text);
 }
 
+.apd-verdict:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
 .apd-verdict .pu-status-line {
   margin-bottom: 0;
 }
