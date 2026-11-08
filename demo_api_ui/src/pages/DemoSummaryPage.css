@@ -1,79 +1,59 @@
-.dsum-page {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 2.5rem 1.5rem 4rem;
+/* Page-specific only. Banner, frame, sections, cards, kv, chips and the one primary button come from the
+   shared Ping UI primitives (src/styles/ping-ui.css). Surfaces and ink are --th-* tokens, so there is no dark block. */
+
+/* One card per catalog page, in the same auto-fit grid the primitives use. */
+/* .dsum-page prefix: the end-user-nano CDN skin sets a left padding on lists that a bare .dsum-list loses to,
+   which indented the cards 32px past the section titles. padding-inline covers the logical-property form. */
+.dsum-page .dsum-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  padding-inline: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  align-items: start;
 }
 
-.dsum-head {
-  margin-bottom: 2rem;
+.dsum-page .dsum-list > li {
+  min-width: 0;
 }
 
-.dsum-search {
+.dsum-page .dsum-list .dsum-card {
+  margin: 0;
+}
+
+.dsum-page .dsum-search {
+  display: block;
   width: 100%;
   max-width: 480px;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.95rem;
-  border: 1px solid var(--th-border);
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
-  background: var(--th-bg-card);
+  background: var(--th-bg-page);
   color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
 }
 
-.dsum-restore {
-  display: inline-block;
-  margin-top: 0.75rem;
-  padding: 0.45rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
+.dsum-page .dsum-search:focus-visible,
+.dsum-page .dsum-link:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
-.dsum-restore:hover {
-  background: var(--th-bg-hover);
-}
-
-.dsum-group {
-  margin-bottom: 2rem;
-}
-
-.dsum-group h2 {
-  font-size: 1.1rem;
-  margin: 0 0 0.75rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--th-border);
-  color: var(--th-text);
-}
-
-.dsum-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-  gap: 0.6rem 1.5rem;
-}
-
-.dsum-item {
-  padding: 0.5rem 0.75rem;
-  border-left: 3px solid var(--th-border-strong);
-}
-
-.dsum-link {
-  font-weight: 600;
-  text-decoration: none;
-  color: var(--th-text);
-}
-
-.dsum-link:hover {
+/* The page name is the link: underlined at rest so it reads as one, in the card's own ink. */
+.dsum-page .dsum-link {
+  color: inherit;
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.dsum-blurb {
-  margin: 0.2rem 0 0;
-  font-size: 0.85rem;
-  color: var(--th-text-body);
+.dsum-page .dsum-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.dsum-page .dsum-blurb {
+  margin: 0 0 4px;
 }

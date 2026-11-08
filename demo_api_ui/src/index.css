@@ -1981,12 +1981,6 @@ body {
 :root[data-theme="dark"] .dsla-table-wrap a {
   color: #ffffff;
 }
-:root[data-theme="dark"] .tc-simulate__card {
-  color: #ffffff;
-}
-:root[data-theme="dark"] .tc-simulate__card span.tc-simulate__card-meta {
-  color: #ffffff;
-}
 :root[data-theme="dark"] .ucd-card {
   color: #ffffff;
 }

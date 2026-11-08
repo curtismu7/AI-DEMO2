@@ -70,6 +70,14 @@ the Ping Red gradient, **exactly one per view**. Never a vertical colour, never 
 under `.pu-page`, so buttons must be inside `PingPage`. `PrivilegeLiveCheck` takes `buttonClassName="pu-btn"` (a
 secondary) and `statusChip` for the word-bearing result chip; without `buttonClassName` it renders a primary.
 
+**Shared diagram controls.** The step buttons of the shared diagram (`DiagramStepBar` / `DiagramControls`) are
+bordered secondaries inside `.pu-page` (Simulate, Prev, Pause, Resume, Next and Stop alike), so a page's own primary
+stays the only one. A page that wants its diagram's Simulate to be the view's one primary restyles that one button in
+its own sheet (`PrivilegeMapPage.css` does, where the diagram view has no other action). Outside `.pu-page` the
+diagram keeps its original look. Pressing Simulate, Pause, Resume or Stop moves keyboard focus to the control that
+replaces it, so Tab continues from the toolbar. The lesson sidebar (`.lesson-nav-item`) focus ring uses
+`--th-status-info-text`, 3:1 or better on every surface in both themes (`pingUiSharedA11y.test.js` measures it).
+
 ## Not in the primitives (keep page-local)
 
 Stage lists, matrix / drift tables (the `.psa-table` stack-at-phone pattern is a candidate to promote when a second
