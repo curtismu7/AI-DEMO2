@@ -685,3 +685,8 @@ body.privilege-a2a-route > .banking-agent-float-root {
     flex-wrap: wrap;
   }
 }
+
+/* Just the dancing P while the answer is pending: no rings, no tip. */
+.a2a-page .privilege-a2a__wait .ping-spinner__ring {
+  display: none;
+}

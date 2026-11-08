@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import PingIdentitySpinner from '../../components/shared/PingIdentitySpinner';
 import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
@@ -384,7 +385,7 @@ export default function PrivilegeA2aTab() {
                   <article className="privilege-a2a__turn" key={`${index}-${turn.question}`}>
                     <p className="privilege-a2a__question">{turn.question}</p>
                     <div className="privilege-a2a__answer">
-                      {turn.answer ? <MarkdownContent text={turn.answer} /> : (busy && index === turns.length - 1 ? 'Reviewing access…' : '')}
+                      {turn.answer ? <MarkdownContent text={turn.answer} /> : (busy && index === turns.length - 1 ? <PingIdentitySpinner className="privilege-a2a__wait" size={44} tip={false} aria-hidden="true" /> : '')}
                     </div>
                   </article>
                 ))}
