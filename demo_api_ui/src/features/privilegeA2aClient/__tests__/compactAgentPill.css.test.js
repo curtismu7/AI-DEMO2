@@ -6,7 +6,7 @@ import { describe, expect, test } from 'vitest';
 // to be position: absolute at the column's bottom, which sat over the suggestion chips and the question box.
 describe('Compact agent launcher', () => {
   const css = readFileSync(path.resolve(__dirname, '../PrivilegeA2aTab.css'), 'utf8');
-  const rule = css.match(/\.cur-ide \.privilege-a2a__dock-open \{[^}]*\}/)?.[0] ?? '';
+  const rule = css.match(/\.a2a-page \.privilege-a2a__dock-open \{[^}]*\}/)?.[0] ?? '';
 
   test('takes its own row in the column, not an absolute position over its content', () => {
     expect(rule).toContain('position: static');

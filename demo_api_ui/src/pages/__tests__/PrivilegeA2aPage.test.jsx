@@ -31,19 +31,12 @@ describe('PrivilegeA2aPage', () => {
     expect(screen.getByRole('heading', { name: 'A2A access review' })).toBeInTheDocument();
   });
 
-  test('the main top bar\'s light/dark switch drives the page theme too', () => {
-    let toggleMainBar;
-    function MainBar() { toggleMainBar = useTheme().toggleDarkMode; return null; }
-    render(<ThemeProvider><MemoryRouter><MainBar /><PrivilegeA2aPage user={null} /></MemoryRouter></ThemeProvider>);
+  test('has no page-local light/dark switch: it follows the app theme', () => {
+    render(<ThemeProvider><MemoryRouter><PrivilegeA2aPage user={null} /></MemoryRouter></ThemeProvider>);
     const page = screen.getByTestId('privilege-a2a-page');
-    expect(page).toHaveAttribute('data-cur-theme', 'dark');
-
-    act(() => toggleMainBar()); // global light (default) -> dark
-    expect(page).toHaveAttribute('data-cur-theme', 'dark');
-    act(() => toggleMainBar()); // dark -> light
-    expect(page).toHaveAttribute('data-cur-theme', 'light');
-    fireEvent.click(screen.getByRole('button', { name: 'Dark' })); // the page's own button still works
-    expect(page).toHaveAttribute('data-cur-theme', 'dark');
+    expect(page).not.toHaveAttribute('data-cur-theme');
+    expect(screen.queryByRole('button', { name: 'Dark' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Light' })).toBeNull();
   });
 
   test('signed out shows a dash, not a made-up identity', () => {
@@ -51,14 +44,31 @@ describe('PrivilegeA2aPage', () => {
     expect(screen.getByTestId('a2a-identity')).toHaveTextContent('—');
     expect(screen.getByText('Not signed in')).toBeInTheDocument();
   });
+});
 
-  test('Light/Dark flips the page theme and shares the MCP client key', () => {
+describe('Ping UI standard', () => {
+  test('the first thing on the page is the honest mode banner, a role=note', () => {
     render(<MemoryRouter><PrivilegeA2aPage user={null} /></MemoryRouter>);
     const page = screen.getByTestId('privilege-a2a-page');
-    expect(page).toHaveAttribute('data-cur-theme', 'dark');
-    fireEvent.click(screen.getByRole('button', { name: 'Light' }));
-    expect(page).toHaveAttribute('data-cur-theme', 'light');
-    expect(localStorage.getItem('cur_priv_theme')).toBe('light');
+    const banner = screen.getByTestId('a2a-banner');
+    expect(banner).toHaveAttribute('role', 'note');
+    expect(page.firstElementChild.contains(banner)).toBe(true);
+    expect(banner).toHaveTextContent(/sample access data/i);
+    expect(banner).toHaveTextContent(/real/i);
+  });
+
+  test('exactly one primary button, Send question, before any run; every other control is secondary', () => {
+    const { container } = render(<MemoryRouter><PrivilegeA2aPage user={null} /></MemoryRouter>);
+    const primaries = container.querySelectorAll('.pu-btn--primary');
+    expect(primaries).toHaveLength(1);
+    expect(primaries[0]).toHaveTextContent('Send question');
+  });
+
+  test('who is asking is a key-value list with a status chip that carries a word', () => {
+    const { container } = render(<MemoryRouter><PrivilegeA2aPage user={{ email: 'carol@example.com' }} /></MemoryRouter>);
+    expect(container.querySelector('dl.pu-kv')).not.toBeNull();
+    const chip = container.querySelector('.pu-chip');
+    expect(chip).toHaveTextContent('Signed in');
   });
 });
 

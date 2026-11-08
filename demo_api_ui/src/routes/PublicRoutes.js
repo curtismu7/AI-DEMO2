@@ -76,7 +76,6 @@ const ChatgptLoginPage = lazyWithRetry(() => import("../pages/ChatgptLoginPage")
 const GroupPolicyBoardPage = lazyWithRetry(() => import("../pages/GroupPolicyBoardPage"));
 const PageCatalogPage = lazyWithRetry(() => import("../pages/PageCatalogPage"));
 const PrivilegeMcpClientPage = lazyWithRetry(() => import("../pages/PrivilegeMcpClientPage"));
-const PrivilegeA2aPage = lazyWithRetry(() => import("../pages/PrivilegeA2aPage"));
 const LlmGatewayCombinedPage = lazyWithRetry(() => import("../pages/LlmGatewayCombinedPage"));
 const IntentInspectorPage = lazyWithRetry(() => import("../pages/IntentInspectorPage"));
 const AuditAgentPage = lazyWithRetry(() => import("../pages/AuditAgentPage"));
@@ -515,15 +514,6 @@ export function PrivilegeMcpClientPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeMcpClientPage />
-    </AppShell>
-  );
-}
-
-/** Privilege A2A access review — formerly a tab on the MCP client. */
-export function PrivilegeA2aPageRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <PrivilegeA2aPage user={user} />
     </AppShell>
   );
 }
