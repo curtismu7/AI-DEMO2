@@ -10,6 +10,7 @@
 /privilege-intent-triage
 /privilege-prompt-log
 /privilege-pf-token
+/p1-third-party-exchange
 /privilege-shelf
 /privilege-a2a
 /transaction-consent
