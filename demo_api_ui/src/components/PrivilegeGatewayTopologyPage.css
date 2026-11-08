@@ -1,29 +1,73 @@
-/* PrivilegeGatewayTopologyPage.css — steps list + zone legend only; page
-   chrome (hero, tabs, panel) comes from PrivilegeMcpDiagramPage.css. */
+/* PrivilegeGatewayTopologyPage.css — page-specific rules only. Page chrome (ground, banner, frame, sections,
+   cards, chips, kv, buttons) comes from the shared Ping UI primitives (styles/ping-ui.css). */
 
-.pgt-archived {
-  color: var(--th-status-warning-text);
-  background: var(--th-status-warning-bg);
-  border: 1px solid var(--th-status-warning);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  font-size: var(--font-size-sm);
-  margin-bottom: 12px;
+/* Node and legend colours: red = Ping product (Privilege, PingOne), ink = app / agent / client,
+   muted ink = infrastructure. Tokens only, so both themes follow. */
+.pgt-page {
+  --pgt-ping: var(--btn-accent);
+  --pgt-app: var(--th-text);
+  --pgt-infra: var(--th-text-muted);
 }
-.pgt-archived a {
-  color: inherit;
+
+/* The setup guide stays a link (it opens a new tab and can be copied); the shared primary rule styles <button>
+   only, so the same fixed Ping Red tokens are applied to the link here. It is the page's one primary (P9). */
+.pu-page a.pgt-doc-link.pu-btn.pu-btn--primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+  text-decoration: none;
+}
+
+.pu-page a.pgt-doc-link.pu-btn.pu-btn--primary:hover {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
   text-decoration: underline;
 }
 
-.pgt-blurb {
-  max-width: 760px;
-  margin-bottom: 12px;
+/* The link sits on the title band, which is dark in both themes: the shared ring colour is dark in light mode and
+   would vanish there, so this one uses the button's white text token. */
+.pu-page a.pgt-doc-link.pu-btn:focus-visible {
+  outline-color: var(--btn-accent-text);
 }
 
-.pgt-doc-link {
-  display: inline-block;
-  margin-top: 6px;
-  font-size: var(--font-size-sm);
+/* Variant picker: selectors, so secondary buttons. The selection shows with a heavier edge, a fill and a
+   check mark (drawn here so the button's text stays the bare label). */
+.pgt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.pu-page .pgt-tabs .pu-btn[aria-pressed="true"] {
+  padding: 7px 15px;
+  border: 2px solid var(--th-text);
+  background: var(--th-bg-inset);
+  font-weight: var(--font-weight-bold);
+}
+
+.pu-page .pgt-tabs .pu-btn[aria-pressed="true"]::before {
+  content: "\2713\00a0";
+}
+
+.pgt-archived {
+  margin: 0 0 12px;
+}
+
+.pgt-archived .pu-status-line {
+  margin: 0;
+  align-items: flex-start;
+}
+
+.pgt-archived a {
+  color: inherit;
+  text-decoration: underline;
 }
 
 .pgt-legend {
@@ -34,7 +78,7 @@
   padding: 0;
   list-style: none;
   font-size: var(--font-size-2xs);
-  color: var(--pmd-ink-2);
+  color: var(--th-text-body);
 }
 
 .pgt-legend li {
@@ -50,35 +94,53 @@
   border: 1px solid var(--th-border);
   flex: none;
 }
+.pgt-swatch--ping { background: var(--pgt-ping); }
+.pgt-swatch--app { background: var(--pgt-app); }
+.pgt-swatch--infra { background: var(--pgt-infra); }
 
+.pgt-about {
+  margin-top: 16px;
+}
+
+/* Numbered steps. */
 .pgt-steps {
   list-style: none;
-  margin: 16px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
   max-width: 760px;
   font-size: var(--font-size-body);
-  color: var(--pmd-ink);
+  color: var(--th-text);
+}
+
+.pu-page .pgt-steps {
+  padding: 0;
 }
 
 .pgt-steps li {
   display: flex;
   gap: 10px;
+  min-width: 0;
+}
+
+.pgt-steps li > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .pgt-steps__heading {
   font-size: var(--font-size-xs);
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--pmd-ink-2);
+  color: var(--th-text-muted);
   margin-top: 6px;
 }
 
 .pgt-steps__n {
-  background: #d20e0f;
-  color: #ffffff;
+  background: var(--btn-accent);
+  color: var(--btn-accent-text);
   font-weight: 700;
   font-size: var(--font-size-sm);
   width: 24px;
@@ -95,85 +157,46 @@
   color: var(--th-text);
 }
 
-/* Light mode — follows the app-wide data-theme stamped by ThemeContext.
-   Scoped to .pgt-page so the sibling diagram pages sharing
-   PrivilegeMcpDiagramPage.css keep their dark skin. No attribute (tests,
-   pre-provider paint) falls through to the dark defaults above. */
-:root[data-theme="light"] .pmd-page.pgt-page {
-  --pmd-bg: #f6f7f9;
-  --pmd-panel: #ffffff;
-  --pmd-ink: #1c2330;
-  --pmd-ink-2: #3f4756;
-  --pmd-border: #d8dde5;
-  --pmd-accent: #0b5c49;
+/* Live LB cards. */
+.pgt-hint code {
+  font-family: var(--font-mono);
 }
 
-:root[data-theme="light"] .pmd-page.pgt-page .pmd-error {
-  color: #d20e0f;
-}
-
-/* Live LB stats panel — iframe of HAProxy's built-in stats page. */
-.pgt-stats {
-  margin-top: 16px;
-}
-.pgt-stats h2 {
-  font-size: var(--font-size-base);
-  margin: 0 0 6px;
-}
-.pgt-stats__hint {
-  color: var(--pmd-ink-2);
-  font-size: var(--font-size-sm);
-  margin: 0 0 10px;
-}
 .pgt-stats__frame {
+  display: block;
   width: 100%;
   height: 640px;
-  border: 1px solid var(--pmd-border);
+  margin-top: 10px;
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
-  background: var(--pmd-panel);
+  background: var(--th-bg-card);
 }
 
-/* LB runtime controls — per-node park/unpark over HAProxy's runtime API. */
-.pgt-runtime {
-  margin-top: 16px;
-}
-.pgt-runtime h2 {
-  font-size: var(--font-size-base);
-  margin: 0 0 6px;
-}
-.pgt-runtime__list {
+.pu-page .pgt-runtime__list {
   list-style: none;
-  margin: 0;
+  margin: 8px 0 0;
   padding: 0;
 }
+
 .pgt-runtime__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--pmd-border);
+  gap: 8px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--th-border);
   font-size: var(--font-size-sm);
 }
-.pgt-runtime__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: none;
+
+.pgt-runtime__row code {
+  font-family: var(--font-mono);
 }
-.pgt-runtime__dot--up { background: var(--th-status-success, #2e8b6a); }
-.pgt-runtime__dot--maint { background: var(--th-status-warning, #d9a406); }
-.pgt-runtime__dot--down { background: var(--th-status-error, #d20e0f); }
-.pgt-runtime__status { color: var(--pmd-ink-2); }
-.pgt-runtime__sess { color: var(--pmd-ink-2); margin-left: auto; }
-.pgt-runtime__row button {
-  font-size: var(--font-size-sm);
-  padding: 2px 10px;
-  cursor: pointer;
+
+.pgt-runtime__sess {
+  color: var(--th-text-body);
+  margin-left: auto;
 }
-.pgt-runtime__row button:disabled { opacity: 0.5; cursor: default; }
-.pgt-runtime__notice {
-  font-size: var(--font-size-sm);
-  color: var(--pmd-accent);
-  margin: 4px 0;
+
+.pgt-runtime__err {
+  color: var(--th-status-warning-text);
 }
-.pgt-runtime__err { color: var(--th-status-warning-text, #b45309); }

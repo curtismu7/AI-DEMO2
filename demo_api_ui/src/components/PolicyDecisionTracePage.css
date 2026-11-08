@@ -1,0 +1,43 @@
+/* Policy Decision Trace page: only what is specific to this page. The banner, frame, cards, key-value
+   list, chips and buttons are the shared Ping UI primitives (src/styles/ping-ui.css,
+   docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1), type comes from the
+   --font-size-* scale (H2), no inline styles (H3). The tree itself is PolicyDecisionTree.css. */
+
+/* Header actions sit in the title band: keep the row tight and let it wrap at phone width. */
+.pdt-page .pdt-actions {
+  margin-top: 0;
+}
+
+/* The tree card scrolls its own diagram sideways at phone width, never the page. */
+.pdt-page .pu-card {
+  line-height: var(--line-height-normal);
+}
+
+.pdt-page .p1dt-collapse-controls {
+  flex-wrap: wrap;
+}
+
+/* The saved-run modal renders in a portal outside .pu-page, so its one primary is styled here with the
+   fixed Ping Red button tokens (never a vertical colour). Dismiss keeps the shared .dm-close-btn look. */
+.pdt-modal-primary {
+  padding: 6px 18px;
+  border: 1px solid var(--btn-accent-edge);
+  border-radius: var(--radius-md);
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.pdt-modal-primary:hover {
+  background-image: var(--btn-accent-gradient-hover);
+}
+
+.pdt-modal-primary:focus-visible,
+.dm-footer .dm-close-btn:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}

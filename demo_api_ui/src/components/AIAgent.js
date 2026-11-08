@@ -9743,6 +9743,15 @@ export default function BankingAgent({
           const retryMsg = text;
           const retryOpts = { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId };
           pendingStepUpCallbackRef.current = async () => {
+            // A use-case run (UC7) IS the step-up: it ends once identity is verified.
+            // Replaying the prompt sends it to the live gateway, whose policy also
+            // asks for HITL on this tool at any amount, which minted a challenge UC7
+            // never asks anyone to approve (UC8 is the HITL case). Free-form chat
+            // still replays, so the payment the user typed goes through.
+            if (useCaseId) {
+              addMessage("assistant", "✅ Identity verified — MFA step-up complete.", null, { source: "heuristic" });
+              return;
+            }
             setNlLoading(true);
             try {
               const resp = await sendAgentMessage(retryMsg, null, retryOpts);

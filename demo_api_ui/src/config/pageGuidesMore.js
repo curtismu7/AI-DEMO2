@@ -375,13 +375,13 @@ export const MORE_PAGE_GUIDES = {
     title: "Autonomous Agents Guide",
     talkingPoints: [
       "An autonomous agent runs on a schedule with nobody signed in and authenticates as itself, unlike a worker agent that acts inside a user session.",
-      "It is bounded by a standing mandate, and anything over the mandate is parked for approval over CIBA.",
+      "It is bounded by a standing mandate, and anything over the mandate is parked for approval over simulated CIBA (a mock phone or email, never a real device).",
       "Every run keeps a full record and a replayable token chain with no act claim, because nobody delegated it.",
     ],
     walkthrough: steps([
       ["Know the difference", "The explainer cards contrast the worker agent (fired by a user turn, bounded by that user) with the autonomous agent (fired by a schedule, bounded by a standing mandate).", "Read the Worker agent and Autonomous agent cards, and the Nightly Fraud Watch and Balance Sweep examples near the top of the page."],
-      ["Switch it on and start a run", "The page is public, but nothing is scheduled or runnable until the ff_autonomous_agents flag is on.", "Click the On/Off switch in the Autonomous agents card, then in Run history click Run fraud watch or Run balance sweep."],
-      ["Inspect a run and approve a parked one", "An opened run shows what it looked at, its mandate, the identity it used and what policy said, and a run over the mandate waits for the account owner.", "Click a run row to expand it and read Authenticated as, Standing mandate and Policy said, replay the Token chain, and click Approve or Decline on a run showing Waiting on approval."],
+      ["Switch it on and start a run", "The page is public, but nothing is scheduled or runnable until the ff_autonomous_agents flag is on.", "Click Turn on in the Autonomous agents card, then in Run history click Run fraud watch or Run balance sweep."],
+      ["Inspect a run and approve a parked one", "An opened run shows what it looked at, its mandate, the identity it used and what policy said, and a run over the mandate waits for the account owner.", "Click a run row to expand it and read Authenticated as, Standing mandate and Policy said, replay the Token chain, and click Approve or Decline on a run showing Waiting on approval (they stand in for the answer from the mock phone or email)."],
     ]),
   },
   "/langchain": {
