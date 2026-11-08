@@ -10,9 +10,6 @@
  */
 const { test, expect } = require('@playwright/test');
 
-// Headless Chromium hides scrollbars by default, which would make the CO-3 width check vacuous.
-test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
-
 const ADMIN = { id: 'a', username: 'admin', email: 'a@example.com', firstName: 'A', lastName: 'B', name: 'A B', role: 'admin' };
 const json = (body) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -164,18 +161,19 @@ for (const theme of ['light', 'dark']) {
       }
     });
 
-    test('CO-3: scrollbars outside the token modal keep the default width; inside it the thumb is 3:1', async ({ page }) => {
+    test('CO-3: scrollbars outside the token modal keep the default width (no ::-webkit-scrollbar size); inside it the thumb is 3:1', async ({ page }) => {
       await openRoute(page, '/privilege-saas-access', theme);
       const r = await page.evaluate(() => {
         const host = document.createElement('div');
         host.innerHTML = '<div class="tfd-root" style="position:fixed;top:0;left:0;width:100px;height:100px"><div id="fx-in" style="overflow:scroll;width:80px;height:50px"><div style="height:300px;width:300px"></div></div></div>'
           + '<div id="fx-out" style="position:fixed;top:0;left:200px;overflow:scroll;width:80px;height:50px"><div style="height:300px;width:300px"></div></div>';
         document.body.appendChild(host);
-        const w = (id) => { const e = document.getElementById(id); return e.offsetWidth - e.clientWidth; };
+        // The pseudo's computed width, not offsetWidth - clientWidth: the app zoom and overlay scrollbars make the latter 0.
+        const w = (id) => getComputedStyle(document.getElementById(id), '::-webkit-scrollbar').width;
         return { outside: w('fx-out'), inside: w('fx-in'), thumb: getComputedStyle(document.getElementById('fx-in'), '::-webkit-scrollbar-thumb').backgroundColor };
       });
-      expect(r.outside, 'the app-wide scrollbar must not be the 4px modal one').toBeGreaterThan(4);
-      expect(r.inside).toBe(4);
+      expect(r.outside, 'the app-wide scrollbar must not be the 4px modal one').toBe('auto');
+      expect(r.inside).toBe('4px');
       expect(r.thumb).toBe('rgb(139, 148, 158)');
     });
   });
