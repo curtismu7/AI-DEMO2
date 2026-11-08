@@ -1,44 +1,199 @@
-/* /gateway-claims. Tokens only (--th-*, --font-*, --radius-*) so light and dark both work. */
-.gwc-page { max-width: 1280px; margin: 0 auto; padding: 0 16px 48px; color: var(--th-text); font-family: var(--font-primary); }
-.gwc-page h2 { font-size: var(--font-size-lg); font-weight: 700; margin: 0 0 10px; }
-.gwc-page h3 { font-size: var(--font-size-md); font-weight: 600; margin: 14px 0 6px; }
-.gwc-page code, .gwc-pre { font-family: var(--font-mono); font-size: var(--font-size-xs); }
-.gwc-card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 16px 18px 18px; margin-top: 16px; }
-.gwc-lede { color: var(--th-text-body); max-width: 860px; }
-.gwc-muted { color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.gwc-legend { margin-top: 12px; display: grid; gap: 4px; font-size: var(--font-size-sm); color: var(--th-text-body); }
-.gwc-legend p { margin: 0; }
-.gwc-tag { display: inline-block; padding: 1px 8px; border-radius: var(--radius-sm); border: 1px solid var(--th-border-strong); font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; vertical-align: middle; }
-.gwc-tag--verified { color: var(--th-status-success-text); background: var(--th-status-success-bg); border-color: var(--th-status-success-border); }
-.gwc-tag--inferred, .gwc-tag--unverified { color: var(--th-status-warning-text); background: var(--th-status-warning-bg); border-color: var(--th-status-warning-border); }
-.gwc-warn { padding: 8px 12px; border: 1px solid var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
-.gwc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 8px 0 16px; }
-.gwc-pre { margin: 0 0 8px; padding: 10px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-sm); overflow: auto; line-height: 1.5; }
-.gwc-scenarios { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-.gwc-chip { padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); cursor: pointer; }
-.gwc-chip--on { background: var(--th-bg-emphasis); border-color: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); font-weight: 600; }
-.gwc-verdict { padding: 10px 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); }
-.gwc-verdict p { margin: 6px 0 0; }
-.gwc-verdict--ok { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); }
-.gwc-verdict--ok > strong { color: var(--th-status-success-text); }
-.gwc-verdict--bad { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
-.gwc-verdict--bad > strong { color: var(--th-status-error-text); }
-.gwc-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); margin: 8px 0; }
-.gwc-table th, .gwc-table td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--th-border); }
-.gwc-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
-.gwc-req td:first-child { font-weight: 700; }
-.gwc-ok { color: var(--th-status-success-text); font-weight: 700; }
-.gwc-bad { color: var(--th-status-error-text); font-weight: 700; }
-.gwc-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-.gwc-group { padding: 4px 12px 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-inset); }
-.gwc-group dl { margin: 0; }
-.gwc-group dt { font-weight: 600; font-size: var(--font-size-sm); margin-top: 8px; }
-.gwc-group dd { margin: 2px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); }
+/* /gateway-claims. Layout, cards, chips, kv lists and buttons come from the shared Ping UI primitives
+   (styles/ping-ui.css, docs/ping-ui-primitives.md). This sheet keeps only what is specific to the page:
+   code blocks, stacked tables, the radio chips, and the one primary (Part 1's Simulate). Tokens only. */
+.gwc-page code,
+.gwc-pre {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.gwc-muted {
+  color: var(--th-text-muted);
+}
+
+.gwc-pre {
+  margin: 0 0 8px;
+  padding: 10px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  overflow: auto;
+  line-height: 1.5;
+}
+
+.pu-page .gwc-legend-list,
+.pu-page .gwc-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.pu-page .gwc-legend-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.gwc-legend-list li,
+.gwc-list li {
+  margin: 6px 0;
+}
+
+/* A card column that holds more than one card (the pick card above its verdict). */
+.gwc-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.gwc-stack > .pu-card {
+  margin: 0;
+}
+
+/* Radio chips: native radios (arrow keys, a checked dot that is not colour alone) in a bordered pill. */
+.gwc-choices {
+  min-width: 0;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+}
+
+/* A legend inherits the skin's heading-sized, floated look; this makes it the same small label as .pu-label. */
+.pu-page .gwc-choices > legend {
+  float: none;
+  width: auto;
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: var(--font-size-2xs);
+  line-height: 1.3;
+}
+
+.gwc-choices__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gwc-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.gwc-choice--on {
+  border-color: var(--th-text);
+  box-shadow: inset 0 0 0 1px var(--th-text);
+  background: var(--th-bg-inset);
+  font-weight: var(--font-weight-semibold);
+}
+
+.gwc-choice__input {
+  margin: 0;
+  accent-color: var(--btn-accent);
+}
+
+.gwc-choice__input:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.gwc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  margin: 8px 0;
+}
+
+.gwc-table th,
+.gwc-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border);
+  overflow-wrap: anywhere;
+}
+
+.gwc-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.gwc-req td:first-child {
+  font-weight: var(--font-weight-bold);
+}
+
+.gwc-ok {
+  color: var(--th-status-success-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.gwc-bad {
+  color: var(--th-status-error-text);
+  font-weight: var(--font-weight-bold);
+}
+
+/* The one primary on the page: Part 1's Simulate (the shared DiagramStepBar), in the fixed Ping Red gradient like every
+   other primary. While that walkthrough runs, Simulate is replaced by Pause (then Resume), so the page never has two or none.
+   The walkthroughs of parts 4 and 5 stay bordered secondaries (ping-ui.css). The hover rule restates border-color because the
+   shared toolbar hover rule has the same specificity. */
+.pu-page .gwc-sim-primary .dstep-bar .dc-ctrl-btn--simulate:not(:disabled),
+.pu-page .gwc-sim-primary .dstep-bar .dc-ctrl-btn--pause:not(:disabled),
+.pu-page .gwc-sim-primary .dstep-bar .dc-ctrl-btn--resume:not(:disabled) {
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border: 1px solid var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+}
+
+.pu-page .gwc-sim-primary .dstep-bar .dc-ctrl-btn--simulate:hover:not(:disabled),
+.pu-page .gwc-sim-primary .dstep-bar .dc-ctrl-btn--pause:hover:not(:disabled),
+.pu-page .gwc-sim-primary .dstep-bar .dc-ctrl-btn--resume:hover:not(:disabled) {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+}
+
 @media (max-width: 640px) {
-  .gwc-table--stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .gwc-table--stack, .gwc-table--stack tbody, .gwc-table--stack tr, .gwc-table--stack td { display: block; }
-  .gwc-table--stack tr { padding: 6px 0; border-bottom: 1px solid var(--th-border); }
-  .gwc-table--stack td { padding: 2px 4px; border: 0; overflow-wrap: anywhere; }
-  .gwc-table--stack td::before { content: attr(data-label); display: block; color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
-  .gwc-grid { grid-template-columns: minmax(0, 1fr); }
+  .gwc-table--stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .gwc-table--stack,
+  .gwc-table--stack tbody,
+  .gwc-table--stack tr,
+  .gwc-table--stack td {
+    display: block;
+  }
+
+  .gwc-table--stack tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border);
+  }
+
+  .gwc-table--stack td {
+    padding: 2px 4px;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .gwc-table--stack td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+  }
 }

@@ -9743,31 +9743,18 @@ export default function BankingAgent({
           const retryMsg = text;
           const retryOpts = { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId };
           pendingStepUpCallbackRef.current = async () => {
+            // A use-case run (UC7) IS the step-up: it ends once identity is verified.
+            // Replaying the prompt sends it to the live gateway, whose policy also
+            // asks for HITL on this tool at any amount, which minted a challenge UC7
+            // never asks anyone to approve (UC8 is the HITL case). Free-form chat
+            // still replays, so the payment the user typed goes through.
+            if (useCaseId) {
+              addMessage("assistant", "✅ Identity verified — MFA step-up complete.", null, { source: "heuristic" });
+              return;
+            }
             setNlLoading(true);
             try {
               const resp = await sendAgentMessage(retryMsg, null, retryOpts);
-              if (resp.error === "hitl_required" || resp.error === "mcp_hitl_required") {
-                // Verified, but the policy now wants a human to approve too (the live
-                // Authorize policy returns HITL for this tool at any amount). Open the
-                // same approval card the other gates open; approving approves THIS
-                // challenge and retries with it. Printing resp.reply here left the
-                // challenge pending with no way to approve it.
-                addMessage("assistant", "This action needs your approval before it can run — check the approval prompt.", null, { source: "heuristic", ...verticalResultExtra(resp) });
-                setHitlPendingIntent({
-                  isVerticalConsent: true,
-                  isStepUp: false,
-                  verticalMessage: retryMsg,
-                  verticalOpts: retryOpts,
-                  hitlChallengeId: resp.hitlChallengeId || null,
-                  tool: resp.action || null,
-                  intentPayload: {
-                    type: "Action Confirmation",
-                    description: (resp.action || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()),
-                    amount: 0,
-                  },
-                });
-                return;
-              }
               addMessage("assistant", resp.reply || "✅ Done.", null, { source: "heuristic", ...verticalResultExtra(resp) });
             } catch (err) {
               addMessage("error", `Failed: ${err.message}`);
