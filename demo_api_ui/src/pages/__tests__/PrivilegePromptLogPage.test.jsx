@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import PrivilegePromptLogPage from '../PrivilegePromptLogPage';
 import { SEALED_PROMPT_RECORDS } from '../../config/privilegePlatformUpdateDemos';
@@ -16,15 +17,21 @@ describe('PrivilegePromptLogPage (standalone UI standard)', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Prompt Logging, encrypted to you');
   });
 
-  it('shows exactly one primary button; the live check and Close are secondaries', () => {
+  it('shows exactly one primary at a time: Open when sealed, Close when open; the live check never', () => {
     const { container } = render(<PrivilegePromptLogPage />);
-    expect(container.querySelectorAll('button.pu-btn--primary')).toHaveLength(1);
+    const primaries = () => [...container.querySelectorAll('button.pu-btn--primary')];
+    expect(primaries()).toHaveLength(1);
     expect(screen.getByTestId('ppl-open').className).toContain('pu-btn--primary');
     const live = within(screen.getByTestId('privilege-live-check')).getByRole('button');
     expect(live.className).not.toContain('primary');
     fireEvent.change(screen.getByLabelText(/private key/i), { target: { value: 'k' } });
     fireEvent.click(screen.getByTestId('ppl-open'));
-    expect(container.querySelectorAll('button.pu-btn--primary')).toHaveLength(0);
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0]).toBe(screen.getByTestId('ppl-close'));
+    expect(live.className).not.toContain('primary');
+    fireEvent.click(screen.getByTestId('ppl-close'));
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0]).toBe(screen.getByTestId('ppl-open'));
   });
 
   it('lists every record with a decision chip that carries the word', () => {
@@ -59,6 +66,59 @@ describe('PrivilegePromptLogPage (standalone UI standard)', () => {
     fireEvent.click(within(screen.getByTestId('ppl-records')).getByText(SEALED_PROMPT_RECORDS[1].id));
     expect(screen.getByTestId('ppl-detail').textContent).toContain(`Record ${SEALED_PROMPT_RECORDS[1].id}`);
     expect(screen.getByTestId('ppl-sealed')).toBeTruthy();
+  });
+
+  it('records are chosen from the keyboard: a real button per row with aria-pressed on the selected one', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegePromptLogPage />);
+    const [first, second] = SEALED_PROMPT_RECORDS;
+    const firstBtn = screen.getByTestId(`ppl-row-${first.id}`);
+    const secondBtn = screen.getByTestId(`ppl-row-${second.id}`);
+    expect(firstBtn.tagName).toBe('BUTTON');
+    expect(firstBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(secondBtn.getAttribute('aria-pressed')).toBe('false');
+    secondBtn.focus();
+    expect(document.activeElement).toBe(secondBtn);
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('ppl-detail').textContent).toContain(`Record ${second.id}`);
+    expect(secondBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(firstBtn.getAttribute('aria-pressed')).toBe('false');
+    firstBtn.focus();
+    await user.keyboard(' ');
+    expect(screen.getByTestId('ppl-detail').textContent).toContain(`Record ${first.id}`);
+    expect(firstBtn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps keyboard focus on the one primary as it turns from Open into Close and back', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegePromptLogPage />);
+    await user.type(screen.getByLabelText(/private key/i), 'k');
+    await user.keyboard('{Tab}');
+    const primary = screen.getByTestId('ppl-open');
+    expect(document.activeElement).toBe(primary);
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('ppl-close')).toBe(primary);
+    expect(document.activeElement).toBe(primary);
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('ppl-open')).toBe(primary);
+    expect(document.activeElement).toBe(primary);
+    expect(screen.getByLabelText(/private key/i).value).toBe('');
+  });
+
+  it('forgets the typed private key and any error when another record is chosen', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegePromptLogPage />);
+    const key = screen.getByLabelText(/private key/i);
+    fireEvent.change(key, { target: { value: 'my-secret-key' } });
+    expect(screen.getByLabelText(/private key/i).value).toBe('my-secret-key');
+    await user.click(screen.getByTestId(`ppl-row-${SEALED_PROMPT_RECORDS[1].id}`));
+    expect(screen.getByLabelText(/private key/i).value).toBe('');
+    // Come back to the first record: the key must still be gone, so Open fails until one is typed again.
+    await user.click(screen.getByTestId(`ppl-row-${SEALED_PROMPT_RECORDS[0].id}`));
+    expect(screen.getByLabelText(/private key/i).value).toBe('');
+    fireEvent.click(screen.getByTestId('ppl-open'));
+    expect(screen.getByRole('alert').textContent).toMatch(/Enter the private key/);
+    expect(screen.queryByTestId('ppl-plaintext')).toBeNull();
   });
 
   it('renders the live verdict with a chip that carries the word', async () => {

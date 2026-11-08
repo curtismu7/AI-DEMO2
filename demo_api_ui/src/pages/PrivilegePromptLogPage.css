@@ -16,6 +16,13 @@
   }
 }
 
+/* The CDN end-user-nano skin sets the app root's line-height to 1 (--bs-body-line-height), which every
+   unstyled paragraph on this page inherited. Body text here takes the app's normal reading height.
+   (A shared .pu-page line-height would fix it for every converted page; that file is not this PR's.) */
+.ppl-page {
+  line-height: var(--line-height-normal);
+}
+
 /* Record table: scrolls inside its own wrapper when wide, stacks as labelled rows at phone width. */
 .ppl-table-wrap {
   overflow-x: auto;
@@ -56,6 +63,31 @@
 
 .ppl-row--active td {
   background: var(--th-bg-inset);
+}
+
+/* The record id is a real button so a row can be chosen from the keyboard (Tab, then Enter or Space);
+   it reads as text with an underline as the affordance; the selected row also has the inset fill. */
+.ppl-row-btn {
+  min-height: 32px;
+  margin: -6px 0;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--th-text);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.ppl-row-btn[aria-pressed='true'] {
+  text-decoration-thickness: 2px;
+}
+
+.ppl-row-btn:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 .ppl-sealed-cell {

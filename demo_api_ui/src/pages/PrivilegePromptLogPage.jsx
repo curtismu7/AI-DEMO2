@@ -17,7 +17,10 @@
 // Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/
 // STANDALONE-UI-PATTERNS.md) through the shared primitives (components/pingUi,
 // docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv,
-// P7 chips, P9 buttons. This page keeps only its record table and the
+// P7 chips, P9 buttons. P9's "one primary per view" is read as one primary ACTION AT A TIME: the
+// sealed state's primary is "Open this record", the opened state's is "Close and forget the key"
+// (the only action that advances it), one control that swaps its label so focus stays on it; the live
+// check stays a secondary in both. This page keeps only its record table and the
 // sealed/decrypted block in PrivilegePromptLogPage.css.
 
 import { useMemo, useState } from 'react';
@@ -62,6 +65,16 @@ export default function PrivilegePromptLogPage() {
     setUnsealedId(record.id);
   };
 
+  // Choosing a record re-seals the view, so the typed key goes with it: a private key must not
+  // linger in state for a record it was not entered for. Mouse (row click) and keyboard (the
+  // button in the first cell, whose click bubbles to the row) share this one path.
+  const selectRecord = (id) => {
+    setSelectedId(id);
+    setUnsealedId(null);
+    setPrivateKey('');
+    setKeyError('');
+  };
+
   const closeRecord = () => {
     setUnsealedId(null);
     setPrivateKey('');
@@ -102,9 +115,18 @@ export default function PrivilegePromptLogPage() {
                       <tr
                         key={r.id}
                         className={r.id === selectedId ? 'ppl-row--active' : ''}
-                        onClick={() => { setSelectedId(r.id); setUnsealedId(null); }}
+                        onClick={() => selectRecord(r.id)}
                       >
-                        <td data-label="Record">{r.id}</td>
+                        <td data-label="Record">
+                          <button
+                            type="button"
+                            className="ppl-row-btn"
+                            aria-pressed={r.id === selectedId}
+                            data-testid={`ppl-row-${r.id}`}
+                          >
+                            {r.id}
+                          </button>
+                        </td>
                         <td data-label="Agent">{r.agent}</td>
                         <td data-label="Detected">{r.category}</td>
                         <td data-label="Decision"><DecisionChip decision={r.decision} /></td>
@@ -114,7 +136,7 @@ export default function PrivilegePromptLogPage() {
                   </tbody>
                 </table>
               </div>
-              <p className="pu-note">Select a row to see its detail. Selecting another record closes any record you had open.</p>
+              <p className="pu-note">Select a record to see its detail. Selecting another record closes any record you had open and forgets the key you typed.</p>
             </Card>
 
             <Card title={`Record ${record.id}`} tone={isOpen ? 'ok' : undefined} data-testid="ppl-detail">
@@ -138,7 +160,6 @@ export default function PrivilegePromptLogPage() {
                 <div className="ppl-plaintext" data-testid="ppl-plaintext">
                   <strong>Decrypted (in this browser only)</strong>
                   <p>{SEALED_DEMO.plaintextByRecord[record.id] ?? 'Sample plaintext: the prompt and response this record sealed. In the product this came from the sealed blob, decrypted with the private key you entered, and it is never stored opened.'}</p>
-                  <button type="button" className="pu-btn" onClick={closeRecord}>Close and forget the key</button>
                 </div>
               ) : (
                 <div className="ppl-sealed" data-testid="ppl-sealed">
@@ -154,9 +175,20 @@ export default function PrivilegePromptLogPage() {
                     autoComplete="off"
                   />
                   {keyError && <p className="ppl-error" role="alert">{keyError}</p>}
-                  <button type="button" className="pu-btn pu-btn--primary" onClick={openRecord} data-testid="ppl-open">Open this record</button>
                 </div>
               )}
+              {/* One element for both states, so the one primary is one control and keyboard focus stays
+                  on it when it turns from Open into Close. */}
+              <div className="pu-actions">
+                <button
+                  type="button"
+                  className="pu-btn pu-btn--primary"
+                  onClick={isOpen ? closeRecord : openRecord}
+                  data-testid={isOpen ? 'ppl-close' : 'ppl-open'}
+                >
+                  {isOpen ? 'Close and forget the key' : 'Open this record'}
+                </button>
+              </div>
             </Card>
           </div>
         </Section>
