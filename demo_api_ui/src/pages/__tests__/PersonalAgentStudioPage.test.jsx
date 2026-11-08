@@ -210,16 +210,19 @@ describe('PersonalAgentStudioPage', () => {
     expect(host.style.maxHeight).toBe('');
   });
 
-  it('bare variant drops the chrome-height subtraction from the shell', () => {
-    // The height rules live in the stylesheet (so the stacked layout can flow at natural height); the shell
-    // carries a --bare class only when there is no app chrome, and the CSS subtracts the chrome height only without it.
-    const { rerender } = renderStudio();
-    expect(screen.getByTestId('studio-shell').classList.contains('pas-shell--bare')).toBe(false);
+  it('bare variant drops the chrome-height subtraction from the page (the shell takes what the banner leaves)', () => {
+    // The height rules live in the stylesheet. A fixed-height view (the connector and delegation tabs) sizes the PAGE, so
+    // the shell is whatever the banner leaves and no height guesses how tall the banner wraps; bare has no app chrome.
+    const { container, rerender } = renderStudio();
+    const page = () => container.querySelector('.pas-page');
+    expect(page().classList.contains('pas-page--bare')).toBe(false);
     rerender(<MemoryRouter><PersonalAgentStudioPage bare /></MemoryRouter>);
-    expect(screen.getByTestId('studio-shell').classList.contains('pas-shell--bare')).toBe(true);
+    expect(page().classList.contains('pas-page--bare')).toBe(true);
     const rule = (selector) => css.match(new RegExp(selector.replace(/[.]/g, '\\.') + '\\s*\\{[^}]*\\}'))?.[0] || '';
-    expect(rule('.pas-shell')).toContain('176px');
-    expect(rule('.pas-shell--bare')).not.toContain('176px');
+    expect(rule('.pas-page--fixed')).toContain('176px');
+    expect(rule('.pas-page--fixed.pas-page--bare')).not.toContain('176px');
+    expect(rule('.pas-shell')).not.toMatch(/(^|[\s;{])(height|min-height):\s*calc/);
+    expect(css).not.toContain('--pas-banner-h');
   });
 
   it('the flow diagram disclosure says "Expand for Diagram"', () => {
@@ -235,7 +238,9 @@ describe('PersonalAgentStudioPage', () => {
     const grid = css.split('.pas-shell--cockpit {').map((chunk) => chunk.slice(0, chunk.indexOf('}'))).find((chunk) => chunk.includes('grid-template-rows'));
     expect(body('.pas-shell--cockpit > .pas-c-chat')).toContain('position: sticky');
     expect(body('.pas-shell--cockpit > .personal-agent-client-dock')).toContain('position: sticky');
-    expect(grid).toContain('height: auto');
+    // no fixed height: the shell is `flex: 1 0 auto`, so it is as tall as its content (the page holds the window-height floor)
+    expect(grid).not.toMatch(/(^|[\s;])height:/);
+    expect(grid).toContain('flex: 1 0 auto');
     expect(grid).not.toContain('minmax(0, 1fr);');
   });
 
