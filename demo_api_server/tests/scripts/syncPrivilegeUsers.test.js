@@ -121,17 +121,32 @@ test('syncs the extra accounts listed in PRIVILEGE_SYNC_ACCOUNTS', async () => {
 
 test('assigns the worker Identity Data Admin on the Privilege env when missing, then uses a fresh token', async () => {
   const p = fakePingOne({ srcUsers: [], dstUsers: [], hasRole: false });
-  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet });
+  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet, retryDelayMs: 0 });
   expect(r.skipped).toEqual([]);
   expect(p.assignments).toEqual([{ role: { id: 'r-ida' }, scope: { id: DST, type: 'ENVIRONMENT' } }]);
   expect(p.tokenCount()).toBe(2);
 });
 
-test('stops with instructions when the role cannot be assigned', async () => {
+test('warns and still syncs when the role cannot be assigned', async () => {
   const lines = [];
   const p = fakePingOne({ srcUsers: [{ id: 's1', username: 'alice@example.com', email: 'alice@example.com' }], dstUsers: [], hasRole: false, grantStatus: 403 });
-  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: (l) => lines.push(l) });
-  expect(r.skipped).toBe(true);
-  expect(p.dstUsers).toHaveLength(0);
+  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: (l) => lines.push(l), retryDelayMs: 0 });
   expect(lines.join('\n')).toMatch(/HTTP 403.*grant the worker app Identity Data Admin on environment dst-env/);
+  expect(r.created).toEqual(['alice@example.com']);
+});
+
+test('an organization-scoped role counts and nothing is assigned', async () => {
+  const p = fakePingOne({ srcUsers: [], dstUsers: [], hasRole: false });
+  p.assignments.push({ role: { id: 'r-ida' }, scope: { type: 'ORGANIZATION', id: 'org' } });
+  await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet });
+  expect(p.assignments).toHaveLength(1);
+  expect(p.tokenCount()).toBe(1);
+});
+
+test('a refused role read does not stop the sync', async () => {
+  const p = fakePingOne({ srcUsers: [{ id: 's1', username: 'alice@example.com', email: 'alice@example.com' }], dstUsers: [] });
+  const inner = p.fetchImpl;
+  const fetchImpl = (url, o) => (url.endsWith('/v1/roles') ? Promise.resolve({ ok: false, status: 403, json: async () => ({}) }) : inner(url, o));
+  const r = await syncPrivilegeUsers({ env, fetchImpl, log: quiet, retryDelayMs: 0 });
+  expect(r.created).toEqual(['alice@example.com']);
 });

@@ -16,10 +16,10 @@
  *
  * The demo worker (PINGONE_WORKER_CLIENT_ID/_SECRET) needs Identity Data Admin
  * on Privilege's env; without it PingOne returns empty user lists there rather
- * than a 403. If the role is missing the script assigns it to the worker, which
- * only works when the worker already holds that role somewhere it may delegate
- * from (e.g. Environment/Organization Admin). Skips (exit 0) when Privilege's
- * env is not configured or is the demo env itself.
+ * than a 403. If the role is missing the script tries to assign it to the
+ * worker (works only when the worker may delegate it, e.g. holds Organization
+ * Admin); if it can't, it warns and syncs anyway. Skips (exit 0) when
+ * Privilege's env is not configured or is the demo env itself.
  *
  * Run standalone: node scripts/syncPrivilegeUsers.js [--dry-run]
  * Called automatically by bootstrapPingOne.js post-provisioning.
@@ -71,29 +71,36 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
   const users = async (e, filter) =>
     (await get(`${api(e)}/users?filter=${encodeURIComponent(filter)}`))._embedded?.users || [];
 
-  // A worker's client id is its application id in PingOne.
-  const role = ((await get(`https://api.pingone.${region}/v1/roles`))._embedded?.roles || []).find((r) => r.name === ROLE_NAME);
-  const assignUrl = `${api(src)}/applications/${clientId}/roleAssignments`;
-  const hasRole = ((await get(assignUrl))._embedded?.roleAssignments || []).some(
-    (a) => a.role?.id === role?.id && a.scope?.type === 'ENVIRONMENT' && a.scope?.id === dst,
-  );
-  if (!hasRole) {
-    const manual = `grant the worker app ${ROLE_NAME} on environment ${dst} (PingOne → env ${src} → Applications → worker → Roles), then re-run`;
-    if (dryRun || !role) {
-      log(`[syncPrivilegeUsers] Worker lacks ${ROLE_NAME} on Privilege env — ${dryRun ? 'would assign it' : manual}`);
-      return { skipped: true };
+  // Best effort: make sure the worker holds the role, but never let this
+  // check stop a sync that would work anyway. A worker's client id is its
+  // application id in PingOne.
+  const manual = `grant the worker app ${ROLE_NAME} on environment ${dst} (PingOne → env ${src} → Applications → worker → Roles)`;
+  try {
+    const role = ((await get(`https://api.pingone.${region}/v1/roles`))._embedded?.roles || []).find((r) => r.name === ROLE_NAME);
+    const assignUrl = `${api(src)}/applications/${clientId}/roleAssignments`;
+    const hasRole = ((await get(assignUrl))._embedded?.roleAssignments || []).some(
+      (a) => a.role?.id === role?.id && (a.scope?.type === 'ORGANIZATION' || (a.scope?.type === 'ENVIRONMENT' && a.scope?.id === dst)),
+    );
+    if (!hasRole && !role) {
+      log(`[syncPrivilegeUsers] ⚠️  Role ${ROLE_NAME} not found; if users are missed, ${manual}`);
+    } else if (!hasRole && dryRun) {
+      log(`[syncPrivilegeUsers] would assign the worker ${ROLE_NAME} on Privilege env`);
+    } else if (!hasRole) {
+      const r = await fetchImpl(assignUrl, {
+        method: 'POST',
+        headers: H,
+        body: JSON.stringify({ role: { id: role.id }, scope: { id: dst, type: 'ENVIRONMENT' } }),
+      });
+      if (r.ok) {
+        log(`[syncPrivilegeUsers] ✅ Assigned ${ROLE_NAME} on Privilege env to the worker`);
+        await sleep(retryDelayMs * 2); // let the assignment settle
+        H = await workerHeaders(); // a new role reaches a fresh token only
+      } else {
+        log(`[syncPrivilegeUsers] ⚠️  Could not assign ${ROLE_NAME} on Privilege env (HTTP ${r.status}); if users are missed, ${manual}`);
+      }
     }
-    const r = await fetchImpl(assignUrl, {
-      method: 'POST',
-      headers: H,
-      body: JSON.stringify({ role: { id: role.id }, scope: { id: dst, type: 'ENVIRONMENT' } }),
-    });
-    if (!r.ok) {
-      log(`[syncPrivilegeUsers] ⚠️  Could not assign ${ROLE_NAME} on Privilege env (HTTP ${r.status}) — ${manual}`);
-      return { skipped: true };
-    }
-    log(`[syncPrivilegeUsers] ✅ Assigned ${ROLE_NAME} on Privilege env to the worker`);
-    H = await workerHeaders(); // new role reaches a fresh token only
+  } catch (err) {
+    log(`[syncPrivilegeUsers] ⚠️  Could not check the worker's roles (${err.message}); continuing`);
   }
 
   const groups = (await get(`${api(dst)}/groups?filter=${encodeURIComponent(`name eq "${GROUP_NAME}"`)}`))._embedded?.groups || [];
