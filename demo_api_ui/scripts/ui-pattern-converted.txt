@@ -3,6 +3,7 @@
 # One route path per line, exactly as in src/App.js.
 /privilege-saas-access
 /pingone-authorize
+/scope-audit
 /delegation-chain-value
 /privilege-map
 /demo-track
