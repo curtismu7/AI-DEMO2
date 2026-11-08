@@ -9,6 +9,7 @@
 /brave-mcp
 /demo-track
 /privilege-coding-agents
+/delegated-commerce
 /demo-summary
 /privilege-pii-detection
 /privilege-gateway-topologies
