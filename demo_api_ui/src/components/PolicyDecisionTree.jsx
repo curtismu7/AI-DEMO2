@@ -26,8 +26,11 @@
  *                       (decision, stepUpRequired, consentRequired, raw{...})
  *   floating : Bool   - when true, omit the outer title (FloatingPanel owns it)
  *                       and fill the floating panel body
+ *   embedded : Bool   - when true, the host page owns the verdict and the title: omit the
+ *                       decision banner and the title, and drop the outer card chrome
  */
 import { useState } from "react";
+import { DECISION_LABELS, overallDecision } from "../utils/policyDecisionSummary";
 import "./PolicyDecisionTree.css";
 
 const STOP = new Set([
@@ -61,24 +64,8 @@ function ruleKind(node) {
   );
 }
 
-// Map the normalized evaluate result to one overall display token.
-function overallDecision(result) {
-  if (!result) return "INDETERMINATE";
-  if (result.stepUpRequired) return "STEP_UP";
-  if (result.consentRequired || result.hitlRequired) return "CONSENT";
-  return result.decision || "INDETERMINATE";
-}
-
 const STATUS_GLYPH = { permit: "✓", deny: "❌", step_up: "!", consent: "!", set: "–", na: "N/A" };
 const EFFECT_CLASS = (e) => (/DENY/.test(e || "") ? "deny" : "permit");
-
-const DECISION_LABELS = {
-  PERMIT: "APPROVED",
-  DENY: "DENIED",
-  STEP_UP: "STEP-UP REQUIRED",
-  CONSENT: "CONSENT REQUIRED",
-  INDETERMINATE: "INDETERMINATE",
-};
 
 /**
  * Build the overlay: a Map of nodeId -> { kind, active, onPath, statements[] }.
@@ -168,7 +155,6 @@ function NodeCard({ node, o }) {
         ) : (
           <span />
         )}
-        {isRule && <span className="p1dt-foot-timing">&lt;1 ms</span>}
       </div>
     </div>
   );
@@ -208,8 +194,10 @@ function Branch({ node, ov, collapsedIds, toggleCollapse }) {
                   <Branch key={c.id} node={c} ov={ov} collapsedIds={collapsedIds} toggleCollapse={toggleCollapse} />
                 ))}
                 <button
+                  type="button"
                   className="p1dt-collapse-toggle"
                   onClick={() => toggleCollapse(node.id)}
+                  aria-expanded={!isCollapsed}
                   title={isCollapsed ? "Show inactive branches" : "Hide inactive branches"}
                 >
                   {isCollapsed
@@ -225,9 +213,15 @@ function Branch({ node, ov, collapsedIds, toggleCollapse }) {
   );
 }
 
-export default function PolicyDecisionTree({ policies, result, floating = false }) {
+// The guard lives in this thin wrapper so the stateful body below never calls a hook after an early return
+// (hook order stays fixed if the props flip between empty and populated).
+export default function PolicyDecisionTree(props) {
+  const { policies, result } = props;
   if (!result || !Array.isArray(policies) || policies.length === 0) return null;
+  return <PolicyDecisionTreeBody {...props} />;
+}
 
+function PolicyDecisionTreeBody({ policies, result, floating = false, embedded = false }) {
   const raw = result.pingoneResponse || result.raw || {};
   const statements = Array.isArray(raw.statements) ? raw.statements : [];
   const decision = overallDecision(result);
@@ -289,16 +283,18 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
   };
 
   return (
-    <div className={floating ? "p1dt p1dt--floating" : "p1dt"}>
+    <div className={floating ? "p1dt p1dt--floating" : embedded ? "p1dt p1dt--embedded" : "p1dt"}>
       {/* Prominent Decision Banner */}
-      <div className={`p1dt-decision-banner p1dt-decision-banner--${decision.toLowerCase()}`}>
-        <span className="p1dt-decision-banner__label">Decision:</span>
-        <span className="p1dt-decision-banner__value">{DECISION_LABELS[decision] || decision.replace(/_/g, " ")}</span>
-        {timing && <span className="p1dt-decision-banner__timing">{timing}</span>}
-      </div>
+      {!embedded && (
+        <div className={`p1dt-decision-banner p1dt-decision-banner--${decision.toLowerCase()}`}>
+          <span className="p1dt-decision-banner__label">Decision:</span>
+          <span className="p1dt-decision-banner__value">{DECISION_LABELS[decision] || decision.replace(/_/g, " ")}</span>
+          {timing && <span className="p1dt-decision-banner__timing">{timing}</span>}
+        </div>
+      )}
 
       <div className="p1dt-head">
-        {!floating && <span className="p1dt-title">Policy decision trace</span>}
+        {!floating && !embedded && <span className="p1dt-title">Policy decision trace</span>}
         <span className="p1dt-path-label">
           Execution path highlighted below
         </span>
@@ -313,8 +309,8 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
           <span className="p1dt-collapse-controls__summary">
             {totalInactive} inactive {totalInactive === 1 ? 'node' : 'nodes'} (not on execution path)
           </span>
-          <button className="p1dt-collapse-controls__btn" onClick={collapseAll}>Collapse all inactive</button>
-          <button className="p1dt-collapse-controls__btn" onClick={expandAll}>Expand all</button>
+          <button type="button" className="p1dt-collapse-controls__btn pu-btn" onClick={collapseAll}>Collapse all inactive</button>
+          <button type="button" className="p1dt-collapse-controls__btn pu-btn" onClick={expandAll}>Expand all</button>
         </div>
       )}
 
@@ -337,7 +333,7 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
             </div>
           ))}
           {unmatched.length > 0 && (
-            <div className="p1dt-stmt" style={{ color: "#b45309" }}>
+            <div className="p1dt-stmt p1dt-stmt--unmatched">
               {unmatched.length} statement{unmatched.length !== 1 ? "s" : ""} could not be mapped to a rule node
               (shown above, not highlighted on the tree).
             </div>
@@ -347,8 +343,8 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
 
       <div className="p1dt-legend">
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--path" /> Execution path (highlighted + animated)</span>
-        <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#e5e7eb" }} /> N/A — collapsed by default</span>
-        <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#d20e0f" }} /> Policy set / policy on path</span>
+        <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--na" /> N/A — collapsed by default</span>
+        <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--set" /> Policy set / policy on path</span>
         <span className="p1dt-legend-item">Number badge = statements mapped to that rule</span>
       </div>
     </div>
