@@ -68,7 +68,7 @@ describe("PrivilegeGatewayTopologyPage — LB runtime park/unpark panel", () => 
   });
 
   it("fetch fails (not signed in as admin): the panel names it, no rows", async () => {
-    apiClient.get.mockRejectedValue(new Error("403"));
+    apiClient.get.mockRejectedValue(Object.assign(new Error("403"), { response: { status: 403 } }));
     render(<PrivilegeGatewayTopologyPage />);
     expect(await screen.findByText(/Sign in as an admin/)).toBeTruthy();
     expect(screen.queryByText("gateway-1", { selector: ".pgt-runtime__row code" })).toBeNull();
@@ -88,7 +88,7 @@ describe("PrivilegeGatewayTopologyPage — Ping UI live/sample labelling and foc
   });
 
   it("signed out: the runtime card is neutral with an Admin sign-in needed chip; the stats card says admin only", async () => {
-    apiClient.get.mockRejectedValue(new Error("403"));
+    apiClient.get.mockRejectedValue(Object.assign(new Error("403"), { response: { status: 403 } }));
     render(<PrivilegeGatewayTopologyPage />);
     expect(await screen.findByText("Admin sign-in needed")).toBeTruthy();
     expect(screen.getByText("LB runtime controls").closest(".pu-card").className).toContain("pu-card--neutral");
@@ -157,6 +157,44 @@ describe("PrivilegeGatewayTopologyPage — Ping UI live/sample labelling and foc
     apiClient.get.mockResolvedValue({ data: { nodes: [], errors: [] } });
     render(<PrivilegeGatewayTopologyPage />);
     expect(await screen.findByText("The load balancer reported no nodes.")).toBeTruthy();
+  });
+
+  it("F8: a 500 from the LB read says it could not read the load balancer, never 'Admin sign-in needed'", async () => {
+    apiClient.get.mockRejectedValue(Object.assign(new Error("Request failed"), { response: { status: 500 } }));
+    render(<PrivilegeGatewayTopologyPage />);
+    const card = (await screen.findByText("LB runtime controls")).closest(".pu-card");
+    await waitFor(() => expect(card.textContent).toContain("Could not read the load balancer (HTTP 500)"));
+    expect(screen.queryByText("Admin sign-in needed")).toBeNull();
+    expect(card.querySelector(".pu-chip--danger").textContent).toBe("Unavailable");
+  });
+
+  it("F8: a network error (no response) is also not a sign-in problem", async () => {
+    apiClient.get.mockRejectedValue(new Error("Network Error"));
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(await screen.findByText(/Could not read the load balancer \(Network Error\)/)).toBeTruthy();
+    expect(screen.queryByText("Admin sign-in needed")).toBeNull();
+  });
+
+  it("F8: 401 and 403 are still 'Admin sign-in needed'", async () => {
+    apiClient.get.mockRejectedValue(Object.assign(new Error("x"), { response: { status: 401 } }));
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(await screen.findByText("Admin sign-in needed")).toBeTruthy();
+  });
+
+  it("F8: after a good read, a later 500 keeps the last nodes on screen and says the read failed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      apiClient.get.mockResolvedValueOnce({ data: NODES });
+      render(<PrivilegeGatewayTopologyPage />);
+      await screen.findByText("gateway-1", { selector: ".pgt-runtime__row code" });
+      apiClient.get.mockRejectedValue(Object.assign(new Error("x"), { response: { status: 502 } }));
+      await vi.advanceTimersByTimeAsync(10000);
+      await waitFor(() => expect(screen.getByText(/Could not read the load balancer \(HTTP 502\)/)).toBeTruthy());
+      expect(screen.getByText("gateway-1", { selector: ".pgt-runtime__row code" })).toBeTruthy();
+      expect(screen.queryByText("Admin sign-in needed")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

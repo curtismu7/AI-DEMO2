@@ -42,7 +42,8 @@
   align-items: center;
   gap: 0.25rem;
   text-align: center;
-  opacity: 0.45;
+  /* Not reached yet: dimmed, but still 4.5:1 in both themes (0.45 was 2.6:1 light, 3.9:1 dark). */
+  opacity: 0.72;
   transition: opacity 0.2s ease;
 }
 
@@ -61,7 +62,9 @@
   border: 1.5px solid var(--sah-color);
   border-radius: var(--radius-md);
   background: color-mix(in oklab, var(--sah-color) 12%, transparent);
-  color: var(--sah-color);
+  /* The actor colour is the border, tint and progress bar; the initials use the text token so they read on every
+     ground (a pastel or navy actor colour was 1.1:1 to 3:1 as text). */
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 700;
 }

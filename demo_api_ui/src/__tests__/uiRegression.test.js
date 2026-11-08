@@ -9,11 +9,13 @@
  *   5. TokenChainDisplay — EventRow act hint derivation logic
  *   6. accountsHydration — guard against regression (smoke re-run)
  *
- * These tests are pure-logic (no DOM mount) where possible to keep them fast.
- * React Testing Library is used for the one component render test.
+ * Everything here runs the REAL module or reads the REAL file. A test that re-implements the logic it
+ * claims to cover (the old paragraph-splitting and act-hint "mirror" tests) stays green when the
+ * product code changes, so those now render MessageContent and TokenChainDisplay themselves.
  */
 
 import React from "react";
+import { vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { TokenColorDot } from "../components/TokenColorSystem";
 
@@ -23,6 +25,27 @@ import {
   deriveTokenCategory,
   getTokenColor,
 } from "../components/TokenColorSystem";
+import { MessageContent } from "../components/agentResultPanels";
+import TokenChainDisplay from "../components/TokenChainDisplay";
+
+// TokenChainDisplay reads its events from context; the rest of this file never mounts it.
+const mockChain = vi.hoisted(() => ({ events: [] }));
+vi.mock("../context/TokenChainContext", () => ({
+  useTokenChainOptional: () => ({
+    events: mockChain.events,
+    history: [],
+    mcpToolCalls: [],
+    mcpAuthMode: null,
+    nlRoutingEvent: null,
+    clearEvents: () => {},
+    clearMcpToolCalls: () => {},
+    resolvedIdentity: null,
+  }),
+}));
+vi.mock("../context/EducationUIContext", () => ({ useEducationUIOptional: () => null }));
+vi.mock("../hooks/useDraggablePanel", () => ({
+  useDraggablePanel: () => ({ pos: { x: 0, y: 0 }, size: { width: 640, height: 420 }, handleDragStart: () => {}, createResizeHandler: () => () => {} }),
+}));
 
 describe("deriveTokenCategory", () => {
   // Priority 1: event.id
@@ -140,43 +163,37 @@ describe("getTokenColor", () => {
 });
 
 // ─── 2. MessageContent rendering ─────────────────────────────────────────────
-// MessageContent is not exported, so we test it indirectly via BankingAgent
-// by extracting and testing the paragraph-splitting logic directly.
+// The real MessageContent (agentResultPanels.js) renders plain chat text through MarkdownContent.
 
-describe("MessageContent paragraph splitting logic", () => {
-  // This mirrors the exact logic inside MessageContent:
-  // text.split(/\n{2,}/) produces paragraphs; para.split('\n') produces lines.
-  const splitParagraphs = (text) => text.split(/\n{2,}/);
-  const splitLines = (para) => para.split("\n");
+describe("MessageContent paragraph rendering (real component)", () => {
+  const paragraphs = (text) => {
+    const { container } = render(<MessageContent text={text} />);
+    return container.querySelectorAll("p");
+  };
 
   it("single paragraph stays as one item", () => {
-    expect(splitParagraphs("Hello world")).toEqual(["Hello world"]);
+    const p = paragraphs("Hello world");
+    expect(p).toHaveLength(1);
+    expect(p[0].textContent).toBe("Hello world");
   });
 
   it("double newline splits into two paragraphs", () => {
-    expect(splitParagraphs("Para one\n\nPara two")).toHaveLength(2);
+    expect(paragraphs("Para one\n\nPara two")).toHaveLength(2);
   });
 
   it("triple newline still splits into two paragraphs", () => {
-    expect(splitParagraphs("Para one\n\n\nPara two")).toHaveLength(2);
+    expect(paragraphs("Para one\n\n\nPara two")).toHaveLength(2);
   });
 
-  it("single newline within paragraph becomes a line break (not a split)", () => {
-    const paras = splitParagraphs("Line A\nLine B");
-    expect(paras).toHaveLength(1);
-    expect(splitLines(paras[0])).toEqual(["Line A", "Line B"]);
+  it("never renders a <pre> block for plain text (no monospace)", () => {
+    const { container } = render(<MessageContent text={"Your accounts:\nChecking $1,200\n\nCall me if you need help."} />);
+    expect(container.querySelector("pre")).toBeNull();
+    expect(container.textContent).toContain("Call me if you need help.");
   });
 
-  it("empty string produces one empty paragraph", () => {
-    expect(splitParagraphs("")).toHaveLength(1);
-  });
-
-  it("multi-paragraph message with inline breaks", () => {
-    const msg = "Your accounts:\nChecking $1,200\n\nCall me if you need help.";
-    const paras = splitParagraphs(msg);
-    expect(paras).toHaveLength(2);
-    expect(splitLines(paras[0])).toEqual(["Your accounts:", "Checking $1,200"]);
-    expect(paras[1]).toBe("Call me if you need help.");
+  it("empty text renders nothing but does not throw", () => {
+    const { container } = render(<MessageContent text="" />);
+    expect(container.querySelectorAll("p")).toHaveLength(0);
   });
 });
 
@@ -205,7 +222,7 @@ function walkFiles(dir, exts, results = []) {
 
 describe("CSS/JS monospace regression", () => {
   const cssFiles = walkFiles(SRC_ROOT, [".css", ".module.css"]);
-  const jsFiles = walkFiles(SRC_ROOT, [".js"]);
+  const jsFiles = walkFiles(SRC_ROOT, [".js", ".jsx"]);
 
   const isMonospaceLine = (line) => {
     const s = line.trim();
@@ -234,8 +251,22 @@ describe("CSS/JS monospace regression", () => {
     expect(violations).toEqual([]);
   });
 
-  it("no JS file uses monospace as fontFamily value", () => {
-    const violations = [];
+  // .jsx files used to be skipped entirely (walkFiles was given [".js"] only), so 36 inline monospace
+  // fontFamily values in eight .jsx components were never seen. They are pinned here by count, measured on
+  // this commit: the count may fall (delete or lower the line) and may not rise, and a new .jsx file gets none.
+  const JSX_MONOSPACE_KNOWN = {
+    "components/AdminTokenComplianceAudit.jsx": 1,
+    "components/AgentClientSkin.jsx": 12,
+    "components/ArchitectureTabsPanel.jsx": 4,
+    "components/AuthorizeRulesPanel.jsx": 3,
+    "components/BulkDecisionPanel.jsx": 2,
+    "components/MockAuthzRulesPage.jsx": 8,
+    "components/OAuthHealthDashboard.jsx": 5,
+    "components/PacEditorLaunch.jsx": 1,
+  };
+
+  const monospaceFontFamilyByFile = () => {
+    const byFile = {};
     for (const f of jsFiles) {
       // Skip ActivityLogs.js — uses monospace for act-chain audit display (intentional, Phase 266)
       // Skip SequenceDiagramPage.js — uses system ui-monospace stack for code in diagrams (intentional)
@@ -254,13 +285,25 @@ describe("CSS/JS monospace regression", () => {
         if (s.startsWith("//") || s.startsWith("*")) return;
         // Only flag fontFamily assignments, not comments or variable names
         if (/fontFamily\s*[=:][^;,)]*monospace/i.test(s)) {
-          violations.push(
-            `${path.relative(SRC_ROOT, f)}:${i + 1}: ${s.slice(0, 80)}`,
-          );
+          const rel = path.relative(SRC_ROOT, f).split(path.sep).join("/");
+          (byFile[rel] ||= []).push(`${rel}:${i + 1}: ${s.slice(0, 80)}`);
         }
       });
     }
+    return byFile;
+  };
+
+  it("no JS or JSX file uses monospace as fontFamily value (beyond the pinned .jsx list)", () => {
+    const violations = [];
+    for (const [rel, list] of Object.entries(monospaceFontFamilyByFile())) {
+      if (list.length > (JSX_MONOSPACE_KNOWN[rel] || 0)) violations.push(...list);
+    }
     expect(violations).toEqual([]);
+  });
+
+  it("the pinned .jsx monospace list is not stale — lower a count when its file is fixed", () => {
+    const now = Object.fromEntries(Object.entries(monospaceFontFamilyByFile()).map(([f, l]) => [f, l.length]));
+    expect(now).toEqual(JSX_MONOSPACE_KNOWN);
   });
 
   it("index.css has global pre/code font reset", () => {
@@ -321,41 +364,36 @@ describe("BankingAgent: no raw markdown markers in message strings", () => {
 });
 
 // ─── 5. TokenChainDisplay: act hint derivation ────────────────────────
+// EventRow's hint is rendered by the real TokenChainDisplay from the events in context.
 
-describe("Token chain act hint derivation logic", () => {
-  // Mirrors the hint logic from EventRow in TokenChainDisplay.js
-  const actHint = (event) =>
-    event.actPresent === true
-      ? { text: "✅ act claimed", cls: "ok" }
-      : event.actPresent === false && event.actExpectedHere !== false
-        ? { text: "⚠️ no act claim", cls: "warn" }
-        : event.actPresent === false && event.actExpectedHere === false
-          ? { text: "ℹ️ act added after Exchange #2", cls: "info" }
-          : null;
+describe("Token chain act hint (real TokenChainDisplay)", () => {
+  const renderWith = (event) => {
+    mockChain.events = [{ id: "user-token", label: "User token", status: "active", ...event }];
+    return render(<TokenChainDisplay />);
+  };
 
-  it("act: returns ok when present", () => {
-    expect(actHint({ actPresent: true })).toEqual({
-      text: "✅ act claimed",
-      cls: "ok",
-    });
+  afterEach(() => {
+    mockChain.events = [];
   });
 
-  it("act: returns warn when absent and expected", () => {
-    expect(actHint({ actPresent: false })).toEqual({
-      text: "⚠️ no act claim",
-      cls: "warn",
-    });
+  it("act: shows ok when present", () => {
+    renderWith({ actPresent: true });
+    expect(screen.getByText("✅ act claimed")).toBeInTheDocument();
   });
 
-  it("act: returns info when absent but not expected here (Exchange #1)", () => {
-    expect(actHint({ actPresent: false, actExpectedHere: false })).toEqual({
-      text: "ℹ️ act added after Exchange #2",
-      cls: "info",
-    });
+  it("act: shows warn when absent and expected", () => {
+    renderWith({ actPresent: false });
+    expect(screen.getByText("⚠️ no act claim")).toBeInTheDocument();
   });
 
-  it("act: returns null when actPresent is undefined", () => {
-    expect(actHint({})).toBeNull();
+  it("act: shows info when absent but not expected here (Exchange #1)", () => {
+    renderWith({ actPresent: false, actExpectedHere: false });
+    expect(screen.getByText("ℹ️ act added after Exchange #2")).toBeInTheDocument();
+  });
+
+  it("act: shows no hint when actPresent is undefined", () => {
+    renderWith({});
+    expect(screen.queryByText(/act claimed|no act claim|act added after/)).toBeNull();
   });
 });
 

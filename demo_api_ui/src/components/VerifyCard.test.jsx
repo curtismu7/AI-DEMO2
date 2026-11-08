@@ -114,4 +114,13 @@ describe('VerifyCard', () => {
     expect(await screen.findByText('Identity verification complete.', {}, { timeout: 4000 })).toBeInTheDocument();
     expect(statusReads).toBe(2);
   });
+
+  it('keeps the original Profile look and behaviour unless `ping` is set', async () => {
+    bffAxios.get.mockResolvedValue({ data: { enabled: true, available: true } });
+    const { container } = render(<VerifyCard />);
+    const start = await screen.findByRole('button', { name: 'Verify identity' });
+    expect(start.className).toBe('up-btn up-btn--edit');
+    expect(container.querySelector('section.up-card.up-verify-card')).not.toBeNull();
+    expect(container.querySelector('.pu-card, .pu-chip, .pu-btn')).toBeNull();
+  });
 });

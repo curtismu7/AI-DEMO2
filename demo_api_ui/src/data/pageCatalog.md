@@ -327,8 +327,8 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 
 ### Transaction Consent
 - **Route:** `/transaction-consent` · **Auth:** public
-- **What it does:** Opens the consent modal from a CIBA push deep link (`?challenge=`); with no challenge it shows a simulate page with scenarios.
-- **What it teaches:** CIBA step-up consent: PingOne Authorize step-up obligation, backchannel push, user approve or deny.
+- **What it does:** Opens the consent modal from a consent-challenge link (`?challenge=`); with no challenge it shows a simulate page with scenarios.
+- **What it teaches:** CIBA step-up consent: PingOne Authorize step-up obligation, backchannel request delivered by email or SMS, user approve or deny.
 - **What it demos:** Simulated scenarios of the consent modal (review details, enter OTP, approve or deny) without a live challenge.
 
 ### Actor Token Education

@@ -66,6 +66,18 @@ describe("DiagramReel", () => {
     expect(container.querySelector(".dreel-detail")).toBeNull();
   });
 
+  it("puts focus back on the card in focus when Close removes the details row (never on the body)", () => {
+    const { container } = render(<DiagramReel steps={steps} stepper={stepper({ step: 1 })} />);
+    const cards = screen.getAllByRole("button", { name: /→/ });
+    cards[1].focus();
+    fireEvent.click(cards[1]);
+    const close = screen.getByRole("button", { name: "Close details" });
+    close.focus();
+    fireEvent.click(close);
+    expect(container.querySelector(".dreel-detail")).toBeNull();
+    expect(document.activeElement).toBe(cards[1]);
+  });
+
   it("shows a node's detail when the page passes one, and clears it on Close", () => {
     const onClear = vi.fn();
     render(<DiagramReel steps={steps} stepper={stepper()} nodeDetail={buildNodeDetail(nodes[1])} onClearNode={onClear} />);

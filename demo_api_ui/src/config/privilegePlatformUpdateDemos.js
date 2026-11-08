@@ -43,7 +43,7 @@ export const INTENT_TRIAGE_SCENARIOS = [
       behaviour: { baseline: 'reads ~12 records/session', departure: 'first export call ever seen from this key', note: 'Supporting signal only.' },
     },
     outcome: 'deny',
-    expect: 'Refused on the deterministic tier: the pattern rule fires outright. Purpose and behaviour corroborate but do not decide.',
+    expect: 'Would be refused on the deterministic tier: the pattern rule fires outright. Purpose and behaviour corroborate but do not decide.',
   },
   {
     key: 'shell-metachar',
@@ -56,7 +56,7 @@ export const INTENT_TRIAGE_SCENARIOS = [
       behaviour: { baseline: 'writes .md summaries only', departure: 'never passed a shell token before', note: 'Corroborating.' },
     },
     outcome: 'deny',
-    expect: 'Refused on the deterministic tier: shell metacharacter detection (ASI05). No scored signal can lift it.',
+    expect: 'Would be refused on the deterministic tier: shell metacharacter detection (ASI05). No scored signal can lift it.',
   },
   {
     key: 'amount-drift',
@@ -69,7 +69,7 @@ export const INTENT_TRIAGE_SCENARIOS = [
       behaviour: { baseline: 'median $85, p95 $240', departure: '4.6x above the p95 argument shape', note: 'Scored, not refused.' },
     },
     outcome: 'hold',
-    expect: 'Held for human-in-the-loop approval: nothing deterministic fired, but the behavioural departure plus the amount exceeds what unattended policy permits. Same model as the AI Policies demo: allow-then-deny = hold.',
+    expect: 'Would be held for human-in-the-loop approval: nothing deterministic fired, but the behavioural departure plus the amount exceeds what unattended policy permits. Same model as the AI Policies demo: allow-then-deny = hold.',
   },
   {
     key: 'off-hours-peer',
@@ -82,7 +82,7 @@ export const INTENT_TRIAGE_SCENARIOS = [
       behaviour: { baseline: '2 known peers, business hours', departure: 'new peer target + first off-hours call', note: 'Anomaly level: high.' },
     },
     outcome: 'alert',
-    expect: 'Recorded as an alert without changing the outcome: purpose covers it, so the call proceeds and the departure is logged for review.',
+    expect: 'Would be recorded as an alert without changing the outcome: purpose covers it, so the call proceeds and the departure is logged for review.',
   },
   {
     key: 'in-pattern',
@@ -95,7 +95,7 @@ export const INTENT_TRIAGE_SCENARIOS = [
       behaviour: { baseline: 'reads 10–20 records/session', departure: 'none', note: 'Within baseline.' },
     },
     outcome: 'allow',
-    expect: 'Allowed. Enforcement never begins before a baseline exists, so a new agent is not blocked for being new.',
+    expect: 'Would be allowed. Enforcement never begins before a baseline exists, so a new agent is not blocked for being new.',
   },
   {
     key: 'no-purpose',
@@ -108,7 +108,7 @@ export const INTENT_TRIAGE_SCENARIOS = [
       behaviour: { baseline: '(insufficient history)', departure: 'unknown', note: 'Not consulted.' },
     },
     outcome: 'deny',
-    expect: 'Refused on the deterministic tier: a purpose-less key taking a sensitive action is itself the pattern.',
+    expect: 'Would be refused on the deterministic tier: a purpose-less key taking a sensitive action is itself the pattern.',
   },
 ];
 

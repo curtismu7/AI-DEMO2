@@ -734,3 +734,92 @@
 }
 
 .topnav-guide-btn { margin-left: 8px; }
+
+/* ─── Phone width: one compact, non-sticky row with a Menu button ─────────────
+   Measured at 375x800 and 320x568 the wrapped bar took 30-79% of the screen and, being sticky, never scrolled
+   away (it hid the page, with a signed-in cluster of 13-16 controls). At <= 600px the bar is the brand plus one
+   Menu button; everything else sits in .topnav-menu, which opens in flow under the brand. Above 600px the wrapper
+   is display: contents, so the controls are exactly where they always were and the button is hidden. The bar is
+   position: static on a phone: a pinned bar that grows to a full screen when opened would cover the page. */
+.topnav-menu {
+  display: contents;
+}
+
+.topnav-menu-toggle {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .topnav {
+    position: static;
+  }
+
+  .topnav-container {
+    min-height: 56px;
+    padding: 4px 8px 4px 12px;
+    row-gap: 4px;
+  }
+
+  /* flex-basis 0, so the brand shares the row with the Menu button and shrinks (name ellipsised) instead of
+     pushing the button onto a second line. */
+  .topnav-left {
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .topnav-brand {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .topnav-brand-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topnav-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: auto;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .topnav-menu-toggle:hover,
+  .topnav--menu-open .topnav-menu-toggle {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .topnav-menu {
+    display: none;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    min-width: 0;
+    padding: 8px 0 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .topnav--menu-open .topnav-menu {
+    display: flex;
+  }
+
+  .topnav-menu .topnav-right,
+  .topnav-menu .topnav-right-scroll {
+    justify-content: flex-start;
+  }
+}

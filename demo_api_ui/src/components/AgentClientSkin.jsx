@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { unusedSuggestions } from '../config/dotSuggestions';
+import './AgentClientSkin.css';
 
 function ToolUseBlock({ toolName, toolInput, colors }) {
   return (
@@ -507,10 +508,12 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
 
       {/* Input */}
       <div style={{ padding: '10px 16px', borderTop: `1px solid ${colors.inputBorder}`, background: colors.inputAreaBg, flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: isTerminal ? 'transparent' : 'rgba(128,128,128,0.07)', border: isTerminal ? 'none' : '1px solid rgba(128,128,128,0.15)', borderTop: isTerminal ? `1px solid ${colors.inputBorder}` : undefined, borderRadius: isTerminal ? 0 : 10, padding: isTerminal ? '4px 0' : '8px 12px' }}>
+        <div className="acs-field" style={{ display: 'flex', gap: 8, alignItems: 'center', background: isTerminal ? 'transparent' : 'rgba(128,128,128,0.07)', border: isTerminal ? 'none' : '1px solid rgba(128,128,128,0.15)', borderTop: isTerminal ? `1px solid ${colors.inputBorder}` : undefined, borderRadius: isTerminal ? 0 : 10, padding: isTerminal ? '4px 0' : '8px 12px' }}>
           {isTerminal && <span style={{ color: '#79c0ff', fontFamily: 'monospace', fontSize: 13, flexShrink: 0 }}>$</span>}
           <input
+            className="acs-input"
             type="text"
+            aria-label="Message"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -518,8 +521,8 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
             style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: colors.inputColor, fontSize: isTerminal ? 13 : 13, fontFamily: isTerminal ? 'monospace' : 'inherit' }}
           />
           {!isTerminal && (
-            <button onClick={handleSend} style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: cfg.accentColor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="white"><path d="M2 8l12-6-5 6 5 6-12-6z" /></svg>
+            <button type="button" className="acs-send" aria-label="Send message" onClick={handleSend} style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: cfg.accentColor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="white" aria-hidden="true"><path d="M2 8l12-6-5 6 5 6-12-6z" /></svg>
             </button>
           )}
           {isTerminal && (
