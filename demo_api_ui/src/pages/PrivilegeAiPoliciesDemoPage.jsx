@@ -189,14 +189,17 @@ function ActionButton({ next, busy, onClick, ...rest }) {
 }
 
 function PolicyState({ state }) {
-  return <StatusChip tone={state === 'Activeive' ? 'ok' : 'neutral'}>{state}</StatusChip>;
+  return <StatusChip tone={state === 'Active' ? 'ok' : 'neutral'}>{state}</StatusChip>;
 }
+
+// Only these outcomes are an answer the gateway actually gave; sign-in and error come from this page or the BFF.
+const GATEWAY_ANSWERS = new Set(['allow', 'hold', 'deny', 'unclear']);
 
 function Verdict({ result }) {
   const o = OUTCOMES[result.outcome];
   return (
     <div className="apd-verdict" data-testid="apd-verdict" data-outcome={result.outcome} role="status">
-      <p className="pu-status-line"><StatusChip tone={VERDICT_TONE[result.outcome] ?? 'neutral'}>{o.label}</StatusChip> The gateway&apos;s answer to this call</p>
+      <p className="pu-status-line"><StatusChip tone={VERDICT_TONE[result.outcome] ?? 'neutral'}>{o.label}</StatusChip> {GATEWAY_ANSWERS.has(result.outcome) ? 'The gateway\u2019s answer to this call' : 'No gateway answer: the call did not reach a verdict'}</p>
       <p className="pu-note">{o.note}</p>
       {result.instructionId && <p className="pu-note">Approval id from the gateway: <code data-testid="apd-ins">{result.instructionId}</code></p>}
       {result.detail && <p className="pu-note">{result.detail}</p>}

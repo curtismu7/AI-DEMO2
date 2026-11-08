@@ -67,6 +67,7 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     expect(runTool).toHaveBeenCalledWith('GenericOpenSearchApiTool', expect.any(Object));
     const policy = within(scn).getByTestId('apd-policy-hitl-block-generic-api');
     expect(policy).toHaveTextContent('Active');
+    expect(policy.querySelector('.pu-chip--ok')).not.toBeNull();
     expect(policy).toHaveTextContent('Tool::"GenericOpenSearchApiTool"');
     expect(within(scn).getByText(/Raw response|raw response/i)).toBeInTheDocument();
   });
