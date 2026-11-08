@@ -1,0 +1,313 @@
+/* Shared Ping UI primitives for AI-DEMO2 pages. Docs: docs/ping-ui-primitives.md.
+   Standard: THEMING.md + REGRESSION_PLAN §0, and the standalone Ping UI Standard
+   (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md). The standalone stylesheet is NOT imported
+   (its bare button/input selectors would restyle the app); its pattern classes are re-created here
+   under the .pu- namespace, scoped to .pu-page, with this app's tokens:
+     P2 banner (.pu-banner)  P3 frame (.pu-frame, .pu-kicker, .pu-h2)  P4 cards (.pu-card)
+     P5 key-value (.pu-kv)   P7 chips (.pu-chip)                         P9 buttons (.pu-btn)
+   Surfaces, lines and ink are --th-* only, so a page is correct in both themes with no dark
+   block; every ground sets its own ink (H1); type comes from the --font-size-* scale (H2); no
+   inline styles (H3). Control edges use --control-border (dark-mode control contrast rule).
+
+   Colour ownership: the vertical drives the card accent edge (--pu-accent, from --app-primary-red).
+   Buttons never take it: they read the fixed Ping Red --btn-accent* tokens, and the banner edge is
+   fixed Ping Red too, as the standard says. */
+
+.pu-page {
+  --pu-accent: var(--app-primary-red, var(--btn-accent));
+  min-height: 100vh;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+/* P2: the banner is the first element, above the title band. */
+.pu-banner-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px 0;
+}
+
+.pu-banner {
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-left: 4px solid var(--btn-accent);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+/* P3: one centred frame, sections labelled by a kicker and an h2. The headings carry .pu-page so they
+   outrank the PingOne end-user-nano skin's bare h2/h3 size and weight. */
+.pu-frame {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 16px 64px;
+}
+
+.pu-kicker {
+  margin: 32px 0 4px;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.pu-page .pu-h2 {
+  margin: 0 0 4px;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+}
+
+.pu-lede {
+  margin: 0 0 12px;
+  max-width: 78ch;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+/* P4: cards with a 4px accent top edge, in a grid that wraps at phone width. */
+.pu-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  margin: 12px 0;
+  align-items: start;
+}
+
+.pu-card {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--th-border-strong);
+  border-top: 4px solid var(--pu-accent);
+  border-radius: var(--radius-xl);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.pu-card-grid > .pu-card {
+  margin: 0;
+}
+
+.pu-card--neutral {
+  border-top-color: var(--control-border);
+}
+
+.pu-card--ok {
+  border-top-color: var(--th-status-success);
+}
+
+.pu-card--live {
+  border-top-color: var(--th-status-info);
+}
+
+.pu-card--warn {
+  border-top-color: var(--th-status-warning);
+}
+
+.pu-card--danger {
+  border-top-color: var(--th-status-error);
+}
+
+.pu-page .pu-h3 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+}
+
+.pu-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--th-text-muted);
+}
+
+.pu-select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pu-note {
+  margin: 8px 0 0;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.pu-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.pu-empty {
+  padding: 12px;
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-lg);
+}
+
+/* P5: key-value list, one column at phone width. */
+.pu-kv {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
+  gap: 4px 14px;
+  margin: 8px 0;
+  font-size: var(--font-size-sm);
+}
+
+.pu-kv dt {
+  color: var(--th-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pu-kv dd {
+  margin: 0;
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
+.pu-mono {
+  font-family: var(--font-mono);
+}
+
+/* P7: status chips. Ground and ink from the same set; the word is the status. */
+.pu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.pu-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pu-chip--ok {
+  border-color: var(--th-status-success);
+  color: var(--th-status-success-text);
+}
+
+.pu-chip--info {
+  border-color: var(--th-status-info);
+  color: var(--th-status-info-text);
+}
+
+.pu-chip--warn {
+  border-color: var(--th-status-warning);
+  color: var(--th-status-warning-text);
+}
+
+.pu-chip--danger {
+  border-color: var(--th-status-error);
+  color: var(--th-status-error-text);
+}
+
+.pu-chip--neutral {
+  color: var(--th-text-body);
+}
+
+/* P9: exactly one primary per view (Ping Red gradient, fixed under every vertical); the rest are
+   bordered secondaries. Specificity sits above the PingOne end-user-nano skin, which flattens .btn. */
+.pu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pu-page .pu-btn {
+  max-width: 100%;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  background-image: none;
+  color: var(--th-text);
+  -webkit-text-fill-color: currentcolor;
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  white-space: normal;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pu-page .pu-btn:hover:not(:disabled) {
+  border-color: var(--btn-accent);
+}
+
+.pu-page .pu-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.pu-page button.pu-btn.pu-btn--primary {
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+}
+
+.pu-page button.pu-btn.pu-btn--primary:hover:not(:disabled) {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+}
+
+/* A disabled primary keeps its label readable. */
+.pu-page button.pu-btn.pu-btn--primary:disabled {
+  opacity: 0.88;
+}
+
+.pu-page .pu-btn:focus-visible,
+.pu-page .pu-select:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .pu-card {
+    padding: 14px;
+  }
+
+  .pu-kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .pu-kv dd {
+    margin-bottom: 6px;
+  }
+}

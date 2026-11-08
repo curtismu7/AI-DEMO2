@@ -7,6 +7,7 @@ import './theme/refinedTopNav.css';
 import './theme/refinedAgent.css';
 import './styles/controls.css';
 import App from './App';
+import './styles/ping-ui.css';
 import { patchFetch } from './services/apiTrafficStore';
 import { initTracing } from './services/tracing';
 import ErrorBoundary from './components/ErrorBoundary';

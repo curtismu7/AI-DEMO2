@@ -515,3 +515,18 @@ elevations means no two surfaces sit at the same height. Radius is the most
 because creating a token family is the easy half. Any new family must ship with
 its ratchet (§6) in the same PR, or it becomes another six-token layer nobody
 uses.
+
+---
+
+## §10 Ping UI primitives (page layout)
+
+Page layout (banner, frame, cards, key-value lists, status chips, buttons) comes from one shared
+stylesheet, `demo_api_ui/src/styles/ping-ui.css` (`.pu-*`), and the wrappers in
+`demo_api_ui/src/components/pingUi/`. Class names, props, variants and when to use which are in
+[`docs/ping-ui-primitives.md`](docs/ping-ui-primitives.md). The vertical drives card edges; buttons stay
+the fixed Ping Red (`--btn-accent*`).
+
+`demo_api_ui/scripts/check-ui-patterns.mjs` (`npm run check:ui-patterns` in `demo_api_ui`, also in
+`hygiene:check:core` and the `uiPatterns` vitest) reports every routed page against that standard. It is
+advisory, except for the routes in `demo_api_ui/scripts/ui-pattern-converted.txt`, which fail CI on drift.
+Convert a page, then add its route there in the same PR.

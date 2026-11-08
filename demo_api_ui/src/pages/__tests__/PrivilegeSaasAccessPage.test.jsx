@@ -21,8 +21,8 @@ describe('PrivilegeSaasAccessPage (standalone UI standard)', () => {
 
   it('shows exactly one primary button and a secondary Reset', () => {
     const { container } = render(<PrivilegeSaasAccessPage />);
-    expect(container.querySelectorAll('button.psa-btn--primary')).toHaveLength(1);
-    expect(advance().className).toContain('psa-btn--primary');
+    expect(container.querySelectorAll('button.pu-btn--primary')).toHaveLength(1);
+    expect(advance().className).toContain('pu-btn--primary');
     expect(screen.getByTestId('psa-reset').className).not.toContain('primary');
     // The live check is a secondary here, never a second primary.
     const live = within(screen.getByTestId('privilege-live-check')).getByRole('button');
@@ -38,7 +38,7 @@ describe('PrivilegeSaasAccessPage (standalone UI standard)', () => {
     fireEvent.click(advance());
     fireEvent.click(advance());
     const receipt = screen.getByTestId('psa-receipt');
-    expect(receipt.querySelector('dl.psa-kv')).not.toBeNull();
+    expect(receipt.querySelector('dl.pu-kv')).not.toBeNull();
     expect(receipt.textContent).toMatch(/grt-/);
     expect(within(stages).getAllByText('Done')).toHaveLength(2);
     fireEvent.click(advance());

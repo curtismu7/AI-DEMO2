@@ -11,12 +11,17 @@
 //
 // Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/
 // STANDALONE-UI-PATTERNS.md): P2 banner first, P3 frame, P4 cards, P5 kv,
-// P7 chips, P9 buttons. The pattern classes are re-created under .psa-page with
-// this app's tokens; the standalone shell bar is not added (the app has its own).
+// P7 chips, P9 buttons. The pattern primitives are shared (components/pingUi,
+// styles/ping-ui.css, docs/ping-ui-primitives.md); this page keeps only its own
+// stage list and tables in PrivilegeSaasAccessPage.css. The standalone shell bar
+// is not added (the app has its own).
 
 import { useMemo, useState } from 'react';
 import PrivilegeLiveCheck from '../components/privilege/PrivilegeLiveCheck';
 import PageHeader from '../components/common/PageHeader';
+import {
+  PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
+} from '../components/pingUi';
 import {
   SAAS_PLATFORMS,
   SAAS_REQUEST_SCENARIOS,
@@ -30,16 +35,6 @@ const STAGE_INDEX = Object.fromEntries(SAAS_STAGES.map((s, i) => [s.id, i]));
 function fmtExpiry(hours) {
   const d = new Date(Date.now() + hours * 3600 * 1000);
   return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
-}
-
-/** Status chip: a leading dot plus the word. Never colour alone. */
-function Chip({ tone, children }) {
-  return (
-    <span className={`psa-chip psa-chip--${tone}`}>
-      <span className="psa-chip__dot" aria-hidden="true" />
-      {children}
-    </span>
-  );
 }
 
 export default function PrivilegeSaasAccessPage() {
@@ -80,35 +75,31 @@ export default function PrivilegeSaasAccessPage() {
   };
 
   return (
-    <div className="psa-page">
-      <div className="psa-banner-wrap">
-        <div className="psa-banner" role="note" data-testid="psa-banner">
-          <strong>SIMULATED WALKTHROUGH</strong> — the request, approval, grant and expiry stages on this page
-          are a deterministic simulation. Nothing is granted on GitHub, GitLab, Salesforce, Snowflake,
-          Databricks or Google Workspace. The one real call is the ledger check at the bottom: it goes through
-          this machine's BFF to the Privilege AI Gateway.
-        </div>
-      </div>
+    <PingPage className="psa-page">
+      <SimBanner data-testid="psa-banner">
+        <strong>SIMULATED WALKTHROUGH</strong> — the request, approval, grant and expiry stages on this page
+        are a deterministic simulation. Nothing is granted on GitHub, GitLab, Salesforce, Snowflake,
+        Databricks or Google Workspace. The one real call is the ledger check at the bottom: it goes through
+        this machine's BFF to the Privilege AI Gateway.
+      </SimBanner>
       <PageHeader
         eyebrow="Ping products · Privilege · Platform Update Nov 2026 (new)"
         title="SaaS Access Management"
         summary="Just-in-time, time-bound access to the systems engineers actually use: requestable, approved, time-bound, automatically removed — with a receipt for every grant and nightly drift detection."
       />
-      <div className="psa-body">
-        <section aria-labelledby="psa-req">
-          <p className="psa-kicker">1 · Request and receipt</p>
-          <h2 id="psa-req" className="psa-h2">One JIT model, humans and agents alike</h2>
-          <p className="psa-lede">
-            An engineer asking for a warehouse role and an agent asking for a peer's capability are the same
-            decision, recorded the same way, in one audit trail.
-          </p>
-          <div className="psa-card-grid">
-            <div className="psa-card">
-              <h3 className="psa-h3">Request</h3>
-              <label className="psa-label" htmlFor="psa-scenario">Scenario</label>
+      <PageFrame>
+        <Section
+          id="psa-req"
+          kicker="1 · Request and receipt"
+          title="One JIT model, humans and agents alike"
+          lede="An engineer asking for a warehouse role and an agent asking for a peer's capability are the same decision, recorded the same way, in one audit trail."
+        >
+          <CardGrid>
+            <Card title="Request">
+              <label className="pu-label" htmlFor="psa-scenario">Scenario</label>
               <select
                 id="psa-scenario"
-                className="psa-select"
+                className="pu-select"
                 value={scenarioKey}
                 onChange={(e) => pickScenario(e.target.value)}
                 data-testid="psa-scenario"
@@ -119,11 +110,13 @@ export default function PrivilegeSaasAccessPage() {
                 })}
               </select>
               <p className="psa-justification">{scenario.justification}</p>
-              <dl className="psa-kv">
-                <dt>Platform</dt><dd>{platform.name}</dd>
-                <dt>TTL</dt><dd>{scenario.ttlHours}h</dd>
-                <dt>Approvers</dt><dd>{scenario.approvers.join(', ')}</dd>
-              </dl>
+              <KvList
+                items={[
+                  { label: 'Platform', value: platform.name },
+                  { label: 'TTL', value: `${scenario.ttlHours}h` },
+                  { label: 'Approvers', value: scenario.approvers.join(', ') },
+                ]}
+              />
               <ol className="psa-stages" data-testid="psa-stages">
                 {SAAS_STAGES.map((s, i) => {
                   const state = i < stageIdx ? 'done' : i === stageIdx ? 'current' : 'upcoming';
@@ -135,58 +128,57 @@ export default function PrivilegeSaasAccessPage() {
                     >
                       <span className="psa-stage__head">
                         <strong>{s.label}</strong>
-                        <Chip tone={state === 'done' ? 'ok' : state === 'current' ? 'info' : 'neutral'}>
+                        <StatusChip tone={state === 'done' ? 'ok' : state === 'current' ? 'info' : 'neutral'}>
                           {state === 'done' ? 'Done' : state === 'current' ? 'Current' : 'Upcoming'}
-                        </Chip>
+                        </StatusChip>
                       </span>
                       <span className="psa-stage__note">{s.note}</span>
                     </li>
                   );
                 })}
               </ol>
-              <div className="psa-actions">
+              <div className="pu-actions">
                 <button
                   type="button"
-                  className="psa-btn psa-btn--primary"
+                  className="pu-btn pu-btn--primary"
                   onClick={advance}
                   disabled={stageIdx >= SAAS_STAGES.length - 1}
                   data-testid="psa-advance"
                 >
                   {stageIdx === 0 ? 'Submit for approval' : stageIdx === 1 ? 'Record approval' : stageIdx === 2 ? 'Let the TTL elapse' : 'Complete'}
                 </button>
-                <button type="button" className="psa-btn" onClick={reset} data-testid="psa-reset">Reset</button>
+                <button type="button" className="pu-btn" onClick={reset} data-testid="psa-reset">Reset</button>
               </div>
-            </div>
+            </Card>
 
-            <div className={`psa-card ${receipt ? 'psa-card--ok' : 'psa-card--neutral'}`}>
-              <h3 className="psa-h3">Receipt</h3>
+            <Card title="Receipt" tone={receipt ? 'ok' : 'neutral'}>
               {receipt ? (
                 <div data-testid="psa-receipt">
-                  <p className="psa-status-line"><Chip tone="ok">Issued</Chip> Grant {receipt.ref}</p>
-                  <dl className="psa-kv">
-                    <dt>Grant ref</dt><dd className="psa-mono">{receipt.ref}</dd>
-                    <dt>Grant</dt><dd>{receipt.grant}</dd>
-                    <dt>Platform</dt><dd>{receipt.platform}</dd>
-                    <dt>Expires</dt><dd className="psa-mono">{receipt.expires}</dd>
-                  </dl>
-                  <p className="psa-note">
+                  <p className="pu-status-line"><StatusChip tone="ok">Issued</StatusChip> Grant {receipt.ref}</p>
+                  <KvList
+                    items={[
+                      { label: 'Grant ref', value: receipt.ref, mono: true },
+                      { label: 'Grant', value: receipt.grant },
+                      { label: 'Platform', value: receipt.platform },
+                      { label: 'Expires', value: receipt.expires, mono: true },
+                    ]}
+                  />
+                  <p className="pu-note">
                     The reaper removes the grant when the window closes, even if the workflow that made it is long finished.
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="psa-status-line"><Chip tone="neutral">Not issued</Chip></p>
-                  <p className="psa-note psa-empty">Advance the request to the grant stage to see the receipt this cycle would issue.</p>
+                  <p className="pu-status-line"><StatusChip tone="neutral">Not issued</StatusChip></p>
+                  <p className="pu-note pu-empty">Advance the request to the grant stage to see the receipt this cycle would issue.</p>
                 </div>
               )}
-            </div>
-          </div>
-        </section>
+            </Card>
+          </CardGrid>
+        </Section>
 
-        <section aria-labelledby="psa-platforms">
-          <p className="psa-kicker">2 · Connected platforms</p>
-          <h2 id="psa-platforms" className="psa-h2">Platform matrix</h2>
-          <div className="psa-card psa-card--neutral">
+        <Section id="psa-platforms" kicker="2 · Connected platforms" title="Platform matrix">
+          <Card tone="neutral">
             <div className="psa-table-wrap">
               <table className="psa-table" data-testid="psa-matrix">
                 <thead><tr><th scope="col">Platform</th><th scope="col">Grantable</th><th scope="col">Connection</th></tr></thead>
@@ -201,17 +193,16 @@ export default function PrivilegeSaasAccessPage() {
                 </tbody>
               </table>
             </div>
-          </div>
-        </section>
+          </Card>
+        </Section>
 
-        <section aria-labelledby="psa-drift">
-          <p className="psa-kicker">3 · Drift detection</p>
-          <h2 id="psa-drift" className="psa-h2">Access granted outside Privilege is surfaced</h2>
-          <p className="psa-lede">
-            Every grant is recorded and reconciled against the platform nightly, so access granted outside
-            Privilege is surfaced instead of silently accumulating.
-          </p>
-          <div className="psa-card psa-card--neutral">
+        <Section
+          id="psa-drift"
+          kicker="3 · Drift detection"
+          title="Access granted outside Privilege is surfaced"
+          lede="Every grant is recorded and reconciled against the platform nightly, so access granted outside Privilege is surfaced instead of silently accumulating."
+        >
+          <Card tone="neutral">
             <div className="psa-table-wrap">
               <table className="psa-table" data-testid="psa-drift-rows">
                 <thead><tr><th scope="col">Grant</th><th scope="col">Subject</th><th scope="col">Source</th><th scope="col">Detected by</th></tr></thead>
@@ -227,28 +218,26 @@ export default function PrivilegeSaasAccessPage() {
                 </tbody>
               </table>
             </div>
-            <p className="psa-note">
+            <p className="pu-note">
               Walkthrough only: this page does not grant anything on GitHub, Snowflake or any connected platform.
             </p>
-          </div>
-        </section>
+          </Card>
+        </Section>
 
-        <section aria-labelledby="psa-live">
-          <p className="psa-kicker">4 · Live check</p>
-          <h2 id="psa-live" className="psa-h2">Read the entitlement ledger for real</h2>
-          <div className="psa-card psa-card--live">
-            <p className="psa-status-line"><Chip tone="info">Live call</Chip> Not simulated: the verdict below comes from the gateway.</p>
+        <Section id="psa-live" kicker="4 · Live check" title="Read the entitlement ledger for real">
+          <Card tone="live">
+            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> Not simulated: the verdict below comes from the gateway.</p>
             <PrivilegeLiveCheck
               tool="get_access_grants"
               args={{ resource: 'payments-api' }}
               label="Read the live entitlement ledger through Privilege"
-              buttonClassName="psa-btn"
+              buttonClassName="pu-btn"
               statusChip
             />
-          </div>
-        </section>
-      </div>
-    </div>
+          </Card>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
 }
 
