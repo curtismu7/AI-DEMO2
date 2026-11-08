@@ -273,7 +273,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 const nodeTypes = { sfd: FlowNode };
 const edgeTypes = { sfd: FlowEdge };
 
-function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId }) {
+function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId }) {
   const ref = useRef(null);
   const lastDragEnd = useRef(0);
   const fit = pingStyle ? FIT_PING : FIT;
@@ -301,26 +301,39 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         const dimmed = selectedPath && n.path && !active;
         const hot = (stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id)) || focusId === n.id || (walkStep ? walkStep.nodes.includes(n.id) : false);
         const seen = !hot && visited ? visited.has(n.id) : false;
+        const activate = () => {
+          // The click that ends a drag is not a selection.
+          if (pingStyle && Date.now() - lastDragEnd.current < 300) return;
+          onNodeClick({ id: n.id, data: n });
+        };
         return {
           id: n.id,
           type: "sfd",
           position: { x: n.x * SPREAD_X, y: n.y * SPREAD_Y },
           draggable: true,
           selectable: false,
+          // A box is a tab stop only when picking it does something; then it is named and Enter / Space pick it like a click.
+          focusable: actionable,
+          ...(actionable ? {
+            domAttributes: {
+              "aria-label": n.label,
+              onKeyDown: (e) => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                activate();
+              },
+            },
+          } : {}),
           data: {
             n,
             color: g.bg || "var(--sfd-edge)",
             testId,
             className: `sfd-node${dimmed ? " dimmed" : ""}${hot ? " step-hot" : ""}${seen ? " step-seen" : ""}${pingStyle && selectedId === n.id ? " sfd-node--selected" : ""}`,
-            onClick: () => {
-              // The click that ends a drag is not a selection.
-              if (pingStyle && Date.now() - lastDragEnd.current < 300) return;
-              onNodeClick({ id: n.id, data: n });
-            },
+            onClick: activate,
           },
         };
       }),
-    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick, walkStep, visited, pingStyle, selectedId],
+    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick, actionable, walkStep, visited, pingStyle, selectedId],
   );
 
   const { nodes, onNodesChange } = useDraggableNodes(laidOut);
@@ -402,6 +415,8 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         minZoom={0.2}
         maxZoom={2}
         nodesDraggable
+        nodesFocusable={false}
+        edgesFocusable={false}
         // pingStyle: a small wiggle is still a click; only a deliberate drag (past 5px) is a drag.
         nodeDragThreshold={pingStyle ? 5 : undefined}
         onNodeDragStart={pingStyle ? () => setDragging(true) : undefined}
@@ -510,6 +525,7 @@ export default function StaticFlowDiagram({
           GROUPS={GROUPS}
           selectedPath={selectedPath}
           onNodeClick={handleNodeClick}
+          actionable={Boolean(pingStyle || onNodeClick || driver)}
           testId={testId}
           step={stepValue}
           focusId={focusId}

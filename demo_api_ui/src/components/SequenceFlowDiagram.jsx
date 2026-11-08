@@ -378,10 +378,33 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
       if (top < window.scrollY + 120 || top > window.scrollY + vh - 160) window.scrollTo({ top: Math.max(0, top - vh * 0.35), behavior: "smooth" });
     } catch (_) { /* scrolling is a convenience */ }
   }, [focus, rows, rf]);
+  const showPart = (id) => setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === id), details));
   const onNodeClick = (_, node) => {
     if (!reelStepper || node.type !== "part") return;
-    setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === node.id), details));
+    showPart(node.id);
   };
+  // Only a participant box does anything (a click opens its details in the reel), so it is the one tab stop, named, and
+  // Enter / Space do what the click does. Lifelines, anchors, payloads, notes and arrows do nothing: no tab stop for them
+  // (they were unnamed, partly off screen, and showed no focus). The step buttons and the reel are the keyboard path through the arrows.
+  const stops = useMemo(
+    () => lit.map((n) => (n.type === "part" && reelStepper
+      ? {
+          ...n,
+          focusable: true,
+          domAttributes: {
+            "aria-label": `${String(n.data.label).split("\n").join(", ")}. Show details`,
+            onKeyDown: (e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              showPart(n.id);
+            },
+          },
+        }
+      : n)),
+    // showPart reads people/details; both are stable per source
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lit, reelStepper, people, details],
+  );
   return (
     <>
       {!external && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} label={label ? `${label} controls` : undefined} />}
@@ -392,8 +415,10 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
         <div className="sfx-flow" ref={flowRef} style={flowW > canvasW ? { width: flowW } : undefined}>
         <ReactFlow
-          nodes={lit}
+          nodes={stops}
           edges={shown}
+          nodesFocusable={false}
+          edgesFocusable={false}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}

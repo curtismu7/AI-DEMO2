@@ -1,0 +1,48 @@
+# FLOOR for scripts/ui-pattern-converted.txt: every route here must stay in that allowlist (src/__tests__/uiPatterns.test.js).
+# The allowlist is the set of routes held to the Ping UI Standard; deleting a line from it (a bad merge, an
+# "empty it to get green" edit) used to turn nothing red. Now it turns the "floor" test red.
+# Rules: when a PR converts a page and adds its route to the allowlist, add it HERE too, in sorted order.
+# Lines are only ever added. To retire a route on purpose, delete it from BOTH files in one PR and say why in the PR.
+/agent-builder
+/agent-lifecycle
+/ai-products/authorize
+/ai-products/core
+/ai-products/gateway
+/ai-products/privilege-a2a
+/ai-products/privilege-llm
+/ai-products/privilege-mcp
+/ai-products/protect
+/autonomous-agents
+/brave-mcp
+/delegated-commerce
+/delegation-chain-value
+/demo-config
+/demo-summary
+/demo-track
+/gateway-claims
+/governance-timeline
+/mcp-observability
+/mcp-scanner
+/owasp
+/p1-third-party-exchange
+/personal-agent
+/personal-agent/full
+/pingfederate-config
+/pingone-authorize
+/policy-decision-trace
+/privilege-a2a
+/privilege-ai-policies
+/privilege-coding-agents
+/privilege-demo
+/privilege-for-ai
+/privilege-gateway-topologies
+/privilege-intent-triage
+/privilege-map
+/privilege-pf-token
+/privilege-pii-detection
+/privilege-prompt-log
+/privilege-saas-access
+/privilege-shelf
+/transaction-consent
+/ungoverned-agent
+/weather-mcp

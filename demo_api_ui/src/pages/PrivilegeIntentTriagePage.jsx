@@ -35,13 +35,14 @@ import {
 } from '../config/privilegePlatformUpdateDemos';
 import './PrivilegeIntentTriagePage.css';
 
-// cardTone: Card has no info edge (an unknown tone would fall back to the vertical accent), so the
-// alert outcome carries the neutral edge and its chip says the rest.
+// Every outcome here is a modelled sample, never a decision this page made, so every chip is info and
+// every card neutral (a danger/ok colour would read as a real verdict). The chip says "Sample: would ...".
+// cardTone: Card has no info edge (an unknown tone would fall back to the vertical accent).
 const OUTCOME_META = {
-  deny: { label: 'Deny', chip: 'Refused', tone: 'danger', cardTone: 'danger', note: 'Hard refusal from the deterministic tier. No scored signal, approval, or further rule can lift it.' },
-  hold: { label: 'Hold for approval', chip: 'Pending approval', tone: 'warn', cardTone: 'warn', note: 'A person decides. The request is refused with a reason, a reference and an expiry; the agent retries after approval.' },
-  alert: { label: 'Alert (outcome unchanged)', chip: 'Recorded', tone: 'info', cardTone: 'neutral', note: 'Recorded without changing the result — the watch-only rollout path.' },
-  allow: { label: 'Allow', chip: 'Allowed', tone: 'ok', cardTone: 'ok', note: 'No rule fired and no scored signal crossed its threshold.' },
+  deny: { label: 'Deny', chip: 'Sample: would be refused', tone: 'info', cardTone: 'neutral', note: 'In the documented model this is a hard refusal from the deterministic tier. No scored signal, approval, or further rule can lift it.' },
+  hold: { label: 'Hold for approval', chip: 'Sample: would hold for approval', tone: 'info', cardTone: 'neutral', note: 'In the documented model a person decides. The request is refused with a reason, a reference and an expiry; the agent retries after approval.' },
+  alert: { label: 'Alert (outcome unchanged)', chip: 'Sample: would be recorded', tone: 'info', cardTone: 'neutral', note: 'Recorded without changing the result — the watch-only rollout path.' },
+  allow: { label: 'Allow', chip: 'Sample: would be allowed', tone: 'info', cardTone: 'neutral', note: 'No rule fired and no scored signal crossed its threshold.' },
 };
 
 export default function PrivilegeIntentTriagePage() {
@@ -58,8 +59,8 @@ export default function PrivilegeIntentTriagePage() {
       <SimBanner data-testid="triage-banner">
         <strong>DOCUMENTED-BEHAVIOUR MODEL</strong> — the three signals and the verdict for each scenario are a
         fixed restatement of how the platform is documented to behave, not a decision made on this machine.
-        Nothing is scored or refused here. The one real call is the live check under the verdict: it goes
-        through this machine's BFF to the Privilege AI Gateway.
+        Nothing is scored or refused here. The one live call is the gateway check under the outcome: it goes
+        through this machine's BFF to the Privilege AI Gateway, but the tool it calls is a fictional sample.
       </SimBanner>
       <PageHeader
         eyebrow="Ping products · Privilege · Platform Update Nov 2026 (new)"
@@ -75,7 +76,7 @@ export default function PrivilegeIntentTriagePage() {
           <InspectorShell
             title="Agent call triage"
             statusOn
-            statusText="documented-behaviour model — with a live gateway check below the verdict"
+            statusText="documented-behaviour model — with a live gateway check below the outcome"
             fullHeight={false}
             titleLevel={2}
             left={<ScenarioTree selectedKey={selectedKey} onSelect={setSelectedKey} />}
@@ -142,7 +143,7 @@ function ScenarioVerdict({ scenario, activeTab, onTab }) {
     <>
       <InspectorTabs
         tabs={[
-          { key: 'signals', label: 'Verdict' },
+          { key: 'signals', label: 'Modelled outcome' },
           { key: 'tier', label: 'Which tier' },
         ]}
         activeKey={activeTab}
@@ -152,17 +153,17 @@ function ScenarioVerdict({ scenario, activeTab, onTab }) {
         {activeTab === 'signals' && (
           <>
             <Card tone={outcome.cardTone} title={outcome.label} data-testid="triage-verdict" role="status">
-              <p className="pu-status-line"><StatusChip tone={outcome.tone}>{outcome.chip}</StatusChip> Documented-behaviour model, not a gateway call</p>
+              <p className="pu-status-line"><StatusChip tone={outcome.tone}>{outcome.chip}</StatusChip> Documented-behaviour model, not a gateway call. Nothing was scored, refused or held on this machine.</p>
               <p className="pu-note">{outcome.note}</p>
               <p className="pu-note triage-expect">{scenario.expect}</p>
             </Card>
-            <Card tone="live" title="Live check">
-              <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> Not simulated: the verdict below comes from the gateway.</p>
-              <p className="pu-note">This live call is independent of the scenario above: it always lists alice's entitlements, so it can differ from the modelled verdict.</p>
+            <Card tone="live" title="Gateway call (sample data)">
+              <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> The allow or deny decision below comes from the gateway. The tool behind it is a fictional sample, so any record it returns is made-up data.</p>
+              <p className="pu-note">This live call is independent of the scenario above: it always calls the same sample tool, so it can differ from the modelled outcome.</p>
               <PrivilegeLiveCheck
                 tool="list_entitlements"
                 args={{ user: 'alice' }}
-                label="List alice's entitlements through live Privilege"
+                label="Call a sample tool through the gateway"
                 buttonClassName="pu-btn pu-btn--primary"
                 statusChip
               />

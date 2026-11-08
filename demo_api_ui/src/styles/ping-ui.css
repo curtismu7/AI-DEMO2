@@ -370,8 +370,17 @@
 }
 
 .pu-page .pu-btn:focus-visible,
-.pu-page .pu-select:focus-visible {
-  outline: 3px solid var(--th-status-info-text);
+.pu-page .pu-select:focus-visible,
+.pu-page a:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The title band is dark in both themes (--th-bg-band to #12538d), so the page ring (navy in light) vanishes on it.
+   White clears 3:1 on the whole gradient. Doubled class: it must beat `.pu-page .pu-btn:focus-visible` wherever the
+   header sits, inside or outside .pu-page. */
+.ping-page-header.ping-page-header :is(.pu-btn, .pu-select, button, a, [role='button']):focus-visible {
+  outline: 3px solid var(--th-focus-ring-on-band);
   outline-offset: 2px;
 }
 
@@ -402,7 +411,7 @@
 }
 
 .pu-page .dc-toolbar .dc-ctrl-btn:focus-visible {
-  outline: 3px solid var(--th-status-info-text);
+  outline: 3px solid var(--th-focus-ring);
   outline-offset: 2px;
 }
 

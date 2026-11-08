@@ -81,15 +81,70 @@ describe('McpScannerPage (standalone UI standard)', () => {
     expect(screen.getAllByTestId('mcps-finding')).toHaveLength(1);
   });
 
-  it('reports a clean result with a word, and says pattern rules are not proof', () => {
+  it('pasted tools with no findings get an info chip with a word, never a green Clean, and say what was not scanned', () => {
     renderPage();
     fireEvent.change(screen.getByTestId('mcps-json'), { target: { value: '[{"name":"search_docs","description":"Search the docs."}]' } });
     fireEvent.click(scanJson());
     const summary = screen.getByTestId('mcps-summary');
-    expect(summary.className).toContain('pu-card--ok');
-    expect(summary.textContent).toMatch(/Clean/);
+    expect(summary.className).not.toContain('pu-card--ok');
+    expect(summary.querySelector('.pu-chip--ok')).toBeNull();
+    expect(summary.querySelector('.pu-chip--info').textContent).toBe('No findings in tools');
+    expect(summary.textContent).not.toMatch(/Clean/);
     expect(summary.textContent).toMatch(/not proof/);
+    expect(screen.getByTestId('mcps-tools-only-note').textContent).toMatch(/resources and prompts were not scanned/);
     expect(screen.queryByTestId('mcps-findings')).toBeNull();
+  });
+
+  it('pasted input says Resources and Prompts were not scanned, never "0: none"', () => {
+    renderPage();
+    fireEvent.change(screen.getByTestId('mcps-json'), { target: { value: '[{"name":"search_docs","description":"Search the docs."}]' } });
+    fireEvent.click(scanJson());
+    const summary = screen.getByTestId('mcps-summary').textContent;
+    expect(summary).toMatch(/Resources.*not scanned/);
+    expect(summary).toMatch(/Prompts.*not scanned/);
+    expect(summary).not.toMatch(/0: none/);
+  });
+
+  it('the pasted tool that moves funds without approval is not called Clean (sensitive-action rules do not run on tool text)', () => {
+    renderPage();
+    const tool = [{ name: 'pay', description: 'Transfer funds and wire a payment to the account without approval.', inputSchema: {} }];
+    fireEvent.change(screen.getByTestId('mcps-json'), { target: { value: JSON.stringify(tool) } });
+    fireEvent.click(scanJson());
+    const summary = screen.getByTestId('mcps-summary');
+    expect(summary.textContent).not.toMatch(/Clean/);
+    expect(summary.textContent).not.toMatch(/No poisoned metadata found/);
+    expect(summary.textContent).toMatch(/sensitive-action and approval-bypass rules apply to resources and prompts, not to tool\s+descriptions/);
+  });
+
+  it('an empty tools list says there is nothing to scan, not Clean', () => {
+    renderPage();
+    for (const text of ['[]', '{"tools":[]}']) {
+      fireEvent.change(screen.getByTestId('mcps-json'), { target: { value: text } });
+      fireEvent.click(scanJson());
+      const summary = screen.getByTestId('mcps-summary');
+      expect(summary.querySelector('.pu-chip').textContent).toBe('Nothing to scan');
+      expect(summary.className).not.toContain('pu-card--ok');
+      expect(summary.textContent).not.toMatch(/Clean|No poisoned metadata/);
+    }
+  });
+
+  it('a null or non-object entry is reported as a parse-style error instead of crashing the page', () => {
+    renderPage();
+    for (const text of ['[null]', '[1]', '[[]]', 'null']) {
+      fireEvent.change(screen.getByTestId('mcps-json'), { target: { value: text } });
+      fireEvent.click(scanJson());
+      expect(screen.getByRole('alert').textContent, text).toMatch(/Not scanned/);
+      expect(screen.queryByTestId('mcps-summary'), text).toBeNull();
+    }
+  });
+
+  it('the captured hostile sample scanned all three kinds, so it still lists them by name', () => {
+    renderPage();
+    fireEvent.click(hostile());
+    const summary = screen.getByTestId('mcps-summary').textContent;
+    expect(summary).toMatch(/Resources\s*\d+:/);
+    expect(summary).toMatch(/Prompts\s*\d+:/);
+    expect(summary).not.toMatch(/not scanned/);
   });
 
   it('announces a parse error as an alert tied to the textarea, and clears the last result', () => {

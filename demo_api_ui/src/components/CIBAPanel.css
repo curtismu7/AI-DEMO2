@@ -100,7 +100,9 @@
   bottom: 0;
   /* Width is set via inline style (resizable); fallback gives Token Chain / tokenx tab room */
   width: min(840px, 96vw);
-  background: #fff;
+  /* Token ground, not white: every tab's ink is --th-text, which is white in dark (white on #fff was 1:1). */
+  background: var(--th-bg-card);
+  color: var(--th-text);
   z-index: 10063;
   display: flex;
   flex-direction: column;
@@ -202,7 +204,7 @@
 .ciba-tabs {
   display: flex;
   background: var(--brand-light-gray);
-  border-bottom: 2px solid #DDDDDD;
+  border-bottom: 2px solid var(--th-border);
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -223,13 +225,13 @@
 }
 
 .ciba-tab:hover {
-  color: #051727;
+  color: var(--th-text);
 }
 
 .ciba-tab--active {
-  color: #051727;
+  color: var(--th-text);
   font-weight: 700;
-  border-bottom-color: var(--brand-navy);
+  border-bottom-color: var(--th-text);
 }
 
 /* ---------- Scrollable body ---------- */
@@ -252,7 +254,7 @@
 .ciba-section-title {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #051727;
+  color: var(--th-text);
   margin: 1.25rem 0 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -312,7 +314,7 @@
   align-items: flex-start;
   padding: 0.75rem;
   background: var(--brand-light-gray);
-  border: 1px solid #DDDDDD;
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   font-size: 0.8rem;
   color: var(--th-text);
@@ -357,6 +359,12 @@
   color: #14532d;
 }
 
+/* A bare <code> takes --th-text from the base sheet; inside the navy header or a tinted notice that ink is wrong in one theme. */
+.ciba-subtitle code,
+.ciba-notice code {
+  color: inherit;
+}
+
 /* ---------- Form ---------- */
 .ciba-form {
   display: flex;
@@ -375,8 +383,9 @@
 
 .ciba-input {
   padding: 0.45rem 0.65rem;
-  border: 1px solid #cdd1d4;
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
+  background: var(--th-bg-card);
   font-size: 0.82rem;
   color: var(--th-text);
   outline: none;
@@ -490,14 +499,14 @@
   font-size: 0.79rem;
   padding: 0.5rem 0.65rem;
   background: var(--brand-light-gray);
-  border: 1px solid #DDDDDD;
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
 }
 
 .ciba-endpoint-row code {
   font-family: inherit;
   font-size: 0.75rem;
-  color: #051727;
+  color: var(--th-text);
 }
 
 .ciba-endpoint-desc {

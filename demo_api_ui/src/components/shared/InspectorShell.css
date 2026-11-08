@@ -177,7 +177,9 @@
   background: none;
   text-align: left;
 }
-.inspector-shell-tree-item:hover { background: var(--th-bg-hover); }
+/* The selected item keeps its navy ground on hover: its label is --th-text-invert (white), and the hover wash is near-white
+   in light (1.12:1 white on #eef2f7). */
+.inspector-shell-tree-item:hover:not(.inspector-shell-tree-item--active) { background: var(--th-bg-hover); }
 .inspector-shell-tree-item--active {
   background: #051727;
   color: var(--th-text-invert);

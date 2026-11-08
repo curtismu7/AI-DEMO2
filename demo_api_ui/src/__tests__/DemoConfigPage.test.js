@@ -210,6 +210,20 @@ describe("DemoConfigPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/Saved/);
   });
 
+  it("hands focus to Save when Reset order is pressed and unmounts (focus must not fall to the body)", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Skin Studio down" }));
+    const reset = await screen.findByRole("button", { name: "Reset order" });
+    reset.focus();
+    expect(reset).toHaveFocus();
+    fireEvent.click(reset);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Reset order" })).toBeNull());
+    expect(screen.getByRole("button", { name: /Save & refresh sidebar/ })).toHaveFocus();
+  });
+
   it("moves a group with its up/down buttons, keeps focus, and announces the move", async () => {
     mockFetch();
     render(<DemoConfigPage />);
