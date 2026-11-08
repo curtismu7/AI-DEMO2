@@ -4,6 +4,7 @@
 /privilege-saas-access
 /privilege-coding-agents
 /privilege-pii-detection
+/privilege-demo
 /privilege-intent-triage
 /privilege-prompt-log
 /privilege-shelf
