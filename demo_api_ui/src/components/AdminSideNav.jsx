@@ -1137,6 +1137,7 @@ export default function AdminSideNav({
         { label: "All Diagrams", path: "/diagrams", icon: "arc" },
         { label: "Use-case diagrams", path: "/use-case-diagrams", icon: "arc" },
         { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
+        { label: "Where Everything Runs", path: "/where-everything-runs", icon: "arc" },
         { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
