@@ -308,6 +308,37 @@
   outline-offset: 2px;
 }
 
+/* P9 for the shared diagram toolbar (components/diagram/DiagramControls, inside DiagramStepBar). Its base rules
+   fill Simulate and Next flat Ping Red, Pause brown and Resume green, so a converted page that already has its
+   own primary showed two or three. Here every step button is a bordered secondary: same edge, ground and ring as
+   .pu-btn, at the toolbar's compact size. A page that wants its diagram's Simulate to be the view's one primary
+   says so in its own sheet (PrivilegeMapPage.css does, for its diagram view, where it is the only action).
+   Unconverted pages are untouched: every selector here starts at .pu-page. */
+.pu-page .dc-toolbar .dc-ctrl-btn {
+  border: 1px solid var(--control-border);
+  background: var(--th-bg-card);
+  background-image: none;
+  color: var(--th-text);
+}
+
+.pu-page .dc-toolbar .dc-ctrl-btn:hover:not(:disabled) {
+  border-color: var(--btn-accent);
+  background-color: var(--th-bg-card);
+}
+
+/* The base disabled rule is `background: #eff0f1 !important; color: #051727 !important` (a light chip with dark
+   ink on a dark page). Tokens, with !important only because the rule it replaces has it. */
+.pu-page .dc-toolbar .dc-ctrl-btn:disabled {
+  background: var(--th-bg-inset) !important;
+  color: var(--th-text-muted) !important;
+  opacity: 0.75;
+}
+
+.pu-page .dc-toolbar .dc-ctrl-btn:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
 @media (max-width: 600px) {
   .pu-card {
     padding: 14px;

@@ -91,9 +91,12 @@
   color: var(--th-text);
 }
 
+/* Ink token, not the status border: --th-status-info-border is #bfdbfe (1.25:1) on light and #051727 (1.1:1) on
+   the dark ground. --th-status-info-text is #051727 / #93c5fd, 3:1 or better on every page surface in both themes
+   (pingUiSharedA11y.test.js measures it). Same ring as .pu-btn. */
 .lesson-nav-item:focus-visible {
-  outline: 2px solid var(--th-status-info-border, var(--th-border-strong));
-  outline-offset: 1px;
+  outline: 2px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 .lesson-nav-item--active {
