@@ -82,6 +82,14 @@
               "logDirectory": "&{ig.instance.dir}/audit",
               "topics": ["access", "mcp"]
             }
+          },
+          {
+            "class": "org.forgerock.audit.handlers.json.stdout.JsonStdoutAuditEventHandler",
+            "config": {
+              "name": "jsonstdout",
+              "elasticsearchCompatible": false,
+              "topics": ["access", "mcp"]
+            }
           }
         ]
       }

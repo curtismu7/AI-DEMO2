@@ -29,6 +29,10 @@ services:
     environment:
       PING_IDENTITY_ACCEPT_EULA: "YES"
       PING_IDENTITY_PASSWORD: ${PINGFEDERATE_ADMIN_PASSWORD:?set PINGFEDERATE_ADMIN_PASSWORD outside Git}
+      # Put PF's audit trail on stdout (docker logs) so a log collector can ship it.
+      # The image's default tails only server.log and init.log. Plain text, no ANSI colour.
+      TAIL_LOG_FILES: "/opt/out/instance/log/server.log /opt/out/instance/log/init.log /opt/out/instance/log/audit.log /opt/out/instance/log/admin.log /opt/out/instance/log/admin-api.log"
+      COLORIZE_LOGS: "false"
     volumes:
       - pingfederate-out:/opt/out
       # JVM truststore (mkcert root import) survives redeploys — without this,
