@@ -26,6 +26,15 @@ function renderAt(path) {
 }
 
 describe("UseCaseDiagramPage", () => {
+  it("gives every bottom UC chip a tooltip with the use-case title", () => {
+    renderAt("/use-case-diagrams/UC2.5");
+    const nav = screen.getByRole("navigation", { name: /more use-case diagrams/i });
+    const chip = nav.querySelector('a[href="/use-case-diagrams/UC2"]');
+    expect(chip).toHaveAttribute("title", expect.stringMatching(/^UC2 — A2A delegation/));
+    expect(chip).toHaveAttribute("aria-label", chip.getAttribute("title"));
+    nav.querySelectorAll("a").forEach((a) => expect(a.getAttribute("title")).toBeTruthy());
+  });
+
   it("overlays the live walk when the store holds a matching UC1 run", () => {
     act(() => {
       tokenChainTraceStore.beginTrace({ prompt: "balance" });

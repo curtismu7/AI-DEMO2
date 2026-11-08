@@ -212,9 +212,13 @@ export default function UseCaseDiagramPage() {
       </section>
 
       <nav className="ucd-next" aria-label="More use-case diagrams">
-        {CONFIGS.filter((c) => c.id !== cfg.id).map((c) => (
-          <Link key={c.id} className="ucd-next__link" to={`/use-case-diagrams/${c.id}`} {...diagramLinkProps(`/use-case-diagrams/${c.id}`)}>{c.id}</Link>
-        ))}
+        {CONFIGS.filter((c) => c.id !== cfg.id).map((c) => {
+          const g = DEMO_STEP_GUIDES[c.id];
+          const tip = g?.title ? `${c.id} — ${g.title}${g.what ? `: ${g.what}` : ""}` : c.id;
+          return (
+            <Link key={c.id} className="ucd-next__link" to={`/use-case-diagrams/${c.id}`} title={tip} aria-label={tip} {...diagramLinkProps(`/use-case-diagrams/${c.id}`)}>{c.id}</Link>
+          );
+        })}
       </nav>
     </main>
   );
