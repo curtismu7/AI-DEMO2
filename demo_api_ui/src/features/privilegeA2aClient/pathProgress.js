@@ -27,5 +27,6 @@ export function pathProgress(trace, busy) {
     reached = Math.max(reached, index);
     latest = index;
   }
-  return { reached, active: busy && latest >= 0 ? latest : null };
+  // Before the first event lands (the client's model is still deciding) the first segment is the one working.
+  return { reached, active: busy ? Math.max(latest, 0) : null };
 }

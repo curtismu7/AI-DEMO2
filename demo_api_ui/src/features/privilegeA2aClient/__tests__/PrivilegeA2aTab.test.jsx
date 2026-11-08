@@ -320,6 +320,26 @@ describe('PrivilegeA2aTab', () => {
     expect(document.querySelector('img')).toBeNull();
   });
 
+  test('shows a seconds clock and the first step as working while the run waits, then clears it', async () => {
+    let resolveFetch;
+    global.fetch.mockReturnValue(new Promise(resolve => { resolveFetch = resolve; }));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    expect(screen.queryByTestId('a2a-clock')).toBeNull();
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Check access');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+
+    expect(screen.getByTestId('a2a-clock')).toHaveTextContent('0s');
+    expect(screen.getByTestId('a2a-clock')).not.toHaveTextContent('still working');
+    expect(screen.getByText('1. Send Message').closest('li')).toHaveClass('is-working');
+    expect(document.querySelector('.privilege-a2a__path li.is-active')).toHaveTextContent('A2A Client');
+    // A slow model call keeps the clock moving and says so after a few seconds.
+    await waitFor(() => expect(screen.getByTestId('a2a-clock')).toHaveTextContent(/[1-9]\ds|[1-9]s/), { timeout: 3000 });
+
+    resolveFetch(streamResponse([{ event: 'done', data: { sessionId: 'session-1' } }]));
+    await waitFor(() => expect(screen.queryByTestId('a2a-clock')).toBeNull());
+  });
+
   test('disables repeat submit while the A2A stream is active', async () => {
     let resolveFetch;
     global.fetch.mockReturnValue(new Promise(resolve => { resolveFetch = resolve; }));
