@@ -468,7 +468,7 @@ export default function PrivilegeA2aTab() {
                     </ul>
                   )}
                 </div>
-                <button className="pu-btn pu-btn--primary" type="submit" disabled={busy || !input.trim()}>
+                <button className="pu-btn pu-btn--primary" type="submit" aria-disabled={busy || !input.trim() ? 'true' : undefined}>
                   {busy ? 'Reviewing…' : 'Send question'}
                 </button>
               </div>
