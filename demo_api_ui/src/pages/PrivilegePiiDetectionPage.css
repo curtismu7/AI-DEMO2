@@ -106,17 +106,18 @@
   cursor: pointer;
 }
 
+/* The global checkbox ring is a box-shadow of about 1.9:1 on this ground; a real outline is visible in both
+   themes and every skin. Specificity is raised to beat the global body input[type="checkbox"] rule. */
+.pii-page .pii-kind input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
 .pii-kind-meta {
   margin-left: auto;
   color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
-}
-
-/* The live-check block sits inside the live card. */
-.pu-card--live .plc {
-  margin-top: 0;
-  border-top: 0;
-  padding-top: 0;
 }
 
 @media (max-width: 600px) {

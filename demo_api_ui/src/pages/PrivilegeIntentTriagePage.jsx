@@ -157,10 +157,11 @@ function ScenarioVerdict({ scenario, activeTab, onTab }) {
             </Card>
             <Card tone="live" title="Live check">
               <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> Not simulated: the verdict below comes from the gateway.</p>
+              <p className="pu-note">This live call is independent of the scenario above: it always lists alice's entitlements, so it can differ from the modelled verdict.</p>
               <PrivilegeLiveCheck
                 tool="list_entitlements"
                 args={{ user: 'alice' }}
-                label="Check the same subject through live Privilege"
+                label="List alice's entitlements through live Privilege"
                 buttonClassName="pu-btn pu-btn--primary"
                 statusChip
               />
