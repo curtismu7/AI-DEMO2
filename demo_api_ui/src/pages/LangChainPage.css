@@ -1,0 +1,143 @@
+/* LangChain page: only what is specific to this page. The banner, frame, cards, key-value list, chips and
+   status line are the shared Ping UI primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md).
+   Surfaces, lines and ink are --th-* only (H1), type comes from the --font-size-* scale (H2), no inline
+   styles (H3). Every rule is scoped under .pu-page.lcp: the PingOne end-user-nano skin sets word-wrap and
+   its own code colour on bare elements and beats single-class rules. */
+
+.pu-page.lcp code {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.pu-page.lcp .lcp-intro {
+  margin: 0 0 8px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-body);
+}
+
+/* Code and diagram blocks scroll inside their own box (a focusable region, so the keyboard can scroll it)
+   and never widen the page. The ASCII diagram needs its columns, so it never wraps. */
+.pu-page.lcp .lcp-pre {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-wrap: normal;
+}
+
+.pu-page.lcp .lcp-pre:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.pu-page.lcp .lcp-pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  white-space: inherit;
+  overflow-wrap: normal;
+}
+
+.pu-page.lcp .lcp-link {
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pu-page.lcp .lcp-link:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+/* Tables: scroll inside their own wrapper when wide, stack as labelled rows at phone width. */
+.pu-page.lcp .lcp-table-wrap {
+  overflow-x: auto;
+}
+
+.pu-page.lcp .lcp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.pu-page.lcp .lcp-table th,
+.pu-page.lcp .lcp-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border-strong);
+  color: var(--th-text);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.pu-page.lcp .lcp-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pu-page.lcp .lcp-table tr.lcp-row--active td {
+  background: var(--th-bg-inset);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pu-page.lcp .lcp-cell-chip {
+  margin-left: 6px;
+}
+
+@media (max-width: 600px) {
+  .pu-page.lcp .lcp-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .pu-page.lcp .lcp-table,
+  .pu-page.lcp .lcp-table tbody,
+  .pu-page.lcp .lcp-table tr,
+  .pu-page.lcp .lcp-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .pu-page.lcp .lcp-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .pu-page.lcp .lcp-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .pu-page.lcp .lcp-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
