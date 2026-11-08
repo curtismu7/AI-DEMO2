@@ -182,3 +182,129 @@ describe('PrivilegeAiPoliciesDemoPage (standalone walkthrough)', () => {
     expect(screen.getByTestId('apd-diagram')).toBeInTheDocument();
   });
 });
+
+describe('Ping UI Standard: banner, chips, one primary per view state', () => {
+  const primaries = () => [...document.querySelectorAll('.pu-btn--primary')];
+  const primaryIds = () => primaries().map((b) => b.getAttribute('data-testid') || b.textContent.trim());
+
+  it('the banner is a note and the first thing in the page, and says what is real and what is not', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    page();
+    const banner = screen.getByTestId('apd-banner');
+    expect(banner).toHaveAttribute('role', 'note');
+    expect(screen.getByTestId('apd-page').firstElementChild).toContainElement(banner);
+    expect(banner).toHaveTextContent(/Real:.*scenario runs/);
+    expect(banner).toHaveTextContent(/Not real:.*mirror.*prediction.*Simulate button only animates/);
+    await waitFor(() => expect(screen.getByTestId('apd-conn')).toHaveAttribute('data-status', 'ready'));
+  });
+
+  it('the walkthrough banner admits no call is made and shows no gateway decision', () => {
+    page({ live: false });
+    const banner = screen.getByTestId('apd-banner');
+    expect(banner).toHaveTextContent(/WALKTHROUGH, NO CALLS/);
+    expect(banner).not.toHaveTextContent(/comes from the Privilege gateway/);
+  });
+
+  it('exactly one primary while connecting, and it is the disabled Check again', () => {
+    connectDoor.mockReturnValue(new Promise(() => {}));
+    page();
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0]).toHaveTextContent('Check again');
+    expect(primaries()[0]).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('a button pressed while a call is in flight keeps keyboard focus (aria-disabled, never disabled) and ignores a second press', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    runTool.mockReturnValue(new Promise(() => {}));
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-hold')).toBeEnabled());
+    const run = screen.getByTestId('apd-run-hold');
+    run.focus();
+    fireEvent.click(run);
+    await waitFor(() => expect(run).toHaveTextContent('Calling the gateway…'));
+    expect(run).not.toBeDisabled();
+    expect(run).toHaveAttribute('aria-disabled', 'true');
+    expect(document.activeElement).toBe(run);
+    fireEvent.click(run);
+    expect(runTool).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['signin', { ok: true, url: 'u', authenticated: false }],
+    ['nodoor', { ok: false, reason: 'no-door' }],
+  ])('exactly one primary when the door state is %s: Check again, and every Run is a secondary', async (status, reply) => {
+    connectDoor.mockResolvedValue(reply);
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-conn')).toHaveAttribute('data-status', status));
+    expect(primaryIds()).toEqual(['Check again']);
+    expect(screen.getByTestId('apd-run-hold')).not.toHaveClass('pu-btn--primary');
+  });
+
+  it('exactly one primary when the client cannot be reached', async () => {
+    connectDoor.mockRejectedValue(Object.assign(new Error('down'), { status: 502 }));
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-conn')).toHaveAttribute('data-status', 'error'));
+    expect(primaryIds()).toEqual(['Check again']);
+  });
+
+  it('the primary follows the flow: first Run, then Retry while HELD, then the next unrun scenario', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    runTool.mockResolvedValueOnce(HOLD).mockResolvedValueOnce(ALLOW);
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-hold')).toBeEnabled());
+    expect(primaryIds()).toEqual(['apd-run-hold']);
+    expect(screen.getByText('Check again')).not.toHaveClass('pu-btn--primary');
+
+    fireEvent.click(screen.getByTestId('apd-run-hold'));
+    await waitFor(() => expect(screen.getByTestId('apd-retry')).toBeInTheDocument());
+    expect(primaryIds()).toEqual(['apd-retry']);
+    expect(screen.getByTestId('apd-run-hold')).not.toHaveClass('pu-btn--primary');
+
+    fireEvent.click(screen.getByTestId('apd-retry'));
+    await waitFor(() => expect(within(screen.getByTestId('apd-scn-hold')).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'allow'));
+    expect(screen.queryByTestId('apd-retry')).toBeNull();
+    expect(primaryIds()).toEqual(['apd-run-deny']);
+  });
+
+  it('the walkthrough has no page buttons at all, so no primary', () => {
+    page({ live: false });
+    expect(primaries()).toHaveLength(0);
+    expect(within(screen.getByTestId('apd-scn-hold')).queryByRole('button')).toBeNull();
+  });
+
+  it('every run control is a real button with its own accessible name, and the lab controls are labelled (keyboard)', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-hold')).toBeEnabled());
+    for (const s of ['Hold for a human, then approve and retry']) {
+      expect(screen.getByRole('button', { name: `Run through Privilege: ${s}` })).toBe(screen.getByTestId('apd-run-hold'));
+    }
+    expect(screen.getAllByRole('button', { name: /^Run through Privilege: / })).toHaveLength(3);
+    for (const label of ['Rule to change', 'Outcome', 'Target: one named tool', 'Save as']) {
+      expect(screen.getByLabelText(label).tagName).toBe('SELECT');
+    }
+    // Scrollable code blocks can be reached and read without a mouse.
+    const cedar = screen.getByTestId('apd-lab-cedar');
+    expect(cedar).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('region', { name: 'Cedar this will save' })).toBe(cedar);
+  });
+
+  it('every status chip carries a word, and the lab never presents a prediction as a gateway answer', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    runTool.mockResolvedValue(DENY);
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-deny')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('apd-run-deny'));
+    await waitFor(() => expect(screen.getByTestId('apd-verdict')).toBeInTheDocument());
+    fireEvent.change(screen.getByTestId('apd-lab-state'), { target: { value: 'Candidate' } });
+    const chips = [...document.querySelectorAll('.pu-chip')];
+    expect(chips.length).toBeGreaterThan(5);
+    for (const c of chips) expect(c.textContent.trim().length).toBeGreaterThan(0);
+    // The real verdict chip says DENIED; nothing in the lab is titled or labelled as a gateway answer.
+    expect(within(screen.getByTestId('apd-verdict')).getByText('DENIED')).toHaveClass('pu-chip');
+    const lab = screen.getByTestId('apd-lab');
+    for (const h of lab.querySelectorAll('h2, h3, caption, th')) expect(h.textContent).not.toMatch(/^\s*Gateway/i);
+    expect(within(lab).getByText('Prediction')).toHaveClass('pu-chip');
+    expect(within(lab).queryByTestId('apd-verdict')).toBeNull();
+  });
+});

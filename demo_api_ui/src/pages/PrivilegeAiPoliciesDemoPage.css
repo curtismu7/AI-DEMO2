@@ -1,61 +1,192 @@
-/* Privilege AI Policies demo. Tokens only (--th-*, --font-*, --radius-*), so light and dark both work. */
-.apd-page { max-width: 1100px; margin: 0 auto; padding: 24px 24px 64px; color: var(--th-text); }
-.apd-page h1 { font-size: var(--font-size-3xl); margin: 0 0 8px; }
-.apd-page h2 { font-size: var(--font-size-lg); margin: 22px 0 10px; }
-.apd-page h3 { font-size: var(--font-size-md); margin: 0 0 6px; }
-.apd-lede { font-size: var(--font-size-body); color: var(--th-text-body); max-width: 780px; }
-.apd-banner { padding: 10px 14px; border: 1px solid var(--th-status-info-border); background: var(--th-status-info-bg); color: var(--th-status-info-text); border-radius: var(--radius-sm); max-width: 780px; }
-.apd-muted { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+/* Privilege AI Policies demo: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips, labels, selects and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1),
+   type comes from the --font-size-* scale (H2), no inline styles (H3). */
 
-.apd-tag { display: inline-block; padding: 1px 7px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--th-text-body); background: var(--th-bg-inset); font-weight: 500; }
-.apd-tag--warn { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.apd-page code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
 
-.apd-panel { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 4px 18px 18px; margin-top: 16px; }
-.apd-cards { display: grid; gap: 14px; }
-.apd-card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 14px 18px 16px; }
-.apd-card--unproven { border-color: var(--th-status-warning-border); }
-.apd-call code, .apd-page code { font-family: var(--font-mono); font-size: var(--font-size-xs); }
-.apd-expect { margin: 6px 0; }
+.apd-page .pu-btn[aria-disabled='true'] {
+  opacity: 0.75;
+  cursor: progress;
+}
 
-.apd-policy { margin: 10px 0; border: 1px solid var(--th-border); border-radius: var(--radius-sm); padding: 6px 10px; background: var(--th-bg-inset); }
-.apd-policy summary, .apd-raw summary { cursor: pointer; font-size: var(--font-size-sm); }
-.apd-policy pre, .apd-raw pre { overflow: auto; max-height: 260px; padding: 10px; margin: 8px 0 4px; background: var(--th-bg-page); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; }
-.apd-raw { margin-top: 8px; }
+.apd-field {
+  margin-bottom: 12px;
+}
 
-.apd-actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-.apd-btn { padding: 7px 14px; border-radius: var(--radius-sm); border: 1px solid var(--th-bg-emphasis); background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); font: inherit; font-size: var(--font-size-sm); cursor: pointer; }
-.apd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.apd-btn--ghost { background: transparent; color: var(--th-text); border-color: var(--th-border-strong); }
-.apd-btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.apd-list {
+  padding-left: 20px;
+}
 
-.apd-verdict { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); background: var(--th-bg-inset); }
-.apd-verdict p { margin: 4px 0; }
-.apd-verdict-label { font-size: var(--font-size-xl); letter-spacing: 0.04em; }
-.apd-verdict--allow { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); }
-.apd-verdict--allow .apd-verdict-label { color: var(--th-status-success-text); }
-.apd-verdict--deny, .apd-verdict--error { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
-.apd-verdict--deny .apd-verdict-label, .apd-verdict--error .apd-verdict-label { color: var(--th-status-error-text); }
-.apd-verdict--hold, .apd-verdict--signin, .apd-verdict--tool-error { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); }
-.apd-verdict--hold .apd-verdict-label, .apd-verdict--signin .apd-verdict-label, .apd-verdict--tool-error .apd-verdict-label { color: var(--th-status-warning-text); }
-.apd-hold { margin-top: 10px; }
-.apd-ok { color: var(--th-status-success-text); font-weight: 600; }
+/* Policy and raw-response disclosures (native details, so Enter and Space open them). */
+.apd-policy {
+  margin: 10px 0;
+  padding: 6px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
 
-.apd-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); margin: 10px 0; }
-.apd-table th, .apd-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--th-border); vertical-align: top; }
-.apd-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+.apd-policy summary {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
 
-.apd-changed { margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--th-status-info-border); background: var(--th-status-info-bg); color: var(--th-status-info-text); border-radius: var(--radius-sm); }
-.apd-lab { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.3fr); gap: 18px; margin: 12px 0; }
-@media (max-width: 860px) { .apd-lab { grid-template-columns: 1fr; } }
-.apd-lab-form { display: flex; flex-direction: column; gap: 10px; }
-.apd-lab-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-size-xs); color: var(--th-text-muted); }
-.apd-lab-form select { padding: 7px 9px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); background: var(--th-bg-page); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
-.apd-check { flex-direction: row !important; align-items: center; gap: 8px !important; }
-.apd-lab-cedar pre { overflow: auto; max-height: 300px; padding: 10px; margin: 6px 0; background: var(--th-bg-inset); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; }
-.apd-warn { padding: 8px 12px; border: 1px solid var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
-.apd-row--changed td { background: var(--th-status-warning-bg); }
-.apd-steps { padding-left: 20px; color: var(--th-text-body); }
-.apd-steps li { margin-bottom: 6px; }
-.apd-tag--measured { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); color: var(--th-status-success-text); }
-.apd-tag--console-text { border-color: var(--th-status-info-border); background: var(--th-status-info-bg); color: var(--th-status-info-text); }
-.apd-tag--inferred { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.apd-policy summary:focus-visible,
+.apd-policy pre:focus-visible,
+.apd-cedar:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.apd-policy pre,
+.apd-cedar {
+  max-height: 260px;
+  margin: 8px 0 4px;
+  padding: 10px;
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+/* The gateway's answer to a real run, inside the scenario card. */
+.apd-verdict {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.apd-verdict .pu-status-line {
+  margin-bottom: 0;
+}
+
+.apd-hold {
+  margin: 10px 0;
+}
+
+.apd-changed {
+  margin-top: 10px;
+}
+
+/* Checkbox row in the options lab, with a visible focus ring on the box itself. */
+.apd-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.apd-check input {
+  width: 20px;
+  height: 20px;
+}
+
+.apd-check input:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.apd-steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.apd-steps li {
+  margin-bottom: 6px;
+}
+
+/* Tables: scroll inside their own wrapper when wide; the 3 and 4 column ones stack as labelled rows below 720px
+   (the app's side nav takes about 90px of that). */
+.apd-table-wrap {
+  overflow-x: auto;
+}
+
+.apd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.apd-page .apd-table caption {
+  padding-bottom: 6px;
+  color: var(--th-text-body);
+  text-align: left;
+}
+
+.apd-table th,
+.apd-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border-strong);
+  text-align: left;
+  vertical-align: top;
+  color: var(--th-text);
+  overflow-wrap: break-word;
+}
+
+.apd-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* A changed prediction is marked by the text "(changed)" in the cell too, never by the fill alone. */
+.apd-row--changed td {
+  background: var(--th-status-warning-bg);
+}
+
+@media (max-width: 720px) {
+  .apd-table--stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .apd-table--stack,
+  .apd-table--stack caption,
+  .apd-table--stack tbody,
+  .apd-table--stack tr,
+  .apd-table--stack td {
+    display: block;
+    width: 100%;
+  }
+
+  .apd-table--stack tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .apd-table--stack td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .apd-table--stack td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
