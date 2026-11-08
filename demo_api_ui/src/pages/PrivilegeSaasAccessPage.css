@@ -89,13 +89,6 @@
   margin-top: 14px;
 }
 
-/* The live-check block sits inside the live card. */
-.pu-card--live .plc {
-  margin-top: 0;
-  border-top: 0;
-  padding-top: 0;
-}
-
 @media (max-width: 600px) {
   .psa-table thead {
     position: absolute;

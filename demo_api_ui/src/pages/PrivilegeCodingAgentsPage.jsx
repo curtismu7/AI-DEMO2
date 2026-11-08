@@ -110,7 +110,7 @@ export default function PrivilegeCodingAgentsPage() {
           <pre className="pca-payload" data-testid="pca-payload">{scenario.payload}</pre>
         </div>
         <div className="pca-field">
-          <span className="pca-field-label">Gateway evaluation</span>
+          <span className="pca-field-label">Modelled evaluation</span>
           {scenario.detection ? (
             <p className="pu-status-line" data-testid="pca-detection">
               <StatusChip tone="danger">Rule fired</StatusChip>
@@ -211,7 +211,7 @@ export default function PrivilegeCodingAgentsPage() {
 function DecisionCard({ scenario, agent, decision }) {
   const tone = DECISION_TONE[scenario.decision] ?? 'neutral';
   return (
-    <Card tone={tone} title="Gateway decision" className="pca-verdict" role="status" data-testid="pca-verdict">
+    <Card tone={tone} title="Simulated decision" className="pca-verdict" role="status" data-testid="pca-verdict">
       <p className="pu-status-line">
         <StatusChip tone={tone}>{decisionLabel(scenario.decision)}</StatusChip>
         {decision?.note}

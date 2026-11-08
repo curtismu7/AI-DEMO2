@@ -42,13 +42,6 @@
   max-height: 100%;
 }
 
-/* The live-check block sits inside the live card. */
-.pu-card--live .plc {
-  margin-top: 0;
-  border-top: 0;
-  padding-top: 0;
-}
-
 /* At phone width the inspector's top bar (title, status text, theme toggle) is wider than the screen and the
    page clips the toggle off. Let it wrap on this page; the shared InspectorShell is not touched. */
 .pca-page .inspector-shell-topbar {
