@@ -11,6 +11,11 @@
 // PingOne environment the BFF is configured for. The banner says which of those is true for the
 // state on screen, and names the environment only once the BFF has answered with it.
 //
+// Two modes. Standalone (/scope-audit) is the full page above. Embedded (`embedded` prop, used by the
+// Scopes tab of /pingone-authorize, which already owns the banner, the title and the tab chrome) renders
+// only the sections: no PingPage, no banner, no h1, no frame, no theme toggle. The embedding page's own
+// Scopes tab has no primary (its tests pin that), so here the one run button is a secondary.
+//
 // P9 "one primary per view": the page has ONE next-step button, rendered in one place, so its
 // element (and keyboard focus) survives every state change. Its job by state:
 //   not run yet            Run audit
@@ -35,17 +40,36 @@ import { useThemeOptional } from '../context/ThemeContext';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+// What a failed audit request means, from the HTTP status and the BFF's own error text.
+// 401/403 are access answers from the BFF (signed out / signed in but not allowed), unless the text says the
+// request got as far as PingOne (routes/scopeAudit.js forwards PingOne's own 401/403 with a "PingOne scope
+// audit failed" message and a hint about the worker credentials).
+function classifyAuditError(status, message, hint) {
+  const reachedPingOne = /^PingOne scope audit/i.test(message || '') || Boolean(hint);
+  if (status === 401 && !reachedPingOne) return { kind: 'signedOut' };
+  if (status === 403 && !reachedPingOne) return { kind: 'forbidden' };
+  let text;
+  if (!status) text = 'Could not reach the demo server. Check that it is running, then retry.';
+  else if (status === 400) text = `The audit could not start: ${message || 'the request was rejected'}`;
+  else if (reachedPingOne && (status === 401 || status === 403)) text = `PingOne refused the demo's management credentials (HTTP ${status}).`;
+  else if (status === 502 || status === 503 || status === 504) text = `Failed to connect to PingOne (HTTP ${status}).`;
+  else if (reachedPingOne) text = `PingOne returned an error (HTTP ${status}).`;
+  else text = `The demo server failed while running the audit (HTTP ${status}).`;
+  return { kind: 'failed', text };
+}
+
 /**
  * ScopeAuditPage — PingOne resource & scope verification UI.
  *
  * Shows all PingOne resources, their current scopes, expected scopes,
  * and lets admins add missing scopes with one click.
+ *
+ * @param {{ embedded?: boolean }} props embedded: render inside another page (no PingPage, banner, h1, frame).
  */
-export default function ScopeAuditPage() {
+export default function ScopeAuditPage({ embedded = false }) {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [audited, setAudited] = useState(false); // a live audit answered and its rows are on screen
   const [envInfo, setEnvInfo] = useState({ environment: '', region: '' });
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -53,20 +77,23 @@ export default function ScopeAuditPage() {
   const [fixing, setFixing] = useState(false); // a batch (Fix All) is running
   const [fixNote, setFixNote] = useState(''); // outcome of the last add / fix, announced in the status line
   const pendingFocus = useRef(null); // resource id whose header gets focus once a re-audit lands
+  const primaryRef = useRef(null);
+  const refreshRef = useRef(null);
+  const refocusPrimary = useRef(false); // the Refresh secondary was pressed: if it unmounts, focus goes to the primary
 
   // ── Fetch resources from BFF ────────────────────────────────────────────────
   const loadResources = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setNeedsSignIn(false);
     try {
       const res = await fetch('/api/admin/scope-audit/resources', { credentials: 'include' });
-      const data = await res.json();
-      if (res.status === 401 || res.status === 403) {
-        setNeedsSignIn(true);
-        throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const e = new Error(data.error || `HTTP ${res.status}`);
+        e.status = res.status;
+        e.hint = data.hint;
+        throw e;
       }
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setResources(data.resources || []);
       setEnvInfo({ environment: data.environment, region: data.region });
       setAudited(true);
@@ -82,7 +109,7 @@ export default function ScopeAuditPage() {
       // A failed audit must not leave the previous audit's rows looking current.
       setResources([]);
       setAudited(false);
-      setError(err.message);
+      setError({ message: err.message, ...classifyAuditError(err.status || 0, err.message, err.hint) });
     } finally {
       setLoading(false);
     }
@@ -96,6 +123,14 @@ export default function ScopeAuditPage() {
     pendingFocus.current = null;
     if (el) el.focus();
   }, [loading, resources]);
+
+  // The Refresh secondary only exists while an audit's rows are on screen. A failed re-audit removes those
+  // rows and the button with them: hand focus to the one primary (always mounted) instead of dropping it to <body>.
+  useEffect(() => {
+    if (loading || !refocusPrimary.current) return;
+    refocusPrimary.current = false;
+    if (!refreshRef.current) primaryRef.current?.focus();
+  }, [loading, audited]);
 
   // ── Add a missing scope ─────────────────────────────────────────────────────
   // refresh:false lets a batch caller (handleFixAll/handleFixEverything) skip
@@ -181,8 +216,10 @@ export default function ScopeAuditPage() {
   const totalMissing = resources.reduce((sum, r) => sum + (r.expected?.missingRequired?.length || 0), 0);
   const customResources = resources.filter(r => r.expected != null).length;
 
-  const signedOut = Boolean(error && needsSignIn);
-  const failed = Boolean(error && !needsSignIn);
+  const signedOut = error?.kind === 'signedOut';
+  const forbidden = error?.kind === 'forbidden';
+  const denied = signedOut || forbidden; // the sign-in prompt is the call to action, so no primary
+  const failed = error?.kind === 'failed';
   const busy = loading || fixing || addingScope != null;
   const apiHost = envInfo.region ? `api.pingone.${envInfo.region}` : 'the PingOne Management API';
 
@@ -191,7 +228,7 @@ export default function ScopeAuditPage() {
 
   // ── The one primary (P9) ────────────────────────────────────────────────────
   let primary = null;
-  if (!signedOut) {
+  if (!denied) {
     if (loading) primary = { label: audited ? 'Re-checking…' : 'Running audit…' };
     else if (fixing || addingScope != null) primary = { label: 'Creating scopes…' };
     else if (failed) primary = { label: 'Retry audit', run: rerun };
@@ -199,7 +236,8 @@ export default function ScopeAuditPage() {
     else if (totalMissing > 0) primary = { label: `Fix All Missing (${totalMissing})`, run: handleFixEverything };
     else primary = { label: 'Refresh audit', run: rerun };
   }
-  const showRefreshSecondary = audited && totalMissing > 0 && !signedOut;
+  const showRefreshSecondary = audited && totalMissing > 0 && !denied;
+  const primaryClass = embedded ? 'pu-btn' : 'pu-btn pu-btn--primary';
 
   // ── Banner and status wording: only what the page actually knows ────────────
   let bannerWord = 'NOT RUN YET';
@@ -215,7 +253,10 @@ export default function ScopeAuditPage() {
     bannerText = <>Asking the PingOne Management API for the resources and scopes. Nothing on this page is simulated.</>;
   } else if (signedOut) {
     bannerWord = 'NO DATA';
-    bannerText = <>No audit data is shown: this session has no admin access to the scope-audit API, so nothing was read from PingOne.</>;
+    bannerText = <>No audit data is shown: nobody is signed in, so the scope-audit API refused the request and nothing was read from PingOne.</>;
+  } else if (forbidden) {
+    bannerWord = 'NO DATA';
+    bannerText = <>No audit data is shown: this session is signed in but is not allowed to use the scope-audit API (admin only), so nothing was read from PingOne.</>;
   } else if (failed) {
     bannerWord = 'NO DATA';
     bannerText = <>The audit did not return, so no resources or scopes are shown. Nothing on this page is simulated.</>;
@@ -241,10 +282,13 @@ export default function ScopeAuditPage() {
     statusText = 'Creating scopes in PingOne. Controls are paused until the re-check finishes.';
   } else if (signedOut) {
     statusTone = 'warn'; statusWord = 'Signed out';
-    statusText = 'The scope audit reads live scope data from the admin Management API, so it needs an admin session.';
+    statusText = 'Nobody is signed in. The scope audit reads live scope data from the admin Management API, so it needs an admin session.';
+  } else if (forbidden) {
+    statusTone = 'warn'; statusWord = 'Not allowed';
+    statusText = 'This session is signed in but is not an admin session, and the scope-audit API is admin only.';
   } else if (failed) {
     statusTone = 'danger'; statusWord = 'Failed';
-    statusText = 'Failed to connect to PingOne';
+    statusText = error.text;
   } else if (audited && customResources === 0) {
     statusTone = 'neutral'; statusWord = 'Nothing matched';
     statusText = 'None of the PingOne resources matched a resource this demo expects, so no scope was checked.';
@@ -261,12 +305,133 @@ export default function ScopeAuditPage() {
     primary.run();
   };
 
+  const signInMessage = forbidden
+    ? 'This session is signed in but is not an admin session. Sign in as an admin to use the scope audit.'
+    : 'The scope audit reads live scope data from the admin Management API.';
+
   // ── Render ──────────────────────────────────────────────────────────────────
+  // The honest banner (P2) is the first thing in the standalone page; the embedding page owns its own.
+  const banner = (
+    <SimBanner data-testid="scope-audit-banner">
+      <strong>{bannerWord}</strong> &mdash; {bannerText}
+    </SimBanner>
+  );
+
+  const sections = (
+    <>
+      <Section
+        id="scopeaudit-run-h"
+        kicker="1 · Audit"
+        title="Run the audit"
+        lede={audited ? undefined : 'Compares the scopes on each PingOne resource with the scopes this demo needs.'}
+      >
+        <Card title="PingOne scope audit" data-testid="scope-audit-run">
+          {embedded && (
+            <p className="pu-note" data-testid="scope-audit-embedded-note">
+              Nothing here is simulated. Run Audit reads live data, and Add and Fix All create scopes in the PingOne environment for real. An admin session is required.
+            </p>
+          )}
+          <div className="pu-status-line" role="status" data-testid="scope-audit-status">
+            <StatusChip tone={statusTone}>{statusWord}</StatusChip>
+            <span>{statusText}</span>
+          </div>
+          {failed && (
+            <p className="pu-note scopeaudit-error" data-testid="scope-audit-error">{error.message}</p>
+          )}
+          {fixNote && !loading && !fixing && (
+            <p className="pu-note" role="status" data-testid="scope-audit-fix-note">{fixNote}</p>
+          )}
+          {denied && (
+            <SignInPrompt admin message={signInMessage} />
+          )}
+          {audited && (
+            <>
+              <KvList
+                items={[
+                  { label: 'Environment', value: envInfo.environment, mono: true },
+                  { label: 'Region', value: envInfo.region, mono: true },
+                ]}
+              />
+              <div className="scopeaudit-chips" role="group" aria-label="Audit summary" data-testid="scope-audit-summary">
+                <StatusChip tone="info">{plural(totalResources, 'resource', 'resources')}</StatusChip>
+                <StatusChip tone="info">{customResources} matched</StatusChip>
+                <StatusChip tone={resourcesOk > 0 ? 'ok' : 'neutral'}>{resourcesOk} OK</StatusChip>
+                {resourcesWithIssues > 0 && (
+                  <StatusChip tone="danger">{resourcesWithIssues} need fixes</StatusChip>
+                )}
+                {totalMissing > 0 && (
+                  <StatusChip tone="warn">{plural(totalMissing, 'missing scope', 'missing scopes')}</StatusChip>
+                )}
+              </div>
+            </>
+          )}
+          {primary && (
+            <div className="pu-actions">
+              <button
+                type="button"
+                ref={primaryRef}
+                className={primaryClass}
+                data-testid="scope-audit-primary"
+                aria-disabled={busy ? 'true' : undefined}
+                onClick={onPrimary}
+              >
+                {primary.label}
+              </button>
+              {showRefreshSecondary && (
+                <button
+                  type="button"
+                  ref={refreshRef}
+                  className="pu-btn"
+                  data-testid="scope-audit-refresh"
+                  aria-disabled={busy ? 'true' : undefined}
+                  onClick={() => { if (!busy) { refocusPrimary.current = true; rerun(); } }}
+                >
+                  Refresh
+                </button>
+              )}
+            </div>
+          )}
+        </Card>
+        {audited && (
+          <CapabilityCallout
+            capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'policy-enforcement')}
+            to="/agent-gateway-capabilities"
+          />
+        )}
+      </Section>
+
+      {audited && (
+        <Section
+          id="scopeaudit-resources-h"
+          kicker="2 · Resources"
+          title="Resources and their scopes"
+          lede="Select a resource to see each expected scope. Resources with missing required scopes open by themselves."
+        >
+          <div className="scopeaudit-list">
+            {resources.map(r => (
+              <ResourceCard
+                key={r.id}
+                resource={r}
+                expanded={expandedIds.has(r.id)}
+                onToggle={() => toggleExpand(r.id)}
+                onAddScope={handleAddScope}
+                onFixAll={handleFixAll}
+                addingScope={addingScope}
+                busy={busy}
+              />
+            ))}
+          </div>
+        </Section>
+      )}
+    </>
+  );
+
+  // Embedded: the host page owns the banner, the title and the frame, so only the sections render.
+  if (embedded) return <div className="scope-audit-page scope-audit-page--embedded">{sections}</div>;
+
   return (
     <PingPage className="scope-audit-page">
-      <SimBanner data-testid="scope-audit-banner">
-        <strong>{bannerWord}</strong> &mdash; {bannerText}
-      </SimBanner>
+      {banner}
       <PageHeader
         eyebrow="Authorize · PingOne"
         title="PingOne Scope Audit"
@@ -274,105 +439,7 @@ export default function ScopeAuditPage() {
         badge="Admin"
         actions={<ThemeToggleButton />}
       />
-      <PageFrame>
-        <Section
-          id="scopeaudit-run-h"
-          kicker="1 · Audit"
-          title="Run the audit"
-          lede={audited ? undefined : 'Compares the scopes on each PingOne resource with the scopes this demo needs.'}
-        >
-          <Card title="PingOne scope audit" data-testid="scope-audit-run">
-            <div className="pu-status-line" role="status" data-testid="scope-audit-status">
-              <StatusChip tone={statusTone}>{statusWord}</StatusChip>
-              <span>{statusText}</span>
-            </div>
-            {failed && (
-              <p className="pu-note scopeaudit-error" data-testid="scope-audit-error">{error}</p>
-            )}
-            {fixNote && !loading && !fixing && (
-              <p className="pu-note" role="status" data-testid="scope-audit-fix-note">{fixNote}</p>
-            )}
-            {signedOut && (
-              <SignInPrompt admin message="The scope audit reads live scope data from the admin Management API." />
-            )}
-            {audited && (
-              <>
-                <KvList
-                  items={[
-                    { label: 'Environment', value: envInfo.environment, mono: true },
-                    { label: 'Region', value: envInfo.region, mono: true },
-                  ]}
-                />
-                <div className="scopeaudit-chips" role="group" aria-label="Audit summary" data-testid="scope-audit-summary">
-                  <StatusChip tone="info">{plural(totalResources, 'resource', 'resources')}</StatusChip>
-                  <StatusChip tone="info">{customResources} matched</StatusChip>
-                  <StatusChip tone={resourcesOk > 0 ? 'ok' : 'neutral'}>{resourcesOk} OK</StatusChip>
-                  {resourcesWithIssues > 0 && (
-                    <StatusChip tone="danger">{resourcesWithIssues} need fixes</StatusChip>
-                  )}
-                  {totalMissing > 0 && (
-                    <StatusChip tone="warn">{plural(totalMissing, 'missing scope', 'missing scopes')}</StatusChip>
-                  )}
-                </div>
-              </>
-            )}
-            {primary && (
-              <div className="pu-actions">
-                <button
-                  type="button"
-                  className="pu-btn pu-btn--primary"
-                  data-testid="scope-audit-primary"
-                  aria-disabled={busy ? 'true' : undefined}
-                  onClick={onPrimary}
-                >
-                  {primary.label}
-                </button>
-                {showRefreshSecondary && (
-                  <button
-                    type="button"
-                    className="pu-btn"
-                    data-testid="scope-audit-refresh"
-                    aria-disabled={busy ? 'true' : undefined}
-                    onClick={() => { if (!busy) rerun(); }}
-                  >
-                    Refresh
-                  </button>
-                )}
-              </div>
-            )}
-          </Card>
-          {audited && (
-            <CapabilityCallout
-              capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'policy-enforcement')}
-              to="/agent-gateway-capabilities"
-            />
-          )}
-        </Section>
-
-        {audited && (
-          <Section
-            id="scopeaudit-resources-h"
-            kicker="2 · Resources"
-            title="Resources and their scopes"
-            lede="Select a resource to see each expected scope. Resources with missing required scopes open by themselves."
-          >
-            <div className="scopeaudit-list">
-              {resources.map(r => (
-                <ResourceCard
-                  key={r.id}
-                  resource={r}
-                  expanded={expandedIds.has(r.id)}
-                  onToggle={() => toggleExpand(r.id)}
-                  onAddScope={handleAddScope}
-                  onFixAll={handleFixAll}
-                  addingScope={addingScope}
-                  busy={busy}
-                />
-              ))}
-            </div>
-          </Section>
-        )}
-      </PageFrame>
+      <PageFrame>{sections}</PageFrame>
     </PingPage>
   );
 }

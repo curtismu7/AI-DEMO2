@@ -289,6 +289,19 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
       expect(container.firstElementChild.firstElementChild).toHaveClass('pu-banner-wrap');
     });
 
+    test('the embedded Scope Audit adds no second PingPage, banner, h1 or primary to the Scopes tab', async () => {
+      mockSearch = 'tab=scopes';
+      const { container } = render(<PingOneAuthorizePage />);
+      await screen.findByTestId('scope-audit-run');
+      expect(container.querySelectorAll('.pu-page')).toHaveLength(1);
+      expect(container.querySelectorAll('[role="note"]')).toHaveLength(1);
+      expect(container.querySelectorAll('h1')).toHaveLength(0);
+      expect(container.querySelectorAll('.pu-btn--primary')).toHaveLength(0);
+      expect(screen.getByTestId('scope-audit-primary')).toHaveTextContent(/run audit/i);
+      expect(screen.getByTestId('scope-audit-primary')).toHaveClass('pu-btn');
+      expect(container.firstElementChild.firstElementChild).toHaveClass('pu-banner-wrap');
+    });
+
     test('Scope Audit | Scope Reference are real buttons with a pressed state', async () => {
       mockSearch = 'tab=scopes';
       render(<PingOneAuthorizePage />);

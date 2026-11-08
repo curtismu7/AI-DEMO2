@@ -5,7 +5,7 @@
  * control when the one that was pressed disappears.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import ScopeAuditPage from '../ScopeAuditPage';
 
 vi.mock('../CapabilityCallout', () => ({ default: () => null }));
@@ -26,7 +26,7 @@ const mkResource = (id, missing = []) => ({
   },
 });
 
-function stubApi({ resources, status = 200, error, failScope } = {}) {
+function stubApi({ resources, status = 200, error, hint, failScope } = {}) {
   let current = resources;
   const posts = [];
   global.fetch = vi.fn((url, opts) => {
@@ -50,7 +50,7 @@ function stubApi({ resources, status = 200, error, failScope } = {}) {
     return Promise.resolve({
       ok: status < 400,
       status,
-      json: () => Promise.resolve(error ? { error } : { resources: current, environment: 'env-live-123', region: 'eu' }),
+      json: () => Promise.resolve(error ? { error, hint } : { resources: current, environment: 'env-live-123', region: 'eu' }),
     });
   });
   return { posts };
@@ -201,5 +201,150 @@ describe('ScopeAuditPage, Ping UI Standard', () => {
     expect(container.querySelector('.scope-audit-btn')).toBeNull();
     expect(container.querySelector('table').getAttribute('aria-label')).toBe('Scopes on Resource a');
     expect(container.querySelectorAll('td[data-label]').length).toBeGreaterThan(0);
+  });
+
+  // ── Focus: the Refresh secondary vanishes when a re-audit fails ─────────────
+  it('hands focus to the primary when a failed re-audit removes the focused Refresh button', async () => {
+    stubApi({ resources: [mkResource('a', ['write'])] });
+    render(<ScopeAuditPage />);
+    await run();
+    const refresh = screen.getByTestId('scope-audit-refresh');
+    refresh.focus();
+    expect(document.activeElement).toBe(refresh);
+    stubApi({ status: 502, error: 'upstream timeout' });
+    fireEvent.click(refresh);
+    await waitFor(() => expect(screen.queryByTestId('scope-audit-refresh')).toBeNull());
+    await waitFor(() => expect(screen.getByTestId('scope-audit-primary')).toHaveTextContent(/retry audit/i));
+    expect(document.activeElement).toBe(screen.getByTestId('scope-audit-primary'));
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('keeps focus on Refresh when the re-audit succeeds and scopes are still missing', async () => {
+    stubApi({ resources: [mkResource('a', ['write'])] });
+    render(<ScopeAuditPage />);
+    await run();
+    const refresh = screen.getByTestId('scope-audit-refresh');
+    refresh.focus();
+    fireEvent.click(refresh);
+    await waitFor(() => expect(screen.getByTestId('scope-audit-primary').getAttribute('aria-disabled')).toBeNull());
+    expect(document.activeElement).toBe(refresh);
+  });
+
+  // ── The failed status says what actually went wrong ─────────────────────────
+  const failWith = async (stub) => {
+    stubApi(stub);
+    render(<ScopeAuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: /run audit/i }));
+    await screen.findByText(/retry audit/i);
+    return screen.getByTestId('scope-audit-status');
+  };
+
+  it('reads a config error (400) as the audit not starting, not as a PingOne outage', async () => {
+    const status = await failWith({ status: 400, error: 'PINGONE_ENVIRONMENT_ID not configured' });
+    expect(status).toHaveTextContent(/audit could not start: PINGONE_ENVIRONMENT_ID not configured/i);
+    expect(status.textContent).not.toMatch(/failed to connect to pingone/i);
+    expect(screen.getByTestId('scope-audit-error')).toHaveTextContent('PINGONE_ENVIRONMENT_ID not configured');
+  });
+
+  it('reads a 500 as a demo-server failure and a 502/503/504 as a PingOne connection failure', async () => {
+    const s500 = await failWith({ status: 500, error: 'topology load failed' });
+    expect(s500).toHaveTextContent(/demo server failed while running the audit \(HTTP 500\)/i);
+    expect(s500.textContent).not.toMatch(/failed to connect to pingone/i);
+    cleanup();
+    const s503 = await failWith({ status: 503, error: 'PingOne scope audit unreachable (ECONNREFUSED)' });
+    expect(s503).toHaveTextContent(/failed to connect to pingone \(HTTP 503\)/i);
+  });
+
+  it('reads a request that never reached the server as exactly that', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+    render(<ScopeAuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: /run audit/i }));
+    await screen.findByText(/retry audit/i);
+    expect(screen.getByTestId('scope-audit-status')).toHaveTextContent(/could not reach the demo server/i);
+  });
+
+  it('reads a non-JSON error body by its status instead of crashing', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 502, json: () => Promise.reject(new SyntaxError('bad json')) }));
+    render(<ScopeAuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: /run audit/i }));
+    await screen.findByText(/retry audit/i);
+    expect(screen.getByTestId('scope-audit-status')).toHaveTextContent(/failed to connect to pingone \(HTTP 502\)/i);
+  });
+
+  it('PingOne\'s own 401 (bad management credentials) is a failure, not "signed out"', async () => {
+    const status = await failWith({
+      status: 401,
+      error: 'PingOne scope audit failed (401): invalid_client',
+      hint: 'Management worker credentials may be invalid.',
+    });
+    expect(status).toHaveTextContent(/pingone refused the demo's management credentials \(HTTP 401\)/i);
+    expect(screen.queryByText(/admin sign-in required/i)).toBeNull();
+  });
+
+  // ── 401 (signed out) is not 403 (signed in, not allowed) ────────────────────
+  it('labels 401 as signed out and 403 as not allowed, each with the admin prompt and no primary', async () => {
+    stubApi({ status: 401, error: 'unauthorized' });
+    const out = render(<ScopeAuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: /run audit/i }));
+    await screen.findByText(/admin sign-in required/i);
+    expect(screen.getByTestId('scope-audit-status')).toHaveTextContent(/signed out/i);
+    expect(screen.getByTestId('scope-audit-status')).toHaveTextContent(/nobody is signed in/i);
+    expect(screen.getByTestId('scope-audit-banner')).toHaveTextContent(/nobody is signed in/i);
+    expect(primaries(out.container)).toHaveLength(0);
+    out.unmount();
+
+    stubApi({ status: 403, error: 'insufficient_scope' });
+    const no = render(<ScopeAuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: /run audit/i }));
+    await screen.findByText(/admin sign-in required/i);
+    const status = screen.getByTestId('scope-audit-status');
+    expect(status).toHaveTextContent(/not allowed/i);
+    expect(status).toHaveTextContent(/signed in but is not an admin session/i);
+    expect(status.textContent).not.toMatch(/signed out|nobody is signed in/i);
+    expect(screen.getByTestId('scope-audit-banner')).toHaveTextContent(/signed in but is not allowed/i);
+    expect(primaries(no.container)).toHaveLength(0);
+  });
+
+  // ── Embedded in /pingone-authorize ──────────────────────────────────────────
+  describe('embedded', () => {
+    it('renders the sections only: no PingPage, banner, h1, frame or theme toggle', async () => {
+      stubApi({ resources: [mkResource('a', ['write'])] });
+      const { container } = render(<div className="pu-page host"><ScopeAuditPage embedded /></div>);
+      expect(container.querySelectorAll('.pu-page')).toHaveLength(1); // the host's, never a nested one
+      expect(container.querySelector('[role="note"]')).toBeNull();
+      expect(container.querySelector('.pu-banner-wrap')).toBeNull();
+      expect(container.querySelector('h1')).toBeNull();
+      expect(container.querySelector('.pu-frame')).toBeNull();
+      expect(screen.queryByRole('button', { name: /dark mode|light mode/i })).toBeNull();
+      expect(screen.getByRole('heading', { level: 2, name: /run the audit/i })).toBeInTheDocument();
+      expect(screen.getByTestId('scope-audit-embedded-note')).toHaveTextContent(/create scopes in the pingone environment for real/i);
+    });
+
+    it('never adds a primary: Run Audit, Fix All and Refresh audit are all secondaries', async () => {
+      stubApi({ resources: [mkResource('a', ['write'])] });
+      const { container } = render(<ScopeAuditPage embedded />);
+      expect(screen.getByTestId('scope-audit-primary')).toHaveTextContent(/run audit/i);
+      expect(primaries(container)).toHaveLength(0);
+      await run();
+      expect(screen.getByTestId('scope-audit-primary')).toHaveTextContent(/fix all missing/i);
+      expect(primaries(container)).toHaveLength(0);
+      expect(container.querySelectorAll('button.pu-btn').length).toBeGreaterThan(1);
+    });
+
+    it('still runs the audit, reports a failure and signs out the same way', async () => {
+      stubApi({ resources: [mkResource('a', ['write'])] });
+      const ok = render(<ScopeAuditPage embedded />);
+      await run();
+      expect(screen.getByTestId('scope-audit-status')).toHaveTextContent(/scopes missing/i);
+      expect(screen.getByText('Resource a')).toBeInTheDocument();
+      ok.unmount();
+
+      stubApi({ status: 403, error: 'insufficient_scope' });
+      const no = render(<ScopeAuditPage embedded />);
+      fireEvent.click(screen.getByRole('button', { name: /run audit/i }));
+      await screen.findByText(/admin sign-in required/i);
+      expect(screen.getByTestId('scope-audit-status')).toHaveTextContent(/not allowed/i);
+      expect(primaries(no.container)).toHaveLength(0);
+    });
   });
 });

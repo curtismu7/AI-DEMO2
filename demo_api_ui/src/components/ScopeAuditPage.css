@@ -4,22 +4,24 @@
  * Tokens only (THEMING.md); buttons are .pu-btn and never take a vertical's colour. */
 
 /* The PingOne end-user skin sets word-wrap: break-word on code and lists and beats single-class rules,
- * so the wrapping rules sit under the page class. */
+ * so the wrapping rules sit under .pu-page. The page runs standalone (the root is the .pu-page) and
+ * embedded in /pingone-authorize (the root is a .scope-audit-page div inside that page's .pu-page). */
 .pu-page.scope-audit-page code,
-.pu-page.scope-audit-page .scopeaudit-table td,
-.pu-page.scope-audit-page .scopeaudit-error,
-.pu-page.scope-audit-page .scopeaudit-toggle__name {
+.pu-page .scope-audit-page code,
+.pu-page .scopeaudit-table td,
+.pu-page .scopeaudit-error,
+.pu-page .scopeaudit-toggle__name {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-.pu-page.scope-audit-page .scopeaudit-error {
+.pu-page .scopeaudit-error {
   margin: 8px 0 0;
   color: var(--th-status-error-text);
   white-space: pre-wrap;
 }
 
-.pu-page.scope-audit-page .scopeaudit-chips {
+.pu-page .scopeaudit-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -27,14 +29,14 @@
 }
 
 /* Resource list: full-width cards (a scope table does not fit a 340px column). */
-.pu-page.scope-audit-page .scopeaudit-list {
+.pu-page .scopeaudit-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
 /* The header of a resource card is a real button, laid out as a row. */
-.pu-page.scope-audit-page .scopeaudit-toggle {
+.pu-page .scopeaudit-toggle {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -44,42 +46,42 @@
   text-align: left;
 }
 
-.pu-page.scope-audit-page .scopeaudit-toggle__name {
+.pu-page .scopeaudit-toggle__name {
   font-weight: var(--font-weight-semibold);
   min-width: 0;
 }
 
-.pu-page.scope-audit-page .scopeaudit-toggle__count {
+.pu-page .scopeaudit-toggle__count {
   color: var(--th-text-muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-normal, 400);
 }
 
-.pu-page.scope-audit-page .scopeaudit-toggle__cue {
+.pu-page .scopeaudit-toggle__cue {
   margin-left: auto;
   color: var(--th-text-muted);
   font-size: var(--font-size-sm);
 }
 
-.pu-page.scope-audit-page .scopeaudit-body {
+.pu-page .scopeaudit-body {
   margin-top: 10px;
   padding-top: 6px;
   border-top: 1px solid var(--th-border-strong);
 }
 
 /* Scope table: scrolls inside its own wrapper if it must, stacks as labelled rows at phone width. */
-.pu-page.scope-audit-page .scopeaudit-table-wrap {
+.pu-page .scopeaudit-table-wrap {
   overflow-x: auto;
 }
 
-.pu-page.scope-audit-page .scopeaudit-table {
+.pu-page .scopeaudit-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-sm);
 }
 
-.pu-page.scope-audit-page .scopeaudit-table th,
-.pu-page.scope-audit-page .scopeaudit-table td {
+.pu-page .scopeaudit-table th,
+.pu-page .scopeaudit-table td {
   text-align: left;
   padding: 6px 8px;
   border-bottom: 1px solid var(--th-border-strong);
@@ -87,7 +89,7 @@
   vertical-align: middle;
 }
 
-.pu-page.scope-audit-page .scopeaudit-table th {
+.pu-page .scopeaudit-table th {
   color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-semibold);
@@ -95,13 +97,13 @@
   letter-spacing: 0.04em;
 }
 
-.pu-page.scope-audit-page .scopeaudit-table__empty {
+.pu-page .scopeaudit-table__empty {
   text-align: center;
   color: var(--th-text-muted);
 }
 
 @media (max-width: 600px) {
-  .pu-page.scope-audit-page .scopeaudit-table thead {
+  .pu-page .scopeaudit-table thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -109,30 +111,30 @@
     clip: rect(0 0 0 0);
   }
 
-  .pu-page.scope-audit-page .scopeaudit-table,
-  .pu-page.scope-audit-page .scopeaudit-table tbody,
-  .pu-page.scope-audit-page .scopeaudit-table tr,
-  .pu-page.scope-audit-page .scopeaudit-table td {
+  .pu-page .scopeaudit-table,
+  .pu-page .scopeaudit-table tbody,
+  .pu-page .scopeaudit-table tr,
+  .pu-page .scopeaudit-table td {
     display: block;
     width: 100%;
   }
 
-  .pu-page.scope-audit-page .scopeaudit-table tr {
+  .pu-page .scopeaudit-table tr {
     padding: 6px 0;
     border-bottom: 1px solid var(--th-border-strong);
   }
 
-  .pu-page.scope-audit-page .scopeaudit-table td {
+  .pu-page .scopeaudit-table td {
     padding: 2px 0;
     border-bottom: 0;
   }
 
   /* A row with nothing to do has an empty Action cell: no label for nothing. */
-  .pu-page.scope-audit-page .scopeaudit-table td:empty {
+  .pu-page .scopeaudit-table td:empty {
     display: none;
   }
 
-  .pu-page.scope-audit-page .scopeaudit-table td[data-label]::before {
+  .pu-page .scopeaudit-table td[data-label]::before {
     content: attr(data-label);
     display: block;
     color: var(--th-text-muted);

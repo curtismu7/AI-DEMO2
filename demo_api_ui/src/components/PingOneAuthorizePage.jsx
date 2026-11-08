@@ -238,7 +238,7 @@ export default function PingOneAuthorizePage() {
                 <button type="button" className="pu-btn" aria-pressed={scopesSubTab === 'audit'} onClick={() => setScopesSubTab('audit')}>Scope Audit</button>
                 <button type="button" className="pu-btn" aria-pressed={scopesSubTab === 'reference'} onClick={() => setScopesSubTab('reference')}>Scope Reference</button>
               </div>
-              {scopesSubTab === 'audit' ? <ScopeAuditPage /> : <ScopeReferencePage />}
+              {scopesSubTab === 'audit' ? <ScopeAuditPage embedded /> : <ScopeReferencePage />}
             </div>
           )}
         </div>
