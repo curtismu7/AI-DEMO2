@@ -11,6 +11,7 @@
 /privilege-demo
 /ungoverned-agent
 /privilege-intent-triage
+/mcp-observability
 /privilege-prompt-log
 /privilege-pf-token
 /p1-third-party-exchange
