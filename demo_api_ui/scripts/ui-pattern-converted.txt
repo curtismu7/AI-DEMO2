@@ -10,3 +10,4 @@
 /privilege-pf-token
 /privilege-shelf
 /privilege-for-ai
+/privilege-ai-policies
