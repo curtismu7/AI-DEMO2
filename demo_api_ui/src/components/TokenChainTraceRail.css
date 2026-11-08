@@ -514,6 +514,24 @@
   color: var(--th-text-muted);
 }
 
+:root[data-theme="dark"] .tctr .tctr-inspect {
+  color: #bfdbfe;
+}
+
+:root[data-theme="dark"] .tctr .tctr-inspect:hover,
+:root[data-theme="dark"] .tctr .tctr-inspect:focus-visible {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .tctr .tctr-inspect--emphasize {
+  color: #fdba74;
+}
+
+/* Token names: the light-theme ink (#be185d, #aa0005, #047857) is 2.4:1 on the dark card. */
+:root[data-theme="dark"] .tctr .tctr-tok--user .tctr-tok-name  { color: #f9a8d4; }
+:root[data-theme="dark"] .tctr .tctr-tok--agent .tctr-tok-name { color: #fca5a5; }
+:root[data-theme="dark"] .tctr .tctr-tok--mcp .tctr-tok-name   { color: #6ee7b7; }
+
 :root[data-theme="dark"] .tctr .tctr-tok-inspect {
   background: #17253a;
   border-color: var(--th-text);

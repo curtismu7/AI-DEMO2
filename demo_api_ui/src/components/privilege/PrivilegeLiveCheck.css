@@ -135,3 +135,9 @@
   border-color: var(--th-status-error);
   color: var(--th-status-error-text);
 }
+
+/* In flight: aria-disabled keeps keyboard focus on the trigger (a disabled button drops it to the page body). */
+.plc__run[aria-disabled='true'] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}

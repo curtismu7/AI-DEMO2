@@ -41,6 +41,8 @@ export default function PrivilegeLiveCheck({
   const [state, setState] = useState({ phase: 'idle' });
 
   async function run() {
+    // aria-disabled (not disabled) while a call is in flight: a disabled button drops keyboard focus to the page body.
+    if (state.phase === 'running') return;
     setState({ phase: 'running' });
     try {
       const result = await callPrivilegeDecision(tool, args);
@@ -58,7 +60,7 @@ export default function PrivilegeLiveCheck({
           type="button"
           className={`${buttonClassName} plc__run`}
           onClick={run}
-          disabled={state.phase === 'running'}
+          aria-disabled={state.phase === 'running' ? 'true' : undefined}
         >
           {state.phase === 'running' ? 'Calling the gateway…' : label}
         </button>

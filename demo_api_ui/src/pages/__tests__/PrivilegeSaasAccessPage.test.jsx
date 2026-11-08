@@ -41,11 +41,17 @@ describe('PrivilegeSaasAccessPage (standalone UI standard)', () => {
     expect(receipt.querySelector('dl.pu-kv')).not.toBeNull();
     expect(receipt.textContent).toMatch(/grt-/);
     expect(within(stages).getAllByText('Done')).toHaveLength(2);
+    advance().focus();
     fireEvent.click(advance());
-    expect(advance().disabled).toBe(true);
+    // At the last stage the button is aria-disabled, not disabled: it keeps keyboard focus and ignores the click.
+    expect(advance().getAttribute('aria-disabled')).toBe('true');
+    expect(advance().disabled).toBe(false);
+    expect(document.activeElement).toBe(advance());
+    fireEvent.click(advance());
+    expect(screen.getByTestId('psa-receipt')).not.toBeNull();
     fireEvent.click(screen.getByTestId('psa-reset'));
     expect(screen.queryByTestId('psa-receipt')).toBeNull();
-    expect(advance().disabled).toBe(false);
+    expect(advance().getAttribute('aria-disabled')).toBeNull();
   });
 
   it('keeps the matrix and drift tables with their rows', () => {

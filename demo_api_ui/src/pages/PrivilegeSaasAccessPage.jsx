@@ -142,7 +142,7 @@ export default function PrivilegeSaasAccessPage() {
                   type="button"
                   className="pu-btn pu-btn--primary"
                   onClick={advance}
-                  disabled={stageIdx >= SAAS_STAGES.length - 1}
+                  aria-disabled={stageIdx >= SAAS_STAGES.length - 1 ? 'true' : undefined}
                   data-testid="psa-advance"
                 >
                   {stageIdx === 0 ? 'Submit for approval' : stageIdx === 1 ? 'Record approval' : stageIdx === 2 ? 'Let the TTL elapse' : 'Complete'}
