@@ -75,7 +75,7 @@ function PolicyList({ nodes }) {
 export default function PingOneAuthorizeConsoleClean({
   endpointId, endpoints = [], onEndpointChange, loadState = 'live',
   policiesState, pendingTest, onClearPendingTest,
-  recent = [], onIncludeRecent, onRan,
+  recent = [], recentError = null, onIncludeRecent, onRan,
   // Lifted to the page so calls survive a trip to the "More tools" tabs.
   records, setRecords,
   // Mock is the default; tests and callers can open the console on 'live'.
@@ -153,6 +153,9 @@ export default function PingOneAuthorizeConsoleClean({
       h.setCustomRows([...Object.entries(p).map(([key, value]) => ({ key, value: String(value) })), { key: '', value: '' }]);
     }
   }, [h]);
+
+  // A failed read or recording toggle: the box must not stay ticked as if the decisions were included.
+  useEffect(() => { if (recentError) setIncludeRecent(false); }, [recentError]);
 
   const toggleRecent = (on) => { setIncludeRecent(on); onIncludeRecent?.(on); };
 
@@ -233,10 +236,18 @@ export default function PingOneAuthorizeConsoleClean({
   );
 
   const callsToggle = (
-    <label className="insp-calls-toggle">
-      <input type="checkbox" checked={includeRecent} onChange={(e) => toggleRecent(e.target.checked)} />
-      {' '}Include PingOne&apos;s recent decisions
-    </label>
+    <>
+      <label className="insp-calls-toggle">
+        <input type="checkbox" checked={includeRecent} onChange={(e) => toggleRecent(e.target.checked)} />
+        {' '}Include PingOne&apos;s recent decisions
+      </label>
+      {recentError ? (
+        <p className="insp-err" role="alert" data-testid="p1az-recent-error">
+          <span className="insp-chip err">Could not read</span>
+          {' '}PingOne&apos;s recent decisions: {recentError}. Tick the box to try again.
+        </p>
+      ) : null}
+    </>
   );
 
   return (

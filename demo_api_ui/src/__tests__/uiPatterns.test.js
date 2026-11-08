@@ -58,6 +58,18 @@ describe('ui pattern check', () => {
     for (const f of [...SHARED_FILES, 'src/components/pingUi/index.jsx']) expect(shared.files).toContain(f);
   });
 
+  it('the allowlist keeps every route a merged conversion added (floor in scripts/ui-pattern-converted.floor.txt)', () => {
+    const floor = loadAllowlist(path.join(__dirname, '..', '..', 'scripts', 'ui-pattern-converted.floor.txt'));
+    const list = loadAllowlist();
+    expect(floor.length, 'the floor file is empty').toBeGreaterThanOrEqual(43);
+    expect(new Set(floor).size, 'duplicate routes in the floor file').toBe(floor.length);
+    expect(
+      floor.filter((r) => !list.includes(r)),
+      'routes dropped from scripts/ui-pattern-converted.txt. Restore them, or (to retire a route on purpose) delete the line from BOTH that file and ui-pattern-converted.floor.txt and say why in the PR',
+    ).toEqual([]);
+    expect(list.length).toBeGreaterThanOrEqual(floor.length);
+  });
+
   it('starts with the SaaS Access page and nothing else is enforced silently', () => {
     expect(loadAllowlist()).toContain('/privilege-saas-access');
     expect(Object.keys(loadRoutes()).length).toBeGreaterThan(50);

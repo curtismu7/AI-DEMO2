@@ -78,6 +78,7 @@ export default function PrivilegeIntentTriagePage() {
             statusOn
             statusText="documented-behaviour model — with a live gateway check below the outcome"
             fullHeight={false}
+            titleLevel={2}
             left={<ScenarioTree selectedKey={selectedKey} onSelect={setSelectedKey} />}
             middle={<ScenarioSignals scenario={scenario} />}
             right={<ScenarioVerdict scenario={scenario} activeTab={activeTab} onTab={setActiveTab} />}

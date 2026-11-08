@@ -1,0 +1,15 @@
+/* AgentClientSkin focus. The skin paints its own ground (any of several vendor looks), so one colour cannot be promised
+   3:1 on all of them. A two-tone ring can: white inside, navy outside (both constant in either theme), and
+   whichever is further from the skin's ground carries the 3:1. The input has no border of its own, so the ring goes on
+   the field that wraps it. */
+.agent-client-skin .acs-field:has(.acs-input:focus-visible) {
+  outline: 2px solid var(--th-bg-band);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--th-text-invert);
+}
+
+.agent-client-skin .acs-send:focus-visible {
+  outline: 2px solid var(--th-bg-band);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--th-text-invert);
+}

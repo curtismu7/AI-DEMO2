@@ -398,7 +398,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   font-weight: 700;
   letter-spacing: 0.35em;
   font-variant-numeric: tabular-nums;
-  border: 2px solid var(--th-border-strong);
+  border: 2px solid var(--control-border);
   border-radius: 10px;
   padding: 0.65rem 0.5rem;
   outline: none;
@@ -440,7 +440,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   white-space: nowrap;
   background: var(--th-bg-card);
   color: var(--th-text);
-  border: 1.5px solid var(--th-border-strong);
+  border: 1.5px solid var(--control-border);
   border-radius: 10px;
   cursor: pointer;
 }

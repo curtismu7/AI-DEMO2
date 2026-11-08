@@ -153,6 +153,7 @@ export default function DemoConfigPage() {
   const [toast, setToast] = useState(null);
   const [busy, setBusy] = useState(false);
   const dragIndexRef = useRef(null);
+  const saveBtnRef = useRef(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const childDragRef = useRef(null);
   const [childDropTarget, setChildDropTarget] = useState(null);
@@ -359,6 +360,8 @@ export default function DemoConfigPage() {
     if (busy) return;
     setGroups(NAV_STRUCTURE_CATALOG);
     setActiveConfigId(null);
+    // Reset order unmounts once the order is the default; hand focus to Save (still mounted) so it does not fall to the body.
+    saveBtnRef.current?.focus();
   };
 
   const saveSelection = async () => {
@@ -816,6 +819,7 @@ export default function DemoConfigPage() {
                   <button
                     type="button"
                     className="pu-btn pu-btn--primary"
+                    ref={saveBtnRef}
                     onClick={saveSelection}
                     aria-disabled={busy ? "true" : undefined}
                   >
