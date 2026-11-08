@@ -1,13 +1,11 @@
 /**
- * UC7 (MFA step-up) must still reach the human approval when the replay is HITL.
+ * UC7 is the MFA step-up and nothing more: it ends once identity is verified.
  *
- * The live PingOne Authorize policy answers `pay_tuition_balance` with HITL at
- * every amount, so after the user verifies their identity the retried request
- * comes back `hitl_required` with a challenge id. The step-up callback used to
- * print `resp.reply` and stop: the user saw chat, the MFA dialog, then chat
- * again, and the minted challenge stayed pending with nobody able to approve it.
- * The callback must open the same approval card the other gates open, and
- * approving must approve THAT challenge.
+ * The step-up callback used to replay the prompt after the MFA. The live PingOne
+ * Authorize policy answers pay_tuition_balance with HITL at every amount, so each
+ * UC7 run minted a HITL challenge that UC7 never asks anyone to approve (UC8 is
+ * the HITL use case). A use-case run now stops at "verified"; free-form chat still
+ * replays so the payment the user typed goes through.
  */
 import React from "react";
 import "@testing-library/jest-dom";
@@ -92,12 +90,14 @@ beforeEach(() => {
   localStorage.clear();
   origFetch = global.fetch;
   vi.clearAllMocks();
+  // clearAllMocks keeps queued once-values; UC7 never consumes the HITL reply it queues.
+  demoAgentService.sendAgentMessage.mockReset();
 });
 afterEach(() => {
   global.fetch = origFetch;
 });
 
-test("after the step-up verifies, a HITL replay opens the approval card and approves that challenge", async () => {
+const stepUpThenHitl = () => {
   demoAgentService.sendAgentMessage
     .mockResolvedValueOnce({
       success: false, error: "mcp_step_up_required", action: "pay_tuition_balance",
@@ -109,9 +109,11 @@ test("after the step-up verifies, a HITL replay opens the approval card and appr
     })
     .mockResolvedValue({ success: true, reply: "Payment submitted." });
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({}) }));
+};
 
+const launch = (state) =>
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/dashboard", state: { triggerText: "pay $600 tuition", useCaseId: "UC7" } }]}>
+    <MemoryRouter initialEntries={[{ pathname: "/dashboard", state }]}>
       <ProofOfEnforcementProvider>
         <ActivityNarrativeProvider>
           <AIAgent user={customerUser} mode="inline" />
@@ -120,17 +122,23 @@ test("after the step-up verifies, a HITL replay opens the approval card and appr
     </MemoryRouter>,
   );
 
-  // 1. Step-up first: verify identity with a code.
+test("UC7 ends once the MFA verifies: no replay, no HITL challenge, no approval card", async () => {
+  stepUpThenHitl();
+  launch({ triggerText: "pay $600 tuition", useCaseId: "UC7" });
+
   fireEvent.click(await screen.findByRole("button", { name: "complete-mfa" }, { timeout: 5000 }));
 
-  // 2. The replay was HITL: an approval card must appear (not just chat text).
-  const agree = await screen.findByRole("button", { name: /agree & continue|allow|approve/i }, { timeout: 5000 });
-  const modal = agree.closest('[role="dialog"]');
-  for (const box of within(modal).queryAllByRole("checkbox")) fireEvent.click(box);
-  fireEvent.click(agree);
+  expect(await screen.findByText(/Identity verified — MFA step-up complete/, {}, { timeout: 5000 })).toBeInTheDocument();
+  expect(demoAgentService.sendAgentMessage).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: /agree & continue|allow|approve/i })).toBeNull();
+  expect(fetchedUrls().some((u) => u.includes("/api/mcp/decision/"))).toBe(false);
+});
 
-  // 3. Approving approves the challenge the replay minted.
-  await waitFor(() => {
-    expect(fetchedUrls().some((u) => u.includes("/api/mcp/decision/chal-uc7/approve"))).toBe(true);
-  });
+test("free-form chat (no use case) still replays the payment after the MFA", async () => {
+  stepUpThenHitl();
+  launch({ triggerText: "pay $600 tuition" });
+
+  fireEvent.click(await screen.findByRole("button", { name: "complete-mfa" }, { timeout: 5000 }));
+
+  await waitFor(() => expect(demoAgentService.sendAgentMessage).toHaveBeenCalledTimes(2));
 });
