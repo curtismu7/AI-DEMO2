@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
@@ -115,6 +115,47 @@ describe("DemoSummaryPage", () => {
     // The button goes away once the menu is back; focus lands on the filter field, not on the body.
     expect(screen.getByRole("searchbox")).toHaveFocus();
     expect(screen.queryByRole("button", { name: /show side menu/i })).not.toBeInTheDocument();
+    localStorage.removeItem("adminSideNav.hidden");
+  });
+  it("uses the trimmed query in the title, so a whitespace-only filter is not 'Results for \" \"'", () => {
+    renderPage();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "   " } });
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent("Everything you can demo");
+    expect(h1).not.toHaveTextContent(/Results for/);
+    expect(screen.getByTestId("dsum-count")).toHaveTextContent(/^Showing all \d+ pages\.$/);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "  weather " } });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/Results for\s+.weather.$/);
+  });
+
+  it("moves focus to the filter field when the menu is restored elsewhere while the button has focus", () => {
+    localStorage.setItem("adminSideNav.hidden", "1");
+    renderPage();
+    screen.getByRole("button", { name: /show side menu/i }).focus();
+    // Ctrl+Shift+B in the shell writes the flag and fires this event; the button then unmounts.
+    act(() => {
+      localStorage.setItem("adminSideNav.hidden", "0");
+      window.dispatchEvent(new CustomEvent("admin-sidenav-hidden-toggle"));
+    });
+    expect(screen.queryByRole("button", { name: /show side menu/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+    localStorage.removeItem("adminSideNav.hidden");
+  });
+
+  it("leaves focus alone when the menu is restored while focus is elsewhere", () => {
+    localStorage.setItem("adminSideNav.hidden", "1");
+    renderPage();
+    const box = screen.getByRole("searchbox");
+    const other = document.createElement("button");
+    document.body.appendChild(other);
+    other.focus();
+    act(() => {
+      localStorage.setItem("adminSideNav.hidden", "0");
+      window.dispatchEvent(new CustomEvent("admin-sidenav-hidden-toggle"));
+    });
+    expect(box).not.toHaveFocus();
+    expect(other).toHaveFocus();
+    other.remove();
     localStorage.removeItem("adminSideNav.hidden");
   });
 });

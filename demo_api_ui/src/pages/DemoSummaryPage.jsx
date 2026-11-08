@@ -13,7 +13,8 @@
 //     field and the page links, and a link is navigation, not an action.
 //   - side menu hidden: "Show side menu" is the only button and is the primary. It is the one action that
 //     gets the user back to the grouped nav (the other restore is Ctrl+Shift+B). It unmounts when
-//     clicked, so focus is moved to the filter field instead of being dropped to the page.
+//     clicked or when the menu is restored elsewhere while it has focus, so focus is moved to the
+//     filter field instead of being dropped to the page.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { parsePageCatalog } from "../utils/parsePageCatalog";
@@ -86,17 +87,25 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 export default function DemoSummaryPage() {
   const [query, setQuery] = useState("");
   const searchRef = useRef(null);
+  const restoreRef = useRef(null);
   // The logo opens this page — including for users whose side rail was
   // hidden by the old magic-link behavior. Without a way back, the rail
   // stays hidden forever (the only other restore is Ctrl+Shift+B).
   const [navHidden, setNavHidden] = useState(false);
   useEffect(() => {
     const read = () => {
+      let hidden = false;
       try {
-        setNavHidden(localStorage.getItem("adminSideNav.hidden") === "1");
+        hidden = localStorage.getItem("adminSideNav.hidden") === "1";
       } catch {
-        setNavHidden(false);
+        hidden = false;
       }
+      // Restored from elsewhere (Ctrl+Shift+B) while "Show side menu" has focus: it is about to
+      // unmount, so hand focus to the filter field instead of dropping it to the page.
+      if (!hidden && restoreRef.current && document.activeElement === restoreRef.current) {
+        searchRef.current?.focus();
+      }
+      setNavHidden(hidden);
     };
     read();
     window.addEventListener("admin-sidenav-hidden-toggle", read);
@@ -143,7 +152,7 @@ export default function DemoSummaryPage() {
       </SimBanner>
       <PageHeader
         eyebrow="Demo Summary"
-        title={query ? <>Results for &ldquo;{query}&rdquo;</> : "Everything you can demo"}
+        title={query.trim() ? <>Results for &ldquo;{query.trim()}&rdquo;</> : "Everything you can demo"}
         summary={`Every demoable page with what it proves, grouped as in the side nav. ${total} pages.`}
       />
       <PageFrame>
@@ -169,6 +178,7 @@ export default function DemoSummaryPage() {
                   <button
                     type="button"
                     className="pu-btn pu-btn--primary"
+                    ref={restoreRef}
                     onClick={showSideMenu}
                     data-testid="dsum-restore"
                   >

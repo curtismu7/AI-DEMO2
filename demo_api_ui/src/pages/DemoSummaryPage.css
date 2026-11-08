@@ -2,21 +2,24 @@
    shared Ping UI primitives (src/styles/ping-ui.css). Surfaces and ink are --th-* tokens, so there is no dark block. */
 
 /* One card per catalog page, in the same auto-fit grid the primitives use. */
-.dsum-list {
+/* .dsum-page prefix: the end-user-nano CDN skin sets a left padding on lists that a bare .dsum-list loses to,
+   which indented the cards 32px past the section titles. padding-inline covers the logical-property form. */
+.dsum-page .dsum-list {
   list-style: none;
   margin: 12px 0;
   padding: 0;
+  padding-inline: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 12px;
   align-items: start;
 }
 
-.dsum-list > li {
+.dsum-page .dsum-list > li {
   min-width: 0;
 }
 
-.dsum-list .dsum-card {
+.dsum-page .dsum-list .dsum-card {
   margin: 0;
 }
 
