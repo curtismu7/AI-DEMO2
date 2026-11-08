@@ -9746,6 +9746,28 @@ export default function BankingAgent({
             setNlLoading(true);
             try {
               const resp = await sendAgentMessage(retryMsg, null, retryOpts);
+              if (resp.error === "hitl_required" || resp.error === "mcp_hitl_required") {
+                // Verified, but the policy now wants a human to approve too (the live
+                // Authorize policy returns HITL for this tool at any amount). Open the
+                // same approval card the other gates open; approving approves THIS
+                // challenge and retries with it. Printing resp.reply here left the
+                // challenge pending with no way to approve it.
+                addMessage("assistant", "This action needs your approval before it can run — check the approval prompt.", null, { source: "heuristic", ...verticalResultExtra(resp) });
+                setHitlPendingIntent({
+                  isVerticalConsent: true,
+                  isStepUp: false,
+                  verticalMessage: retryMsg,
+                  verticalOpts: retryOpts,
+                  hitlChallengeId: resp.hitlChallengeId || null,
+                  tool: resp.action || null,
+                  intentPayload: {
+                    type: "Action Confirmation",
+                    description: (resp.action || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()),
+                    amount: 0,
+                  },
+                });
+                return;
+              }
               addMessage("assistant", resp.reply || "✅ Done.", null, { source: "heuristic", ...verticalResultExtra(resp) });
             } catch (err) {
               addMessage("error", `Failed: ${err.message}`);

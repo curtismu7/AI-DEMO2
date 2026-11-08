@@ -383,3 +383,75 @@ describe('GatewayClaimsPage', () => {
     });
   });
 });
+
+describe('GatewayClaimsPage on the Ping UI Standard', () => {
+  const renderPage = () => render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
+
+  it('puts the simulation banner first, above the title, and says nothing is called', () => {
+    const { container } = renderPage();
+    const banner = screen.getByTestId('gwc-banner');
+    expect(banner.getAttribute('role')).toBe('note');
+    expect(banner.textContent).toMatch(/SIMULATED, NO LIVE CALL/);
+    expect(banner.textContent).toMatch(/Only statements labelled VERIFIED were seen on a real system/);
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('.pu-page').firstElementChild.className).toBe('pu-banner-wrap');
+  });
+
+  it('uses native radio groups for every picker, one checked per group, each named by its label', () => {
+    const { container } = renderPage();
+    const groups = new Set([...container.querySelectorAll('input[type=radio]')].map((r) => r.name));
+    expect([...groups].sort()).toEqual(['gwc-ag-case', 'gwc-ag-group', 'gwc-next-group', 'gwc-next-run', 'gwc-scenario']);
+    for (const name of groups) {
+      const radios = [...container.querySelectorAll(`input[type=radio][name="${name}"]`)];
+      expect(radios.filter((r) => r.checked)).toHaveLength(1);
+      radios.forEach((r) => expect(r.closest('label').textContent.trim().length).toBeGreaterThan(0));
+    }
+    expect(container.querySelectorAll('fieldset.gwc-choices legend')).toHaveLength(groups.size);
+    fireEvent.click(screen.getByTestId('gwc-scenario-no-act'));
+    expect(screen.getByTestId('gwc-scenario-no-act').checked).toBe(true);
+    expect(screen.getByTestId('gwc-scenario-match').checked).toBe(false);
+  });
+
+  it('never titles a simulated or replayed result as a gateway verdict', () => {
+    const { container } = renderPage();
+    for (const id of ['gwc-verdict', 'gwc-ag-verdict']) {
+      expect(within(screen.getByTestId(id)).getByRole('heading', { level: 3 }).textContent).toBe('Simulated verdict');
+    }
+    expect(within(screen.getByTestId('gwc-next-verdict')).getByRole('heading', { level: 3 }).textContent).toBe('Replay of a measured run');
+    const labels = [...container.querySelectorAll('.sfx[role=group]')].map((g) => g.getAttribute('aria-label'));
+    expect(labels).toHaveLength(3);
+    labels.forEach((l) => expect(l).toMatch(/^Simulated /));
+    container.querySelectorAll('h2').forEach((h) => expect(h.textContent).not.toMatch(/^\d\. Gateway\b/));
+  });
+
+  it('gives every status chip a word and every verdict a chip with the outcome', () => {
+    const { container } = renderPage();
+    const chips = [...container.querySelectorAll('.pu-chip')];
+    expect(chips.length).toBeGreaterThan(20);
+    chips.forEach((c) => expect(c.textContent.trim().length).toBeGreaterThan(0));
+    expect(within(screen.getByTestId('gwc-verdict')).getByText('ALLOW: HTTP 200').className).toContain('pu-chip');
+    expect(within(screen.getByTestId('gwc-next-verdict')).getByText(/^DENY: HTTP 400$/).className).toContain('pu-chip');
+  });
+
+  it('has exactly one primary: Part 1 walkthrough, styled in the page sheet; no other primary class anywhere on the page', () => {
+    const { container } = renderPage();
+    const hooks = container.querySelectorAll('.gwc-sim-primary');
+    expect(hooks).toHaveLength(1);
+    expect(hooks[0].closest('[data-testid=gwc-posture]')).toBeNull();
+    expect(hooks[0].querySelector('.dstep-bar')).toBeTruthy();
+    expect(container.querySelectorAll('.gwc-page [class*="primary"]:not(.gwc-sim-primary)')).toHaveLength(0);
+    const css = sourceOf('../GatewayClaimsPage.css');
+    expect(css).toMatch(/\.gwc-sim-primary \.dstep-bar \.dc-ctrl-btn--simulate:not\(:disabled\)/);
+    expect(css).toMatch(/var\(--btn-accent-gradient\)/);
+    expect(css).not.toMatch(/--app-primary-red|--brand-|--theme-accent/);
+  });
+
+  it('keeps the page sheet free of literal colours and inline styles in the part files', () => {
+    const css = sourceOf('../GatewayClaimsPage.css');
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/);
+    for (const f of ['../GatewayClaimsPage.jsx', '../GatewayNextLab.jsx', '../GatewayAgentcoreLab.jsx', '../GatewayLatest.jsx', '../../components/gatewayClaims/parts.jsx']) {
+      expect(sourceOf(f), f).not.toMatch(/style=\{\{/);
+    }
+  });
+});
