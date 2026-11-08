@@ -1,3 +1,196 @@
+/* Ping UI Standard hooks. The page sits in <PingPage> (.pu-page): the shared sheet gives the ground, the banner,
+   the chips, the kv list and every button (.pu-btn, one .pu-btn--primary per view state). Only what is specific to
+   the studio lives here. .pu-page forces min-height:100vh, which the app chrome above would turn into a page scroll,
+   so the studio opts out. The page is a flex column (banner, then the shell), so no height below guesses how tall the
+   banner wraps: a fixed-height page hands whatever the banner leaves to the shell. */
+.pas-page.pu-page {
+  display: flex;
+  flex-direction: column;
+  --pas-pill-on-bg: var(--th-text);
+  --pas-pill-on-fg: var(--th-bg-card);
+  min-height: 0;
+}
+
+/* The studio is full width, so the banner runs the same width as its header band instead of the 1100px frame. It is
+   compact (two lines at desktop width) so the reel stays above the fold on a 720px window. */
+.pas-page .pu-banner-wrap {
+  flex: none;
+  max-width: none;
+  padding: 6px 20px;
+}
+
+.pas-page .pu-banner {
+  padding: 5px 10px;
+  font-size: var(--font-size-2xs);
+  line-height: 1.4;
+}
+
+/* Fixed-height views (the Add to ChatGPT / Claude and Delegation proof tabs): the page is the window below the app
+   chrome (bare: the whole window) and the shell takes what the banner leaves. A short window never squeezes the shell
+   under 640px; on a phone the page just flows. */
+.pas-page--fixed { height: max(640px, calc(100vh / var(--app-zoom, 1) - 176px)); }
+.pas-page--fixed.pas-page--bare { height: max(640px, calc(100vh / var(--app-zoom, 1))); }
+.pas-page--cockpit { min-height: calc(100vh / var(--app-zoom, 1) - 176px); }
+
+/* The shared Heuristics | llama.cpp switch fills its selected half Ping Red, which would read as a second primary
+   beside the page's one. Here the selected half takes the same info treatment as the other selected controls. */
+.pas-page .page-agent-mode__opt--on {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font-weight: var(--font-weight-bold);
+  box-shadow: inset 0 0 0 1px var(--th-status-info-text);
+}
+
+/* Toolbar size: .pu-btn is a 40px control; the studio header packs three tab buttons, seven client pills, the vertical
+   picker, the mode switch and four layout controls into one band, so they run at 32px (still above the 24px target floor). */
+.pas-page .pu-btn.pas-compact {
+  min-height: 32px;
+  padding: 4px 11px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Selected / on states: a bold label and a thicker edge as well as the fill, so it is not colour alone. */
+.pas-page .pu-btn.pas-compact[aria-selected='true'],
+.pas-page .pu-btn.pas-compact[aria-pressed='true'] {
+  border-color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font-weight: var(--font-weight-bold);
+  box-shadow: inset 0 0 0 1px var(--th-status-info-text);
+}
+
+.pas-page .pu-btn.pas-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.pas-page .pu-btn.pas-pill[aria-pressed='true'] {
+  border-color: var(--pas-pill-on-bg);
+  background: var(--pas-pill-on-bg);
+  color: var(--pas-pill-on-fg);
+  box-shadow: none;
+}
+
+/* The client's identity dot. Vendor-mock chrome (THEMING.md section 8.2): each dot is that client's own brand colour. */
+.pas-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--th-text-muted);
+}
+
+.pas-dot--privilege { background: #0073e6; }
+.pas-dot--claude { background: #d97941; }
+.pas-dot--claude-terminal { background: #ffb454; }
+.pas-dot--gpt { background: #10a37f; }
+.pas-dot--gemini { background: #4285f4; }
+.pas-dot--cua { background: #d20e0f; }
+.pas-dot--dot { background: #2bb3a3; }
+
+/* Header band */
+.pas-c-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px 12px;
+  min-height: 52px;
+  padding: 6px 20px;
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+}
+
+.pas-page .pas-title {
+  margin: 0 8px 0 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  color: var(--th-text);
+}
+
+.pas-tabs,
+.pas-skins,
+.pas-header-actions,
+.pas-layout-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+.pas-skins { flex: 1; }
+.pas-header-actions { gap: 6px; margin-left: auto; }
+
+/* View body for the Add-to-ChatGPT and delegation-proof tabs */
+.pas-c-view { flex: 1; overflow: auto; }
+
+/* Agent panel widths per layout (full = the chat alone, split = chat beside the gates, popped = a narrow stub) */
+.pas-agent { display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.pas-agent--full { flex: 1; }
+.pas-agent--split { flex: 0 0 55%; }
+.pas-agent--popped { flex: 0 1 280px; }
+
+.pas-skin { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.pas-skin--fill { height: 100%; }
+.pas-skin__body { flex: 1; min-height: 0; }
+
+.pas-cua-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.pas-cua-bar__note { margin: 0; flex: 1 1 240px; }
+
+/* The stub shown while the chat runs in its own window */
+.pas-popped {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 16px;
+  min-width: 0;
+  border-right: 1px dashed var(--th-border);
+}
+
+.pas-popped__icon { font-size: var(--font-size-4xl); }
+.pas-popped__title { font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); color: var(--th-text); text-align: center; }
+.pas-popped__text { max-width: 280px; font-size: var(--font-size-2xs); line-height: 1.6; color: var(--th-text-body); text-align: center; }
+
+/* Split and popped put the Security Gates rail (min-width 320px) beside the chat; on a phone it scrolls inside the
+   panel instead of being clipped, and the page itself never scrolls sideways. */
+@media (max-width: 640px) {
+  .pas-shell > .pas-c-chat { overflow-x: auto; overflow-y: hidden; }
+}
+
+/* Diagram disclosure under the chat */
+.pas-c-flow > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-body);
+}
+
+.pas-c-flow { flex-shrink: 0; border-top: 1px solid var(--th-border); }
+.pas-flow-link { margin: 0 0 8px; font-size: var(--font-size-2xs); }
+.pas-flow-scroll { max-height: 55vh; overflow: auto; }
+
+/* The reel keeps a floor so the empty state is not a sliver */
+.pas-c-reel { min-height: 120px; }
+
+/* Embedded scenario mode (.workload-agents__run, hosted by the Workload Agents and Digital Worker pages): the status
+   chip sits beside the sentence, a busy Run keeps focus with aria-disabled, and the host's flat button look gives way
+   to .pu-btn only where the host is a .pu-page. */
+.workload-agents__run .pu-status-line > p { margin: 0; }
+.workload-agents__run > .pu-btn[aria-disabled='true'] { opacity: .55; cursor: wait; }
+
 /* Personal-agent studio shell. Two layouts share the same elements:
    - stacked (default): chat on top; the reel and Token Chain stack under it.
    - cockpit: chat on the left; gates, flow diagram, reel and Token Chain in the right
@@ -7,19 +200,16 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 640px;
-  /* a definite height so the chat can flex; "bare" has no app chrome to subtract */
-  height: calc(100vh / var(--app-zoom, 1) - 176px);
-  background: var(--bg, #0f1117);
+  /* the rest of the page after the banner (the page has the definite height), so the chat can flex */
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--th-bg-page);
 }
-
-.pas-shell--bare { height: calc(100vh / var(--app-zoom, 1)); }
 
 /* Stacked flows at its natural height, like the design mock: the chat, the reel and the full token detail
    each show in full and the page scrolls. (A fixed-height shell clipped the richer token cards.) */
 .pas-shell--stacked {
-  height: auto;
-  min-height: 0;
+  flex: none;
   overflow: visible;
 }
 
@@ -43,6 +233,9 @@
   --th-border: #1d3a58;
   --th-text: #e8f0fa;
   --th-text-muted: #8ea6c4;
+  --th-text-body: #c9d8ea;
+  --th-border-strong: #2a4d73;
+  --control-border: #6f8cab;
   --th-status-success-text: #31c48d;
   --th-status-success-bg: rgba(49, 196, 141, 0.12);
   --th-status-error-text: #ff8a8a;
@@ -63,8 +256,7 @@
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   /* header, gates, flow disclosure, reel + Token Chain, dock */
   grid-template-rows: auto auto auto auto auto;
-  height: auto;
-  min-height: calc(100vh / var(--app-zoom, 1) - 176px);
+  flex: 1 0 auto;
   overflow: visible;
 }
 
@@ -116,6 +308,11 @@
 .pas-shell--cockpit .agent-client-skin { height: 100%; }
 
 @media (max-width: 960px) {
+  /* a phone has no room for a fixed-height page: it flows and the shell grows with its content */
+  .pas-page--fixed,
+  .pas-page--fixed.pas-page--bare { height: auto; }
+  .pas-page--fixed > .pas-shell { flex: none; min-height: 640px; overflow: visible; }
+
   .pas-shell--cockpit {
     display: flex;
     flex-direction: column;
@@ -126,7 +323,7 @@
   .pas-shell--cockpit > .personal-agent-client-dock { position: static; }
 }
 
-.pas-c-chat { flex: 1; min-height: 320px; }
+.pas-c-chat { display: flex; overflow: hidden; flex: 1; min-height: 320px; }
 .pas-c-flow { padding: 0 16px; }
 
 /* ── Stacked: numbered sections, as in the design mock ──────────────────────────────────────────
@@ -135,16 +332,16 @@
 .pas-shell--stacked,
 .pas-c-cards { --pas-gutter: 88px; }
 
-/* 280px is the chat's floor: with the app chrome and header above it, anything taller pushes the reel below the
-   fold on a 720px window (the e2e guard "movie reel is on screen on Personal Agent Studio"). */
+/* 240px is the chat's floor: with the app chrome, the two-line banner and the header above it, anything taller pushes
+   the reel below the fold on a 720px window (the e2e guard "movie reel is on screen on Personal Agent Studio"). */
 /* A definite height, so the message list scrolls inside the card instead of the card growing to its content: it follows
-   the window (280px on a short one, up to 460px on a tall one). */
+   the window (240px on a short one, up to 460px on a tall one). */
 .pas-shell--stacked > .pas-c-chat {
   flex: none; /* the shell flows at its natural height here, so the chat takes the height below, not a share of it */
-  min-height: 280px; /* the base rule's 320px floor is for the fixed-height shells */
+  min-height: 240px; /* the base rule's 320px floor is for the fixed-height shells */
   padding: 4px 28px 4px var(--pas-gutter);
   box-sizing: border-box;
-  height: clamp(280px, calc(100vh / var(--app-zoom, 1) - 440px), 460px);
+  height: clamp(240px, calc(100vh / var(--app-zoom, 1) - 440px), 460px);
 }
 
 .pas-shell--stacked .agent-client-skin { height: 100%; }
@@ -197,30 +394,6 @@
 
   :is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::before,
   :is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::after { display: none; }
-}
-
-/* Layout switch in the header */
-.pas-layout-switch {
-  display: inline-flex;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.pas-layout-switch button {
-  padding: 5px 11px;
-  border: 0;
-  background: transparent;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-2xs);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.pas-layout-switch button[aria-pressed="true"] {
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-  font-weight: 600;
 }
 
 /* The vertical picker in the header: a quiet label beside the shared VerticalSwitcher dropdown */
