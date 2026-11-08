@@ -34,6 +34,7 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
 
   const runEvaluation = useCallback(async (event) => {
     event.preventDefault();
+    if (busy) return;
     const normalizedUser = userId.trim();
     if (!normalizedUser) {
       setError("Enter a username or email to evaluate.");
@@ -55,7 +56,7 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
     } finally {
       setBusy(false);
     }
-  }, [userId]);
+  }, [userId, busy]);
 
   const openPopout = () => {
     const popup = window.open(
@@ -93,8 +94,8 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
 
       <form className="p1p-auth__form" onSubmit={runEvaluation}>
         <label htmlFor="p1p-auth-user">Username or email to evaluate</label>
-        <input id="p1p-auth-user" name="userId" autoComplete="username" value={userId} onChange={(event) => setUserId(event.target.value)} disabled={busy} />
-        <button className="p1p-auth__run-chip" type="submit" disabled={busy}>
+        <input id="p1p-auth-user" name="userId" autoComplete="username" value={userId} onChange={(event) => setUserId(event.target.value)} readOnly={busy} />
+        <button className="p1p-auth__run-chip" type="submit" aria-disabled={busy || undefined}>
           {busy ? "Running Protect evaluation…" : "Run PingOne Protect evaluation"}
         </button>
         <p className="p1p-auth__status" role="status">{statusCopy}</p>

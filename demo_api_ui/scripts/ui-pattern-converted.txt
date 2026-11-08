@@ -10,6 +10,13 @@
 /privilege-prompt-log
 /privilege-pf-token
 /privilege-shelf
+/ai-products/core
+/ai-products/gateway
+/ai-products/authorize
+/ai-products/protect
+/ai-products/privilege-llm
+/ai-products/privilege-a2a
+/ai-products/privilege-mcp
 /privilege-a2a
 /privilege-for-ai
 /privilege-ai-policies

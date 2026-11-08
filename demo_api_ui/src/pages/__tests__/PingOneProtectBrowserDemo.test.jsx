@@ -62,6 +62,30 @@ describe("PingOneProtectBrowserDemo", () => {
     expect(getSdkClient).not.toHaveBeenCalled();
   });
 
+  it("keeps focus on the field while it runs, and ignores a second submit", async () => {
+    let finish;
+    evaluateProtectBrowserRisk.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);
+    const field = screen.getByLabelText(/username or email to evaluate/i);
+    fireEvent.change(field, { target: { value: "alice@example.com" } });
+    field.focus();
+    const form = field.closest("form");
+    fireEvent.submit(form);
+
+    const run = await screen.findByRole("button", { name: /running protect evaluation/i });
+    // A disabled field or button would drop keyboard focus to the page; read-only and aria-disabled do not.
+    expect(field).not.toBeDisabled();
+    expect(field).toHaveAttribute("readonly");
+    expect(document.activeElement).toBe(field);
+    expect(run).toHaveAttribute("aria-disabled", "true");
+    fireEvent.submit(form);
+    expect(collectPingOneSignals).toHaveBeenCalledOnce();
+
+    finish({ level: "LOW" });
+    expect(await screen.findByRole("region", { name: /protect risk evaluation response/i })).toBeInTheDocument();
+    expect(field).not.toHaveAttribute("readonly");
+  });
+
   it("opens a standalone pop-out and exposes a theme toggle", () => {
     const open = vi.spyOn(window, "open").mockReturnValue({ focus: vi.fn() });
     render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);

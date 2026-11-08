@@ -1,5 +1,10 @@
-import { Link } from "react-router-dom";
-import { Section, LessonLayout, Lede, OnThisRun, Status } from "../components/lesson";
+// The seven /ai-products/* lessons. Layout follows the Ping UI Standard (docs/ping-ui-primitives.md):
+// P2 banner first, P4 cards, P7 chips with a word, P9 one primary per view. Skipped, with the reason:
+// P3 PageFrame (LessonLayout already supplies the 1100px column and the section nav) and P5 key-value
+// (the content is prose, there are no key/value rows). The standalone shell bar is not added.
+import { Link, useNavigate } from "react-router-dom";
+import { Section, LessonLayout, Lede } from "../components/lesson";
+import { PingPage, SimBanner, CardGrid, Card, StatusChip } from "../components/pingUi";
 import PingOneProtectBrowserDemo from "./PingOneProtectBrowserDemo";
 import A2aDocsLinks from "../components/shared/A2aDocsLinks";
 import "./PingAiProductPage.css";
@@ -8,7 +13,6 @@ const PRODUCTS = {
   core: {
     title: "Agent IAM Core",
     eyebrow: "Identity foundation for AI agents",
-    accent: "core",
     subtitle: "Give every agent a distinct identity, a bounded token, and an accountable relationship to the person it represents.",
     lede: "AI agents are becoming active participants in customer, workforce, and partner workflows. Agent IAM Core establishes the identity and token layer those interactions need before an agent can reach an API, service, or resource.",
     capabilities: [
@@ -28,7 +32,6 @@ const PRODUCTS = {
   gateway: {
     title: "Agent Gateway",
     eyebrow: "The enforcement point for agent traffic",
-    accent: "gateway",
     subtitle: "Put a policy-aware boundary between an agent and the APIs, tools, and MCP servers it can reach.",
     lede: "Agent Gateway is the runtime control point: it validates the token presented by an agent, binds the request to its intended audience, and enforces the rules that must hold before traffic continues downstream.",
     capabilities: [
@@ -49,7 +52,6 @@ const PRODUCTS = {
   authorize: {
     title: "PingOne Authorize",
     eyebrow: "Fine-grained, policy-based decisions",
-    accent: "authorize",
     subtitle: "Decide whether this agent, representing this user, may take this action on this resource right now.",
     lede: "Authentication answers who is calling. PingOne Authorize answers what that caller may do in context. It evaluates the agent, user, resource, action, and other policy attributes before a sensitive operation proceeds.",
     capabilities: [
@@ -70,7 +72,6 @@ const PRODUCTS = {
   privilegeLlm: {
     title: "PingOne Privilege for AI — LLM protection",
     eyebrow: "Control the model interaction",
-    accent: "privilege",
     subtitle: "Add a control layer around LLM traffic so prompts, responses, and agent actions meet the organization’s policy.",
     lede: "An LLM can be manipulated by untrusted instructions, sensitive context, or a response that steers the agent toward an unsafe action. Privilege for AI helps put policy between the model interaction and the business system that ultimately carries out the work.",
     capabilities: [
@@ -91,7 +92,6 @@ const PRODUCTS = {
   privilegeA2a: {
     title: "PingOne Privilege for AI — A2A protection",
     eyebrow: "Control agent-to-agent delegation",
-    accent: "privilege",
     subtitle: "Bring identity, trust, and policy to the handoff between agents when one agent asks another to act.",
     lede: "Agent-to-agent protocols make delegation powerful: a planner can ask a specialist to complete a task, and a remote agent can act on a user’s behalf. That handoff also needs a clear caller, an accountable target, and bounded authority.",
     capabilities: [
@@ -115,7 +115,6 @@ const PRODUCTS = {
   privilegeMcp: {
     title: "PingOne Privilege for AI — MCP protection",
     eyebrow: "Control agent access to tools",
-    accent: "privilege",
     subtitle: "Protect MCP discovery and tool calls so an agent only sees and invokes what it is allowed to use.",
     lede: "MCP gives agents a practical way to discover tools and reach data or actions. The same discoverability can widen the blast radius of a poisoned description, an over-privileged token, or an unsafe tool call. Protection belongs at the MCP boundary.",
     capabilities: [
@@ -136,7 +135,6 @@ const PRODUCTS = {
   protect: {
     title: "PingOne Protect",
     eyebrow: "Browser risk evaluation",
-    accent: "protect",
     subtitle: "Send browser Signals to PingOne Protect and inspect its risk response.",
     lede: "This standalone demo collects browser context with the PingOne Signals SDK, sends the payload to PingOne Protect through the BFF, and displays the returned evaluation. It does not start a sign-in or dispatch an agent action.",
     capabilities: [
@@ -164,60 +162,107 @@ const NAV = [
 
 const slug = (key) => `/ai-products/${key.replace(/([A-Z])/g, "-$1").toLowerCase()}`;
 
+// What is real on the page, said once at the top. Six pages are explainers; Protect hosts one live form.
+const BANNER = {
+  explainer: {
+    mode: "PRODUCT EXPLAINER",
+    body: "Nothing on this page is run or simulated: it describes the product's role in an AI security architecture. The agent runs below open other demo pages, and each of those says what it runs live and what it simulates.",
+  },
+  protect: {
+    mode: "EXPLAINER WITH ONE LIVE FORM",
+    body: "The text is an explanation. The evaluation form below is real: it collects this browser's Signals, sends them through this machine's BFF to PingOne Protect, and shows the response (or the error when Protect is not configured). It does not sign anyone in or run an agent.",
+  },
+};
+
 export default function PingAiProductPage({ product = "core" }) {
   const data = PRODUCTS[product] || PRODUCTS.core;
+  const navigate = useNavigate();
+  const banner = product === "protect" ? BANNER.protect : BANNER.explainer;
+  // P9, one primary per view. Product pages: the hero button that opens the first agent run (the cards
+  // below stay links). Protect has no agent runs; its one primary is the evaluation form's submit button.
+  const firstRun = data.runExamples[0];
 
   return (
-    <LessonLayout
-      pageClassName="pai-lesson-page"
-      title={data.title}
-      subtitle={<><span className={`pai-eyebrow pai-eyebrow--${data.accent}`}>{data.eyebrow}</span> {data.subtitle}</>}
-      sections={data.sections.map((label) => ({ id: label.toLowerCase().replaceAll(" ", "-"), label }))}
-      storageKey={`ping-ai-product-${product}`}
-      printExclude={[]}
-      headerNav={
-        <nav className="pai-product-nav" aria-label="AI product pages">
-          {NAV.map(([key, label]) => <Link className={key === product ? "pai-product-nav__link pai-product-nav__link--active" : "pai-product-nav__link"} key={key} to={slug(key)}>{label}</Link>)}
-        </nav>
-      }
-    >
-      <Section id="overview" title="The role it plays">
-        <Lede>{data.lede}</Lede>
-        <div className={`pai-hero pai-hero--${data.accent}`}>
-          <div className="pai-hero-mark" aria-hidden="true">AI</div>
-          <div><p className="pai-hero-kicker">Ping for AI</p><p className="pai-hero-copy">{data.takeaway}</p></div>
-        </div>
-      </Section>
+    <PingPage className="pai-page">
+      <SimBanner data-testid="pai-banner">
+        <strong>{banner.mode}</strong> — {banner.body}
+      </SimBanner>
+      <LessonLayout
+        pageClassName="pai-lesson-page"
+        title={data.title}
+        subtitle={<><span className="pai-eyebrow">{data.eyebrow}</span> {data.subtitle}</>}
+        sections={data.sections.map((label) => ({ id: label.toLowerCase().replaceAll(" ", "-"), label }))}
+        storageKey={`ping-ai-product-${product}`}
+        printExclude={[]}
+        headerNav={
+          <nav className="pai-product-nav" aria-label="AI product pages">
+            {NAV.map(([key, label]) => <Link className={key === product ? "pai-product-nav__link pai-product-nav__link--active" : "pai-product-nav__link"} key={key} to={slug(key)} aria-current={key === product ? "page" : undefined}>{label}</Link>)}
+          </nav>
+        }
+      >
+        <Section id="overview" title="The role it plays">
+          <Lede>{data.lede}</Lede>
+          <Card className="pai-hero">
+            <div className="pai-hero-mark" aria-hidden="true">AI</div>
+            <div>
+              <p className="pai-hero-kicker">Ping for AI</p>
+              <p className="pai-hero-copy">{data.takeaway}</p>
+              {firstRun && (
+                <div className="pu-actions">
+                  <button type="button" className="pu-btn pu-btn--primary" onClick={() => navigate(firstRun[2])}>Start with {firstRun[0]}</button>
+                </div>
+              )}
+            </div>
+          </Card>
+        </Section>
 
-      <Section id={data.sections[1].toLowerCase().replaceAll(" ", "-")} title={data.sections[1]}>
-        <div className="pai-capability-grid">
-          {data.capabilities.map(([title, body], index) => <article className="pai-capability" key={title}><span className="pai-capability-index">0{index + 1}</span><h3>{title}</h3><p>{body}</p></article>)}
-        </div>
-      </Section>
+        <Section id={data.sections[1].toLowerCase().replaceAll(" ", "-")} title={data.sections[1]}>
+          <CardGrid>
+            {data.capabilities.map(([title, body], index) => (
+              <Card key={title}>
+                <span className="pai-capability-index">0{index + 1}</span>
+                <h3 className="pu-h3">{title}</h3>
+                <p className="pu-note">{body}</p>
+              </Card>
+            ))}
+          </CardGrid>
+        </Section>
 
-      <Section id={data.sections[2].toLowerCase().replaceAll(" ", "-")} title={data.sections[2]}>
-        {product === "protect" && <PingOneProtectBrowserDemo />}
-        {data.runExamples.length > 0 && (
-          <div className="pai-run-grid">
-            {data.runExamples.map(([title, description, path]) => <Link className="pai-run" key={title} to={path}><span className="pai-run__label">Open agent run</span><h3>{title}</h3><p>{description}</p><span className="pai-run__arrow" aria-hidden="true">→</span></Link>)}
+        <Section id={data.sections[2].toLowerCase().replaceAll(" ", "-")} title={data.sections[2]}>
+          {product === "protect" && <PingOneProtectBrowserDemo />}
+          {data.runExamples.length > 0 && (
+            <CardGrid>
+              {data.runExamples.map(([title, description, path]) => (
+                <Card tone="neutral" className="pai-run" key={title}>
+                  <p className="pai-run__label">Open agent run</p>
+                  <h3 className="pu-h3"><Link className="pai-run__link" to={path}>{title}</Link></h3>
+                  <p className="pu-note">{description}</p>
+                  <span className="pai-run__arrow" aria-hidden="true">→</span>
+                </Card>
+              ))}
+            </CardGrid>
+          )}
+        </Section>
+
+        <Section id={data.sections[3].toLowerCase().replaceAll(" ", "-")} title={data.sections[3]}>
+          <div className="pai-flow" role="img" aria-label={`${data.title} flow: ${data.flow.join(", then ")}`}>
+            {data.flow.map((node, index) => <div className="pai-flow__item" key={node}><span>{node}</span>{index < data.flow.length - 1 && <i aria-hidden="true" />}</div>)}
           </div>
-        )}
-      </Section>
+          <Card tone="neutral" title="Architecture note">
+            <p className="pu-status-line">
+              <StatusChip tone={product === "protect" ? "info" : "neutral"}>{product === "protect" ? "Live form on this page" : "Explainer only"}</StatusChip>
+              {product === "protect" ? "The page collects browser Signals, sends them through the BFF to PingOne Protect, and displays the returned evaluation. It does not make sign-in, MFA, or agent-dispatch decisions." : "This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation."}
+            </p>
+            {product === "protect" && <p className="pu-note"><a href="https://docs.pingidentity.com/pingone/threat_protection_using_pingone_protect/p1_protect_risk_predictors.html" target="_blank" rel="noreferrer">Read PingOne Protect predictor guidance</a></p>}
+          </Card>
+        </Section>
 
-      <Section id={data.sections[3].toLowerCase().replaceAll(" ", "-")} title={data.sections[3]}>
-        <div className="pai-flow" aria-label={`${data.title} flow`}>
-          {data.flow.map((node, index) => <div className="pai-flow__item" key={node}><span>{node}</span>{index < data.flow.length - 1 && <i aria-hidden="true" />}</div>)}
-        </div>
-        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> {product === "protect" ? "The page collects browser Signals, sends them through the BFF to PingOne Protect, and displays the returned evaluation. It does not make sign-in, MFA, or agent-dispatch decisions." : "This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation."}</p>
-          {product === "protect" && <p><a href="https://docs.pingidentity.com/pingone/threat_protection_using_pingone_protect/p1_protect_risk_predictors.html" target="_blank" rel="noreferrer">Read PingOne Protect predictor guidance</a></p>}
-        </OnThisRun>
-      </Section>
-
-      <Section id="takeaway" title={data.sections[4]}>
-        <p className="pai-takeaway">{data.takeaway}</p>
-        {product === "privilegeA2a" && <A2aDocsLinks />}
-        <p className="pai-next">Continue with another layer: <Link to={slug("core")}>identity</Link>, <Link to={slug("gateway")}>enforcement</Link>, <Link to={slug("authorize")}>authorization</Link>, or <Link to={slug("privilegeMcp")}>MCP protection</Link>.</p>
-      </Section>
-    </LessonLayout>
+        <Section id="takeaway" title={data.sections[4]}>
+          <p className="pai-takeaway">{data.takeaway}</p>
+          {product === "privilegeA2a" && <A2aDocsLinks />}
+          <p className="pai-next">Continue with another layer: <Link to={slug("core")}>identity</Link>, <Link to={slug("gateway")}>enforcement</Link>, <Link to={slug("authorize")}>authorization</Link>, or <Link to={slug("privilegeMcp")}>MCP protection</Link>.</p>
+        </Section>
+      </LessonLayout>
+    </PingPage>
   );
 }
