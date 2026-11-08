@@ -1,13 +1,7 @@
-/* Privilege Coding Agents page. Tokens only; spacing in px like the sibling
-   Privilege demo pages. */
-
-.pca-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--th-bg-page);
-  color: var(--th-text);
-}
+/* Privilege Coding Agents page: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only
+   (H1), type comes from the --font-size-* scale (H2), no inline styles (H3). */
 
 .pca-field {
   margin-bottom: 12px;
@@ -37,69 +31,27 @@
   overflow-wrap: anywhere;
 }
 
-.pca-detection {
-  margin: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--th-status-error-border);
-  border-left: 4px solid var(--th-status-error);
-  border-radius: var(--radius-sm);
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-  font-size: var(--font-size-xs);
-}
-
-.pca-detection--clean {
-  border-color: var(--th-status-success-border);
-  border-left-color: var(--th-status-success);
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-}
-
-.pca-note {
-  margin: 8px 0 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
+/* The decision card sits inside the inspector's output pane. */
 .pca-verdict {
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border-strong);
-  padding: 12px;
   margin: 12px;
-  background: var(--th-bg-card);
-}
-
-.pca-verdict strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: var(--font-size-md);
-  color: var(--th-text);
-}
-
-.pca-verdict p {
-  margin: 0 0 8px;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.pca-verdict--deny {
-  border-left: 4px solid var(--th-status-error);
-}
-
-.pca-verdict--ask {
-  border-left: 4px solid var(--th-status-warning);
-}
-
-.pca-verdict--allow {
-  border-left: 4px solid var(--th-status-success);
-}
-
-.pca-reason {
-  color: var(--th-text);
 }
 
 .pca-wire-pre {
   margin: 12px;
   overflow: auto;
   max-height: 100%;
+}
+
+/* The live-check block sits inside the live card. */
+.pu-card--live .plc {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* At phone width the inspector's top bar (title, status text, theme toggle) is wider than the screen and the
+   page clips the toggle off. Let it wrap on this page; the shared InspectorShell is not touched. */
+.pca-page .inspector-shell-topbar {
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
