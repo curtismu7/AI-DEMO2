@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import WeatherStateControl from '../WeatherStateControl';
 
@@ -82,4 +82,52 @@ test('shows an error and reverts the select on a failed PATCH', async () => {
 
   await waitFor(() => expect(screen.getByText(/error/i)).toBeInTheDocument());
   expect(screen.getByRole('combobox')).toHaveValue('texas');
+});
+
+test('shows a visible Saving… cue while a save is in flight, then says what was saved', async () => {
+  let release;
+  global.fetch = vi.fn((url, opts) => {
+    if (!opts || opts.method === undefined) {
+      return Promise.resolve({ ok: true, json: async () => ({ flags: [{ id: 'ff_weather_mcp_allowed_state', value: 'texas' }] }) });
+    }
+    return new Promise((resolve) => { release = resolve; });
+  });
+  render(<WeatherStateControl />);
+  await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('texas'));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'michigan' } });
+  const cue = await screen.findByText('Saving…');
+  expect(cue.getAttribute('role')).toBe('status');
+  // the select keeps focus (never disabled), and the cue is words, not only aria-busy
+  expect(screen.getByRole('combobox').hasAttribute('disabled')).toBe(false);
+  await act(async () => {
+    release({ ok: true, json: async () => ({ flags: [{ id: 'ff_weather_mcp_allowed_state', value: 'michigan' }] }) });
+  });
+  await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
+  expect(screen.getByText('Saved: Michigan.')).toBeInTheDocument();
+});
+
+test('a second change while a save is in flight is dropped with a message, not silently', async () => {
+  let release;
+  global.fetch = vi.fn((url, opts) => {
+    if (!opts || opts.method === undefined) {
+      return Promise.resolve({ ok: true, json: async () => ({ flags: [{ id: 'ff_weather_mcp_allowed_state', value: 'texas' }] }) });
+    }
+    return new Promise((resolve) => { release = resolve; });
+  });
+  render(<WeatherStateControl />);
+  await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('texas'));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'michigan' } });
+  await screen.findByText('Saving…');
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'any' } });
+  expect(await screen.findByText(/Not changed: the previous choice was still saving/)).toBeInTheDocument();
+  // only the first change was sent, and the select shows the value actually being saved
+  expect(global.fetch.mock.calls.filter((c) => c[1] && c[1].method === 'PATCH')).toHaveLength(1);
+  expect(screen.getByRole('combobox')).toHaveValue('michigan');
+  await act(async () => {
+    release({ ok: true, json: async () => ({ flags: [{ id: 'ff_weather_mcp_allowed_state', value: 'michigan' }] }) });
+  });
+  // the explanation outlives the save, and clears on the next deliberate change
+  expect(screen.getByText(/Not changed/)).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'texas' } });
+  await waitFor(() => expect(screen.queryByText(/Not changed/)).toBeNull());
 });
