@@ -45,7 +45,7 @@
 .ucd-step__kind { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: var(--radius-pill); font-size: var(--font-size-3xs); font-weight: 800; background: var(--th-status-info-bg); color: var(--th-status-info-text); border: 1px solid var(--th-border-strong); }
 .ucd-step__kind--emerging { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
 .ucd-panel__step { flex: 0 0 auto; color: var(--th-text-body); font-size: var(--font-size-2xs); }
-.ucd-next { margin-top: 14px; display: flex; gap: 8px; }
+.ucd-next { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .ucd-next__link { border: 1px solid var(--th-border-strong); border-radius: var(--radius-pill); padding: 4px 12px; font-size: var(--font-size-2xs); font-weight: 700; }
 
 .ucd-gallery__grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
