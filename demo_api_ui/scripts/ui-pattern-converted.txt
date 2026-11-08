@@ -9,6 +9,7 @@
 /privilege-coding-agents
 /demo-summary
 /privilege-pii-detection
+/privilege-gateway-topologies
 /agent-lifecycle
 /privilege-demo
 /ungoverned-agent
@@ -17,14 +18,18 @@
 /privilege-prompt-log
 /demo-config
 /privilege-pf-token
+/autonomous-agents
 /p1-third-party-exchange
 /privilege-shelf
 /ai-products/core
 /ai-products/gateway
+/gateway-claims
 /ai-products/authorize
 /ai-products/protect
+/owasp
 /ai-products/privilege-llm
 /ai-products/privilege-a2a
+/mcp-scanner
 /ai-products/privilege-mcp
 /privilege-a2a
 /transaction-consent
