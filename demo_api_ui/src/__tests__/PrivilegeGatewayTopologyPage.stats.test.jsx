@@ -80,3 +80,83 @@ describe("PrivilegeGatewayTopologyPage — LB runtime park/unpark panel", () => 
     expect(await screen.findByText(/1 pod unreachable/)).toBeTruthy();
   });
 });
+
+describe("PrivilegeGatewayTopologyPage — Ping UI live/sample labelling and focus", () => {
+  beforeEach(() => {
+    apiClient.get.mockReset();
+    apiClient.post.mockReset();
+  });
+
+  it("signed out: the runtime card is neutral with an Admin sign-in needed chip; the stats card says admin only", async () => {
+    apiClient.get.mockRejectedValue(new Error("403"));
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(await screen.findByText("Admin sign-in needed")).toBeTruthy();
+    expect(screen.getByText("LB runtime controls").closest(".pu-card").className).toContain("pu-card--neutral");
+    expect(screen.getByText("Live, admin only")).toBeTruthy();
+    expect(screen.getByTestId("pgt-stats").className).toContain("pu-card--live");
+  });
+
+  it("signed in: the runtime card is live, each node row carries its status word as a chip", async () => {
+    apiClient.get.mockResolvedValue({ data: NODES });
+    render(<PrivilegeGatewayTopologyPage />);
+    const row = (await screen.findByText("gateway-3", { selector: ".pgt-runtime__row code" })).closest(".pgt-runtime__row");
+    expect(row.querySelector(".pu-chip--warn").textContent).toBe("MAINT");
+    const up = screen.getByText("gateway-1", { selector: ".pgt-runtime__row code" }).closest(".pgt-runtime__row");
+    expect(up.querySelector(".pu-chip--ok").textContent).toBe("UP");
+    expect(screen.getByText("LB runtime controls").closest(".pu-card").className).toContain("pu-card--live");
+    expect(screen.getAllByText("Live, admin only").length).toBe(2);
+  });
+
+  it("row buttons are secondaries with the node in their name; Unpark on a parked node", async () => {
+    apiClient.get.mockResolvedValue({ data: NODES });
+    render(<PrivilegeGatewayTopologyPage />);
+    const park = await screen.findByRole("button", { name: "Park gateway-1" });
+    expect(park.className).toContain("pu-btn");
+    expect(park.className).not.toContain("primary");
+    expect(screen.getByRole("button", { name: "Unpark gateway-3" })).toBeTruthy();
+  });
+
+  it("Park keeps keyboard focus on the same button while the call runs and after the row flips to Unpark, and a second press is ignored", async () => {
+    apiClient.get.mockResolvedValueOnce({ data: NODES });
+    let finish;
+    apiClient.post.mockReturnValue(new Promise((r) => { finish = r; }));
+    render(<PrivilegeGatewayTopologyPage />);
+    const park = await screen.findByRole("button", { name: "Park gateway-2" });
+    park.focus();
+    expect(document.activeElement).toBe(park);
+    fireEvent.click(park);
+    await waitFor(() => expect(park.getAttribute("aria-disabled")).toBe("true"));
+    expect(park.disabled).toBe(false);
+    expect(document.activeElement).toBe(park);
+    fireEvent.click(park);
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    apiClient.get.mockResolvedValue({ data: { nodes: NODES.nodes.map((n) => (n.name === "gateway-2" ? { ...n, status: "MAINT" } : n)), errors: [] } });
+    finish({ data: {} });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Unpark gateway-2" })).toBeTruthy());
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Unpark gateway-2" }));
+    expect(park.getAttribute("aria-disabled")).toBeNull();
+    const notice = screen.getByTestId("pgt-runtime-notice");
+    expect(notice.getAttribute("role")).toBe("status");
+    expect(notice.textContent).toContain("Done");
+    expect(notice.textContent).toContain("gateway-2 parked");
+  });
+
+  it("a failed Park says Failed with the reason, and the button works again", async () => {
+    apiClient.get.mockResolvedValue({ data: NODES });
+    apiClient.post.mockRejectedValue({ response: { data: { error: "runtime API refused" } } });
+    render(<PrivilegeGatewayTopologyPage />);
+    const park = await screen.findByRole("button", { name: "Park gateway-1" });
+    fireEvent.click(park);
+    const notice = screen.getByTestId("pgt-runtime-notice");
+    await waitFor(() => expect(notice.textContent).toContain("Failed"));
+    expect(notice.textContent).toContain("runtime API refused");
+    await waitFor(() => expect(park.getAttribute("aria-disabled")).toBeNull());
+  });
+
+  it("no nodes reported: an empty note, not a blank card", async () => {
+    apiClient.get.mockResolvedValue({ data: { nodes: [], errors: [] } });
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(await screen.findByText("The load balancer reported no nodes.")).toBeTruthy();
+  });
+});
+
