@@ -7,6 +7,8 @@
 // Skipped: P3 frame and P4 cards. The studio is a full-width workbench (chat beside the gates, reel and Token Chain,
 // with a cockpit grid), not a 1100px document, and its numbered stacked sections already label the pipeline; the title
 // band is the studio toolbar, so there is no PageHeader (it would push the reel below the fold on a 720px window).
+// The banner is kept to two lines at desktop width for the same reason (the e2e guard "movie reel is on screen on
+// Personal Agent Studio" reads the reel's position at 1280x720), and no height below depends on how tall it wraps.
 //
 // P9 "exactly one primary per view" is read per view state, and every button goes through PuButton (`lead`):
 //   Agent tab, Claude/ChatGPT/Gemini/Terminal/Privilege/Dot skin -> no primary on the page. Send lives inside the
@@ -15,7 +17,8 @@
 //   Add to ChatGPT / Claude and Delegation proof tabs -> the embedded flow (or the sign-in prompt) owns its primary.
 //   Embedded scenario: "Run ... action"; once a step-up is needed, "Verify with MFA and run again" takes over;
 //                    catalog load failed -> "Retry loading".
-// A busy Run stays focusable (aria-disabled), so keyboard focus is not thrown to the page when it starts.
+// A busy Run (the embedded action, and the scripted Computer Use session) stays focusable (aria-disabled), so keyboard
+// focus is not thrown to the page when it starts.
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
@@ -142,6 +145,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   // A freeform Dot question that came back 428 (consent required) and is waiting for PingOne MFA, then a retry.
   const [consentRetry, setConsentRetry] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
+  // The scripted Computer Use session: true from the click until the last step has its reply. The ref is what the
+  // click reads, so a second Enter in the same tick is ignored too.
+  const [cuaRunning, setCuaRunning] = useState(false);
+  const cuaRunningRef = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [activeSkin, setActiveSkin] = useState(() => {
     const skin = query.get('skin');
     return SKINS.includes(skin) ? skin : 'privilege';
@@ -291,7 +300,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
     tokenChainTraceStore.beginTrace({ prompt: text });
     setTokenEvents?.(null, []);
-    fetch('/api/agent/invoke', {
+    return fetch('/api/agent/invoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -332,10 +341,22 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
   // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
   // computer-use action, sequenced so the token chain shows the full path.
-  const runCuaScript = useCallback(() => {
-    CUA_SCRIPT.forEach((step, index) => {
-      setTimeout(() => handleSend(step.prompt), index * 900);
-    });
+  // Steps go one after another (each waits for its reply), and a second press while it runs is ignored.
+  const runCuaScript = useCallback(async () => {
+    if (cuaRunningRef.current) return;
+    cuaRunningRef.current = true;
+    setCuaRunning(true);
+    try {
+      for (let index = 0; index < CUA_SCRIPT.length; index += 1) {
+        if (!mounted.current) break;
+        if (index > 0) await new Promise((resolve) => { setTimeout(resolve, 600); });
+        if (!mounted.current) break;
+        await handleSend(CUA_SCRIPT[index].prompt);
+      }
+    } finally {
+      cuaRunningRef.current = false;
+      if (mounted.current) setCuaRunning(false);
+    }
   }, [handleSend]);
 
   function handlePopOut() {
@@ -485,17 +506,16 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   return (
     // P2 banner first, then the studio. The studio is a full-width workbench (chat beside gates, reel and
     // Token Chain), so it keeps its own shell instead of the 1100px frame; see the header comment.
-    <PingPage className={`pas-page${bare ? ' pas-page--bare' : ''}`}>
+    <PingPage className={`pas-page${bare ? ' pas-page--bare' : ''}${cockpit ? ' pas-page--cockpit' : stacked ? '' : ' pas-page--fixed'}`}>
     <SimBanner data-testid="studio-banner">
-      <strong>SIMULATED CLIENTS, REAL GOVERNANCE</strong> — the Claude, ChatGPT, Gemini, Terminal and Computer Use
-      windows are look-alikes, and the Add to ChatGPT / Claude tab uses a connector sandbox: no vendor product is
-      connected. Your messages go to this machine's BFF and the demo's own agent, so the gates and tokens below come
-      from your signed-in session. The gate Replay is an animation.
+      <strong>SIMULATED CLIENTS, REAL GOVERNANCE</strong> — the client windows are look-alikes and the connector tab is a
+      sandbox; no vendor product is connected. The gates and tokens are real, from your signed-in session through this
+      machine's BFF. Gate Replay is an animation.
     </SimBanner>
     {/* A fixed-height shell (same rule as the IDE sheet, .cur-ide): chat flexes, the reel stays under it.
         height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
         Bare (/personal-agent/full) has no app chrome to subtract. */}
-    <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : stacked ? ' pas-shell--stacked' : ''}${bare ? ' pas-shell--bare' : ''}`}>
+    <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : stacked ? ' pas-shell--stacked' : ''}`}>
       {/* Page header */}
       <div className="pas-c-header">
         <h1 className="pas-title">Digital Assistant</h1>
@@ -544,7 +564,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           {!cockpit && <PuButton className="pas-compact" aria-pressed={layoutState === 'split'} onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}>
             Split
           </PuButton>}
-          <PuButton className={`pas-compact${layoutState === 'popped' ? ' pas-on' : ''}`} onClick={handlePopOut}>
+          <PuButton className="pas-compact" aria-pressed={layoutState === 'popped'} onClick={handlePopOut}>
             🪟 Pop Out
           </PuButton>
           <PuButton
@@ -583,9 +603,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
             activeSkin === 'cua' ? (
               <div className="pas-skin">
                 <div className="pas-cua-bar">
-                  <PuButton lead onClick={runCuaScript}>
+                  <PuButton lead busy={cuaRunning} onClick={runCuaScript}>
                     Run scripted session
                   </PuButton>
+                  <span role="status"><StatusChip tone={cuaRunning ? 'info' : 'neutral'}>{cuaRunning ? 'Running' : 'Ready'}</StatusChip></span>
                   <span className="pu-note pas-cua-bar__note">
                     Simulated — a real CUA drives a browser; this walks the same actions through the demo's governed agent path, so the token chain on the rail is the real one.
                   </span>

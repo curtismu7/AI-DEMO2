@@ -32,6 +32,15 @@ describe('PersonalAgentStudioPage Ping UI Standard', () => {
     expect(page.querySelector('h1').textContent).toBe('Digital Assistant');
   });
 
+  it('P2: the banner stays short (the reel must stay above the fold) and says what is simulated and what is real', () => {
+    renderStudio();
+    const text = screen.getByTestId('studio-banner').textContent;
+    expect(text.length).toBeLessThan(300);
+    expect(text).toMatch(/SIMULATED CLIENTS, REAL GOVERNANCE/);
+    expect(text).toMatch(/gates and tokens are real/i);
+    expect(text).toMatch(/Replay is an animation/);
+  });
+
   it('H3: the header band carries no inline style', () => {
     const { container } = renderStudio();
     // The studio's own markup. The client skins and the diagram inside it are separate components with their own styles.
@@ -62,10 +71,13 @@ describe('PersonalAgentStudioPage Ping UI Standard', () => {
     expect(lead[0].textContent).toBe('Run scripted session');
   });
 
-  it('P7: the pop-out stub carries a chip with a word', () => {
+  it('P7: the pop-out stub carries a chip with a word, and Pop Out says it is on (aria-pressed, not colour alone)', () => {
     vi.stubGlobal('open', vi.fn());
     const { container } = renderStudio();
-    fireEvent.click(screen.getByText(/Pop Out/));
+    const popOut = screen.getByRole('button', { name: /Pop Out/ });
+    expect(popOut.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(popOut);
+    expect(popOut.getAttribute('aria-pressed')).toBe('true');
     const chip = container.querySelector('.pas-popped .pu-chip');
     expect(chip.textContent).toBe('Listening for token events');
   });
@@ -104,6 +116,30 @@ describe('PersonalAgentStudioPage Ping UI Standard', () => {
     fireEvent.click(run);
     expect(fetchMock.mock.calls.filter(([url]) => url === '/api/agent/invoke')).toHaveLength(1);
     expect(document.querySelector('.pu-status-line .pu-chip').textContent).toBe('Running');
+  });
+
+  it('the scripted Computer Use session keeps focus while it runs, says Running, and a second press does not queue it twice', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ reply: 'ok' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    renderStudio();
+    fireEvent.click(screen.getByText('Computer Use'));
+    const run = screen.getByRole('button', { name: 'Run scripted session' });
+    expect(run.getAttribute('aria-disabled')).toBeNull();
+    expect(document.querySelector('.pas-cua-bar .pu-chip').textContent).toBe('Ready');
+    run.focus();
+    fireEvent.click(run);
+    fireEvent.click(run);
+    await waitFor(() => expect(run.getAttribute('aria-disabled')).toBe('true'));
+    expect(run.disabled).toBe(false);
+    expect(document.activeElement).toBe(run);
+    expect(document.querySelector('.pas-cua-bar .pu-chip').textContent).toBe('Running');
+    fireEvent.click(run);
+    // All three scripted steps arrive once each, then the button is ready again.
+    await waitFor(() => expect(run.getAttribute('aria-disabled')).toBeNull(), { timeout: 4000 });
+    const prompts = fetchMock.mock.calls.filter(([url]) => url === '/api/agent/invoke').map(([, init]) => JSON.parse(init.body).prompt);
+    expect(prompts).toHaveLength(3);
+    expect(new Set(prompts).size).toBe(3);
+    expect(document.querySelector('.pas-cua-bar .pu-chip').textContent).toBe('Ready');
   });
 
   it('P9 per state (catalog load failed): Retry is the one primary', async () => {

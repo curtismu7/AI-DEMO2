@@ -1,19 +1,36 @@
 /* Ping UI Standard hooks. The page sits in <PingPage> (.pu-page): the shared sheet gives the ground, the banner,
    the chips, the kv list and every button (.pu-btn, one .pu-btn--primary per view state). Only what is specific to
    the studio lives here. .pu-page forces min-height:100vh, which the app chrome above would turn into a page scroll,
-   so the studio opts out; --pas-banner-h is the room the P2 banner takes from the fixed-height shells below. */
+   so the studio opts out. The page is a flex column (banner, then the shell), so no height below guesses how tall the
+   banner wraps: a fixed-height page hands whatever the banner leaves to the shell. */
 .pas-page.pu-page {
-  --pas-banner-h: 100px;
+  display: flex;
+  flex-direction: column;
   --pas-pill-on-bg: var(--th-text);
   --pas-pill-on-fg: var(--th-bg-card);
   min-height: 0;
 }
 
-/* The studio is full width, so the banner runs the same width as its header band instead of the 1100px frame. */
+/* The studio is full width, so the banner runs the same width as its header band instead of the 1100px frame. It is
+   compact (two lines at desktop width) so the reel stays above the fold on a 720px window. */
 .pas-page .pu-banner-wrap {
+  flex: none;
   max-width: none;
-  padding: 12px 20px 10px;
+  padding: 6px 20px;
 }
+
+.pas-page .pu-banner {
+  padding: 5px 10px;
+  font-size: var(--font-size-2xs);
+  line-height: 1.4;
+}
+
+/* Fixed-height views (the Add to ChatGPT / Claude and Delegation proof tabs): the page is the window below the app
+   chrome (bare: the whole window) and the shell takes what the banner leaves. A short window never squeezes the shell
+   under 640px; on a phone the page just flows. */
+.pas-page--fixed { height: max(640px, calc(100vh / var(--app-zoom, 1) - 176px)); }
+.pas-page--fixed.pas-page--bare { height: max(640px, calc(100vh / var(--app-zoom, 1))); }
+.pas-page--cockpit { min-height: calc(100vh / var(--app-zoom, 1) - 176px); }
 
 /* The shared Heuristics | llama.cpp switch fills its selected half Ping Red, which would read as a second primary
    beside the page's one. Here the selected half takes the same info treatment as the other selected controls. */
@@ -36,8 +53,7 @@
 
 /* Selected / on states: a bold label and a thicker edge as well as the fill, so it is not colour alone. */
 .pas-page .pu-btn.pas-compact[aria-selected='true'],
-.pas-page .pu-btn.pas-compact[aria-pressed='true'],
-.pas-page .pu-btn.pas-compact.pas-on {
+.pas-page .pu-btn.pas-compact[aria-pressed='true'] {
   border-color: var(--th-status-info-text);
   background: var(--th-status-info-bg);
   color: var(--th-status-info-text);
@@ -184,19 +200,16 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 640px;
-  /* a definite height so the chat can flex; "bare" has no app chrome to subtract */
-  height: calc(100vh / var(--app-zoom, 1) - 176px - var(--pas-banner-h, 0px));
+  /* the rest of the page after the banner (the page has the definite height), so the chat can flex */
+  flex: 1 1 auto;
+  min-height: 0;
   background: var(--th-bg-page);
 }
-
-.pas-shell--bare { height: calc(100vh / var(--app-zoom, 1) - var(--pas-banner-h, 0px)); }
 
 /* Stacked flows at its natural height, like the design mock: the chat, the reel and the full token detail
    each show in full and the page scrolls. (A fixed-height shell clipped the richer token cards.) */
 .pas-shell--stacked {
-  height: auto;
-  min-height: 0;
+  flex: none;
   overflow: visible;
 }
 
@@ -243,8 +256,7 @@
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   /* header, gates, flow disclosure, reel + Token Chain, dock */
   grid-template-rows: auto auto auto auto auto;
-  height: auto;
-  min-height: calc(100vh / var(--app-zoom, 1) - 176px);
+  flex: 1 0 auto;
   overflow: visible;
 }
 
@@ -296,6 +308,11 @@
 .pas-shell--cockpit .agent-client-skin { height: 100%; }
 
 @media (max-width: 960px) {
+  /* a phone has no room for a fixed-height page: it flows and the shell grows with its content */
+  .pas-page--fixed,
+  .pas-page--fixed.pas-page--bare { height: auto; }
+  .pas-page--fixed > .pas-shell { flex: none; min-height: 640px; overflow: visible; }
+
   .pas-shell--cockpit {
     display: flex;
     flex-direction: column;
@@ -315,16 +332,16 @@
 .pas-shell--stacked,
 .pas-c-cards { --pas-gutter: 88px; }
 
-/* 280px is the chat's floor: with the app chrome and header above it, anything taller pushes the reel below the
-   fold on a 720px window (the e2e guard "movie reel is on screen on Personal Agent Studio"). */
+/* 240px is the chat's floor: with the app chrome, the two-line banner and the header above it, anything taller pushes
+   the reel below the fold on a 720px window (the e2e guard "movie reel is on screen on Personal Agent Studio"). */
 /* A definite height, so the message list scrolls inside the card instead of the card growing to its content: it follows
-   the window (280px on a short one, up to 460px on a tall one). */
+   the window (240px on a short one, up to 460px on a tall one). */
 .pas-shell--stacked > .pas-c-chat {
   flex: none; /* the shell flows at its natural height here, so the chat takes the height below, not a share of it */
-  min-height: 280px; /* the base rule's 320px floor is for the fixed-height shells */
+  min-height: 240px; /* the base rule's 320px floor is for the fixed-height shells */
   padding: 4px 28px 4px var(--pas-gutter);
   box-sizing: border-box;
-  height: clamp(280px, calc(100vh / var(--app-zoom, 1) - 440px), 460px);
+  height: clamp(240px, calc(100vh / var(--app-zoom, 1) - 440px), 460px);
 }
 
 .pas-shell--stacked .agent-client-skin { height: 100%; }
