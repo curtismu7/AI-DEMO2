@@ -1,68 +1,184 @@
 /* demo_api_ui/src/components/AgentBuilderPage.css
-   Themed with --th-* per THEMING.md. .ab-error/.ab-btn-danger/.ab-badge keep
-   their literal high-contrast pairs on purpose (always-legible alert/badge
-   colors in both themes), same carve-out THEMING.md documents for that
-   pattern — everything else routes through the semantic tokens. */
-.ab-page { max-width: min(1400px, 100%); margin: 0 auto; padding: 24px 16px 64px; box-sizing: border-box; position: relative; color: var(--th-text); }
-.ab-page h1 { margin: 0 0 4px; }
-.ab-intro { color: var(--th-text-muted); margin: 0 0 20px; }
-.ab-authority-note { margin: 0 0 22px; padding: 12px 14px; border-left: 4px solid var(--th-status-info-border); border-radius: 0 8px 8px 0; background: var(--th-status-info-bg); color: var(--th-status-info-text); line-height: 1.5; }
-.ab-authority-links { display: inline-flex; gap: 14px; margin-left: 12px; flex-wrap: wrap; }
-.ab-authority-links a { color: var(--th-status-info-text); font-weight: 700; }
+   Only what is specific to the Agent Builder page. The banner, frame, cards, key-value lists, chips, labels,
+   inputs and buttons are the shared Ping UI primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md).
+   Surfaces, lines and ink are --th-* only (H1), type comes from the --font-size-* scale (H2), no inline
+   styles (H3). Scope pills use the shared <Check variant="pill"> control (common/Check.jsx). */
 
-.ab-theme-toggle { position: absolute; top: 24px; right: 16px; padding: 6px 14px; border-radius: var(--radius-md); border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text); font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-.ab-theme-toggle:hover { color: var(--th-text); background: var(--th-bg-hover); }
+.ab-loading {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--th-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
 
-.ab-chain { display: flex; align-items: stretch; gap: 8px; margin-bottom: 24px; }
-.ab-node { flex: 1; border: 2px solid var(--th-border-strong); border-radius: 10px; padding: 10px 14px; background: var(--th-bg-inset); }
-.ab-node-on { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); }
-.ab-node-label { font-size: var(--font-size-2xs); font-weight: 700; text-transform: uppercase; color: var(--th-text); }
-.ab-node-value { font-size: var(--font-size-body); color: var(--th-text); word-break: break-all; }
-.ab-arrow { align-self: center; font-size: var(--font-size-xl); color: var(--th-text); }
+.ab-authority-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
 
-.ab-card { border: 1px solid var(--th-border); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; background: var(--th-bg-card); color: var(--th-text); }
-.ab-card h2 { margin: 0 0 10px; font-size: var(--font-size-h3); color: var(--th-text); }
-.ab-card h3 { margin: 16px 0 8px; font-size: var(--font-size-body); text-transform: uppercase; color: var(--th-text); }
+.ab-authority-links a {
+  color: var(--th-status-info-text);
+  font-weight: var(--font-weight-bold);
+}
 
-.ab-kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; margin: 0 0 10px; }
-.ab-kv dt { font-weight: 600; color: var(--th-text); }
-.ab-kv dd { margin: 0; word-break: break-all; color: var(--th-text); }
+/* Identity chain: three cards joined by arrows; stacks (arrows point down) at phone width. */
+.ab-chain {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  margin: 12px 0;
+}
 
-.ab-edu { color: var(--th-text-muted); font-size: var(--font-size-body); }
-.ab-note { color: var(--th-status-warning-text); background: var(--th-status-warning-bg); border: 1px solid var(--th-status-warning-border); border-radius: var(--radius-md); padding: 8px 12px; font-size: var(--font-size-body); }
-.ab-empty-note { color: var(--th-text-muted); font-size: var(--font-size-body); }
-.ab-error { color: #fff; background: #b00020; border-radius: var(--radius-md); padding: 10px 14px; font-weight: 600; margin: 8px 0; }
+.ab-chain > .pu-card {
+  margin: 0;
+}
 
-.ab-badge { display: inline-block; background: #102a43; color: #fff; border-radius: var(--radius-sm); padding: 2px 8px; font-size: var(--font-size-2xs); font-weight: 700; }
+.ab-chain .pu-label {
+  margin: 0 0 4px;
+}
 
-.ab-resource { border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 10px 12px; margin-bottom: 8px; }
-.ab-resource-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.ab-resource-name { font-weight: 700; color: var(--th-text); }
-.ab-aud { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
-/* Scope chips use the shared <Check variant="pill"> control (common/Check.jsx).
-   The <code> child gets brand-blue scope text on the white pill; the component
-   flips it to white when the pill fills. */
-.ab-scopes { display: flex; flex-wrap: wrap; gap: 10px; }
-.ab-scopes .ctl-check--pill code { font-size: var(--font-size-sm); transition: color .15s ease; }
-.ab-scopes .ctl-check--pill.is-on code { color: #fff; }
+.ab-node-value {
+  margin: 0 0 8px;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+  overflow-wrap: anywhere;
+}
 
-.ab-create-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; margin: 12px 0; }
-.ab-create-form input { padding: 8px 10px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-inset); color: var(--th-text); }
+.ab-arrow {
+  align-self: center;
+  font-size: var(--font-size-xl);
+  color: var(--th-text);
+}
 
-.ab-apply-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
-.ab-dirty { color: var(--th-status-warning-text); font-weight: 600; }
+@media (max-width: 700px) {
+  .ab-chain {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.ab-btn { padding: 8px 16px; border-radius: var(--btn-radius); border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); font-weight: 600; cursor: pointer; }
-.ab-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.ab-btn-primary { color: var(--th-text-on-emphasis); background: var(--th-bg-emphasis); border-color: var(--th-bg-emphasis); }
-.ab-btn-danger { background: #b00020; border-color: #b00020; color: #fff; }
-.ab-btn-sm { padding: 3px 10px; font-size: var(--font-size-2xs); margin-left: auto; }
-.ab-confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; color: var(--th-text); }
-.ab-loading { padding: 40px; text-align: center; color: var(--th-text-muted); font-weight: 600; }
+  .ab-arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+}
 
-.ab-badge-soft { background: #486581; }
-.ab-agent-meta { font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.ab-live {
+  margin: 0 0 4px;
+}
 
-@media (max-width: 640px) {
-  .ab-theme-toggle { position: static; display: inline-block; margin-bottom: 12px; }
+.ab-live:empty {
+  display: none;
+}
+
+.ab-alert {
+  align-items: flex-start;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--th-status-error);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+}
+
+/* Cards that take focus after an action replaced the control that had it. */
+.ab-focus-target:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.ab-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+/* One resource / existing-agent row. */
+.ab-resource {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+}
+
+.ab-resource-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.ab-resource-name {
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+}
+
+.ab-aud {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pu-page .ab-btn-sm {
+  min-height: 32px;
+  margin-left: auto;
+  padding: 3px 12px;
+  font-size: var(--font-size-sm);
+}
+
+.ab-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ab-scopes .ctl-check--pill code {
+  font-size: var(--font-size-sm);
+  transition: color 0.15s ease;
+}
+
+.ab-scopes .ctl-check--pill.is-on code {
+  color: var(--btn-accent-text);
+}
+
+.ab-agent-meta {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.ab-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.ab-create-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px 12px;
+  align-items: end;
+  margin: 12px 0 0;
+}
+
+.pu-page .ab-input {
+  font-weight: var(--font-weight-normal);
+}
+
+.ab-apply-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (max-width: 800px) {
+  .ab-create-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

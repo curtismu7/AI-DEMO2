@@ -10,6 +10,7 @@
 /privilege-pii-detection
 /agent-lifecycle
 /privilege-demo
+/agent-builder
 /ungoverned-agent
 /privilege-intent-triage
 /mcp-observability
