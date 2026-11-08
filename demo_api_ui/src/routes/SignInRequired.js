@@ -11,7 +11,7 @@ export default function SignInRequired() {
     <>
       <TopNav user={null} onLogout={() => {}} />
       <main className="main-content">
-        <SignInPrompt message="This page needs a signed-in session." />
+        <SignInPrompt message="This page needs a signed-in session." headingLevel={1} />
       </main>
     </>
   );

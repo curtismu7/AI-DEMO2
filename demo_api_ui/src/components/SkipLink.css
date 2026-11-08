@@ -1,0 +1,29 @@
+/* Visible only while it has keyboard focus. Tokens only, so it holds in light and dark. */
+.skip-link,
+.skip-link:link,
+.skip-link:visited {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 10000;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  transform: translateY(-300%);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: none;
+  outline: 3px solid var(--th-text);
+  outline-offset: 2px;
+}
+
+/* The skip link's target. It takes focus from script only, so it needs a ring but not a loud one. */
+main:focus-visible {
+  outline: 2px solid var(--th-text);
+  outline-offset: -2px;
+}

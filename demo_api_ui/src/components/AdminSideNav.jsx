@@ -2271,9 +2271,20 @@ export default function AdminSideNav({
           <button
             type="button"
             className={`admin-side-nav__item admin-side-nav__item--parent${isParentActive(item) ? " admin-side-nav__item--parent-active" : ""}${item.highlight ? " admin-side-nav__item--highlight-danger" : ""}`}
-            onClick={() => toggleSection(itemKey)}
+            onClick={() => {
+              if (collapsed) {
+                // The icon rail's hover flyout is clipped by the rail and unreachable by keyboard, so
+                // activating a group opens the rail with that group expanded. Not persisted: the rail
+                // goes back to its resting state on the next load.
+                autoCollapsedRef.current = false;
+                setCollapsed(false);
+                if (!isExpanded) toggleSection(itemKey);
+                return;
+              }
+              toggleSection(itemKey);
+            }}
             title={collapsed ? item.label : undefined}
-            aria-expanded={isExpanded ? "true" : "false"}
+            aria-expanded={isExpanded && !collapsed ? "true" : "false"}
             aria-controls={submenuId}
           >
             <NavIcon name={item.icon} />

@@ -438,9 +438,9 @@ export default function TopNav({ user, onLogout }) {
             onClick={toggleDarkMode}
             title="Switch between light and dark mode"
             aria-pressed={darkMode}
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label="Dark mode"
           >
-            {darkMode ? '☀️' : '🌙'}
+            <span aria-hidden="true">{darkMode ? '☀️' : '🌙'}</span>
           </button>
 
           {/* Font sizer — demo-projector dial. Cycles the page zoom (ThemeContext
