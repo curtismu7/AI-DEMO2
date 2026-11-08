@@ -43,6 +43,10 @@
   margin-top: 8px;
 }
 
+.mcpsc .mcpsc__live {
+  margin: 0;
+}
+
 .mcpsc__freerow {
   display: flex;
   flex-wrap: wrap;
@@ -79,6 +83,18 @@
   max-width: 100%;
 }
 
+.weather-state-control__status {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+/* Live regions stay in the layout (display:none would drop them from the accessibility tree
+   before their first message); an empty one takes no space. */
+.weather-state-control__status:not(:empty) {
+  margin-top: 6px;
+}
+
 .weather-state-control__error {
   display: block;
   margin-top: 6px;
@@ -104,6 +120,15 @@
   list-style: none;
 }
 
+.wbl__status {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.wbl__status:empty {
+  margin-top: -10px;
+}
+
 .wbl__empty {
   font-size: var(--font-size-sm);
   color: var(--th-text-body);
@@ -111,8 +136,9 @@
 
 .wbl__item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 6px 10px;
   padding: 6px 10px;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-lg);
@@ -127,8 +153,8 @@
 }
 
 .wbl__item > span:first-child {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 9ch;
+  min-width: 9ch;
   font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
 }

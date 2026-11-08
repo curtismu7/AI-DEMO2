@@ -22,6 +22,9 @@ export default function WeatherStateControl() {
   const [value, setValue] = useState(DEFAULT_STATE);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Said in words when a change is ignored, so a value that snaps back is never unexplained.
+  const [dropped, setDropped] = useState(false);
+  const [savedLabel, setSavedLabel] = useState('');
   // Last value this control successfully saved during this visit. The flag is
   // live and sticky: a presenter who flipped it to "Any" for UC32 and moved on
   // left UC31 (Miami) permitting on the next pass of the script until someone
@@ -63,13 +66,19 @@ export default function WeatherStateControl() {
 
   const handleChange = async (e) => {
     // The select stays enabled while a save is in flight (a disabled control drops keyboard
-    // focus); a second change in that window is ignored and the controlled value snaps back.
-    if (saving) return;
+    // focus); a second change in that window is ignored and the controlled value snaps back,
+    // so say so instead of reverting without a word.
+    if (saving) {
+      setDropped(true);
+      return;
+    }
     const next = e.target.value;
     const prev = value;
     setValue(next);
     setSaving(true);
     setError(null);
+    setDropped(false);
+    setSavedLabel('');
     try {
       const res = await fetch('/api/admin/feature-flags', {
         method: 'PATCH',
@@ -82,6 +91,8 @@ export default function WeatherStateControl() {
       const confirmed = (data.flags || []).find((f) => f.id === FLAG_ID);
       if (confirmed) setValue(confirmed.value);
       savedRef.current = confirmed ? confirmed.value : next;
+      const savedValue = confirmed ? confirmed.value : next;
+      setSavedLabel(`Saved: ${OPTIONS.find((o) => o.value === savedValue)?.label || savedValue}.`);
     } catch (err) {
       setValue(prev);
       setError(`Failed to save: ${err.message}`);
@@ -104,6 +115,14 @@ export default function WeatherStateControl() {
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
+      <span className="weather-state-control__status" role="status">
+        {saving ? 'Saving…' : savedLabel}
+      </span>
+      {dropped ? (
+        <span className="weather-state-control__status weather-state-control__status--dropped" role="status">
+          Not changed: the previous choice was still saving. Pick it again once Saving… has finished.
+        </span>
+      ) : null}
       {error && <span className="weather-state-control__error" role="alert">{error}</span>}
     </div>
   );

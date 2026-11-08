@@ -12,6 +12,7 @@ import PageHeader from '../components/common/PageHeader';
 import {
   PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
 } from '../components/pingUi';
+import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
 import './McpShowcasePage.css';
@@ -40,7 +41,13 @@ import './McpShowcasePage.css';
  *   - a run starting: the control that was pressed (it reads "Starting…")
  * The theme toggle, Block city and the city remove buttons are always secondary.
  * A control that cannot act right now uses aria-disabled, never disabled, so
- * keyboard focus stays where it was when a request is in flight or fails.
+ * keyboard focus stays where it was when a request is in flight or fails. Because such a
+ * control can still be pressed, pressing one that has nothing to act on says why in words.
+ *
+ * Run needs a signed-in session: the dashboard (where the prompt goes) shows a sign-in
+ * modal to a guest, and /api/use-cases/demo/run and /api/verticals/active both accept a
+ * guest. So the page checks the session itself, says so, and refuses to navigate away
+ * while it knows the visitor is signed out.
  */
 
 const SHOWCASES = {
@@ -58,8 +65,8 @@ const SHOWCASES = {
       + 'settings: changing one writes the gateway flag on this machine, and the gateway reads it '
       + 'on every request. This page itself makes no weather call and shows no permit or deny '
       + 'result. Each Run hands a prompt to the agent on the dashboard, where the call goes '
-      + 'through the real Agent Gateway (it must be running). Permit and deny below are what the '
-      + 'policy should do, not an outcome.',
+      + 'through the real Agent Gateway (it must be running), and needs a signed-in session. Permit '
+      + 'and deny below are what the policy should do, not an outcome.',
     gatewayPath: '/mcp/weather',
     enableFlag: 'ff_weather_mcp_showcase',
     policyKind: 'scope',
@@ -90,6 +97,7 @@ const SHOWCASES = {
       heading: 'Check any location',
       placeholder: 'Denver, CO',
       button: 'Check weather',
+      emptyHint: 'Enter a location first, for example Denver, CO.',
       prompt: (q) => `what's the weather in ${q}`,
       hint: 'Whatever the room shouts out. The policy decides, not the tool.',
     },
@@ -114,8 +122,8 @@ const SHOWCASES = {
       'the blocked terms below are a fixed copy of the list in '
       + 'tx-brave-scope.groovy and cannot be changed from this page. This page itself makes no '
       + 'search and shows no permit or deny result. Each Run hands a prompt to the agent on the '
-      + 'dashboard, where the call goes through the real Agent Gateway (it must be running). '
-      + 'Permit and deny below are what the policy should do, not an outcome.',
+      + 'dashboard, where the call goes through the real Agent Gateway (it must be running), and '
+      + 'needs a signed-in session. Permit and deny below are what the policy should do, not an outcome.',
     gatewayPath: '/mcp/brave',
     enableFlag: 'ff_brave_mcp_showcase',
     policyKind: 'blocklist',
@@ -150,6 +158,7 @@ const SHOWCASES = {
       heading: 'Search anything',
       placeholder: 'quantum computing',
       button: 'Search news',
+      emptyHint: 'Enter a search first, for example quantum computing.',
       prompt: (q) => `search the news for ${q}`,
       hint: 'Any query. Include a blocked term to watch the gateway refuse it.',
     },
@@ -165,6 +174,9 @@ export default function McpShowcasePage({ capability }) {
   const [running, setRunning] = useState(null);
   const [error, setError] = useState(null);
   const [freeText, setFreeText] = useState('');
+  const [freeHint, setFreeHint] = useState('');
+  // null = not known (check pending or failed), true / false = what the session endpoints said.
+  const [signedIn, setSignedIn] = useState(null);
 
   // GET on the flags endpoint is open to everyone (the pill needs it), so this
   // works signed out — the page must render the real policy for a guest.
@@ -188,11 +200,37 @@ export default function McpShowcasePage({ capability }) {
     };
   }, [cfg.enableFlag]);
 
+  // Both status endpoints answer 200 with { authenticated } for a guest, so a guest reads as
+  // false here, not as an error. Any failed check leaves it unknown and Run is not blocked.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      apiClient.get('/api/auth/oauth/user/status').then((r) => r.data, () => null),
+      apiClient.get('/api/auth/oauth/status').then((r) => r.data, () => null),
+    ]).then(([user, admin]) => {
+      if (cancelled) return;
+      if (user?.authenticated === true || admin?.authenticated === true) setSignedIn(true);
+      else if (typeof user?.authenticated === 'boolean' && typeof admin?.authenticated === 'boolean') setSignedIn(false);
+      else setSignedIn(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refuseSignedOut = useCallback(() => {
+    setError('Not started: Run needs a signed-in session. Sign in with the button above, then run it again.');
+  }, []);
+
   // Same dispatch the old "Weather MCP" nav action used: run the use case, pin
   // the vertical, then hand the trigger text to the dashboard chat.
   const run = useCallback(
     async (useCaseId) => {
       if (running !== null) return;
+      if (signedIn === false) {
+        refuseSignedOut();
+        return;
+      }
       const vertical = activeVerticalId || 'banking';
       setRunning(useCaseId);
       setError(null);
@@ -229,12 +267,14 @@ export default function McpShowcasePage({ capability }) {
       } catch (err) {
         setRunning(null);
         setError(
-          err?.response?.data?.error
+          // A 401 carries a sentence for the visitor in `message`; `error` is a code.
+          err?.response?.data?.message
+            || err?.response?.data?.error
             || 'Could not start the demo. The use case may be disabled.',
         );
       }
     },
-    [activeVerticalId, cfg, navigate, running],
+    [activeVerticalId, cfg, navigate, running, signedIn, refuseSignedOut],
   );
 
   // Free-form ask. The canned Run buttons only cover the two scripted outcomes;
@@ -246,7 +286,15 @@ export default function McpShowcasePage({ capability }) {
     async (e) => {
       e.preventDefault();
       const q = freeText.trim();
-      if (!q || running) return;
+      if (running) return;
+      if (!q) {
+        setFreeHint(cfg.freeForm.emptyHint);
+        return;
+      }
+      if (signedIn === false) {
+        refuseSignedOut();
+        return;
+      }
       const vertical = activeVerticalId || 'banking';
       setRunning('free');
       setError(null);
@@ -259,11 +307,11 @@ export default function McpShowcasePage({ capability }) {
       } catch (err) {
         setRunning(null);
         setError(
-          err?.response?.data?.error || 'Could not start that run.',
+          err?.response?.data?.message || err?.response?.data?.error || 'Could not start that run.',
         );
       }
     },
-    [freeText, running, activeVerticalId, navigate, cfg],
+    [freeText, running, activeVerticalId, navigate, cfg, signedIn, refuseSignedOut],
   );
 
   const freeReady = Boolean(freeText.trim());
@@ -301,10 +349,10 @@ export default function McpShowcasePage({ capability }) {
       <PageFrame>
         <Section id="mcpsc-capability" kicker="1 · The capability" title="Route and status" lede={cfg.lede}>
           <CardGrid>
-            <Card title="Gateway route" data-testid="mcpsc-capability">
+            <Card data-testid="mcpsc-capability">
               <KvList
                 items={[
-                  { label: 'Gateway route', value: cfg.gatewayPath, mono: true },
+                  { label: 'Gateway route (config)', value: cfg.gatewayPath, mono: true },
                   {
                     label: 'Capability',
                     value: <StatusChip tone={capStatus.tone}>{capStatus.word}</StatusChip>,
@@ -312,6 +360,10 @@ export default function McpShowcasePage({ capability }) {
                   { label: 'Flag', value: cfg.enableFlag, mono: true },
                 ]}
               />
+              <p className="pu-note">
+                The route and flag are configuration read from this repo and the flags API. They are
+                not a gateway verdict.
+              </p>
             </Card>
             {enabled === false ? (
               <Card tone="warn" title="Switched off" data-testid="mcpsc-disabled">
@@ -344,7 +396,7 @@ export default function McpShowcasePage({ capability }) {
             </CardGrid>
           ) : (
             <CardGrid>
-              <Card tone="neutral" title="Blocked terms" data-testid="mcpsc-terms">
+              <Card tone="neutral" data-testid="mcpsc-terms">
                 <p className="pu-status-line"><StatusChip tone="neutral">Read-only</StatusChip> A fixed copy of the gateway list.</p>
                 <ul className="mcpsc__terms">
                   {cfg.blockedTerms.map((t) => (
@@ -362,9 +414,22 @@ export default function McpShowcasePage({ capability }) {
           id="mcpsc-run"
           kicker="3 · Run it"
           title="Send a prompt to the agent"
-          lede="Each one sends the prompt to the agent on the dashboard and records a token chain you can inspect."
+          lede="Each one sends the prompt to the agent on the dashboard and records a token chain you can inspect. Run needs a signed-in session; the dashboard asks you to sign in before it will start."
         >
           <CardGrid>
+            {signedIn === false ? (
+              <Card tone="warn" title="Sign in to run" data-testid="mcpsc-signin">
+                <p className="pu-status-line">
+                  <StatusChip tone="warn">Signed out</StatusChip> Run and the free-form ask will not start
+                  until you sign in.
+                </p>
+                <div className="pu-actions">
+                  <ActionButton onClick={() => navigateToCustomerOAuthLogin(`/${cfg.slug}-mcp`)}>
+                    Sign in
+                  </ActionButton>
+                </div>
+              </Card>
+            ) : null}
             {cfg.runs.map((r) => {
               const permit = r.outcome === 'PERMIT';
               return (
@@ -407,16 +472,24 @@ export default function McpShowcasePage({ capability }) {
                       className="mcpsc__input"
                       placeholder={cfg.freeForm.placeholder}
                       value={freeText}
-                      onChange={(e) => setFreeText(e.target.value)}
+                      onChange={(e) => {
+                        setFreeText(e.target.value);
+                        setFreeHint('');
+                      }}
                       readOnly={running !== null}
+                      aria-describedby={freeHint ? 'mcpsc-free-hint' : undefined}
                     />
                     <ActionButton
                       type="submit"
                       lead={primaryKey === 'free'}
                       aria-disabled={running !== null || !freeReady ? 'true' : undefined}
+                      aria-describedby={freeHint ? 'mcpsc-free-hint' : undefined}
                     >
                       {running === 'free' ? 'Starting…' : cfg.freeForm.button}
                     </ActionButton>
+                  </div>
+                  <div className="mcpsc__live" role="status">
+                    {freeHint ? <p id="mcpsc-free-hint" className="pu-note">{freeHint}</p> : null}
                   </div>
                 </form>
               </Card>
@@ -429,7 +502,12 @@ export default function McpShowcasePage({ capability }) {
           ) : null}
         </Section>
 
-        <Section id="mcpsc-files" kicker="4 · Where it is enforced" title="Gateway files">
+        <Section
+          id="mcpsc-files"
+          kicker="4 · Where it is enforced"
+          title="Gateway config files"
+          lede="Paths to the real gateway route, script and flag files in this repo. They are configuration, not a result."
+        >
           <Card tone="neutral">
             <ul className="mcpsc__refs">
               {cfg.codeRefs.map((ref) => (
