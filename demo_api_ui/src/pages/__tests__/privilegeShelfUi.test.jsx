@@ -52,8 +52,8 @@ describe("PrivilegeShelfPage on the Ping UI Standard", () => {
     expect(chips.length).toBeGreaterThan(0);
     for (const c of chips) expect(c.textContent.trim().length).toBeGreaterThan(0);
     expect(container.querySelector(".pshelf-body")).toBeNull();
-    expect(screen.getAllByText("New in the Platform Update").length).toBe(5);
-    expect(screen.getByText("Opens in a new tab")).toBeTruthy();
+    expect(screen.getAllByText("New in the Platform Update").length).toBe(6);
+    expect(screen.getAllByText("Opens in a new tab").length).toBe(2);
   });
 
   it("never prints a section's title twice: the kicker adds the position and the link count instead", () => {
@@ -63,7 +63,7 @@ describe("PrivilegeShelfPage on the Ping UI Standard", () => {
       `1 of 5 \u00b7 ${PRIVILEGE_MAP_PAGES.length} links`,
       "2 of 5 \u00b7 4 links",
       "3 of 5 \u00b7 1 link",
-      "4 of 5 \u00b7 8 links",
+      "4 of 5 \u00b7 9 links",
       "5 of 5 \u00b7 1 link",
     ]);
     for (const region of screen.getAllByRole("region")) {
