@@ -11,6 +11,7 @@
 /privilege-pii-detection
 /privilege-gateway-topologies
 /agent-lifecycle
+/demo-map
 /privilege-demo
 /ungoverned-agent
 /privilege-intent-triage

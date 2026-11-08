@@ -70,4 +70,54 @@ describe("DemoMapPage", () => {
     // sanity: the union of group steps includes at least one diagrammed UC
     expect(stepLinkUcs.some((id) => diagrammed.has(id))).toBe(true);
   });
+
+  it("is a navigation map: banner first and honest, no buttons, one h1, lanes as cards", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <DemoMapPage />
+      </MemoryRouter>,
+    );
+    const page = container.firstElementChild;
+    expect(page.classList.contains("pu-page")).toBe(true);
+    // P2: the note is the first thing on the page, before the title band
+    const banner = screen.getByTestId("demo-map-banner");
+    expect(banner.getAttribute("role")).toBe("note");
+    expect(banner.textContent).toMatch(/nothing on this page runs/i);
+    expect(page.firstElementChild.contains(banner)).toBe(true);
+    expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1);
+    // links only: no button, so no primary and no second action
+    expect(container.querySelectorAll("button").length).toBe(0);
+    const live = MISSION_CONTROL_CATALOG.filter((g) => g.status !== "planned");
+    for (const g of live) {
+      const lane = screen.getByTestId(`demo-map-lane-${g.id}`);
+      expect(lane.classList.contains("pu-card")).toBe(true);
+      expect(lane.querySelector(".pu-chip").textContent.trim()).toBe(g.product);
+    }
+  });
+
+  it("every diagram glyph link has an accessible name that says which step", () => {
+    render(
+      <MemoryRouter>
+        <DemoMapPage />
+      </MemoryRouter>,
+    );
+    const glyphs = screen.getAllByText("◱").filter((el) => el.tagName === "A");
+    expect(glyphs.length).toBeGreaterThan(0);
+    for (const a of glyphs) {
+      expect(a.getAttribute("aria-label")).toMatch(/^Use-case diagram: .+/);
+    }
+  });
+
+  it("planned lanes are labelled Planned, never as live", () => {
+    render(
+      <MemoryRouter>
+        <DemoMapPage />
+      </MemoryRouter>,
+    );
+    const planned = MISSION_CONTROL_CATALOG.filter((g) => g.status === "planned");
+    if (planned.length === 0) return;
+    expect(screen.getByRole("heading", { name: "Planned lanes" })).toBeTruthy();
+    expect(screen.getAllByText("Planned").length).toBe(planned.length);
+  });
 });
+
