@@ -119,6 +119,15 @@ export default function PrivilegeA2aTab() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const progress = pathProgress(trace, busy);
+  // Seconds since Send, so a slow model call reads as "working" and not as "stuck".
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (!busy) { setElapsedSec(0); return undefined; }
+    const startedAt = Date.now();
+    setElapsedSec(0);
+    const timer = setInterval(() => setElapsedSec(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [busy]);
   // The gateway's own record of the last run: its model calls and guardrail verdicts.
   const [record, setRecord] = useState(null);
   const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
@@ -241,7 +250,7 @@ export default function PrivilegeA2aTab() {
   const toolCalls = trace.filter((entry) => entry.kind === 'mcp-call').length;
   const answered = Boolean(turns.length && turns[turns.length - 1].answer);
   const exchange = [
-    { label: '1. Send Message', who: 'A2A Client → Remote Agent', step: sentAt, state: sentAt >= 0 ? 'done' : 'waiting' },
+    { label: '1. Send Message', who: 'A2A Client → Remote Agent', step: sentAt, state: sentAt >= 0 ? 'done' : busy ? 'working' : 'waiting' },
     { label: '2. Remote Agent works', who: toolCalls ? `${toolCalls} MCP tool call${toolCalls === 1 ? '' : 's'}` : 'checks access data', step: trace.findIndex((entry) => entry.kind === 'mcp-call'),
       state: replyAt >= 0 ? 'done' : failed ? 'stopped' : sentAt >= 0 && busy ? 'working' : 'waiting' },
     { label: '3. Reply returned', who: 'Remote Agent → A2A Client', step: replyAt, state: replyAt >= 0 ? 'done' : failed && sentAt >= 0 ? 'stopped' : 'waiting' },
@@ -293,7 +302,15 @@ export default function PrivilegeA2aTab() {
             </li>
           ))}
         </ol>
-          <p className="privilege-a2a__now" role="status">{nowLine}</p>
+          <p className="privilege-a2a__now" role="status">
+            {nowLine}
+            {busy && (
+              <span className="privilege-a2a__clock" data-testid="a2a-clock">
+                {' '}<span className="privilege-a2a__dot" aria-hidden="true" />{elapsedSec}s
+                {elapsedSec >= 8 ? ' · still working: a model call can take 10 to 30 seconds' : ''}
+              </span>
+            )}
+          </p>
         </div>
       </header>
 
