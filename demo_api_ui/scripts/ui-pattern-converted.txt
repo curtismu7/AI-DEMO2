@@ -9,6 +9,7 @@
 /privilege-coding-agents
 /demo-summary
 /privilege-pii-detection
+/settings
 /privilege-gateway-topologies
 /agent-lifecycle
 /privilege-demo

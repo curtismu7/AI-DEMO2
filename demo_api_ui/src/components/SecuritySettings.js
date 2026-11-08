@@ -1,14 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+// /settings: live step-up MFA, transaction-limit and PingOne Authorize settings.
+//
+// Layout follows the Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 key-value, P7 chips, P9 buttons.
+// Skipped: P6 inspector and P8 diagram (this page has neither). The form controls (switch, option pills,
+// inputs), the history rail and its divider stay page-local (SecuritySettings.css).
+// Dropped with the old AdminSubPageShell hero: its "Dark mode" button (the app header has the theme switch)
+// and the Back / Home PageNav row (the side nav and "← Admin Dashboard" cover it), same as /demo-config.
+//
+// P9, "exactly one primary per view", by state:
+//   loading          no buttons.
+//   load failed      "Try again" is the only primary: nothing else on the page can act until settings load.
+//   ready / saving   "Save Changes" is the only primary: it is the one control that writes to the server.
+//                    Discard, the two "What is..." buttons, "← Admin Dashboard", the switches and the
+//                    option pills are secondaries / form controls.
+// Save, Discard and Try again use aria-disabled, never the disabled attribute, so keyboard focus stays on the
+// control that was activated (a saved form turns Save inert and focus must not drop to the page body). The
+// reason ("Nothing to save", "Saving…") is visible text, wired up with aria-describedby.
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/apiClient';
-import { notifySuccess, notifyError } from '../utils/appToast';
 import { useEducationUI } from '../context/EducationUIContext';
 import { EDU } from './education/educationIds';
-import AdminSubPageShell from './AdminSubPageShell';
 import useDividerDrag from '../hooks/useDividerDrag';
-import PageNav from './PageNav';
 import InlineSpinner from './shared/InlineSpinner';
+import PageHeader from './common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList } from './pingUi';
+import './SecuritySettings.css';
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// ── Field definitions ─────────────────────────────────────────────────────────
 
 const FIELD_META = {
   stepUpEnabled: {
@@ -19,6 +37,7 @@ const FIELD_META = {
   stepUpAmountThreshold: {
     label: 'Step-up Threshold ($)',
     type: 'number',
+    prefix: '$',
     min: 0,
     max: 100000,
     description: 'Transfers and withdrawals at or above this amount require MFA re-authentication. Set to 0 to require step-up on ALL transactions.',
@@ -40,7 +59,7 @@ const FIELD_META = {
     options: [
       { value: 'email', label: 'Email OTP (built-in)' },
       { value: 'pingone-mfa', label: 'PingOne MFA (deviceAuthentications)' },
-      { value: 'ciba', label: 'CIBA Push Approval' },
+      { value: 'ciba', label: 'CIBA approval (mock phone or email)' },
     ],
     description: 'Authentication method used for step-up challenges. "PingOne MFA" uses the deviceAuthentications API and requires PINGONE_MFA_POLICY_ID.',
   },
@@ -52,6 +71,7 @@ const FIELD_META = {
   maxTransactionAmount: {
     label: 'Maximum Transaction Amount ($)',
     type: 'number',
+    prefix: '$',
     min: 0,
     max: 1000000,
     description: 'Hard stop limit: ALL transactions exceeding this amount are blocked. Applied to all user types (users, admin, agent).',
@@ -66,6 +86,7 @@ const FIELD_META = {
   agentTransactionValueLimit: {
     label: 'Agent Transaction Value Limit ($)',
     type: 'number',
+    prefix: '$',
     min: 0,
     max: 1000000,
     description: 'Delegated agent stop limit by cumulative transaction value per approval window. Set to 0 for unlimited.',
@@ -82,82 +103,33 @@ const FIELD_META = {
   },
 };
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+const FIELD_ORDER = [
+  'stepUpEnabled',
+  'stepUpAmountThreshold',
+  'stepUpAcrValue',
+  'stepUpTransactionTypes',
+  'stepUpMethod',
+  'stepUpWithdrawalsAlways',
+  'maxTransactionAmount',
+  'agentTransactionCountLimit',
+  'agentTransactionValueLimit',
+  'authorizeEnabled',
+  'authorizePolicyId',
+];
 
-function Toggle({ value, onChange, disabled }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onChange(!value)}
-      style={{
-        position: 'relative',
-        display: 'inline-flex',
-        width: '48px',
-        height: '26px',
-        borderRadius: '13px',
-        border: 'none',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        background: value ? 'var(--brand-navy)' : '#d1d5db',
-        transition: 'background 0.2s',
-        padding: 0,
-        opacity: disabled ? 0.5 : 1,
-      }}
-      aria-pressed={value}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: '3px',
-          left: value ? '25px' : '3px',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: 'white',
-          transition: 'left 0.2s',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        }}
-      />
-    </button>
-  );
-}
+const RELATED = [
+  { href: '/feature-flags', label: 'Feature Flags', desc: 'Runtime toggles (HITL, heuristics, agent modes)' },
+  { href: '/llm-config', label: 'LLM Provider', desc: 'Model selection (Helix, Anthropic, Google, local)' },
+  { href: '/configure', label: 'PingOne Setup', desc: 'Environment config, credentials, quick-start' },
+  { href: '/pingone-authorize', label: 'Authorize Console', desc: 'Live policy testing, decision endpoints' },
+];
 
-function MultiSelect({ value = [], options, onChange, disabled }) {
-  const toggle = (opt) => {
-    if (disabled) return;
-    onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]);
-  };
-  return (
-    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-      {options.map(opt => (
-        <button
-          key={opt}
-          type="button"
-          disabled={disabled}
-          onClick={() => toggle(opt)}
-          style={{
-            padding: '4px 12px',
-            borderRadius: '20px',
-            border: '2px solid',
-            borderColor: value.includes(opt) ? 'var(--brand-navy)' : '#d1d5db',
-            background: value.includes(opt) ? '#eff6ff' : 'white',
-            color: value.includes(opt) ? 'color-mix(in srgb, var(--brand-navy) 55%, #0f172a)' : '#374151',
-            fontWeight: value.includes(opt) ? '600' : '400',
-            cursor: disabled ? 'not-allowed' : 'pointer',
-            fontSize: '0.85rem',
-            transition: 'all 0.15s',
-          }}
-        >
-          {opt}
-        </button>
-      ))}
-    </div>
-  );
-}
+const errorText = (err, fallback) =>
+  err?.response?.data?.error_description || err?.response?.data?.error || fallback;
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const SecuritySettings = ({ user, onLogout }) => {
+const SecuritySettings = () => {
   const { open } = useEducationUI();
   const { size: historyWidth, handleProps: historyHandleProps } = useDividerDrag({
     min: 280,
@@ -171,8 +143,14 @@ const SecuritySettings = ({ user, onLogout }) => {
   const [authorizeStatus, setAuthorizeStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Result of the last save: { tone: 'ok' | 'danger', text }. Cleared on the next edit.
+  const [status, setStatus] = useState(null);
+  const formRef = useRef(null);
+  const focusFormNext = useRef(false);
 
   // authorizeEnabled is read-only status (engine is always-on by design) —
   // keep it out of the editable form so it is never sent in the PUT payload.
@@ -183,21 +161,18 @@ const SecuritySettings = ({ user, onLogout }) => {
 
   const fetchSettings = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await apiClient.get('/api/admin/settings');
       setSettings(res.data.settings);
       setForm(toEditableForm(res.data.settings));
       setAuthorizeStatus(res.data.authorizeStatus || null);
       setHistory(res.data.history || []);
       setDirty(false);
+      setLoadError(null);
     } catch (err) {
-      notifyError(
-        err.response?.data?.error_description ||
-          err.response?.data?.error ||
-          'Failed to load settings.'
-      );
+      setLoadError(errorText(err, 'Failed to load settings.'));
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
   }, []);
 
@@ -205,333 +180,442 @@ const SecuritySettings = ({ user, onLogout }) => {
     fetchSettings();
   }, [fetchSettings]);
 
+  // After "Try again" succeeds its button is gone: give keyboard focus to the form region.
+  useEffect(() => {
+    if (form && focusFormNext.current) {
+      focusFormNext.current = false;
+      formRef.current?.focus();
+    }
+  }, [form]);
+
+  const retry = () => {
+    if (retrying) return;
+    focusFormNext.current = true;
+    setRetrying(true);
+    fetchSettings();
+  };
+
   const set = (key, value) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value }));
     setDirty(true);
+    setStatus(null);
   };
 
   const handleSave = async () => {
+    if (!dirty || saving) return;
     try {
       setSaving(true);
+      setStatus(null);
       const res = await apiClient.put('/api/admin/settings', form);
       setSettings(res.data.settings);
       setForm(toEditableForm(res.data.settings));
       setDirty(false);
-      notifySuccess('Settings saved successfully.');
-      // Re-fetch history
-      const full = await apiClient.get('/api/admin/settings');
-      setHistory(full.data.history || []);
-      setAuthorizeStatus(full.data.authorizeStatus || null);
+      setStatus({ tone: 'ok', text: 'Settings saved successfully.' });
+      // Re-fetch history. The save already succeeded, so a failure here only leaves the list stale.
+      try {
+        const full = await apiClient.get('/api/admin/settings');
+        setHistory(full.data.history || []);
+        setAuthorizeStatus(full.data.authorizeStatus || null);
+      } catch {
+        // keep the previous history and status
+      }
     } catch (err) {
-      notifyError(
-        err.response?.data?.error_description ||
-          err.response?.data?.error ||
-          'Failed to save settings.'
-      );
+      setStatus({ tone: 'danger', text: errorText(err, 'Failed to save settings.') });
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = () => {
+    if (!dirty || saving) return;
     setForm(toEditableForm(settings));
     setDirty(false);
+    setStatus(null);
   };
 
-  if (loading) {
+  const renderField = (key) => {
+    const meta = FIELD_META[key];
+    // 'status' rows are read-only server-computed values — they are
+    // intentionally absent from the editable form state.
+    if (!meta || (meta.type !== 'status' && form[key] === undefined)) return null;
+    const id = `sset-${key}`;
+    const labelId = `${id}-label`;
+    const descId = `${id}-desc`;
+    const labelIsFor = meta.type === 'toggle' || meta.type === 'number' || meta.type === 'text' || meta.type === 'select';
     return (
-      <AdminSubPageShell title="Security Settings" lead="Live configuration — changes take effect immediately, no restart required.">
-        <div style={{ padding: '40px', textAlign: 'center', color: '#374151' }}>
-          <InlineSpinner label="Loading settings…" />
-        </div>
-      </AdminSubPageShell>
-    );
-  }
+      <div key={key} className="sset-field" data-testid={`sset-field-${key}`}>
+        {labelIsFor ? (
+          <label className="sset-field__label" id={labelId} htmlFor={id}>{meta.label}</label>
+        ) : (
+          <div className="sset-field__label" id={labelId}>{meta.label}</div>
+        )}
+        <p className="sset-field__desc" id={descId}>{meta.description}</p>
 
-  const fieldOrder = [
-    'stepUpEnabled',
-    'stepUpAmountThreshold',
-    'stepUpAcrValue',
-    'stepUpTransactionTypes',
-    'stepUpMethod',
-    'stepUpWithdrawalsAlways',
-    'maxTransactionAmount',
-    'agentTransactionCountLimit',
-    'agentTransactionValueLimit',
-    'authorizeEnabled',
-    'authorizePolicyId',
+        {meta.type === 'toggle' && (
+          <Toggle id={id} value={form[key]} onChange={(v) => set(key, v)} describedBy={descId} />
+        )}
+
+        {meta.type === 'status' && (
+          <p className="pu-status-line">
+            {authorizeStatus ? (
+              authorizeStatus.authorizeEnabledConfig ? (
+                <>
+                  <StatusChip tone="ok">Active</StatusChip>
+                  <span>mode: {authorizeStatus.activeEngine}</span>
+                </>
+              ) : (
+                <StatusChip tone="warn">Inactive</StatusChip>
+              )
+            ) : (
+              <StatusChip tone="neutral">Status unavailable</StatusChip>
+            )}
+          </p>
+        )}
+
+        {meta.type === 'number' && (
+          <div className="sset-number">
+            {meta.prefix ? <span className="sset-number__prefix" aria-hidden="true">{meta.prefix}</span> : null}
+            <input
+              id={id}
+              type="number"
+              className="sset-input sset-input--number"
+              min={meta.min}
+              max={meta.max}
+              value={form[key]}
+              aria-describedby={descId}
+              onChange={(e) => set(key, e.target.value)}
+            />
+          </div>
+        )}
+
+        {meta.type === 'text' && (
+          <input
+            id={id}
+            type="text"
+            className="sset-input sset-input--text"
+            value={form[key]}
+            aria-describedby={descId}
+            onChange={(e) => set(key, e.target.value)}
+          />
+        )}
+
+        {meta.type === 'multiselect' && (
+          <MultiSelect
+            value={form[key]}
+            options={meta.options}
+            onChange={(v) => set(key, v)}
+            labelledBy={labelId}
+            describedBy={descId}
+          />
+        )}
+
+        {meta.type === 'select' && (
+          <select
+            id={id}
+            className="pu-select sset-select"
+            value={form[key] || ''}
+            aria-describedby={descId}
+            onChange={(e) => set(key, e.target.value)}
+          >
+            {(meta.options || []).map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
+      </div>
+    );
+  };
+
+  const gateItems = settings && [
+    {
+      label: 'Login / Step-up MFA',
+      value: settings.stepUpEnabled ? (
+        <>
+          <StatusChip tone="info">Enabled</StatusChip> method: {settings.stepUpMethod || 'email'}
+        </>
+      ) : (
+        <StatusChip tone="warn">Disabled</StatusChip>
+      ),
+    },
+    {
+      label: 'Step-up threshold',
+      value: settings.stepUpWithdrawalsAlways
+        ? 'All withdrawals (stepUpWithdrawalsAlways)'
+        : settings.stepUpAmountThreshold > 0
+          ? `$${settings.stepUpAmountThreshold}+ transactions`
+          : 'All amounts ($0 threshold)',
+    },
+    {
+      label: 'Step-up transaction types',
+      value: Array.isArray(settings.stepUpTransactionTypes) && settings.stepUpTransactionTypes.length > 0
+        ? settings.stepUpTransactionTypes.join(', ')
+        : '—',
+    },
+    {
+      label: 'PingOne Authorize gate',
+      value: authorizeStatus ? (
+        authorizeStatus.authorizeEnabledConfig ? (
+          <>
+            <StatusChip tone="ok">Active</StatusChip> mode: {authorizeStatus.activeEngine}, policy: {settings.authorizePolicyId || 'not set'}
+          </>
+        ) : (
+          <StatusChip tone="warn">Inactive</StatusChip>
+        )
+      ) : (
+        <StatusChip tone="neutral">Status unavailable</StatusChip>
+      ),
+    },
+    {
+      label: 'Session required for tool calls',
+      value: (
+        <>
+          <StatusChip tone="neutral">Always</StatusChip> requireSession middleware
+        </>
+      ),
+    },
+    {
+      label: 'Agent transaction stop limits',
+      value: `count: ${settings.agentTransactionCountLimit > 0 ? settings.agentTransactionCountLimit : 'unlimited'} · value: ${settings.agentTransactionValueLimit > 0 ? `$${settings.agentTransactionValueLimit}` : 'unlimited'}`,
+    },
   ];
 
   return (
-    <AdminSubPageShell title="Security Settings" lead="Live configuration — changes take effect immediately, no restart required.">
-      <PageNav user={user} onLogout={onLogout} title="Security Settings" />
-      <div className="app-page-toolbar app-page-toolbar--start" style={{ flexWrap: 'wrap', gap: '8px' }}>
-        <button
-          type="button"
-          className="app-page-toolbar-btn"
-          onClick={() => open(EDU.STEP_UP, 'what')}
-        >
-          What is step-up MFA?
-        </button>
-        <button
-          type="button"
-          className="app-page-toolbar-btn"
-          onClick={() => open(EDU.PINGONE_AUTHORIZE, 'what')}
-        >
-          What is PingOne Authorize?
-        </button>
-        <span className="page-nav__spacer" aria-hidden="true" />
-        <button
-          type="button"
-          className="app-page-toolbar-btn app-page-toolbar-btn--accent"
-          onClick={() => { window.location.href = '/admin'; }}
-        >
-          ← Admin Dashboard
-        </button>
-      </div>
-
-      {/* Related settings surfaces — single-entry-point navigation */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        {[
-          { href: '/feature-flags', label: 'Feature Flags', desc: 'Runtime toggles (HITL, heuristics, agent modes)', icon: '🎛️' },
-          { href: '/llm-config', label: 'LLM Provider', desc: 'Model selection (Helix, Anthropic, Google, local)', icon: '🤖' },
-          { href: '/configure', label: 'PingOne Setup', desc: 'Environment config, credentials, quick-start', icon: '🔧' },
-          { href: '/pingone-authorize', label: 'Authorize Console', desc: 'Live policy testing, decision endpoints', icon: '🛡️' },
-        ].map(({ href, label, desc, icon }) => (
-          <a
-            key={href}
-            href={href}
-            style={{
-              display: 'flex', alignItems: 'flex-start', gap: '10px',
-              padding: '12px 14px', borderRadius: '8px',
-              border: '1px solid #e5e7eb', background: '#fafafa',
-              textDecoration: 'none', color: 'inherit',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#93c5fd'; e.currentTarget.style.background = '#eff6ff'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#fafafa'; }}
-          >
-            <span style={{ fontSize: '20px', lineHeight: 1 }}>{icon}</span>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>{label}</div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{desc}</div>
-            </div>
-          </a>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: `1fr 6px ${historyWidth}px`, gap: '9px', alignItems: 'start' }}>
-
-        {/* Settings form */}
-        <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: '#111827' }}>
-              Step-up MFA &amp; Authorization Policy
-            </h2>
-            {dirty && <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: '600' }}>● Unsaved changes</span>}
-          </div>
-
-          <div style={{ padding: '24px' }}>
-            {fieldOrder.map((key) => {
-              const meta = FIELD_META[key];
-              // 'status' rows are read-only server-computed values — they are
-              // intentionally absent from the editable form state.
-              if (!meta || (meta.type !== 'status' && form[key] === undefined)) return null;
-              return (
-                <div key={key} style={{ marginBottom: '28px', paddingBottom: '28px', borderBottom: '1px solid #f3f4f6' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div>
-                      <div style={{ display: 'block', fontWeight: '600', color: '#374151', fontSize: '0.9rem', marginBottom: '4px' }}>
-                        {meta.label}
-                        {meta.disabled && <span style={{ marginLeft: '8px', fontSize: '0.75rem', background: '#f3f4f6', color: '#374151', padding: '2px 6px', borderRadius: '4px' }}>Coming soon</span>}
-                      </div>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#374151' }}>{meta.description}</p>
-                    </div>
-                  </div>
-
-                  {meta.type === 'toggle' && (
-                    <Toggle value={form[key]} onChange={(v) => set(key, v)} disabled={meta.disabled} />
-                  )}
-
-                  {meta.type === 'status' && (
-                    <div style={{ display: 'inline-block', padding: '6px 12px', borderRadius: '6px', background: '#f3f4f6', color: '#111827', fontSize: '0.875rem', fontWeight: '600' }}>
-                      {authorizeStatus
-                        ? (authorizeStatus.authorizeEnabledConfig
-                            ? `✅ Active (mode: ${authorizeStatus.activeEngine})`
-                            : '❌ Inactive')
-                        : 'Status unavailable'}
-                    </div>
-                  )}
-
-                  {meta.type === 'number' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#374151', fontWeight: '600' }}>$</span>
-                      <input
-                        type="number"
-                        min={meta.min}
-                        max={meta.max}
-                        value={form[key]}
-                        disabled={meta.disabled}
-                        onChange={(e) => set(key, e.target.value)}
-                        style={{ width: '160px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.95rem', color: '#111827', colorScheme: 'light' }}
-                      />
-                    </div>
-                  )}
-
-                  {meta.type === 'text' && (
-                    <input
-                      type="text"
-                      value={form[key]}
-                      disabled={meta.disabled}
-                      onChange={(e) => set(key, e.target.value)}
-                      style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.875rem', color: '#111827', colorScheme: 'light', opacity: meta.disabled ? 0.5 : 1 }}
-                    />
-                  )}
-
-                  {meta.type === 'multiselect' && (
-                    <MultiSelect
-                      value={form[key]}
-                      options={meta.options}
-                      onChange={(v) => set(key, v)}
-                      disabled={meta.disabled}
-                    />
-                  )}
-
-                  {meta.type === 'select' && (
-                    <select
-                      value={form[key] || ''}
-                      disabled={meta.disabled}
-                      onChange={(e) => set(key, e.target.value)}
-                      style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.875rem', color: '#111827', background: 'white', colorScheme: 'light', opacity: meta.disabled ? 0.5 : 1 }}
-                    >
-                      {(meta.options || []).map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!dirty || saving}
-                style={{ padding: '10px 24px', background: dirty ? 'var(--brand-navy)' : '#e5e7eb', color: dirty ? 'var(--app-primary-blue-text, #fff)' : '#1f2937', border: 'none', borderRadius: '6px', fontWeight: '600', fontSize: '0.875rem', cursor: dirty ? 'pointer' : 'not-allowed', transition: 'background 0.2s' }}
-              >
-                {saving ? 'Saving…' : 'Save Changes'}
+    <PingPage className="sset-page">
+      <SimBanner data-testid="sset-banner">
+        <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. Save Changes writes to the running API
+        server and applies to every session on it at once, no restart needed. The values are held in the server&rsquo;s
+        memory (the history too), so a restart can reset them. The PingOne Authorize status is only displayed here: the
+        server works it out from the engine now in use.
+      </SimBanner>
+      <PageHeader
+        eyebrow="Admin · Security"
+        title="Security Settings"
+        summary="Live configuration — changes take effect immediately, no restart required."
+      />
+      <PageFrame>
+        {loading ? (
+          <div className="sset-loading"><InlineSpinner label="Loading settings…" /></div>
+        ) : (
+          <>
+            <div className="pu-actions sset-toolbar">
+              <button type="button" className="pu-btn" onClick={() => open(EDU.STEP_UP, 'what')}>
+                What is step-up MFA?
               </button>
-              <button
-                type="button"
-                onClick={handleReset}
-                disabled={!dirty || saving}
-                style={{ padding: '10px 24px', background: 'white', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontWeight: '500', fontSize: '0.875rem', cursor: dirty ? 'pointer' : 'not-allowed' }}
-              >
-                Discard
+              <button type="button" className="pu-btn" onClick={() => open(EDU.PINGONE_AUTHORIZE, 'what')}>
+                What is PingOne Authorize?
+              </button>
+              <span className="sset-toolbar__spacer" aria-hidden="true" />
+              <button type="button" className="pu-btn" onClick={() => { window.location.href = '/admin'; }}>
+                ← Admin Dashboard
               </button>
             </div>
-          </div>
-        </div>
 
-        <div className="divider-drag-handle" aria-label="Resize change history" style={{ alignSelf: 'stretch' }} {...historyHandleProps} />
-
-        {/* Change history sidebar */}
-        <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: '#111827' }}>Change History</h2>
-            <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#374151' }}>Last 50 changes · in-memory</p>
-          </div>
-          <div style={{ maxHeight: '520px', overflowY: 'auto', padding: '8px 0' }}>
-            {history.length === 0 ? (
-              <p style={{ padding: '16px 20px', color: '#374151', fontSize: '0.85rem', margin: 0 }}>No changes yet.</p>
-            ) : (
-              history.map((entry, i) => (
-                <div key={`${entry.timestamp || 'unknown'}-${entry.changedBy || 'unknown'}-${i}`} style={{ padding: '12px 20px', borderBottom: '1px solid #f9fafb' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: '600', fontSize: '0.8rem', color: '#374151' }}>{entry.changedBy}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#374151' }}>
-                      {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  {Object.entries(entry.changes).map(([k, v]) => (
-                    <div key={k} style={{ fontSize: '0.78rem', color: '#374151', marginBottom: '2px' }}>
-                      <span style={{ color: '#374151', fontWeight: '500' }}>{k}:</span>{' '}
-                      <span style={{ textDecoration: 'line-through', color: '#d1d5db' }}>
-                        {JSON.stringify(entry.previous[k])}
-                      </span>{' '}→ <span style={{ color: '#059669' }}>{JSON.stringify(v)}</span>
-                    </div>
+            {form && (
+              <Section id="sset-related-h" kicker="1 · Related settings" title="Other places settings live">
+                <CardGrid>
+                  {RELATED.map(({ href, label, desc }) => (
+                    <Card key={href} tone="neutral">
+                      <a className="sset-related" href={href}>
+                        <span className="sset-related__label">{label}</span>
+                        <span className="sset-related__desc">{desc}</span>
+                      </a>
+                    </Card>
                   ))}
-                </div>
-              ))
+                </CardGrid>
+              </Section>
             )}
-          </div>
-        </div>
-      </div>
-      {/* Auth Gate Summary — read-only audit view of active enforcement rules */}
-      {settings && (
-        <div style={{ marginTop: '32px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f3f4f6' }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600', color: '#111827' }}>Auth Gate Summary</h3>
-            <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#374151' }}>
-              Current enforcement rules — live values from runtime settings above.
-            </p>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-            <tbody>
-              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600', width: '45%' }}>Login / Step-up MFA</th>
-                <td style={{ padding: '10px 20px', color: '#374151' }}>
-                  {settings.stepUpEnabled
-                    ? `✅ Enabled — method: ${settings.stepUpMethod || 'email'}`
-                    : '❌ Disabled'}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Step-up threshold</th>
-                <td style={{ padding: '10px 20px', color: '#374151' }}>
-                  {settings.stepUpWithdrawalsAlways
-                    ? 'All withdrawals (stepUpWithdrawalsAlways)'
-                    : settings.stepUpAmountThreshold > 0
-                      ? `$${settings.stepUpAmountThreshold}+ transactions`
-                      : 'All amounts ($0 threshold)'}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Step-up transaction types</th>
-                <td style={{ padding: '10px 20px', color: '#374151' }}>
-                  {Array.isArray(settings.stepUpTransactionTypes) && settings.stepUpTransactionTypes.length > 0
-                    ? settings.stepUpTransactionTypes.join(', ')
-                    : '—'}
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>PingOne Authorize gate</th>
-                <td style={{ padding: '10px 20px', color: '#374151' }}>
-                  {authorizeStatus
-                    ? (authorizeStatus.authorizeEnabledConfig
-                        ? `✅ Active (mode: ${authorizeStatus.activeEngine}, policy: ${settings.authorizePolicyId || 'not set'})`
-                        : '❌ Inactive')
-                    : 'Status unavailable'}
-                </td>
-              </tr>
-              <tr>
-                <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Session required for tool calls</th>
-                <td style={{ padding: '10px 20px', color: '#374151' }}>✅ Always (requireSession middleware)</td>
-              </tr>
-              <tr style={{ borderTop: '1px solid #f3f4f6' }}>
-                <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Agent transaction stop limits</th>
-                <td style={{ padding: '10px 20px', color: '#374151' }}>
-                  count: {settings.agentTransactionCountLimit > 0 ? settings.agentTransactionCountLimit : 'unlimited'} · value: {settings.agentTransactionValueLimit > 0 ? `$${settings.agentTransactionValueLimit}` : 'unlimited'}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-    </AdminSubPageShell>
+
+            <Section
+              id="sset-policy-h"
+              kicker="2 · Policy"
+              title="Step-up MFA & Authorization Policy"
+              lede={form ? 'Edits stay in the form until you save them. Saving applies them on the server straight away.' : undefined}
+            >
+              <div className="sset-layout" style={{ '--sset-rail-w': `${historyWidth}px` }}>
+                <Card tone={form ? undefined : 'danger'}>
+                  <div
+                    className="sset-form"
+                    ref={formRef}
+                    tabIndex={-1}
+                    role="region"
+                    aria-label="Security settings form"
+                  >
+                    {form ? (
+                      <>
+                        <p className="pu-status-line">
+                          <StatusChip tone={dirty ? 'warn' : 'neutral'}>{dirty ? 'Unsaved changes' : 'No changes'}</StatusChip>
+                        </p>
+
+                        {FIELD_ORDER.map(renderField)}
+
+                        <div role="status" aria-live="polite" className="sset-result" data-testid="sset-status">
+                          {status?.tone === 'ok' && (
+                            <p className="pu-status-line">
+                              <StatusChip tone="ok">Saved</StatusChip>
+                              <span>{status.text}</span>
+                            </p>
+                          )}
+                        </div>
+                        {status?.tone === 'danger' && (
+                          <p className="pu-status-line sset-result" role="alert" data-testid="sset-error">
+                            <StatusChip tone="danger">Not saved</StatusChip>
+                            <span>{status.text}</span>
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div role="alert" data-testid="sset-load-error">
+                        <p className="pu-status-line">
+                          <StatusChip tone="danger">Error</StatusChip>
+                          <span>{loadError}</span>
+                        </p>
+                        <p className="pu-note">
+                          Settings could not be read from the server, so nothing here can be edited yet.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* The one primary of the view, once in the source: Save Changes when the form is loaded,
+                        Try again when it is not. Discard is a secondary and only exists with the form. */}
+                    <div className="pu-actions">
+                      <button
+                        type="button"
+                        className="pu-btn pu-btn--primary"
+                        aria-disabled={(form ? !dirty || saving : retrying) ? 'true' : undefined}
+                        aria-describedby="sset-action-reason"
+                        onClick={form ? handleSave : retry}
+                      >
+                        {form ? (saving ? 'Saving…' : 'Save Changes') : (retrying ? 'Trying again…' : 'Try again')}
+                      </button>
+                      {form && (
+                        <button
+                          type="button"
+                          className="pu-btn"
+                          aria-disabled={!dirty || saving ? 'true' : undefined}
+                          aria-describedby="sset-action-reason"
+                          onClick={handleReset}
+                        >
+                          Discard
+                        </button>
+                      )}
+                    </div>
+                    <p className="pu-note" id="sset-action-reason">
+                      {!form
+                        ? (retrying ? 'Reading settings from the server…' : 'Try again reads the settings from the server.')
+                        : saving
+                          ? 'Saving to the server…'
+                          : dirty
+                            ? 'Save applies your edits on the server now; Discard puts back the saved values.'
+                            : 'Nothing to save or discard until you change a field.'}
+                    </p>
+                  </div>
+                </Card>
+
+                {form && (
+                  <>
+                    <div className="divider-drag-handle" aria-label="Resize change history" {...historyHandleProps} />
+
+                    <Card tone="neutral" className="sset-history-card">
+                      <h3 className="pu-h3">Change History</h3>
+                      <p className="pu-note sset-history__sub">Last 50 changes · in-memory</p>
+                      <div
+                        className="sset-history"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Recent setting changes"
+                      >
+                        {history.length === 0 ? (
+                          <p className="pu-empty pu-note">No changes yet.</p>
+                        ) : (
+                          <ul className="sset-history__list">
+                            {history.map((entry, i) => (
+                              <li key={`${entry.timestamp || 'unknown'}-${entry.changedBy || 'unknown'}-${i}`} className="sset-history__entry">
+                                <div className="sset-history__head">
+                                  <span className="sset-history__who">{entry.changedBy}</span>
+                                  <time className="sset-history__time" dateTime={entry.timestamp}>
+                                    {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </time>
+                                </div>
+                                {Object.entries(entry.changes).map(([k, v]) => (
+                                  <div key={k} className="sset-history__change">
+                                    <span className="sset-history__key">{k}:</span>{' '}
+                                    <del>{JSON.stringify(entry.previous?.[k])}</del>{' '}→ <ins>{JSON.stringify(v)}</ins>
+                                  </div>
+                                ))}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </Card>
+                  </>
+                )}
+              </div>
+            </Section>
+
+            {/* Auth Gate Summary — read-only audit view of active enforcement rules */}
+            {form && (
+              <Section
+                id="sset-gate-h"
+                kicker="3 · Summary"
+                title="Auth Gate Summary"
+                lede="Current enforcement rules, read from the saved settings above (not from edits you have not saved)."
+              >
+                <Card tone="neutral">
+                  <KvList items={gateItems} />
+                </Card>
+              </Section>
+            )}
+          </>
+        )}
+      </PageFrame>
+    </PingPage>
   );
 };
 
 export default SecuritySettings;
+
+// ── Sub-components (function declarations, hoisted: the pattern check wants the banner first in the file) ──
+
+/** A switch: a button with aria-pressed, named by its <label htmlFor>. The On / Off chip beside it carries the word. */
+function Toggle({ id, value, onChange, describedBy }) {
+  return (
+    <div className="sset-toggle-row">
+      <button
+        type="button"
+        id={id}
+        className="sset-toggle"
+        aria-pressed={Boolean(value)}
+        aria-describedby={describedBy}
+        onClick={() => onChange(!value)}
+      >
+        <span className="sset-toggle__thumb" aria-hidden="true" />
+      </button>
+      <StatusChip tone={value ? 'info' : 'neutral'}>{value ? 'On' : 'Off'}</StatusChip>
+    </div>
+  );
+}
+
+/** Option pills: each is a button with aria-pressed; a selected one also shows a check mark (never colour alone). */
+function MultiSelect({ value = [], options, onChange, labelledBy, describedBy }) {
+  const toggle = (opt) => onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+  return (
+    <div className="sset-pills" role="group" aria-labelledby={labelledBy} aria-describedby={describedBy}>
+      {options.map((opt) => {
+        const on = value.includes(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            className="sset-pill"
+            aria-pressed={on}
+            onClick={() => toggle(opt)}
+          >
+            {on ? <span aria-hidden="true">✓ </span> : null}
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
