@@ -18,6 +18,7 @@
 /mcp-observability
 /privilege-prompt-log
 /demo-config
+/davinci-ciba-flows
 /privilege-pf-token
 /autonomous-agents
 /p1-third-party-exchange
