@@ -101,3 +101,98 @@ test('a full/blocked localStorage does not crash the page', () => {
   expect(screen.getByTestId('policy-decision-tree')).toHaveTextContent('1 nodes / PERMIT');
   setItemSpy.mockRestore();
 });
+
+// ---- Ping UI Standard (P2 banner, P4 cards, P5 kv, P7 chips, P9 one primary per state) ----
+
+const primaries = () => Array.from(document.querySelectorAll('button')).filter((b) => b.className.includes('--primary') || b.className.includes('pdt-modal-primary'));
+
+test('the banner is the first element of the page, a role=note, and says nothing is evaluated here', () => {
+  mockLocationState = { policies: POLICIES, result: RESULT };
+  render(<PolicyDecisionTracePage />);
+  const banner = screen.getByTestId('pdt-banner');
+  expect(banner).toHaveAttribute('role', 'note');
+  expect(banner).toHaveTextContent(/nothing is evaluated on this page/i);
+  expect(banner).toHaveTextContent(/derived here/i);
+  expect(document.querySelector('.pdt-page').firstElementChild).toContainElement(banner);
+});
+
+test('the decision card carries a chip with the verdict word and says which engine answered', () => {
+  mockLocationState = { policies: POLICIES, result: { ...RESULT, engine: 'pingone', raw: { statements: [{ code: 'x' }], elapsedMicroseconds: 2500 } } };
+  render(<PolicyDecisionTracePage />);
+  const card = screen.getByTestId('pdt-decision');
+  expect(card.querySelector('.pu-chip')).toHaveTextContent('Approved');
+  expect(card).toHaveTextContent('PingOne Authorize');
+  expect(card).toHaveTextContent('2.500 ms');
+  expect(card).toHaveTextContent('Returned by the PingOne Authorize decision endpoint.');
+  expect(card).not.toHaveTextContent('Saved run');
+});
+
+test('a simulated engine is not described as a PingOne decision', () => {
+  mockLocationState = { policies: POLICIES, result: { ...RESULT, decision: 'DENY', engine: 'simulated' } };
+  render(<PolicyDecisionTracePage />);
+  const card = screen.getByTestId('pdt-decision');
+  expect(card.querySelector('.pu-chip')).toHaveTextContent('Denied');
+  expect(card).toHaveTextContent('Simulated rules');
+  expect(card).toHaveTextContent('Returned by this app, not by a PingOne decision endpoint.');
+  expect(card).toHaveTextContent('Not reported');
+});
+
+test('step-up beats the engine decision, and a result with no engine says so', () => {
+  mockLocationState = { policies: POLICIES, result: { decision: 'PERMIT', stepUpRequired: true, raw: {} } };
+  render(<PolicyDecisionTracePage />);
+  const card = screen.getByTestId('pdt-decision');
+  expect(card.querySelector('.pu-chip')).toHaveTextContent('Step-up required');
+  expect(card).toHaveTextContent('Not recorded');
+});
+
+test('a saved run keeps a persistent "Saved run" chip after the modal is dismissed', () => {
+  localStorage.setItem(LAST_RUN_KEY, JSON.stringify({ policies: POLICIES, result: RESULT, savedAt: 123 }));
+  render(<PolicyDecisionTracePage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+  expect(screen.getByTestId('pdt-decision')).toHaveTextContent('Saved run');
+});
+
+test('exactly one primary button per state: header while viewing, modal while the saved-run modal is open', () => {
+  localStorage.setItem(LAST_RUN_KEY, JSON.stringify({ policies: POLICIES, result: RESULT, savedAt: 123 }));
+  render(<PolicyDecisionTracePage />);
+  // Modal open: the modal's button is the only primary.
+  expect(primaries().map((b) => b.textContent)).toEqual(['Go to PingOne Authorize']);
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+  // Modal closed: the header button is the only primary.
+  expect(primaries().map((b) => b.textContent)).toEqual(['Back to PingOne Authorize']);
+});
+
+test('fresh trace and empty state each have exactly one primary (the header button)', () => {
+  mockLocationState = { policies: POLICIES, result: RESULT };
+  const { unmount } = render(<PolicyDecisionTracePage />);
+  expect(primaries().map((b) => b.textContent)).toEqual(['Back to PingOne Authorize']);
+  unmount();
+  mockLocationState = null;
+  localStorage.clear(); // the fresh render above saved its run; the empty state needs none
+  render(<PolicyDecisionTracePage />);
+  expect(primaries().map((b) => b.textContent)).toEqual(['Back to PingOne Authorize']);
+});
+
+test('the header button navigates to PingOne Authorize and the empty state is a card with a chip word', () => {
+  render(<PolicyDecisionTracePage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Back to PingOne Authorize' }));
+  expect(mockNavigate).toHaveBeenCalledWith('/pingone-authorize?tab=guided');
+  const empty = screen.getByTestId('pdt-empty');
+  expect(empty.querySelector('.pu-chip')).toHaveTextContent('No evaluation');
+  expect(screen.getByTestId('pdt-banner')).toHaveTextContent('NO EVALUATION LOADED');
+});
+
+test('the dark mode toggle stays a secondary and reports its state', () => {
+  render(<PolicyDecisionTracePage />);
+  const toggle = screen.getByRole('button', { name: /Dark mode|Light mode/ });
+  expect(toggle).toHaveAttribute('aria-pressed');
+  expect(toggle.className).toBe('pu-btn');
+});
+
+test('keyboard: Dismiss takes focus when the saved-run modal opens, and closing it moves focus to the header button', async () => {
+  localStorage.setItem(LAST_RUN_KEY, JSON.stringify({ policies: POLICIES, result: RESULT, savedAt: 123 }));
+  render(<PolicyDecisionTracePage />);
+  expect(screen.getByRole('button', { name: 'Dismiss' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+  await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Back to PingOne Authorize' })).toHaveFocus());
+});

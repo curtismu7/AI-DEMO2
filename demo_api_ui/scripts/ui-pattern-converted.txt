@@ -12,6 +12,7 @@
 /privilege-demo
 /ungoverned-agent
 /privilege-intent-triage
+/policy-decision-trace
 /mcp-observability
 /privilege-prompt-log
 /demo-config
