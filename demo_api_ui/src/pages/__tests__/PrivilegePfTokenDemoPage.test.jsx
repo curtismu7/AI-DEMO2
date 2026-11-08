@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -109,15 +110,17 @@ describe('PrivilegePfTokenDemoPage', () => {
     expect(screen.getByTestId('ppt-run')).toBeDisabled();
   });
 
-  it('puts every section in a collapsible, open by default', async () => {
+  it('keeps the reference sections collapsible, open by default, and the run and path sections always visible', async () => {
     getState.mockResolvedValue({ status: 200, data: STATE });
     render(<PrivilegePfTokenDemoPage />);
-    for (const id of ['run', 'scope', 'setup', 'fail', 'flow']) {
+    for (const id of ['scope', 'setup', 'fail']) {
       const section = screen.getByTestId(`ppt-section-${id}`);
       expect(section.tagName).toBe('DETAILS');
       expect(section).toHaveAttribute('open');
-      expect(section.querySelector(':scope > summary h2')).not.toBeNull();
+      expect(section.querySelector(':scope > summary')).not.toBeNull();
+      expect(section.closest('section')).toHaveAccessibleName();
     }
+    for (const id of ['run', 'flow']) expect(screen.getByTestId(`ppt-section-${id}`).closest('section')).toHaveAccessibleName();
   });
 
   it('shows the working setup, the failure table and the diagram without running anything', async () => {
@@ -129,5 +132,103 @@ describe('PrivilegePfTokenDemoPage', () => {
     expect(screen.getByTestId('ppt-cannot')).toHaveTextContent('Token exchange');
     expect(screen.getByTestId('ppt-diagram')).toBeInTheDocument();
     expect(runDemo).not.toHaveBeenCalled();
+  });
+});
+
+// Standalone Ping UI Standard (P2, P4, P5, P7, P9) through the shared primitives.
+describe('PrivilegePfTokenDemoPage (Ping UI standard)', () => {
+  const primaries = (container) => [...container.querySelectorAll('button.pu-btn--primary')];
+
+  it('puts an honest note first: a live run, recorded notes, nothing called when the button is off', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    const { container } = render(<PrivilegePfTokenDemoPage />);
+    const banner = screen.getByRole('note');
+    expect(container.querySelector('.ppt-page').firstElementChild.contains(banner)).toBe(true);
+    expect(banner.textContent).toMatch(/not simulated/i);
+    expect(banner.textContent).toMatch(/recorded notes/i);
+    expect(banner.textContent).toMatch(/nothing\s+is called/i);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('PingFederate token on Privilege');
+  });
+
+  it('shows exactly one primary, the Run button, in every state', async () => {
+    // signed out
+    getState.mockResolvedValue({ status: 401, data: {} });
+    const out = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByText('Sign in required')).toBeInTheDocument());
+    expect(primaries(out.container)).toEqual([screen.getByTestId('ppt-run')]);
+    expect(screen.getByTestId('ppt-run')).toBeDisabled();
+    out.unmount();
+
+    // not configured
+    getState.mockResolvedValue({ status: 200, data: { ...STATE, configured: false } });
+    const nc = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-not-configured')).toBeInTheDocument());
+    expect(primaries(nc.container)).toEqual([screen.getByTestId('ppt-run')]);
+    nc.unmount();
+
+    // idle, running, result: the same element throughout
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    let finish;
+    runDemo.mockReturnValue(new Promise((res) => { finish = res; }));
+    const ok = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    const run = screen.getByTestId('ppt-run');
+    expect(primaries(ok.container)).toEqual([run]);
+    fireEvent.click(run);
+    await waitFor(() => expect(run).toHaveAttribute('aria-disabled', 'true'));
+    expect(run).toHaveTextContent('Running');
+    fireEvent.click(run); // a second activation while running does not start another run
+    expect(runDemo).toHaveBeenCalledTimes(1);
+    expect(primaries(ok.container)).toEqual([run]);
+    finish({ status: 200, data: PASS });
+    await waitFor(() => expect(screen.getByTestId('ppt-result')).toBeInTheDocument());
+    expect(screen.getByTestId('ppt-run')).toBe(run);
+    expect(primaries(ok.container)).toEqual([run]);
+    ok.unmount();
+
+    // error
+    runDemo.mockReset();
+    runDemo.mockRejectedValue(new Error('network down'));
+    const bad = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await waitFor(() => expect(screen.getByTestId('ppt-problem')).toHaveTextContent('network down'));
+    expect(primaries(bad.container)).toEqual([screen.getByTestId('ppt-run')]);
+  });
+
+  it('runs from the keyboard alone: Tab to the Run button, Enter', async () => {
+    const user = userEvent.setup();
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status: 200, data: PASS });
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    await user.tab();
+    expect(screen.getByTestId('ppt-run')).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getByTestId('ppt-result')).toBeInTheDocument());
+    expect(runDemo).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('ppt-run')).toHaveFocus(); // still on the Run button after the run
+  });
+
+  it('carries every verdict and status as a chip with a word, in cards and kv lists', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status: 200, data: PASS });
+    const { container } = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    expect(screen.getByTestId('ppt-target').querySelector('dl.pu-kv')).not.toBeNull();
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await waitFor(() => expect(screen.getByTestId('ppt-result')).toBeInTheDocument());
+    for (const chip of container.querySelectorAll('.pu-chip')) expect(chip.textContent.trim().length).toBeGreaterThan(0);
+    const pf = screen.getByTestId('ppt-answer-pf');
+    expect(pf.className).toContain('pu-card--ok');
+    expect(within(pf).getByText('ALLOWED').className).toContain('pu-chip--ok');
+    const garbage = screen.getByTestId('ppt-answer-garbage');
+    expect(garbage.className).toContain('pu-card--danger');
+    expect(within(garbage).getByText('TOKEN REJECTED').className).toContain('pu-chip--danger');
+    expect(within(screen.getByTestId('ppt-tier-none')).getByText('REFUSED BY POLICY').className).toContain('pu-chip--danger');
+    expect(within(screen.getByTestId('ppt-backend-iss')).getByText('Same').className).toContain('pu-chip--ok');
+    // setup and failures are kv cards, one per layer / failure
+    expect(screen.getByTestId('ppt-setup').querySelectorAll('.pu-card dl.pu-kv').length).toBeGreaterThanOrEqual(5);
+    expect(screen.getByTestId('ppt-failures').querySelectorAll('.pu-card').length).toBeGreaterThanOrEqual(6);
   });
 });
