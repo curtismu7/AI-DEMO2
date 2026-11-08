@@ -51,16 +51,16 @@ describe("DelegatedCommercePage lifecycle diagram in the Ping style", () => {
 
   it("clicking the MCP gateway shows the delegated call, MOCK tokens and the standards", async () => {
     render(<DelegatedCommercePage user={{ role: "admin" }} />);
-    fireEvent.click(await screen.findByTestId("dc-lifecycle-diagram-flow-node-mcp"));
-    const panel = screen.getByTestId("dc-lifecycle-diagram-flow-reel-detail");
+    fireEvent.click(await screen.findByTestId("dcom-lifecycle-diagram-flow-node-mcp"));
+    const panel = screen.getByTestId("dcom-lifecycle-diagram-flow-reel-detail");
     expect(panel.textContent).toContain("MOCK, teaching values only");
     expect(panel.textContent).toContain("RFC 8693");
   });
 
   it("the claim step says a claim code is not a token", async () => {
     render(<DelegatedCommercePage user={{ role: "admin" }} />);
-    fireEvent.click(await screen.findByTestId("dc-lifecycle-diagram-flow-node-customer"));
-    const panel = screen.getByTestId("dc-lifecycle-diagram-flow-reel-detail");
+    fireEvent.click(await screen.findByTestId("dcom-lifecycle-diagram-flow-node-customer"));
+    const panel = screen.getByTestId("dcom-lifecycle-diagram-flow-reel-detail");
     expect(panel.textContent).toContain("Token: none");
   });
 });
