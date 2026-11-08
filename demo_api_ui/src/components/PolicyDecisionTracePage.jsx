@@ -257,6 +257,14 @@ function sentenceFor(engine) {
   return 'Returned by this app, not by a PingOne decision endpoint.';
 }
 
+// "Just now" plus who answered, taken from the engine so it never contradicts the sentence under the chip.
+function freshWording(engine) {
+  if (engine.real) return 'Just now, from PingOne Authorize';
+  if (engine.label === 'Simulated rules') return 'Just now, simulated by this app';
+  if (engine.label === 'Mock authorization server') return 'Just now, from the mock authorization server';
+  return 'Just now';
+}
+
 // The decision card: chip word, one sentence, and the facts a reader needs to judge the replay.
 function summarize(result, fresh, savedAtLabel) {
   const decision = overallDecision(result);
@@ -275,7 +283,7 @@ function summarize(result, fresh, savedAtLabel) {
       { label: 'Engine', value: engine.label },
       { label: 'Evaluation time', value: ms == null ? 'Not reported' : `${ms.toFixed(3)} ms`, mono: ms != null },
       { label: 'Statements', value: String(statementCount) },
-      { label: 'Evaluated', value: fresh ? 'Just now, from PingOne Authorize' : (savedAtLabel || 'Earlier') },
+      { label: 'Evaluated', value: fresh ? freshWording(engine) : (savedAtLabel || 'Earlier') },
     ],
   };
 }

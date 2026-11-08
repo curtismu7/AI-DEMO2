@@ -137,6 +137,21 @@ test('a simulated engine is not described as a PingOne decision', () => {
   expect(card).toHaveTextContent('Not reported');
 });
 
+test('the Evaluated row follows the engine for a fresh trace (never PingOne for a simulated run)', () => {
+  mockLocationState = { policies: POLICIES, result: { ...RESULT, engine: 'simulated' } };
+  const { unmount } = render(<PolicyDecisionTracePage />);
+  let card = screen.getByTestId('pdt-decision');
+  expect(card).toHaveTextContent('Just now, simulated by this app');
+  expect(card).not.toHaveTextContent('Just now, from PingOne Authorize');
+  unmount();
+
+  mockLocationState = { policies: POLICIES, result: { ...RESULT, engine: 'pingone' } };
+  render(<PolicyDecisionTracePage />);
+  card = screen.getByTestId('pdt-decision');
+  expect(card).toHaveTextContent('Just now, from PingOne Authorize');
+  expect(card).not.toHaveTextContent('simulated by this app');
+});
+
 test('step-up beats the engine decision, and a result with no engine says so', () => {
   mockLocationState = { policies: POLICIES, result: { decision: 'PERMIT', stepUpRequired: true, raw: {} } };
   render(<PolicyDecisionTracePage />);

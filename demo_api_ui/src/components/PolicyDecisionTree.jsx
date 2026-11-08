@@ -213,9 +213,15 @@ function Branch({ node, ov, collapsedIds, toggleCollapse }) {
   );
 }
 
-export default function PolicyDecisionTree({ policies, result, floating = false, embedded = false }) {
+// The guard lives in this thin wrapper so the stateful body below never calls a hook after an early return
+// (hook order stays fixed if the props flip between empty and populated).
+export default function PolicyDecisionTree(props) {
+  const { policies, result } = props;
   if (!result || !Array.isArray(policies) || policies.length === 0) return null;
+  return <PolicyDecisionTreeBody {...props} />;
+}
 
+function PolicyDecisionTreeBody({ policies, result, floating = false, embedded = false }) {
   const raw = result.pingoneResponse || result.raw || {};
   const statements = Array.isArray(raw.statements) ? raw.statements : [];
   const decision = overallDecision(result);
