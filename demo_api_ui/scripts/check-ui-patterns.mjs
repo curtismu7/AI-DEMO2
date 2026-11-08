@@ -16,11 +16,19 @@
  *      `composes ... from` and import()/require(), and any <style> block or styled/css tagged template in it):
  *        P2   the simulation banner comes first: before the title band and before any section/card/button
  *        P9   exactly one primary button per view (a PrivilegeLiveCheck without buttonClassName is one)
- *        P7   every status chip has text (never a bare dot; {""}, {" "}, {null}, &nbsp; are not text)
+ *        P2   the banner has text (an empty <SimBanner> is no banner), and the banner and every button sit INSIDE the
+ *             <PingPage> root: a page with no <PingPage> fails, and so does a banner or button beside it in the
+ *             same `return` (JSX built into a variable, or in a child component, is not judged: the parent mounts it)
+ *        P9   a primary button inside a .map()/.flatMap()/.forEach()/Array.from() callback repeats per item, so it
+ *             is more than one primary (unless its class is conditional, e.g. the selected tab)
+ *        P7   every status chip has text (never a bare dot; {""}, {" "}, {null}, &nbsp;, a variable that is only ever
+ *             blank, and an icon/glyph/dot-named variable are not text)
  *        H3   no inline colour literal and no style={{ color/background/border/fontSize... }} on themeable
  *             props (camelCase, kebab-case and quoted keys, style={identifier} resolved in the file, style="..."
  *             strings, computed keys, el.style.x = ... assignments, inline --btn-accent* and --font-size-* overrides)
- *        P9   no violet/indigo/purple colour, and no vertical colour token, on a button rule in CSS
+ *        H3   also: el.setAttribute('style', ...) and a button whose style={{ ...spread }} cannot be read
+ *        P9   no violet/indigo/purple colour, and no vertical colour token, on a button rule in CSS, and no
+ *             violet/indigo utility class (bg-indigo-600, text-violet-500, bg-[#6d28d9]) on a button in JSX
  *        P9   a button colour that cannot be resolved (calc() that does not reduce, an unknown or undefined
  *             var(), attr()/env(), an OS-tinted system colour, an unsupported colour syntax) FAILS: unknown is
  *             drift, not a pass. Only recognised safe keywords (transparent, currentColor, inherit, initial,
