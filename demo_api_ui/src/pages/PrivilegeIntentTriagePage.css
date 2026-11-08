@@ -1,139 +1,53 @@
-/* Privilege Intent, Purpose and Behaviour triage page.
-   Tokens only (THEMING.md): ink and ground always from --th-* pairs, font
-   sizes from the scale (floor --font-size-3xs), spacing in px like the
-   sibling Privilege demo pages. */
+/* Privilege Intent, Purpose and Behaviour triage page: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md); the three-column inspector is the shared
+   InspectorShell (P6). Surfaces, lines and ink are --th-* only (H1), type comes from the
+   --font-size-* scale (H2), no inline styles (H3). */
 
-.triage-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--th-bg-page);
-  color: var(--th-text);
+/* Cards sit inside the inspector columns, which carry no padding of their own. */
+.triage-page .inspector-shell-output-body > .pu-card {
+  margin: 12px;
 }
 
-.triage-why {
+.triage-page .inspector-shell-form-body .pu-card {
   margin: 0 0 12px;
-  padding: 8px 12px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  background: var(--th-bg-inset);
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.triage-signal {
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  background: var(--th-bg-card);
-}
-
-.triage-signal--deterministic {
-  border-left: 3px solid var(--th-status-error);
 }
 
 .triage-signal-head {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
 }
 
-.triage-signal-head h3 {
+.triage-signal-head .pu-h3 {
   margin: 0;
-  font-size: var(--font-size-sm);
+}
+
+.triage-page .triage-expect {
   color: var(--th-text);
 }
 
-.triage-signal-tier {
-  font-size: var(--font-size-3xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--th-text-muted);
-}
-
-.triage-signal-q {
-  margin: 4px 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.triage-signal dl {
-  margin: 0;
-}
-
-.triage-signal dl > div {
-  display: flex;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.triage-signal dt {
-  flex: 0 0 9.5em;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.triage-signal dd {
-  margin: 0;
+.triage-page .pu-card .pu-note a {
   color: var(--th-text);
-  font-size: var(--font-size-xs);
+  text-decoration: underline;
+}
+
+/* The app body leaves line-height at "normal", which reads cramped in a card; set it here. */
+.triage-page .pu-card,
+.triage-page .pu-empty {
+  line-height: var(--line-height-normal);
+}
+
+/* At phone width the inspector top bar (title, Hide tools, status text, theme toggle) must wrap
+   instead of pushing the theme toggle past the viewport. */
+.triage-page .inspector-shell-topbar {
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.triage-page .inspector-shell-topbar__status {
+  min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.triage-outcome {
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border-strong);
-  padding: 12px;
-  margin: 12px;
-  background: var(--th-bg-card);
-}
-
-.triage-outcome strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: var(--font-size-md);
-  color: var(--th-text);
-}
-
-.triage-outcome p {
-  margin: 0 0 8px;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.triage-outcome--deny {
-  border-left: 4px solid var(--th-status-error);
-}
-
-.triage-outcome--hold {
-  border-left: 4px solid var(--th-status-warning);
-}
-
-.triage-outcome--alert {
-  border-left: 4px solid var(--th-status-info);
-}
-
-.triage-outcome--allow {
-  border-left: 4px solid var(--th-status-success);
-}
-
-.triage-expect {
-  color: var(--th-text);
-}
-
-.triage-tier {
-  margin: 12px;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.55;
-}
-
-.triage-tier p {
-  margin: 0 0 8px;
-}
-
-.triage-tier a {
-  color: var(--th-text);
 }
