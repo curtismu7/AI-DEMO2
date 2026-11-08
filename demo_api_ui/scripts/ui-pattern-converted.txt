@@ -4,13 +4,17 @@
 /privilege-saas-access
 /delegation-chain-value
 /privilege-map
+/demo-track
 /privilege-coding-agents
+/demo-summary
 /privilege-pii-detection
 /privilege-demo
 /privilege-intent-triage
 /privilege-prompt-log
 /privilege-pf-token
+/p1-third-party-exchange
 /privilege-shelf
 /privilege-a2a
+/transaction-consent
 /privilege-for-ai
 /privilege-ai-policies
