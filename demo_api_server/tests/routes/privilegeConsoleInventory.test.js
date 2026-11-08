@@ -91,6 +91,13 @@ const APPLICATIONS = {
       Spec: { McpAppConfig: { Backends: { Elems: ['http://mcp-server:8080/mcp'] } } },
       Status: { McpServerStatus: { Status: 'Ready' } },
     },
+    // A Remote Agent (A2A) app: same list, but not an MCP door.
+    {
+      ObjectMeta: { Name: 'workeragentdemo2' },
+      // The live console sends every *Config block on every app; AppType is the tell.
+      Spec: { AppType: 'http', HttpAppConfig: { Backends: { Elems: ['http://workeragentdemo:8080'] } }, McpAppConfig: {} },
+      Status: {},
+    },
   ],
 };
 
@@ -161,7 +168,9 @@ describe('Privilege console inventory', () => {
       expect(call.headers.Cookie).toBe('auth_token=console-cookie-value');
     }
 
+    // Three apps in the fixture; the A2A one is not a door.
     expect(res.body.applications).toHaveLength(2);
+    expect(res.body.applications.map((a) => a.name)).not.toContain('workeragentdemo2');
     expect(res.body.applications[0]).toMatchObject({
       name: 'cmuir',
       // Route comes from the application NAME, not FrontEndName (that is agent mode).

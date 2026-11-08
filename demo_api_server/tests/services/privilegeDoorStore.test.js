@@ -83,6 +83,16 @@ describe('privilegeDoorStore', () => {
     expect(store.getInventory().applications.every((a) => a.policies.length === 0)).toBe(true);
   });
 
+  test('policiesMentioning matches an app named only by its base64 RefID', () => {
+    // How the live console writes a rule: ObjectRef.RefID = base64("<tenant>@@@default@@@<app>").
+    const ref = Buffer.from('tenant-1@@@default@@@opensearch').toString('base64');
+    const pols = [
+      { name: '4allusers', spec: { ActionMap: { MCP: { PolicyRule: [{ ObjectRef: { RefKind: 'Application', RefID: ref } }] } } } },
+    ];
+    expect(store.policiesMentioning(pols, 'opensearch')).toEqual(['4allusers']);
+    expect(store.policiesMentioning(pols, 'opensearch-hitl')).toEqual([]);
+  });
+
   test('policiesMentioning cannot match on an empty app name', () => {
     // Otherwise '' is a substring of every serialized policy and an unnamed app
     // would come back "mentioned by everything".
