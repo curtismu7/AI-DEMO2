@@ -368,14 +368,14 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       await page.getByRole('button', { name: /Call list_orders as agent/i }).click();
       await Promise.race([
         page.locator('.alp-error').waitFor({ timeout: 90_000 }),
-        page.locator('.alp-form-container, .alp-result, .alp-form-empty').waitFor({ timeout: 90_000 }),
+        page.locator('[data-testid="alp-orders"], [data-testid="alp-orders-empty"], pre.alp-result').waitFor({ timeout: 90_000 }),
       ]);
       expect(await page.locator('.alp-error').count()).toBe(0);
 
       await page.getByRole('button', { name: /Raw JSON/i }).click();
       await expect(page.locator('pre.alp-result')).toBeVisible();
       await page.getByRole('button', { name: /Pretty Form/i }).click();
-      await expect(page.locator('.alp-form-container, .alp-form-empty')).toBeVisible();
+      await expect(page.locator('[data-testid="alp-orders"], [data-testid="alp-orders-empty"]')).toBeVisible();
 
       writeLedgerEntry({
         vertical: 'retail',
@@ -397,7 +397,7 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       let statusText = '';
       let cibaPathSeen = false;
       while (Date.now() < deadline) {
-        statusText = (await page.locator('.alp-slot__status').allTextContents()).join(' || ');
+        statusText = (await page.getByTestId('alp-checkout-status').allTextContents()).join(' || ');
         if (/Waiting for approval|auth_req_id|CIBA approval was/i.test(statusText)) {
           cibaPathSeen = true;
         }

@@ -84,7 +84,7 @@
   font-size: var(--font-size-sm);
 }
 
-.alp-page .alp-status {
+.alp-page .alp-message {
   margin: 12px 0 0;
   font-size: var(--font-size-body);
   color: var(--th-text);

@@ -42,9 +42,9 @@ describe('pickPrimary (one primary per view state)', () => {
   it('hands the primary to the dialog while it is open', () => {
     expect(pickPrimary({ ...base, modalOpen: true })).toBeNull();
   });
-  it('after a revoke: re-enable for a full stop, the spent Revoked button for an instance stop', () => {
+  it('after a revoke: re-enable for a full stop, no primary for an instance stop (nothing left to do)', () => {
     expect(pickPrimary({ ...base, orders: true, checkout: true, revoked: true, scopeFull: true })).toBe('reenable');
-    expect(pickPrimary({ ...base, revoked: true })).toBe('revoke');
+    expect(pickPrimary({ ...base, revoked: true })).toBeNull();
   });
 });
 
@@ -66,6 +66,12 @@ describe('AgentLifecyclePage (standalone UI standard)', () => {
     expect(banner.textContent).toMatch(/simulat/i);
     expect(banner.textContent).toMatch(/real/i);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Agent Lifecycle');
+  });
+
+  it('dark-mode toggle is a plain button whose label flips (no aria-pressed on top of it)', () => {
+    render(<AgentLifecyclePage />);
+    const toggle = screen.getByRole('button', { name: /(Dark|Light) mode/ });
+    expect(toggle.hasAttribute('aria-pressed')).toBe(false);
   });
 
   it('starts with exactly one primary, the list_orders call, and the rest secondary', () => {
@@ -143,10 +149,12 @@ describe('AgentLifecyclePage (standalone UI standard)', () => {
     expect(primaryTestIds(container)).toEqual([]);
     fireEvent.click(screen.getByText('Confirm Stop Agent'));
     await waitFor(() => expect(screen.getByTestId('alp-revoke-status').textContent).toMatch(/Confirmed revoked/));
+    // not the global .alp-status class: ActivityLogPanel.css styles that one as a live-pill
+    expect(screen.getByTestId('alp-revoke-status').className).not.toContain('alp-status');
     const revoke = screen.getByTestId('alp-revoke');
     expect(revoke.textContent).toBe('Revoked');
     expect(revoke.getAttribute('aria-disabled')).toBe('true');
-    expect(primaryTestIds(container)).toEqual(['alp-revoke']);
+    expect(primaryTestIds(container)).toEqual([]);
     expect(screen.queryByTestId('alp-reenable')).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(revoke));
     expect(apiPost).toHaveBeenCalledWith('/api/admin/agent/agent-1/kill-switch', { reason: 'Misbehaving', scope: 'instance' });

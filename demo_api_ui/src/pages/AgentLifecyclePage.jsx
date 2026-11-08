@@ -65,7 +65,6 @@ export default function AgentLifecyclePage() {
             onClick={toggleDarkMode}
             className="pu-btn"
             title="Switch this page between light and dark"
-            aria-pressed={darkMode}
           >
             {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
           </button>
@@ -436,7 +435,7 @@ function StepUpSlot({ isNext, onDone }) {
         </div>
         <div role="status" aria-live="polite">
           {message && (
-            <p className="alp-status" data-testid="alp-checkout-status">
+            <p className="alp-message" data-testid="alp-checkout-status">
               {phase === 'waiting-approval'
                 ? (
                   <span className="alp-waiting">
@@ -586,7 +585,7 @@ function RevokeSlot({ which, onFlow, flow }) {
           onCancel={closeModal}
         />
         <div role="status" aria-live="polite">
-          {retryResult && <p className="alp-status" data-testid="alp-revoke-status">{retryResult}</p>}
+          {retryResult && <p className="alp-message" data-testid="alp-revoke-status">{retryResult}</p>}
         </div>
         {revoked && (
           <p className="pu-actions">
