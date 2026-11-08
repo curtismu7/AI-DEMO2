@@ -3,6 +3,8 @@ import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const post = vi.fn();
 vi.mock('../../services/apiClient', () => ({ default: { post: (...a) => post(...a) } }));
@@ -47,7 +49,10 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
     expect(container.querySelector('.pu-page')).toBe(root);
     expect(banner.textContent).toMatch(/live, not simulated/i);
     expect(banner.textContent).toMatch(/PingOne Management API/);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('CIMD Simulation');
+    // the title must not contradict the banner: the page is live, so it is not called a simulation
+    const title = screen.getByRole('heading', { level: 1 }).textContent;
+    expect(title).toBe('CIMD Client Registration');
+    expect(title).not.toMatch(/simulation/i);
   });
 
   it('has exactly one primary (Register Client) in the form view, in Ping Red form, no vertical colour classes', () => {
@@ -71,6 +76,22 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
     expect(document.getElementById(hint).textContent).toMatch(/consent screens/i);
     const group = screen.getByRole('group', { name: /grant types/i });
     expect(within(group).getAllByRole('checkbox')).toHaveLength(4);
+    // the required mark is visual only, so the group's description says it too
+    expect(group.getAttribute('aria-describedby')).toBeTruthy();
+    expect(document.getElementById(group.getAttribute('aria-describedby')).textContent).toMatch(/required/i);
+  });
+
+  it('blocks the submit, with a visible reason, when no grant type is selected', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(nameField(), 'Acme');
+    await user.click(screen.getByRole('checkbox', { name: 'authorization_code' }));
+    expect(submit().getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByText(/select at least one grant type/i)).toBeTruthy();
+    await user.click(submit());
+    expect(post).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('checkbox', { name: 'authorization_code' }));
+    expect(submit().getAttribute('aria-disabled')).toBeNull();
   });
 
   it('keeps the submit control focusable but inert until a name is entered, with a visible reason', async () => {
@@ -118,9 +139,17 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
     expect(chips).toEqual(['Registered', 'Shown once']);
     expect(within(result).getByText('app-123')).toBeTruthy();
     expect(within(result).getByText('secret-xyz')).toBeTruthy();
-    // result view: no primary on purpose, every button a pu-btn secondary
-    expect(container.querySelectorAll('.pu-btn--primary')).toHaveLength(0);
+    // result view: exactly one primary, the secret copy; discarding the form ("Register another") stays secondary
+    const primaries = container.querySelectorAll('.pu-btn--primary');
+    expect(primaries).toHaveLength(1);
+    expect(primaries[0]).toBe(screen.getByRole('button', { name: /copy client secret/i }));
     expect(screen.getByRole('button', { name: /register another client/i }).className).toBe('pu-btn');
+    expect(screen.getByRole('button', { name: /copy cimd document url/i }).className).not.toMatch(/primary/);
+    // honest wording: the page never fetched the CIMD URL, so it does not say the app is hosting it
+    expect(result.textContent).not.toMatch(/now hosting/i);
+    expect(result.textContent).toMatch(/has not fetched the CIMD URL/i);
+    // the JSON disclosure is a named region, so its aria-label is exposed
+    expect(within(result).getByRole('region', { name: /cimd document json/i }).tagName).toBe('PRE');
   });
 
   it('does not claim the secret is shown once when PingOne returned none', async () => {
@@ -133,6 +162,10 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
     expect(screen.queryByTestId('crp-secret-warning')).toBeNull();
     expect(screen.getByText(/not available/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /copy client secret/i })).toBeNull();
+    // still exactly one primary: the CIMD URL copy
+    const primaries = document.querySelectorAll('.pu-btn--primary');
+    expect(primaries).toHaveLength(1);
+    expect(primaries[0]).toBe(screen.getByRole('button', { name: /copy cimd document url/i }));
   });
 
   it('keeps focus where it was while registering, locks the fields and reports progress', async () => {
@@ -194,5 +227,26 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
     expect(screen.queryByTestId('crp-result')).toBeNull();
     expect(nameField().value).toBe('');
     expect(document.activeElement).toBe(nameField());
+  });
+});
+
+// jsdom loads neither App.css nor the nano skin, so the shell-toggle contrast fix is pinned as CSS text.
+describe('ClientRegistrationPage.css shell theme toggle', () => {
+  const css = readFileSync(resolve(__dirname, '../ClientRegistrationPage.css'), 'utf8');
+  const appCss = readFileSync(resolve(__dirname, '../../App.css'), 'utf8');
+
+  it('beats the App.css !important colour on the theme button, in every state App.css covers', () => {
+    // App.css forces white text (--app-primary-blue-text) on this variant under .App.end-user-nano
+    expect(appCss).toMatch(/\.App\.end-user-nano button\.app-page-toolbar-btn\.app-page-toolbar-btn--theme:active \{[^}]*color: var\(--app-primary-blue-text, #fff\) !important/);
+    // this page paints the fill with the card colour ...
+    expect(css).toMatch(/\.crp-page \.app-page-toolbar-btn--theme,[\s\S]*?background: var\(--th-bg-card\)/);
+    // ... so the text must be the page ink, with the same !important and a longer selector, for each state
+    const block = css.match(/((?:\.App\.end-user-nano \.crp-page button\.app-page-toolbar-btn\.app-page-toolbar-btn--theme(?::[a-z-]+)?,?\s*)+)\{([^}]*)\}/);
+    expect(block).not.toBeNull();
+    for (const state of ['', ':hover', ':focus', ':focus-visible', ':active']) {
+      expect(block[1]).toContain(`app-page-toolbar-btn--theme${state}`);
+    }
+    expect(block[2]).toMatch(/color: var\(--th-text\) !important/);
+    expect(block[2]).toMatch(/-webkit-text-fill-color: var\(--th-text\) !important/);
   });
 });

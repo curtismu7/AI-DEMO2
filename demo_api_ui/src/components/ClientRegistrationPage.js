@@ -7,8 +7,8 @@
  *
  * Ping UI Standard (src/styles/ping-ui.css): banner first, cards, kv list, word-bearing chips, one primary per view.
  * Primary button per state: form = "Register Client" (the only action that changes anything);
- * result = none on purpose: Copy and "Register another client" are secondaries, because the second one discards
- * the one-time secret on screen and must not read as the next step.
+ * result = "Copy" on the client secret (shown once), or on the CIMD URL when PingOne returned no secret. "Register
+ * another client" stays a secondary because it discards the one-time secret on screen and must not read as the next step.
  */
 import React, { useState, useCallback, useRef, useEffect, useId, cloneElement } from 'react';
 import apiClient from '../services/apiClient';
@@ -165,12 +165,16 @@ export default function ClientRegistrationPage({ user, onLogout }) {
   const nameRef = useRef(null);
   const resetFocusRef = useRef(false);
 
-  const canSubmit = Boolean(clientName.trim()) && !submitting;
+  // Both of these are marked required on the form, so both gate the submit (with a visible reason).
+  const submitReason = !clientName.trim()
+    ? 'Enter a client name to register.'
+    : grantTypes.length === 0 ? 'Select at least one grant type to register.' : null;
+  const canSubmit = !submitReason && !submitting;
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     // aria-disabled keeps the button focusable, so the guard lives here instead of `disabled`.
-    if (submitting || !clientName.trim()) return;
+    if (submitting || submitReason) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -198,7 +202,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
     } finally {
       setSubmitting(false);
     }
-  }, [submitting, clientName, clientDescription, applicationType, grantTypes, redirectUris,
+  }, [submitting, submitReason, clientName, clientDescription, applicationType, grantTypes, redirectUris,
       postLogoutUris, tokenAuthMethod, scope, contacts, logoUri, clientUri]);
 
   const handleReset = useCallback(() => {
@@ -234,7 +238,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
         Each registration creates another application; nothing here is mocked and there is no dry run.
       </SimBanner>
       <AdminSubPageShell
-        title="CIMD Simulation"
+        title="CIMD Client Registration"
         lead={(
           <>
             Fill in client metadata using the <strong>Client ID Metadata Document (CIMD)</strong> format.
@@ -243,7 +247,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
         )}
         wide={false}
       >
-        <PageNav user={user} onLogout={onLogout} title="CIMD Simulation" />
+        <PageNav user={user} onLogout={onLogout} title="CIMD Client Registration" />
         <div className="app-page-toolbar app-page-toolbar--start">
           <button
             type="button"
@@ -289,7 +293,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
                   </Card>
 
                   <Card title="OAuth flow">
-                    <Field label="Grant Types" required group hint="Select all flows this client will use.">
+                    <Field label="Grant Types" required group hint="Required: select at least one. Select all flows this client will use.">
                       <CheckboxGroup options={GRANT_TYPE_OPTIONS} selected={grantTypes} onChange={setGrantTypes} locked={submitting} />
                     </Field>
                     <Field label="Token Endpoint Auth Method">
@@ -358,17 +362,17 @@ export default function ClientRegistrationPage({ user, onLogout }) {
                     </p>
                   )}
                   <div className="pu-actions">
-                    <button
+                    <PrimaryButton
                       type="submit"
                       aria-disabled={canSubmit ? undefined : 'true'}
-                      aria-describedby={clientName.trim() ? undefined : 'crp-submit-reason'}
-                      className="pu-btn pu-btn--primary"
+                      aria-describedby={submitReason ? 'crp-submit-reason' : undefined}
+                      className="pu-btn"
                     >
                       {submitting ? 'Registering in PingOne…' : 'Register Client'}
-                    </button>
+                    </PrimaryButton>
                   </div>
-                  {!clientName.trim() && (
-                    <p id="crp-submit-reason" className="pu-note">Enter a client name to register.</p>
+                  {submitReason && (
+                    <p id="crp-submit-reason" className="pu-note">{submitReason}</p>
                   )}
                 </Card>
               </Section>
@@ -402,6 +406,8 @@ function ResultCard({ result, onReset }) {
       .catch(() => { setCopied(null); setCopyFailed(true); });
   }, []);
 
+  // Exactly one primary in this view: the copy that matters most (the one-time secret, else the CIMD URL).
+  const primaryKey = hasSecret ? 'secret' : 'cimd_url';
   const fields = [
     { key: 'pingone_id', label: 'PingOne App ID (client_id)', value: result.pingone_client_id },
     { key: 'secret',     label: 'Client Secret (shown once)', value: result.client_secret || '(not available — check PingOne console)', copyable: hasSecret },
@@ -413,29 +419,32 @@ function ResultCard({ result, onReset }) {
       <Card tone="ok" title="Client registered in PingOne">
         <p className="pu-status-line">
           <StatusChip tone="ok">Registered</StatusChip>
-          <span>PingOne returned the new application and this app is now hosting its CIMD document.</span>
+          <span>PingOne returned the new application and the server recorded its CIMD document. This page has not fetched the CIMD URL, so open it to confirm it resolves.</span>
         </p>
 
         <KvList
-          items={fields.map(({ key, label, value, copyable = true }) => ({
+          items={fields.map(({ key, label, value, copyable = true }) => {
+            const CopyBtn = key === primaryKey ? PrimaryButton : 'button';
+            return {
             label,
             mono: true,
             value: (
               <span className="crp-value-row">
                 <code>{value}</code>
                 {copyable && (
-                  <button
+                  <CopyBtn
                     type="button"
                     onClick={() => copy(value, key)}
                     aria-label={`Copy ${label}`}
                     className="pu-btn crp-copy-btn"
                   >
                     {copied === key ? '✓ Copied' : 'Copy'}
-                  </button>
+                  </CopyBtn>
                 )}
               </span>
             ),
-          }))}
+            };
+          })}
         />
         <p role="status" className="pu-note crp-copy-status">
           {copied ? 'Copied to the clipboard.' : copyFailed ? 'Copy failed: select the value and copy it by hand.' : ''}
@@ -443,7 +452,7 @@ function ResultCard({ result, onReset }) {
 
         <details className="crp-cimd-details">
           <summary className="crp-cimd-summary">View CIMD document JSON</summary>
-          <pre className="crp-cimd-pre" tabIndex={0} aria-label="CIMD document JSON">
+          <pre className="crp-cimd-pre" tabIndex={0} role="region" aria-label="CIMD document JSON">
             {JSON.stringify(result.cimd_document, null, 2)}
           </pre>
         </details>
@@ -463,4 +472,12 @@ function ResultCard({ result, onReset }) {
       </Card>
     </div>
   );
+}
+
+// ── Primary button ────────────────────────────────────────────────────────────
+
+// The one place the primary look is applied: the form view uses it for Register Client, the result view for the
+// copy that matters most. Each view renders exactly one (the static check in check-ui-patterns.mjs counts per file).
+function PrimaryButton({ className = '', ...rest }) {
+  return <button className={`pu-btn--primary ${className}`.trim()} {...rest} />;
 }

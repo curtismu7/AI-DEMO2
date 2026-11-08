@@ -22,6 +22,18 @@
   border-color: var(--btn-accent);
 }
 
+/* App.css forces this variant's text to --app-primary-blue-text (white) with !important, under
+ * .App.end-user-nano, because the shell fills it with the blue. This page repaints the fill to the card colour, so
+ * the text must follow or it is white on white in light mode. Same !important, one class more of specificity. */
+.App.end-user-nano .crp-page button.app-page-toolbar-btn.app-page-toolbar-btn--theme,
+.App.end-user-nano .crp-page button.app-page-toolbar-btn.app-page-toolbar-btn--theme:hover,
+.App.end-user-nano .crp-page button.app-page-toolbar-btn.app-page-toolbar-btn--theme:focus,
+.App.end-user-nano .crp-page button.app-page-toolbar-btn.app-page-toolbar-btn--theme:focus-visible,
+.App.end-user-nano .crp-page button.app-page-toolbar-btn.app-page-toolbar-btn--theme:active {
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
+}
+
 .crp-page .app-page-toolbar-btn:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
