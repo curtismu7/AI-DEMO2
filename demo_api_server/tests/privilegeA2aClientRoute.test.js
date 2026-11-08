@@ -349,3 +349,47 @@ describe('POST /api/privilege-a2a/chain', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('an agent that goes silent', () => {
+  function routeWithIdleTimeout(ms) {
+    process.env.PRIVILEGE_A2A_IDLE_TIMEOUT_MS = String(ms);
+    let route;
+    jest.isolateModules(() => { route = require('../routes/privilegeA2aClient'); });
+    delete process.env.PRIVILEGE_A2A_IDLE_TIMEOUT_MS;
+    const app = express();
+    app.use('/api/privilege-a2a', route);
+    return app;
+  }
+  const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+
+  test('an agent that never answers is stopped with a 504 that says it sent nothing', async () => {
+    global.fetch = jest.fn((url, { signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(abortError()));
+    }));
+
+    const response = await request(routeWithIdleTimeout(50)).post('/api/privilege-a2a/chat').send({ message: 'hi' });
+
+    expect(response.status).toBe(504);
+    expect(response.body.error).toMatch(/sent nothing for \d+ seconds.*try again/i);
+  });
+
+  test('a stream that stalls mid-run ends with an error event instead of hanging', async () => {
+    const enc = new TextEncoder();
+    global.fetch = jest.fn((url, { signal }) => {
+      const body = new ReadableStream({
+        start(controller) {
+          controller.enqueue(enc.encode('event: trace\ndata: {"kind":"session"}\n\n'));
+          signal.addEventListener('abort', () => controller.error(abortError()));
+        },
+      });
+      return Promise.resolve(new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }));
+    });
+
+    const response = await request(routeWithIdleTimeout(50)).post('/api/privilege-a2a/chain').send({ message: 'hi', specialist: 'refunds' });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"kind":"session"');
+    expect(response.text).toContain('event: error');
+    expect(response.text).toMatch(/sent nothing for \d+ seconds/i);
+  });
+});

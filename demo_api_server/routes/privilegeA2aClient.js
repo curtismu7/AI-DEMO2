@@ -12,6 +12,9 @@ const MAX_SESSION_ID_LENGTH = 128;
 const UNREACHABLE = { error: 'The A2A agent is unreachable. It may be restarting; try again in a few seconds.' };
 const NOT_CONFIGURED = { error: 'The A2A agent is not configured on the server.' };
 const INTERRUPTED = 'The A2A agent stopped responding mid-run. It may be restarting; try again.';
+// No bytes from the main agent for this long ends the run, so the page never waits forever.
+const IDLE_TIMEOUT_MS = Number(process.env.PRIVILEGE_A2A_IDLE_TIMEOUT_MS) || 90000;
+const IDLE = `The A2A agent sent nothing for ${Math.round(IDLE_TIMEOUT_MS / 1000)} seconds, so the run was stopped. The model may be busy; try again.`;
 
 // The active vertical comes from the server-side session, never from the request body,
 // so a browser cannot name a specialist it is not on. Null when the vertical has none.
@@ -44,14 +47,27 @@ async function relayMainAgentSse(res, path, upstreamBody) {
   }
 
   const controller = new AbortController();
+  let idleTimedOut = false;
+  let idleTimer;
+  const resetIdleTimer = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      idleTimedOut = true;
+      controller.abort();
+    }, IDLE_TIMEOUT_MS);
+  };
   const abortIfClientDisconnects = () => {
     if (!res.writableEnded) controller.abort();
   };
-  const cleanup = () => res.off('close', abortIfClientDisconnects);
+  const cleanup = () => {
+    clearTimeout(idleTimer);
+    res.off('close', abortIfClientDisconnects);
+  };
   res.on('close', abortIfClientDisconnects);
   res.on('finish', cleanup);
 
   try {
+    resetIdleTimer();
     const upstream = await fetch(mainAgentUrl(path), {
       method: 'POST',
       headers: {
@@ -81,6 +97,7 @@ async function relayMainAgentSse(res, path, upstreamBody) {
     while (!controller.signal.aborted) {
       const { done, value } = await reader.read();
       if (done) break;
+      resetIdleTimer();
       if (!res.write(Buffer.from(value))) {
         await new Promise(resolve => {
           const resume = () => {
@@ -95,7 +112,17 @@ async function relayMainAgentSse(res, path, upstreamBody) {
     }
     if (!res.destroyed) res.end();
   } catch {
-    if (controller.signal.aborted || res.destroyed) return;
+    if (res.destroyed) return;
+    if (idleTimedOut) {
+      if (!res.headersSent) {
+        res.status(504).json({ error: IDLE });
+        return;
+      }
+      res.write(`event: error\ndata: ${JSON.stringify({ error: IDLE })}\n\n`);
+      res.end();
+      return;
+    }
+    if (controller.signal.aborted) return;
     if (!res.headersSent) {
       res.status(502).json(UNREACHABLE);
       return;
