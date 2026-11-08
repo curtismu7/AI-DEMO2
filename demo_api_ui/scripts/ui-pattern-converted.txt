@@ -3,3 +3,4 @@
 # One route path per line, exactly as in src/App.js.
 /privilege-saas-access
 /privilege-coding-agents
+/privilege-pii-detection
