@@ -52,9 +52,9 @@ describe('DraggableModal under the app zoom', () => {
     expect(screen.getByRole('dialog').style.left).toBe('390px');
   });
 
-  it('sizes against the window divided by --app-zoom (vw/vh are not zoom-aware)', () => {
-    expect(css).toMatch(/max-width:\s*calc\(100vw\s*\/\s*var\(--app-zoom,\s*1\)\s*-\s*16px\)/);
-    expect(css).not.toMatch(/max-width:\s*calc\(100vw\s*-\s*16px\)/);
+  it('caps the width against the zoomed layout viewport (100%), not 100vw; the docked drawer divides vh by --app-zoom', () => {
+    expect(css).toMatch(/\.dm-panel\s*\{\s*max-width:\s*calc\(100% - 16px\)/);
+    expect(css).not.toMatch(/max-width:\s*calc\(100vw/);
     expect(css).toMatch(/data-placement="right"\][^{]*\{[^}]*height:\s*calc\(100vh\s*\/\s*var\(--app-zoom,\s*1\)\)/);
   });
 });

@@ -629,3 +629,43 @@ describe('check-ui-patterns round 2: more of our own', () => {
     expectDrift(r.out, rule);
   });
 });
+
+describe('check-ui-patterns: a route behind a routes/ wrapper resolves to the real page', () => {
+  const WRAP_APP = `import lazyWithRetry from "./utils/lazyWithRetry";
+import { SaasRoute } from "./routes/PublicRoutes";
+import SignInRequired from "./routes/SignInRequired";
+const routes = <Route path="/privilege-saas-access" element={loading ? null : user ? (<SaasRoute user={user} />) : (<SignInRequired />)} />;
+`;
+  const PUBLIC = `import lazyWithRetry from "../utils/lazyWithRetry";
+import AppShell from "./AppShell";
+const PrivilegeSaasAccessPage = lazyWithRetry(() => import("../pages/PrivilegeSaasAccessPage"));
+export function SaasRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PrivilegeSaasAccessPage />
+    </AppShell>
+  );
+}
+`;
+  const wrapped = (h) => {
+    h.write('src/App.js', WRAP_APP);
+    h.write('src/routes/PublicRoutes.js', PUBLIC);
+    h.write('src/routes/SignInRequired.js', 'export default function SignInRequired() { return null; }\n');
+  };
+
+  it('the wrapped, allowlisted page is found and checked (exit 0, no "no <Route>" error)', () => {
+    const r = run(wrapped);
+    expect(r.status, r.out).toBe(0);
+    expect(r.out).toMatch(/\[ENFORCED\] \/privilege-saas-access\s+\(src\/pages\/PrivilegeSaasAccessPage\.jsx\)/);
+    expect(r.out).not.toMatch(/ALLOWLIST/);
+  });
+
+  it('a violation in the wrapped page fails the run (before the fix the gate file SignInRequired.js was checked instead)', () => {
+    const r = run((h) => {
+      wrapped(h);
+      h.replace(PAGE_JSX, 'data-testid="psa-reset">Reset</button>', 'data-testid="psa-reset" style={{ background: "#4f46e5" }}>Reset</button>');
+    });
+    expect(r.status, r.out).toBe(1);
+    expectDrift(r.out, /H3/);
+  });
+});

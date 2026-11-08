@@ -48,17 +48,15 @@
 
 /* Narrow viewports: the panel never outgrows the screen, and a floating panel (not the right-docked one) sits inside
    it even when its stored drag position or its default width came from a wider window (a 360px panel at 375px
-   otherwise lost its title-bar controls off the right edge). !important beats the inline left the drag hook sets.
-
-   The app zooms the whole page (html zoom, default 1.125, A+ up to 1.25 -- --app-zoom mirrors it) and vw/vh are NOT
-   zoom-aware: 100vw is the window width in window pixels, but a width written in the page is multiplied by the zoom
-   when drawn. So every window-relative size here divides by --app-zoom, the same as index.css does for the page
-   height; without it the panel was 1.125x too wide and its right edge and close button sat off a 375px screen. */
+   otherwise lost its title-bar controls off the right edge). !important beats the inline left the drag hook sets. */
+/* 100%, not 100vw: a fixed panel resolves 100% against the zoomed layout viewport, 100vw does not (under the app's text
+   zoom of 1.125 a 100vw cap let a 360px panel's right edge reach 408px in a 371px viewport; measured). */
 .dm-panel {
-  max-width: calc(100vw / var(--app-zoom, 1) - 16px);
+  max-width: calc(100% - 16px);
 }
 
-/* The right-docked drawer is one window tall: its inline height is 100vh, which the zoom would stretch past the bottom. */
+/* The right-docked drawer is one window tall: its inline height is 100vh, and vh ignores the app's page zoom (same cause
+   as above), so at 1.125 the drawer ran 12.5% past the bottom of the window. Divide by --app-zoom as index.css does. */
 .dm-panel[data-placement="right"] {
   height: calc(100vh / var(--app-zoom, 1)) !important;
 }
