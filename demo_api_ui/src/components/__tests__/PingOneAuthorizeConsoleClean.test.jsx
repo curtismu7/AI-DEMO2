@@ -82,7 +82,10 @@ describe('PingOneAuthorizeConsoleClean Mock | Real P1AZ', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
     expect(screen.getByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    // aria-disabled, not disabled, so keyboard focus is never dropped; the click does nothing.
+    expect(screen.getByRole('button', { name: 'Send' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(bffAxios.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
   });
@@ -167,5 +170,41 @@ describe('PingOneAuthorizeConsoleClean Vertical select', () => {
     expect(bffAxios.post.mock.calls[1][1].parameters.TransactionType).toBe('withdrawal');
     fireEvent.click(screen.getAllByRole('button', { name: /Edit/ })[0]);
     expect(screen.getByLabelText('Type').value).toBe('withdrawal');
+  });
+});
+
+describe('PingOneAuthorizeConsoleClean host hooks (Ping UI page)', () => {
+  it('Send takes the host button class, defaulting to the inspector button', () => {
+    const { unmount } = render(<Harness />);
+    expect(screen.getByRole('button', { name: 'Send' })).toHaveClass('insp-btn');
+    unmount();
+    render(<Harness buttonClassName="pu-btn pu-btn--primary" />);
+    expect(screen.getByRole('button', { name: 'Send' })).toHaveClass('pu-btn', 'pu-btn--primary');
+  });
+
+  it('reports the engine to the host: mock on open, live after the switch, mock again', () => {
+    const onModeChange = vi.fn();
+    render(<Harness onModeChange={onModeChange} />);
+    expect(onModeChange).toHaveBeenLastCalledWith('mock');
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+    expect(onModeChange).toHaveBeenLastCalledWith('live');
+    fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
+    expect(onModeChange).toHaveBeenLastCalledWith('mock');
+  });
+
+  it('keeps keyboard focus on Send while it sends, and ignores a second press', async () => {
+    let release;
+    bffAxios.post.mockReturnValue(new Promise((r) => { release = r; }));
+    render(<Harness />);
+    const send = screen.getByRole('button', { name: 'Send' });
+    send.focus();
+    fireEvent.click(send);
+    const sending = await screen.findByRole('button', { name: 'Sending…' });
+    expect(sending).toHaveAttribute('aria-disabled', 'true');
+    expect(document.activeElement).toBe(sending);
+    fireEvent.click(sending);
+    expect(bffAxios.post).toHaveBeenCalledTimes(1);
+    release(DECISION);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).not.toHaveAttribute('aria-disabled'));
   });
 });

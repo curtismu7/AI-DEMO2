@@ -97,3 +97,38 @@ describe('authorizeCallFromRecent: no resendable input', () => {
     expect(authorizeCallFromRecent({ id: 'abcdef12345', decision: 'PERMIT', requestedAt: '2026-10-17T10:00:00Z' }).input).toBeUndefined();
   });
 });
+
+describe('authorizeCallFromResult: Mock engine (engine: simulated)', () => {
+  const mockRes = { ...base, engine: 'simulated', pingoneRequest: undefined, pingoneResponse: undefined, raw: { decision: 'PERMIT', statements: [] }, workerTokenCached: false, policyEvalMs: undefined, ruleName: undefined };
+  const mock = (over = {}) => make({ ...mockRes, ...over });
+  const claimsPingOne = (text) => /PingOne Authorize|worker token|decision endpoint/i.test(text) && !/not called|not needed|does not call|did not decide|no worker token|No call/i.test(text);
+
+  it('says Mock everywhere and never claims a PingOne call', () => {
+    const c = mock();
+    expect(c.kind).toBe('Decision · transaction · mock');
+    expect(c.chips).toEqual([idle('Mock: PingOne not called')]);
+    expect(c.response.label).toBe('Mock policy response');
+    expect(c.response.where).toBe('Built-in mock policy → BFF');
+    expect(c.hops.map((h) => h.dir)).toEqual(['Browser → BFF', 'BFF → built-in mock policy']);
+    expect(c.hops[1].status).toEqual(idle('mock'));
+    expect(c.steps.map((s) => s.title)).toEqual([
+      'Built the decision request', 'No worker token', 'Asked the built-in mock policy', 'Evaluated by the mock policy', 'No statements', 'What the app does next',
+    ]);
+    for (const s of c.steps) expect(claimsPingOne(s.text), s.title + ': ' + s.text).toBe(false);
+    for (const h of c.hops) expect(claimsPingOne(h.what), h.dir + ': ' + h.what).toBe(false);
+  });
+
+  it('a mock DENY is the mock policy\'s, not PingOne\'s', () => {
+    const c = mock({ decision: 'DENY', raw: { decision: 'DENY', statements: [{ name: 'Over limit' }] } });
+    expect(c.banner).toEqual({ tone: 'err', title: 'Denied by the mock policy', text: 'Over limit' });
+    const s = mock({ decision: 'DENY', stepUpRequired: true, raw: { decision: 'DENY', statements: [{ name: 'Require MFA' }] } });
+    expect(s.banner.text).toBe('The mock policy wants a stronger sign-in. Statement: Require MFA');
+  });
+
+  it('a real result (engine: pingone) keeps the PingOne wording', () => {
+    const c = make({ engine: 'pingone' });
+    expect(c.kind).toBe('Decision · transaction');
+    expect(c.hops).toHaveLength(3);
+    expect(c.steps[1].title).toBe('Got a worker token');
+  });
+});

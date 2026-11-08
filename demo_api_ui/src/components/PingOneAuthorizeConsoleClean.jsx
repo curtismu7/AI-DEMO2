@@ -1,5 +1,5 @@
 // Authorize Inspector console tab, built on the shared inspector layout (Task 6).
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePingOneAuthorizeConsole } from '../hooks/usePingOneAuthorizeConsole';
 import InspectorLayout from './inspector/InspectorLayout';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
@@ -64,6 +64,10 @@ export default function PingOneAuthorizeConsoleClean({
   records, setRecords,
   // Mock is the default; tests and callers can open the console on 'live'.
   defaultMode,
+  // The host page's mode banner follows the engine picked here.
+  onModeChange,
+  // Class for the Send button; the host passes the shared Ping UI primary. Omitted: the inspector's own button.
+  buttonClassName = 'insp-btn',
 }) {
   const [pickedId, setPickedId] = useState(null);
   const [includeRecent, setIncludeRecent] = useState(false);
@@ -94,6 +98,7 @@ export default function PingOneAuthorizeConsoleClean({
     defaultToolName: vertical.authorize.toolName, defaultAmount: String(vertical.authorize.amount),
     pendingTest, onClearPendingTest, onEvaluated, defaultMode,
   });
+  useEffect(() => { onModeChange?.(h.mode); }, [h.mode, onModeChange]);
   // An edited call keeps its own preset and type even when this vertical has neither.
   const presets = PRESETS.filter((p) => p.value !== 'transaction' || txTypes.length || h.preset === 'transaction');
   const typeOptions = txTypes.includes(h.txType) ? txTypes : [...txTypes, h.txType];
@@ -136,6 +141,7 @@ export default function PingOneAuthorizeConsoleClean({
     <label className="insp-field"><span>{label}</span><input type="text" value={value} onChange={(e) => set(e.target.value)} /></label>
   );
 
+  const sendBlocked = h.running || (h.mode === 'live' && !endpointId);
   const send = (
     <div className="insp-send-body">
       <div className="insp-send-row">
@@ -181,7 +187,8 @@ export default function PingOneAuthorizeConsoleClean({
           </React.Fragment>
         ))}
         {h.preset !== 'custom' && field('User ID', h.userId, h.setUserId)}
-        <button type="button" className="insp-btn" onClick={h.run} disabled={h.running || (h.mode === 'live' && !endpointId)}>{h.running ? 'Sending…' : 'Send'}</button>
+        {/* aria-disabled, not disabled: a disabled Send drops keyboard focus to the page body the moment it is pressed. */}
+        <button type="button" className={buttonClassName} onClick={() => { if (!sendBlocked) h.run(); }} aria-disabled={sendBlocked || undefined}>{h.running ? 'Sending…' : 'Send'}</button>
       </div>
       <details>
         <summary>{`Policies on this endpoint · ${countKind(policies, 'POLICY')} policies, ${countKind(policies, 'RULE')} rules`}</summary>

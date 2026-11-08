@@ -11,20 +11,65 @@ import BulkDecisionPanel from './BulkDecisionPanel';
 import SignInPrompt from './SignInPrompt';
 import PingOneAuthorizeConsoleClean from './PingOneAuthorizeConsoleClean';
 import InlineSpinner from './shared/InlineSpinner';
+import { PingPage, SimBanner, PageFrame, Card, StatusChip } from './pingUi';
+import './PingOneAuthorizePage.css';
 
 // PingOne Authorize page: the console tab is the Authorize Inspector; the other
 // ?tab= views are reached from its "More tools" links.
-const S = {
-  root: { padding: '28px 32px', width: '100%', maxWidth: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
-  tabs: { display: 'flex', gap: '6px', marginBottom: '14px', alignItems: 'center' },
-  tab: (active) => ({
-    padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-    border: `1px solid ${active ? '#fca5a5' : '#e2e8f0'}`,
-    background: active ? '#fee2e2' : '#f8fafc',
-    color: active ? '#7f1d1d' : '#334155',
-  }),
-  back: { background: 'none', border: 0, padding: 0, marginBottom: '14px', color: 'var(--th-text)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' },
+//
+// Layout follows the Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P7 chip with the word, P9 buttons. It is a tab host and the
+// inspector is wide (two columns, up to 100rem), so there is no P3 1100px frame around the console or the
+// tools; the signed-out and loading states, which are plain messages, use P3 and P4. The inspector's own
+// layout (P6) is shared with the MCP and Agent Gateway inspectors and stays as it is.
+//
+// P9, one primary per view state:
+//   console (Mock or Real P1AZ) - Send. The Mock | Real P1AZ, Vertical, Decision type and call-filter toggles
+//                                 are neutral selected states, not primaries; Resend / Edit are secondaries.
+//   signed out                  - the Sign in button of SignInPrompt (page CSS puts it on the fixed Ping Red).
+//   loading                     - none (nothing can be pressed).
+//   More tools tabs             - the tool's own run button; this page adds only the secondary Back button.
+//                                 Those tools are separate pages and are not converted here.
+
+// What each More tools tab does with PingOne Authorize, for the banner. Checked against the BFF routes:
+// bulk -> evaluate-endpoint-bulk (PingOne), guided -> test-evaluate (active engine), mock rules and snapshot
+// import -> the mock authz server.
+const TAB_NOTE = {
+  bulk: ['info', 'Real', 'Bulk decisions send up to 20 requests to your PingOne Authorize decision endpoint in one call. The verdicts are PingOne\'s.'],
+  guided: ['neutral', 'Engine-dependent', 'Guided scenarios run on the engine the backend is set to, the built-in simulated policy or PingOne Authorize. A scenario\'s Run live button forces a real PingOne Authorize call.'],
+  mockRules: ['neutral', 'Mock', 'These rules belong to the built-in mock authorization engine only. Changing them does not touch PingOne Authorize.'],
+  snapshot: ['neutral', 'Mock', 'A snapshot is imported into the mock authorization server. PingOne Authorize is not changed.'],
+  scopes: ['neutral', 'Reference', 'Scope Audit and Scope Reference read scope data through the backend\'s admin API. Neither sends a decision request.'],
 };
+
+function ModeBanner({ tab, signedOut, loading, engine, loadFailed }) {
+  let chip; let text;
+  if (tab !== 'console') {
+    const [tone, word, body] = TAB_NOTE[tab];
+    chip = <StatusChip tone={tone}>{word}</StatusChip>;
+    text = body;
+  } else if (signedOut) {
+    chip = <StatusChip tone="warn">Signed out</StatusChip>;
+    text = 'Nothing has been sent. The Authorize Inspector needs a signed-in session to read your PingOne Authorize configuration.';
+  } else if (loading) {
+    chip = <StatusChip tone="neutral">Loading</StatusChip>;
+    text = 'Reading the PingOne Authorize configuration. The inspector opens in Mock.';
+  } else if (engine === 'live' && loadFailed) {
+    chip = <StatusChip tone="warn">Real P1AZ unavailable</StatusChip>;
+    text = 'The PingOne Authorize configuration could not be read, so a Send to Real P1AZ will fail. Switch to Mock to keep going.';
+  } else if (engine === 'live') {
+    chip = <StatusChip tone="info">Real P1AZ</StatusChip>;
+    text = 'Each Send goes to the PingOne Authorize decision endpoint you pick, and the verdict is PingOne\'s. Calls made in Mock stay in the list, marked Mock.';
+  } else {
+    chip = <StatusChip tone="neutral">Mock</StatusChip>;
+    text = 'Simulated. Decisions come from this app\'s built-in mock policy: PingOne Authorize is not called and a verdict here is not PingOne\'s. Switch to Real P1AZ under Send a call to send to PingOne.';
+  }
+  return (
+    <SimBanner data-testid="p1az-banner">
+      <span className="p1az-banner-line">{chip}<span>{text}</span></span>
+    </SimBanner>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -41,6 +86,8 @@ export default function PingOneAuthorizePage() {
     }, { replace: true });
   }, [setSearchParams]);
   const [scopesSubTab, setScopesSubTab] = useState('audit');
+  // The engine the console is on, reported by the console so the banner can say which one answers.
+  const [engine, setEngine] = useState('mock');
 
   // Set while a Token Chain replay is staged; see clearPendingTest below.
   const replayPendingRef = useRef(false);
@@ -167,35 +214,43 @@ export default function PingOneAuthorizePage() {
   };
 
   return (
-    <div style={tab === 'console' ? { ...S.root, padding: 0 } : S.root}>
+    <PingPage className="p1az-page">
+      <ModeBanner tab={tab} signedOut={needsLogin} loading={loading} engine={engine} loadFailed={!!error} />
+
       {tab !== 'console' && (
-        <button type="button" style={S.back} onClick={() => setTab('console')}>← Back to Authorize Inspector</button>
-      )}
+        <div className="p1az-body">
+          <button type="button" className="pu-btn p1az-back" onClick={() => setTab('console')}>← Back to Authorize Inspector</button>
 
-      {tab === 'bulk' && <BulkDecisionPanel />}
+          {tab === 'bulk' && <BulkDecisionPanel />}
 
-      {tab === 'guided' && <AuthzTestPage />}
+          {tab === 'guided' && <AuthzTestPage />}
 
-      {tab === 'mockRules' && <MockAuthzRulesPage />}
+          {tab === 'mockRules' && <MockAuthzRulesPage />}
 
-      {tab === 'snapshot' && <SnapshotImport />}
+          {tab === 'snapshot' && <SnapshotImport />}
 
-      {tab === 'scopes' && (
-        <div>
-          <div style={S.tabs}>
-            <span style={S.tab(scopesSubTab === 'audit')} onClick={() => setScopesSubTab('audit')}>Scope Audit</span>
-            <span style={S.tab(scopesSubTab === 'reference')} onClick={() => setScopesSubTab('reference')}>Scope Reference</span>
-          </div>
-          {scopesSubTab === 'audit' ? <ScopeAuditPage /> : <ScopeReferencePage />}
+          {tab === 'scopes' && (
+            <div>
+              <div className="p1az-subtabs" role="group" aria-label="Scope views">
+                <button type="button" className="pu-btn" aria-pressed={scopesSubTab === 'audit'} onClick={() => setScopesSubTab('audit')}>Scope Audit</button>
+                <button type="button" className="pu-btn" aria-pressed={scopesSubTab === 'reference'} onClick={() => setScopesSubTab('reference')}>Scope Reference</button>
+              </div>
+              {scopesSubTab === 'audit' ? <ScopeAuditPage /> : <ScopeReferencePage />}
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'console' && (needsLogin ? (
-        <div style={{ padding: '40px' }}>
+        <PageFrame>
           <SignInPrompt message="The PingOne Authorize Inspector needs a signed-in session." />
-        </div>
+        </PageFrame>
       ) : loading ? (
-        <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}><InlineSpinner label="Loading PingOne Authorize configuration…" /></div>
+        <PageFrame>
+          <Card tone="neutral">
+            <InlineSpinner label="Loading PingOne Authorize configuration…" />
+          </Card>
+        </PageFrame>
       ) : (
         <PingOneAuthorizeConsoleClean
           endpointId={selectedId}
@@ -210,8 +265,10 @@ export default function PingOneAuthorizePage() {
           onRan={onRan}
           recent={recent.decisions}
           onIncludeRecent={includeRecent}
+          onModeChange={setEngine}
+          buttonClassName="pu-btn pu-btn--primary"
         />
       ))}
-    </div>
+    </PingPage>
   );
 }
