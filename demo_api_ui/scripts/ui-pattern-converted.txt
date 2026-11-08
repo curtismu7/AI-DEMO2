@@ -24,6 +24,7 @@
 /privilege-prompt-log
 /governance-timeline
 /demo-config
+/davinci-ciba-flows
 /privilege-pf-token
 /ping-products/verify-recognize
 /autonomous-agents
