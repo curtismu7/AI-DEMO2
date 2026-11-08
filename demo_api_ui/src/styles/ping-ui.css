@@ -18,6 +18,9 @@
   min-height: 100vh;
   background: var(--th-bg-page);
   color: var(--th-text);
+  /* The CDN end-user-nano skin sets the app root's line-height to 1 (--bs-body-line-height), which every
+     unstyled paragraph, kv value and table cell inherited. Body text on a converted page reads at the app's normal height. */
+  line-height: var(--line-height-normal);
 }
 
 /* P2: the banner is the first element, above the title band. */
