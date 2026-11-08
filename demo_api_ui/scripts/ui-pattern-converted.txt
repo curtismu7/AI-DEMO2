@@ -16,6 +16,7 @@
 /privilege-prompt-log
 /demo-config
 /privilege-pf-token
+/autonomous-agents
 /p1-third-party-exchange
 /privilege-shelf
 /ai-products/core
