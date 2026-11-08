@@ -1,14 +1,14 @@
 // GatewayStatsPage.test.jsx — /gateway-stats asks the admin-gated BFF stats proxy first and says what is
 // wrong (not signed in, server not configured) instead of showing a blank frame; Mission Control links to it.
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import GatewayStatsPage from "../components/GatewayStatsPage";
+import GatewayStatsPage, { CHECK_TIMEOUT_MS } from "../components/GatewayStatsPage";
 import { MISSION_CONTROL_CATALOG } from "../config/missionControlCatalog";
 
 const reply = (status) => vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status });
 
-afterEach(() => { vi.unstubAllGlobals(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("GatewayStatsPage", () => {
   it("frames the BFF stats proxy, not HAProxy directly, once the proxy answers", async () => {
@@ -60,17 +60,74 @@ describe("GatewayStatsPage", () => {
       expect(banner).toMatch(/Nothing on this page is simulated/);
     });
 
-    it("says live data only once the proxy answered, and names the one thing it checked", async () => {
+    it("names only what was checked when the probe answers: the endpoint, never 'live data' in the frame", async () => {
       vi.stubGlobal("fetch", reply(200));
       render(<GatewayStatsPage />);
       await screen.findByTitle("HAProxy LB stats");
       const banner = screen.getByTestId("gws-banner").textContent;
-      expect(banner).toMatch(/LIVE DATA, NOTHING SIMULATED/);
+      expect(banner).toMatch(/THE STATS ENDPOINT ANSWERED/);
+      expect(banner).not.toMatch(/LIVE DATA/i);
+      expect(banner).toMatch(/cannot read what is inside it/);
       expect(banner).toMatch(/does not judge node health/);
+      const status = screen.getByTestId("gws-status").textContent;
+      expect(status).toMatch(/The stats endpoint answered/);
+      expect(status).toMatch(/If it shows an error, that error is the gateway's/);
+      expect(screen.getByTestId("gws-frame-card").textContent).not.toMatch(/Live from/i);
+    });
+
+    it("keeps the sign-in instructions inside the status region", async () => {
+      vi.stubGlobal("fetch", reply(401));
+      render(<GatewayStatsPage />);
+      await screen.findByText("Sign in to see the stats.");
+      const region = screen.getByRole("status");
+      expect(region.textContent).toMatch(/Use Sign In at the top right/);
+      expect(region.textContent).toMatch(/press Check again/);
+    });
+
+    it("keeps the MCPGW_LB_STATS_* instructions inside the status region", async () => {
+      vi.stubGlobal("fetch", reply(503));
+      render(<GatewayStatsPage />);
+      await screen.findByText("The server has no stats connection set up.");
+      const region = screen.getByRole("status");
+      expect(region.textContent).toMatch(/MCPGW_LB_STATS_URL/);
+      expect(region.textContent).toMatch(/MCPGW_LB_STATS_AUTH/);
+    });
+
+    it("ends a check that never answers: Timed out, button usable again, and a retry works", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn(() => new Promise(() => {}));
+      vi.stubGlobal("fetch", fetchMock);
+      render(<GatewayStatsPage />);
+      const button = screen.getByRole("button", { name: "Check again" });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      await act(async () => { vi.advanceTimersByTime(CHECK_TIMEOUT_MS - 1); });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      await act(async () => { vi.advanceTimersByTime(1); });
+      expect(button.getAttribute("aria-disabled")).toBeNull();
+      const region = screen.getByRole("status");
+      expect(region.textContent).toMatch(/Timed out/);
+      expect(region.textContent).toMatch(/did not answer in time/);
+      expect(region.textContent).toMatch(/Press Check again/);
+      expect(screen.getByTestId("gws-banner").textContent).toMatch(/NO DATA SHOWN/);
+      expect(screen.queryByTitle("HAProxy LB stats")).toBeNull();
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+      fetchMock.mockResolvedValue({ ok: true, status: 200 });
+      await act(async () => { fireEvent.click(button); });
+      expect(screen.getByTitle("HAProxy LB stats")).toBeTruthy();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not time out a check that answered in time", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal("fetch", reply(401));
+      render(<GatewayStatsPage />);
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => { vi.advanceTimersByTime(CHECK_TIMEOUT_MS * 2); });
+      expect(screen.getByRole("status").textContent).toMatch(/Not signed in/);
     });
 
     it.each([
-      [200, "Proxy answered", "ok"],
+      [200, "Endpoint answered", "ok"],
       [401, "Not signed in", "warn"],
       [503, "Not configured", "warn"],
       [500, "Not loaded", "danger"],

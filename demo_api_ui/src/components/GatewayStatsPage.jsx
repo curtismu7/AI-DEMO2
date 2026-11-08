@@ -11,9 +11,14 @@
 // P5 kv, P7 chips, P9 buttons. Skipped: P6 (not an inspector) and P8 (no diagram). The standalone shell bar
 // is not added (the app has its own).
 //
-// Honesty: nothing on this page is simulated. The frame is HAProxy's own page, fetched live through the API
-// server. What the PAGE itself checked is one thing only: the proxy's HTTP answer. The chips and the banner
-// say that and no more (a green chip means the proxy answered 200, not that every gateway is healthy).
+// Honesty: nothing on this page is simulated. The frame is HAProxy's own page, fetched through the API
+// server. What the PAGE itself checked is one thing only: a separate request to the stats endpoint got HTTP 200.
+// The chips and the banner say that and no more: a green chip does not mean the frame loaded (the frame can still
+// show the gateway's own error page, which this page cannot read) and it does not mean every gateway is healthy.
+//
+// A check that never answers ends after CHECK_TIMEOUT_MS in a "Timed out" state, so "Check again" is never stuck.
+// The instructions for each state (sign in, set MCPGW_LB_STATS_*) sit inside the role=status region so a screen
+// reader hears them with the result.
 //
 // P9, one primary per view state: "Check again" is the only button and so the one primary in every state
 // (checking, reachable, signed out, not configured, error). It stays mounted across states so keyboard focus
@@ -24,6 +29,7 @@ import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } fro
 import "./GatewayStatsPage.css";
 
 const STATS_URL = "/api/admin/lb/runtime/stats-view";
+export const CHECK_TIMEOUT_MS = 10000;
 
 // What each state shows. `tone` colours the card edge, `chip` is the word and its tone: green only for what
 // the page itself confirmed (the proxy answered 200), warn/danger for a failed check, neutral while unchecked.
@@ -43,13 +49,15 @@ const VIEW = {
   ok: {
     tone: "ok",
     chipTone: "ok",
-    chip: "Proxy answered",
-    line: "The stats proxy answered, so the live stats are below.",
+    chip: "Endpoint answered",
+    line: "The stats endpoint answered.",
+    detail: <>The frame below is the gateway&apos;s own page. If it shows an error, that error is the gateway&apos;s, not this page&apos;s.</>,
     banner: (
       <>
-        <strong>LIVE DATA, NOTHING SIMULATED</strong> — the frame below is HAProxy&apos;s own stats page for{" "}
-        <code>mcpgw-lb</code>, fetched live through this demo&apos;s API server. This page checked only that the proxy
-        answered; it cannot tell which cluster the server&apos;s stats connection points at, and it does not judge node health.
+        <strong>THE STATS ENDPOINT ANSWERED</strong> — a separate request to this demo&apos;s API server got HTTP 200. The frame
+        below is HAProxy&apos;s own stats page for <code>mcpgw-lb</code>, and this page cannot read what is inside it, so it does
+        not claim the frame loaded. It also cannot tell which cluster the server&apos;s stats connection points at, and it does not
+        judge node health. Nothing on this page is simulated.
       </>
     ),
   },
@@ -89,6 +97,19 @@ const VIEW = {
       </>
     ),
   },
+  timeout: {
+    tone: "danger",
+    chipTone: "danger",
+    chip: "Timed out",
+    line: "The stats proxy did not answer in time.",
+    detail: <>No answer came within 10 seconds. Press <b>Check again</b> to try once more.</>,
+    banner: (
+      <>
+        <strong>NO DATA SHOWN</strong> — the stats request timed out, so there is nothing live to show. Nothing on this page is
+        simulated.
+      </>
+    ),
+  },
   error: {
     tone: "danger",
     chipTone: "danger",
@@ -110,17 +131,26 @@ const ANSWER = {
   ok: "200, stats page returned",
   signin: "401, not signed in",
   unconfigured: "503, stats connection not set up",
+  timeout: "no answer within 10 seconds",
   error: "no usable answer (network error or an unexpected status)",
 };
 
 export default function GatewayStatsPage() {
-  const [state, setState] = useState("checking"); // checking | ok | signin | unconfigured | error
+  const [state, setState] = useState("checking"); // checking | ok | signin | unconfigured | timeout | error
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
+    const controller = new AbortController();
     setState("checking");
-    fetch(STATS_URL, { credentials: "same-origin" })
+    // The timer ends the check even when fetch never settles (it also aborts the request).
+    const timer = setTimeout(() => {
+      if (!live) return;
+      live = false;
+      controller.abort();
+      setState("timeout");
+    }, CHECK_TIMEOUT_MS);
+    fetch(STATS_URL, { credentials: "same-origin", signal: controller.signal })
       .then((res) => {
         if (!live) return;
         if (res.ok) setState("ok");
@@ -128,8 +158,9 @@ export default function GatewayStatsPage() {
         else if (res.status === 503) setState("unconfigured");
         else setState("error");
       })
-      .catch(() => { if (live) setState("error"); });
-    return () => { live = false; };
+      .catch(() => { if (live) setState("error"); })
+      .finally(() => clearTimeout(timer));
+    return () => { live = false; clearTimeout(timer); controller.abort(); };
   }, [attempt]);
 
   const checking = state === "checking";
@@ -159,11 +190,13 @@ export default function GatewayStatsPage() {
       <PageFrame>
         <Section id="gws-connection" kicker="1 · Connection" title="Can this page reach the stats?">
           <Card tone={view.tone} title="Stats proxy" data-testid="gws-connection-card">
-            <div className="pu-status-line" role="status" data-testid="gws-status">
-              <StatusChip tone={view.chipTone}>{view.chip}</StatusChip>
-              <strong>{view.line}</strong>
+            <div role="status" data-testid="gws-status">
+              <div className="pu-status-line">
+                <StatusChip tone={view.chipTone}>{view.chip}</StatusChip>
+                <strong>{view.line}</strong>
+              </div>
+              {view.detail ? <p className="pu-note">{view.detail}</p> : null}
             </div>
-            {view.detail ? <p className="pu-note">{view.detail}</p> : null}
             <KvList
               items={[
                 { label: "Asked", value: STATS_URL, mono: true },
@@ -188,7 +221,7 @@ export default function GatewayStatsPage() {
           <Section id="gws-stats" kicker="2 · Live stats" title="HAProxy stats for mcpgw-lb">
             <Card tone="live" data-testid="gws-frame-card">
               <p className="pu-status-line">
-                <StatusChip tone="info">Live from HAProxy</StatusChip>
+                <StatusChip tone="info">Gateway&apos;s own page</StatusChip>
                 <span>The frame is HAProxy&apos;s own page, so it uses HAProxy&apos;s styling, not the app theme.</span>
               </p>
               <iframe title="HAProxy LB stats" src={STATS_URL} className="gws-page__frame" />
