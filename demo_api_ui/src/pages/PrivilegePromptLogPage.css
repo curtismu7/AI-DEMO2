@@ -16,13 +16,6 @@
   }
 }
 
-/* The CDN end-user-nano skin sets the app root's line-height to 1 (--bs-body-line-height), which every
-   unstyled paragraph on this page inherited. Body text here takes the app's normal reading height.
-   (A shared .pu-page line-height would fix it for every converted page; that file is not this PR's.) */
-.ppl-page {
-  line-height: var(--line-height-normal);
-}
-
 /* Record table: scrolls inside its own wrapper when wide, stacks as labelled rows at phone width. */
 .ppl-table-wrap {
   overflow-x: auto;
@@ -152,13 +145,6 @@
   margin: 0 0 8px;
   color: var(--th-status-error-text);
   font-size: var(--font-size-sm);
-}
-
-/* The live-check block sits inside the live card. */
-.pu-card--live .plc {
-  margin-top: 0;
-  border-top: 0;
-  padding-top: 0;
 }
 
 @media (max-width: 600px) {
