@@ -107,21 +107,6 @@
   color: var(--th-text-muted);
 }
 
-.transaction-consent-learn-btn--inline {
-  display: inline-block;
-  margin-top: 0.75rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--radius-lg);
-  background: var(--brand-navy);
-  color: var(--app-primary-blue-text, #fff) !important;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.transaction-consent-learn-btn--inline:hover {
-  background: var(--brand-navy);
-}
-
 .transaction-consent-card {
   max-width: 36rem;
   margin: 0 auto;
@@ -505,59 +490,45 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 
-/* ── Simulate mode landing ────────────────────────────────────────────────── */
+/* ── Simulate mode (Ping UI Standard page: layout, cards, chips and buttons come from styles/ping-ui.css) ── */
 
-.tc-simulate {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 28px 24px 48px;
-}
-
-.tc-simulate__header { margin-bottom: 24px; }
+/* ConsentMockPhoneFlow's own heading when it is used without the page chrome. */
 .tc-simulate__title { font-size: var(--font-size-h2); font-weight: 800; color: var(--th-text); margin: 0 0 6px; }
 .tc-simulate__subtitle { font-size: var(--font-size-body); color: var(--th-text-muted); margin: 0; line-height: 1.55; }
 
-.tc-simulate__info {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 14px 18px; background: #fcfcfc; border: 1px solid #bfdbfe;
-  border-radius: 10px; margin-bottom: 24px; font-size: var(--font-size-sm); color: #051727; line-height: 1.55;
+.tc-steps {
+  margin: 0;
+  padding: 0 0 0 20px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+  line-height: 1.6;
 }
-.tc-simulate__info-icon {
-  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
-  border: 2px solid #12538d; color: #12538d; font-weight: 800; font-size: var(--font-size-2xs);
-  display: flex; align-items: center; justify-content: center; margin-top: 1px;
-  font-style: italic; font-family: var(--font-primary);
+.tc-steps li { margin-bottom: 4px; }
+.tc-steps code {
+  background: var(--th-bg-inset);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
 }
+.tc-page .pu-banner code { overflow-wrap: anywhere; }
 
-.tc-simulate__section-title {
-  font-size: var(--font-size-body); font-weight: 700; color: var(--th-text); margin: 0 0 12px;
+/* P9: the picker's one primary is "Simulate" on the first scenario. The shared diagram step bar's Simulate and
+   Next are flat red (and Simulate turns navy on hover), which would be a second primary, so on this page they
+   read as secondaries; the rest of the bar is unchanged. */
+.tc-page .dstep-bar .dc-ctrl-btn--simulate:not(:disabled),
+.tc-page .dstep-bar .dc-ctrl-btn--next:not(:disabled),
+.tc-page .dstep-bar .dc-ctrl-btn--simulate:hover:not(:disabled),
+.tc-page .dstep-bar .dc-ctrl-btn--next:hover:not(:disabled) {
+  background-color: var(--th-bg-card);
+  background-image: none;
+  border: 1px solid var(--control-border);
+  color: var(--th-text);
 }
-
-.tc-simulate__grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px; margin-bottom: 28px;
+.tc-page .dstep-bar .dc-ctrl-btn--simulate:hover:not(:disabled),
+.tc-page .dstep-bar .dc-ctrl-btn--next:hover:not(:disabled) {
+  border-color: var(--btn-accent);
 }
-
-.tc-simulate__card {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 14px 16px; background: var(--th-bg-card); border: 2px solid var(--th-border);
-  border-radius: 10px; cursor: pointer; text-align: left;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.tc-simulate__card:hover {
-  border-color: #12538d; box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.12);
-}
-.tc-simulate__card-label { font-size: var(--font-size-body); font-weight: 700; color: var(--th-text); }
-.tc-simulate__card-desc { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
-.tc-simulate__card-meta { font-size: var(--font-size-xs); font-weight: 600; color: #12538d; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
-
-.tc-simulate__flow { margin-top: 8px; }
-
-.tc-simulate__steps {
-  margin: 0; padding: 0 0 0 20px; font-size: var(--font-size-sm); color: var(--th-text-body); line-height: 1.8;
-}
-.tc-simulate__steps li { margin-bottom: 4px; }
-.tc-simulate__steps code { background: var(--th-bg-inset); padding: 1px 6px; border-radius: 3px; font-size: var(--font-size-2xs); }
 
 /* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
 :root[data-theme="dark"] .transaction-consent-btn--ghost {

@@ -55,3 +55,13 @@
 .cmp__status.is-error { border-left: 4px solid #c0392b; }
 .cmp__status button, .cmp__back { margin-left: 12px; }
 .cmp__back { margin: 16px 0 0; }
+
+/* pingUi mode (/transaction-consent): the page frame supplies width and padding, the Card supplies the surface. */
+.cmp--pu { max-width: none; margin: 0; padding: 0; }
+.cmp--pu .cmp__focus { margin-bottom: 16px; }
+.cmp--pu .cmp__focus:focus-visible { outline: 3px solid var(--th-status-info-text); outline-offset: 2px; border-radius: var(--radius-lg); }
+.cmp--pu .cmp__status { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+.cmp--pu .cmp__status button { margin-left: 12px; }
+.cmp__wrap:focus-visible { outline: 3px solid var(--th-status-info-text); outline-offset: -3px; }
+.cmp__actions button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.cmp--pu .cmp__actions-row { margin: 0 0 16px; }
