@@ -7,5 +7,6 @@
 /privilege-pii-detection
 /privilege-intent-triage
 /privilege-prompt-log
+/privilege-pf-token
 /privilege-shelf
 /privilege-for-ai
