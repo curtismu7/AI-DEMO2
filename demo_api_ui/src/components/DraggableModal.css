@@ -55,10 +55,22 @@
   max-width: calc(100% - 16px);
 }
 
+/* The right-docked drawer is one window tall: its inline height is 100vh, and vh ignores the app's page zoom (same cause
+   as above), so at 1.125 the drawer ran 12.5% past the bottom of the window. Divide by --app-zoom as index.css does. */
+.dm-panel[data-placement="right"] {
+  height: calc(100vh / var(--app-zoom, 1)) !important;
+}
+
 @media (max-width: 480px) {
   .dm-panel[data-placement="center"] {
     left: 8px !important;
   }
+}
+
+/* The panel is focused (tabindex -1) when it opens so a keyboard or screen-reader user starts inside it; it is not a
+   control, so it gets no ring (its buttons and fields keep theirs). */
+.dm-panel:focus {
+  outline: none;
 }
 
 /* ── Title bar ─────────────────────────────────────────────────────────── */

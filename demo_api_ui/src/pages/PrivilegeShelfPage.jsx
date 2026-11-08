@@ -64,9 +64,9 @@ const SECTIONS = [
   {
     id: "source",
     title: "Source code",
-    blurb: "The standalone Privilege Map repository on GitHub (private, sign-in required).",
+    blurb: "The standalone Privilege Map repository on GitHub (public).",
     cards: [
-      { title: "privilege-map on GitHub", text: "The standalone Privilege Map app: data, diagrams, tests and docs.", href: "https://github.com/cmuir_pingcorp/privilege-map" },
+      { title: "privilege-map on GitHub", text: "The standalone Privilege Map app: data, diagrams, tests and docs.", href: "https://github.com/curtismu7/privilege-map-LAB" },
     ],
   },
 ];

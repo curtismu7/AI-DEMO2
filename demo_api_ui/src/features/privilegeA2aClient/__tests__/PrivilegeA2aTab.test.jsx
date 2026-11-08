@@ -81,12 +81,16 @@ describe('PrivilegeA2aTab', () => {
     const user = userEvent.setup();
     render(<PrivilegeA2aTab />);
     const button = screen.getByRole('button', { name: 'Open run details' });
-    expect(button).toBeDisabled();
+    // aria-disabled, not disabled: the button stays focusable and a press is ignored.
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    await user.click(button);
+    expect(opened).not.toHaveBeenCalled();
 
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
     await user.click(screen.getByRole('button', { name: 'Send question' }));
     expect(await screen.findByText('Done.')).toBeTruthy();
-    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute('aria-disabled');
 
     await user.click(button);
     expect(opened).toHaveBeenCalledTimes(1);
@@ -517,18 +521,19 @@ describe('compact agent', () => {
     const user = userEvent.setup();
     render(<PrivilegeA2aTab />);
     const reset = screen.getByRole('button', { name: 'Reset' });
-    expect(reset).toBeDisabled();
+    expect(reset).toHaveAttribute('aria-disabled', 'true');
+    expect(reset).not.toBeDisabled();
 
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
     await user.click(screen.getByRole('button', { name: 'Send question' }));
     expect(await screen.findByText('Done.')).toBeTruthy();
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'a follow-up');
-    expect(reset).toBeEnabled();
+    expect(reset).not.toHaveAttribute('aria-disabled');
 
     await user.click(reset);
     expect(screen.queryByText('Done.')).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue('');
-    expect(reset).toBeDisabled();
+    expect(reset).toHaveAttribute('aria-disabled', 'true');
   });
 
   test('the question box takes typing while a run is in flight, and Reset stops that run without an error', async () => {
@@ -641,5 +646,95 @@ describe('Ping UI standard', () => {
     const chips = [...container.querySelectorAll('.pu-chip')];
     expect(chips.length).toBeGreaterThan(0);
     for (const chip of chips) expect(chip.textContent.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe('keyboard focus survives the controls that go inert or leave (KB-3)', () => {
+  const hang = () => global.fetch.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+  }));
+
+  test('pressing a suggested question starts the run and leaves focus on the conversation, not <body>', async () => {
+    hang();
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const chip = await screen.findByRole('button', { name: 'Review access on prod-db-primary.' });
+    chip.focus();
+    await user.keyboard('{Enter}');
+    await screen.findByRole('button', { name: 'Reviewing…' });
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Conversation' }));
+    // while the run is in flight a chip is aria-disabled, never disabled, and a press does nothing
+    const again = screen.getAllByRole('button', { name: 'Review access on prod-db-primary.' })[0];
+    expect(again).toHaveAttribute('aria-disabled', 'true');
+    expect(again).not.toBeDisabled();
+    await user.click(again);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('Reset keeps focus on itself when it goes inert', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'abc');
+    const reset = screen.getByRole('button', { name: 'Reset' });
+    reset.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue('');
+    expect(reset).toHaveAttribute('aria-disabled', 'true');
+    expect(document.activeElement).toBe(reset);
+  });
+
+  test('Cancel hands focus to Send question when the run ends and Cancel leaves', async () => {
+    hang();
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    const cancel = await screen.findByRole('button', { name: 'Cancel' });
+    cancel.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Send question' }));
+  });
+
+  test('the compact agent: opening moves focus into it, Escape or minimise returns it to the opener', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const opener = screen.getByRole('button', { name: 'Open the compact agent' });
+    opener.focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Question for the compact agent' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Compact agent' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open the compact agent' }));
+
+    await user.click(screen.getByRole('button', { name: 'Open the compact agent' }));
+    await user.click(screen.getByRole('button', { name: 'Minimise the compact agent' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open the compact agent' }));
+  });
+
+  test('the walkthrough: Start moves focus to Next, Stop returns it to Start, Back is aria-disabled on step 1', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.click(screen.getByRole('button', { name: 'Start walkthrough' }));
+    const next = screen.getByRole('button', { name: 'Next' });
+    expect(document.activeElement).toBe(next);
+    const back = screen.getByRole('button', { name: 'Back' });
+    expect(back).toHaveAttribute('aria-disabled', 'true');
+    expect(back).not.toBeDisabled();
+    await user.click(next);
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText(/Step 1 of/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Start walkthrough' }));
+  });
+
+  test('no control on the page is left natively disabled where it can hold focus: Reset, chips, reel actions, Break it', async () => {
+    const { container } = render(<PrivilegeA2aTab />);
+    await screen.findByRole('button', { name: 'Review access on prod-db-primary.' });
+    for (const name of ['Reset', 'Open run details', 'Copy link', 'Save run', 'Replay']) {
+      expect(screen.getByRole('button', { name })).not.toBeDisabled();
+    }
+    expect(container.querySelectorAll('.privilege-a2a__chip:disabled, .privilege-a2a__break:disabled')).toHaveLength(0);
   });
 });
