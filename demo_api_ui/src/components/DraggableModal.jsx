@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import ReactDOM, { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
+import { useDialogFocus } from "../hooks/useDialogFocus";
+import { getViewportCssSize } from "../utils/appZoom";
 import "./DraggableModal.css";
 
 function getSingletonRegistry() {
@@ -127,26 +129,27 @@ export default function DraggableModal({
   const [popoutTheme, setPopoutTheme] = useState(null);
   const [instanceId] = useState(() => `dm_${Math.random().toString(36).slice(2)}`);
 
-  const initialPos = useCallback(
-    () => ({
+  // Position and size are in the page's zoomed CSS pixels, so centre against the window size divided by the app zoom
+  // (innerWidth is in window pixels and used raw it put the panel 12.5% too far right/down at the default 1.125).
+  const initialPos = useCallback(() => {
+    const vp = getViewportCssSize();
+    // The panel is clamped to the window minus a margin on each side (see .dm-panel max-width), so centre that width.
+    const w = Math.min(defaultWidth, Math.max(0, vp.w - 16));
+    return {
       x:
         defaultX != null
           ? defaultX
           : placement === "right"
-            ? Math.max(0, window.innerWidth - defaultWidth)
-          : Math.max(0, Math.round((window.innerWidth - defaultWidth) / 2)),
+            ? Math.max(0, vp.w - w)
+            : Math.max(0, Math.round((vp.w - w) / 2)),
       y:
         defaultY != null
           ? defaultY
           : placement === "right"
             ? 0
-          : Math.max(
-              0,
-              Math.round((window.innerHeight - defaultHeight) / 2) - 30,
-            ),
-    }),
-    [defaultX, defaultY, defaultWidth, defaultHeight, placement],
-  );
+            : Math.max(0, Math.round((vp.h - defaultHeight) / 2) - 30),
+    };
+  }, [defaultX, defaultY, defaultWidth, defaultHeight, placement]);
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     initialPos,
@@ -254,6 +257,11 @@ ${inlineStyles}
     handlePopOut();
   }, [isOpen, autoPopOut, isPoppedOut, handlePopOut]);
 
+  // A non-modal floating panel (noBackdrop) never takes focus or traps Tab; it opens without the user asking.
+  const modalFocus = isOpen && !isPoppedOut && !noBackdrop;
+  const panelRef = React.useRef(null);
+  useDialogFocus(panelRef, { active: modalFocus });
+
   if (!isOpen && !isPoppedOut) return null;
 
   // Footer: undefined → default close button; null → none; node → custom
@@ -349,6 +357,8 @@ ${inlineStyles}
 
       {/* Panel */}
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={`dm-panel${className ? ` ${className}` : ""}`}
         role="dialog"
         aria-label={title}

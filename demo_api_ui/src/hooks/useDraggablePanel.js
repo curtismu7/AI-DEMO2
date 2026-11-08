@@ -1,5 +1,6 @@
 // banking_api_ui/src/hooks/useDraggablePanel.js
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getAppZoom, getViewportCssSize } from '../utils/appZoom';
 
 /**
  * Clamp a position so a panel of the given size stays fully inside the current
@@ -10,10 +11,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 function clampPosToViewport(p, size) {
   if (typeof window === 'undefined' || !window.innerWidth || !window.innerHeight) return p;
   const margin = 8;
-  const w = size?.w || 0;
+  // Saved positions are in the page's zoomed CSS pixels, so compare them to the window in the same unit.
+  const vp = getViewportCssSize();
+  const w = Math.min(size?.w || 0, Math.max(0, vp.w - 2 * margin));
   const h = size?.h || 0;
-  const maxX = Math.max(margin, window.innerWidth - w - margin);
-  const maxY = Math.max(margin, window.innerHeight - h - margin);
+  const maxX = Math.max(margin, vp.w - w - margin);
+  const maxY = Math.max(margin, vp.h - h - margin);
   return {
     x: Math.min(Math.max(p.x, margin), maxX),
     y: Math.min(Math.max(p.y, margin), maxY),
@@ -107,7 +110,7 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
     e.preventDefault();
     // The app zooms the whole page (root CSS zoom, 112.5% by default). Pointer coordinates are in window pixels but
     // left/top are in zoomed pixels, so without this the panel moves 12.5% farther than the cursor and slides off it.
-    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const zoom = getAppZoom();
     const offX = e.clientX / zoom - posRef.current.x;
     const offY = e.clientY / zoom - posRef.current.y;
     const target = e.currentTarget;
