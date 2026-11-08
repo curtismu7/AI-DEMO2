@@ -4,11 +4,23 @@
 // Authorize evaluates before banking data is touched. UI mock — panes show
 // canned payloads matching the sideband contract pinned in
 // demo_authz_server/routes/sideband.js; not wired to the live stack.
+//
+// Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/
+// STANDALONE-UI-PATTERNS.md) on the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv, P7 chips,
+// P9 buttons. Skipped: P6 (not an inspector) and P8 (the flow strip is a text path, not a
+// diagram). The standalone shell bar is not added (the app has its own).
+//
+// P9, one primary per view state: the scenario buttons are a pick-one group, and the
+// SELECTED scenario is the one primary (the other three are secondaries), so there is
+// exactly one in every state (balance, transfer, sensitive, redact). The theme toggle is a
+// secondary in the title band.
 import React, { useState } from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./ResourceServerCheckpointPage.css";
 import PageHeader from './common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList } from "./pingUi";
 
 const FLOW_STEPS = [
   { id: "agent", label: "agent" },
@@ -46,7 +58,7 @@ const SCENARIOS = {
 }
 // no "response" field — that IS the permit`,
     note: 'Contract quirk worth teaching: PERMIT is the "response" field being absent. Present = deny, and "response_code" is a string.',
-    replyTitle: "What the agent finally receives",
+    replyTitle: "What the agent would receive",
     reply: `HTTP/1.1 200 OK
 {
   "account": "Everyday Checking",
@@ -82,7 +94,7 @@ const SCENARIOS = {
   }
 }`,
     note: "The deny is a complete response authored by policy. The resource server relays it byte-for-byte — no banking code wrote this error.",
-    replyTitle: "What the agent finally receives — P1AZ's words, relayed verbatim",
+    replyTitle: "What the agent would receive — P1AZ's words, relayed verbatim",
     reply: `HTTP/1.1 403 Forbidden
 {
   "error": "transfer_ceiling_exceeded",
@@ -115,7 +127,7 @@ const SCENARIOS = {
   }
 }`,
     note: "The MCP server narrows scopes per tool before step-9 — so this deny proves the whole chain: the tool never asked for sensitive:read, and the last hop held the line.",
-    replyTitle: "What the agent finally receives",
+    replyTitle: "What the agent would receive",
     reply: `HTTP/1.1 403 Forbidden
 {
   "error": "insufficient_scope",
@@ -147,7 +159,7 @@ const SCENARIOS = {
   }
 }`,
     note: "On the outbound leg, a returned \"response\" means use this instead — policy statements included, modified, or excluded fields.",
-    replyTitle: "What the agent finally receives — account number masked by policy",
+    replyTitle: "What the agent would receive — account number masked by policy",
     reply: `HTTP/1.1 200 OK
 [
   {
@@ -193,6 +205,8 @@ const TEACH = [
   },
 ];
 
+const RAN = (v) => (v === "ok" ? "Ran" : "Never ran");
+
 export default function ResourceServerCheckpointPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [active, setActive] = useState("balance");
@@ -205,131 +219,163 @@ export default function ResourceServerCheckpointPage() {
   });
 
   return (
-    <div className="rsc-page">
-      <div className="rsc-hero">
-        <button
-          type="button"
-          onClick={toggleDarkMode}
-          className="rsc-theme-toggle"
-          title="Switch this page between light and dark"
-          aria-pressed={darkMode}
-        >
-          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
-        </button>
-        <PageHeader eyebrow="Last hop · Kong pattern · PingOne Authorize AAM" title="The final check before your data" summary={<>Every gateway upstream already validated its own token. This page shows the one
+    <PingPage className="rsc-page">
+      <SimBanner data-testid="rsc-banner">
+        <strong>SIMULATED — SAMPLE PAYLOADS</strong> — nothing on this page is sent anywhere. The request, decision and reply
+        panes are fixed samples written to match the sideband contract in <code className="rsc-code">demo_authz_server/routes/sideband.js</code>;
+        PingOne Authorize, the resource server and the banking data are not called, and the account, balance and transfer
+        values are made up. What is real is the contract shape the samples follow.
+      </SimBanner>
+      <PageHeader
+        className="rsc-hero"
+        eyebrow="Last hop · Kong pattern · PingOne Authorize AAM"
+        title="The final check before your data"
+        summary={<>Every gateway upstream already validated its own token. This page shows the one
           check that still matters at the very end: the resource server hands the incoming
           request — token and all — to PingOne Authorize over the AAM sideband, exactly the
-          way a Kong ping-auth plugin would, and only touches banking data on PERMIT.</>} />
-      </div>
+          way a Kong ping-auth plugin would, and only touches banking data on PERMIT.</>}
+        actions={
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="pu-btn"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
+        }
+      />
 
-      <div className="rsc-whycards">
-        {WHY_CARDS.map((c) => (
-          <div className="rsc-why" key={c.title}>
-            <h3>{c.title}</h3>
-            <p>{c.text}</p>
-          </div>
-        ))}
-      </div>
-
-      <h2>Try it — pick what the agent attempts</h2>
-      <div className="rsc-lab" style={{ "--rsc-scenarios-w": `${scenarioWidth}px` }}>
-        <div className="rsc-scenarios">
-          <div className="rsc-sc-label">Agent tool call</div>
-          {Object.entries(SCENARIOS).map(([key, sc]) => (
-            <button
-              key={key}
-              type="button"
-              className={`rsc-sc${active === key ? " rsc-sc--active" : ""}`}
-              onClick={() => setActive(key)}
-            >
-              {sc.button}
-              <small>{sc.buttonSub}</small>
-            </button>
-          ))}
-        </div>
-
-        <div className="divider-drag-handle" aria-label="Resize scenario list" {...scenarioHandleProps} />
-
-        <div className="rsc-stage">
-          <div className="rsc-flowstrip">
-            {FLOW_STEPS.map((step, i) => (
-              <React.Fragment key={step.id}>
-                {i > 0 ? <span className="rsc-pill-sep">›</span> : null}
-                <span className={`rsc-pill${s.steps[step.id] ? ` rsc-pill--${s.steps[step.id]}` : ""}`}>
-                  {step.label}
-                </span>
-              </React.Fragment>
+      <PageFrame>
+        <Section id="rsc-why" kicker="1 · Why the last hop" title="Three reasons the final check still matters">
+          <CardGrid>
+            {WHY_CARDS.map((c) => (
+              <Card key={c.title} title={c.title}>
+                <p className="pu-note">{c.text}</p>
+              </Card>
             ))}
-          </div>
+          </CardGrid>
+        </Section>
 
-          <div className={`rsc-verdict rsc-verdict--${s.verdict}`}>
-            <span className="rsc-badge">{s.verdict === "permit" ? "PERMIT" : "DENY"}</span>
-            <div className="rsc-vtext">
-              <strong>{s.title}</strong>
-              <span>{s.sub}</span>
+        <Section
+          id="rsc-try"
+          kicker="2 · Try it"
+          title="Pick what the agent attempts"
+          lede="Four sample tool calls. Pick one to see the sideband request, the decision PingOne Authorize would return, and the reply the agent would get."
+        >
+          <Card tone="neutral" className="rsc-lab-card">
+            <div className="rsc-lab" style={{ "--rsc-scenarios-w": `${scenarioWidth}px` }}>
+              <div className="rsc-scenarios" role="group" aria-label="Agent tool call">
+                <p className="pu-label">Agent tool call</p>
+                {Object.entries(SCENARIOS).map(([key, sc]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={active === key ? "pu-btn pu-btn--primary rsc-sc" : "pu-btn rsc-sc"}
+                    aria-pressed={active === key}
+                    data-testid={`rsc-scenario-${key}`}
+                    onClick={() => setActive(key)}
+                  >
+                    {sc.button}
+                    <small>{sc.buttonSub}</small>
+                  </button>
+                ))}
+              </div>
+
+              <div className="divider-drag-handle" aria-label="Resize scenario list" {...scenarioHandleProps} />
+
+              <div className="rsc-stage">
+                <ol className="rsc-flowstrip" aria-label="Path of the sample request">
+                  {FLOW_STEPS.map((step, i) => {
+                    const state = s.steps[step.id];
+                    return (
+                      <li key={step.id} className={`rsc-pill${state ? ` rsc-pill--${state}` : ""}`}>
+                        {i > 0 ? <span className="rsc-pill-sep" aria-hidden="true">›</span> : null}
+                        <span className="rsc-pill-label">{step.label}</span>
+                        {state === "dead" ? <span className="rsc-sr"> (not reached)</span> : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+
+                <div className="rsc-verdict" role="status" data-testid="rsc-verdict">
+                  <p className="pu-status-line">
+                    <StatusChip tone="neutral">{s.verdict === "permit" ? "Simulated PERMIT" : "Simulated DENY"}</StatusChip>
+                    <strong>{s.title}</strong>
+                  </p>
+                  <p className="pu-note">{s.sub}</p>
+                </div>
+
+                <KvList
+                  items={[
+                    { label: "Agent tool call", value: `${s.button} — ${s.buttonSub}` },
+                    { label: "Banking handler", value: RAN(s.steps.handler) },
+                    { label: "Outbound redaction leg", value: s.steps.outbound === "on" ? "Ran" : "Not reached" },
+                  ]}
+                />
+
+                <div className="rsc-panes">
+                  <div className="rsc-pane">
+                    <h3 className="pu-label">
+                      Sample: what the resource server sends · <em>POST /sideband/request</em>
+                    </h3>
+                    <pre tabIndex={0} role="region" aria-label="Sample sideband request">{s.request}</pre>
+                  </div>
+                  <div className="rsc-pane">
+                    <h3 className="pu-label">Sample: what PingOne Authorize would reply</h3>
+                    <pre tabIndex={0} role="region" aria-label="Sample PingOne Authorize reply">{s.decision}</pre>
+                    <p className="pu-note rsc-contract-note">{s.note}</p>
+                  </div>
+                  <div className="rsc-pane rsc-pane--wide">
+                    <h3 className="pu-label">Sample: {s.replyTitle.charAt(0).toLowerCase() + s.replyTitle.slice(1)}</h3>
+                    <pre tabIndex={0} role="region" aria-label="Sample reply to the agent">{s.reply}</pre>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          </Card>
+        </Section>
 
-          <div className="rsc-panes">
-            <div className="rsc-pane">
-              <h4>
-                What the resource server sends · <em>POST /sideband/request</em>
-              </h4>
-              <pre>{s.request}</pre>
-            </div>
-            <div className="rsc-pane">
-              <h4>What PingOne Authorize replies</h4>
-              <pre>{s.decision}</pre>
-              <p className="rsc-contract-note">{s.note}</p>
-            </div>
-            <div className="rsc-pane rsc-pane--wide">
-              <h4>{s.replyTitle}</h4>
-              <pre>{s.reply}</pre>
-            </div>
-          </div>
-        </div>
-      </div>
+        <Section id="rsc-phases" kicker="3 · The two legs" title="The two moments Kong would hook — and we mock">
+          <CardGrid>
+            <Card title={<>Inbound — <code className="rsc-code">/sideband/request</code></>}>
+              <p className="pu-note">
+                Fires before any handler runs. Carries method, URL, headers (raw Authorization
+                included), body, and source IP. PingOne Authorize validates the token, maps the
+                path to an API service operation, and evaluates built-in rules plus custom
+                policies. A deny arrives as a complete ready-to-send response.
+              </p>
+            </Card>
+            <Card title={<>Outbound — <code className="rsc-code">/sideband/response</code></>}>
+              <p className="pu-note">
+                Fires only after a PERMIT, with the real response body. Policy statements
+                include, modify, or exclude fields — masking account numbers, stripping columns
+                the agent never consented to see — before anything leaves the building.
+              </p>
+            </Card>
+          </CardGrid>
+        </Section>
 
-      <h2>The two moments Kong would hook — and we mock</h2>
-      <div className="rsc-phases">
-        <div className="rsc-phase">
-          <h3>
-            Inbound — <code>/sideband/request</code>
-          </h3>
-          <p>
-            Fires before any handler runs. Carries method, URL, headers (raw Authorization
-            included), body, and source IP. PingOne Authorize validates the token, maps the
-            path to an API service operation, and evaluates built-in rules plus custom
-            policies. A deny arrives as a complete ready-to-send response.
-          </p>
-        </div>
-        <div className="rsc-phase">
-          <h3>
-            Outbound — <code>/sideband/response</code>
-          </h3>
-          <p>
-            Fires only after a PERMIT, with the real response body. Policy statements
-            include, modify, or exclude fields — masking account numbers, stripping columns
-            the agent never consented to see — before anything leaves the building.
-          </p>
-        </div>
-      </div>
+        <Section id="rsc-teach" kicker="4 · Takeaways" title="What this teaches">
+          <Card tone="neutral">
+            <ul className="rsc-teach">
+              {TEACH.map((t) => (
+                <li key={t.title}>
+                  <span className="rsc-check" aria-hidden="true">✓</span>
+                  <strong>{t.title}</strong> {t.text}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </Section>
 
-      <h2>What this teaches</h2>
-      <ul className="rsc-teach">
-        {TEACH.map((t) => (
-          <li key={t.title}>
-            <span className="rsc-check">✓</span>
-            <strong>{t.title}</strong> {t.text}
-          </li>
-        ))}
-      </ul>
-
-      <p className="rsc-footer">
-        Companion diagram: Diagrams → Resource Server Placement (MM). Payloads follow the
-        sideband contract pinned by demo_authz_server/routes/sideband.js — permit = no
-        "response" field, string response_code, single-key header objects.
-      </p>
-    </div>
+        <p className="pu-note rsc-footer">
+          Companion diagram: Diagrams → Resource Server Placement (MM). Payloads follow the
+          sideband contract pinned by demo_authz_server/routes/sideband.js — permit = no
+          "response" field, string response_code, single-key header objects.
+        </p>
+      </PageFrame>
+    </PingPage>
   );
 }

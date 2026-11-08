@@ -21,6 +21,7 @@
 /privilege-pf-token
 /autonomous-agents
 /p1-third-party-exchange
+/resource-server-checkpoint
 /privilege-shelf
 /ai-products/core
 /ai-products/gateway
