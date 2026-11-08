@@ -10,5 +10,6 @@
 /privilege-prompt-log
 /privilege-pf-token
 /privilege-shelf
+/privilege-a2a
 /privilege-for-ai
 /privilege-ai-policies

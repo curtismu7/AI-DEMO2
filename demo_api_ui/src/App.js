@@ -43,6 +43,7 @@ const PrivilegeIntentTriagePage = lazyWithRetry(() => import("./pages/PrivilegeI
 const PrivilegeCodingAgentsPage = lazyWithRetry(() => import("./pages/PrivilegeCodingAgentsPage"));
 const PrivilegeSaasAccessPage = lazyWithRetry(() => import("./pages/PrivilegeSaasAccessPage"));
 const PrivilegePromptLogPage = lazyWithRetry(() => import("./pages/PrivilegePromptLogPage"));
+const PrivilegeA2aPage = lazyWithRetry(() => import("./pages/PrivilegeA2aPage"));
 const PrivilegePiiDetectionPage = lazyWithRetry(() => import("./pages/PrivilegePiiDetectionPage"));
 const PrivilegeMapPage = lazyWithRetry(() => import("./pages/PrivilegeMapPage"));
 const SkillsIndexPage = lazyWithRetry(() => import("./pages/SkillsIndexPage"));
@@ -294,7 +295,6 @@ import PublicRoutes, {
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
-  PrivilegeA2aPageRoute,
   LlmGatewayPageRoute,
   LlmTestPageRoute,
   IntentInspectorPageRoute,
@@ -1632,7 +1632,9 @@ function AppWithAuth() {
                 <Route
                   path="/privilege-a2a"
                   element={
-                    <PrivilegeA2aPageRoute user={user} logout={logout} />
+                    <AppShell user={user} logout={logout}>
+                      <PrivilegeA2aPage user={user} />
+                    </AppShell>
                   }
                 />
                 <Route

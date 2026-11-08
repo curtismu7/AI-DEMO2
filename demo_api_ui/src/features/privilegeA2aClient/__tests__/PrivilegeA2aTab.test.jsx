@@ -486,3 +486,93 @@ describe('compact agent', () => {
     expect(box).toHaveValue('');
   });
 });
+
+describe('Ping UI standard', () => {
+  const primaries = (container) => [...container.querySelectorAll('.pu-btn--primary')];
+
+  test('exactly one primary button in every state: idle, typed, running, finished', async () => {
+    let finish;
+    global.fetch.mockImplementationOnce((_url, init) => new Promise((resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+      finish = () => resolve(streamResponse([
+        { event: 'token', data: { text: 'Done.' } },
+        { event: 'done', data: { sessionId: 's1' } },
+      ]));
+    }));
+    const user = userEvent.setup();
+    const { container } = render(<PrivilegeA2aTab />);
+
+    // idle: the one primary is Send question, disabled until there is text
+    expect(primaries(container)).toHaveLength(1);
+    expect(primaries(container)[0]).toHaveTextContent('Send question');
+    expect(primaries(container)[0]).toBeDisabled();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
+    expect(primaries(container)).toHaveLength(1);
+    expect(primaries(container)[0]).toBeEnabled();
+
+    // running: still one primary (the same control, "Reviewing…"); Cancel is a secondary
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(primaries(container)).toHaveLength(1);
+    expect(primaries(container)[0]).toHaveTextContent('Reviewing…');
+    expect(screen.getByRole('button', { name: 'Cancel' }).className).not.toMatch(/pu-btn--primary/);
+
+    // finished
+    finish();
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    expect(primaries(container)).toHaveLength(1);
+    expect(primaries(container)[0]).toHaveTextContent('Send question');
+  });
+
+  test('every plain button is a shared secondary or primary; the compact agent adds none', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<PrivilegeA2aTab />);
+    await user.click(screen.getByRole('button', { name: 'Open the compact agent' }));
+    expect(primaries(container)).toHaveLength(1);
+    const dockSend = screen.getByRole('button', { name: 'Send' });
+    expect(dockSend.className).toMatch(/\bpu-btn\b/);
+    expect(dockSend.className).not.toMatch(/pu-btn--primary/);
+  });
+
+  test('a trace step is chosen from the keyboard: a real button with a name, pressed when selected', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message', detail: 'why' } },
+      { event: 'trace', data: { kind: 'result', from: 'analyst', to: 'main', text: 'Remote Agent finished' } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Done.');
+
+    const trace = within(screen.getByRole('complementary', { name: 'Agent trace' }));
+    const pick = trace.getByRole('button', { name: /delegate\s*Send Message/ });
+    expect(pick).toHaveAttribute('aria-pressed', 'false');
+    pick.focus();
+    await user.keyboard('{Enter}');
+    expect(pick).toHaveAttribute('aria-pressed', 'true');
+    const second = trace.getByRole('button', { name: /result\s*Remote Agent finished/ });
+    second.focus();
+    await user.keyboard(' ');
+    expect(second).toHaveAttribute('aria-pressed', 'true');
+    expect(pick).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('every status chip carries a word', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message' } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    const { container } = render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Done.');
+    const chips = [...container.querySelectorAll('.pu-chip')];
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) expect(chip.textContent.trim().length).toBeGreaterThan(0);
+  });
+});

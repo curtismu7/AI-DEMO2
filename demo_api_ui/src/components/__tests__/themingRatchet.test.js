@@ -92,7 +92,8 @@ import path from 'node:path';
 // 71 -> 69: Hub theme links, protocol lab, and Privilege MCP are now themed.
 // 69 -> 68: the Privilege User API Key & Secrets tab uses theme tokens.
 // 60 -> 59: UserMenu.css (the top-nav account dropdown was a white panel in dark).
-const MAX_UNTHEMED = 52;
+// 52 -> 51: PrivilegeA2aTab.css is themed (A2A page on the Ping UI primitives).
+const MAX_UNTHEMED = 51;
 
 const SRC = path.join(__dirname, '..', '..');
 

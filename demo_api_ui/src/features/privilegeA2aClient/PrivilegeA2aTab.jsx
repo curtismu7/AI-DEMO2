@@ -3,6 +3,7 @@ import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import A2aDocsLinks from '../../components/shared/A2aDocsLinks';
+import { Section, Card, StatusChip } from '../../components/pingUi';
 import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/PageAgentModeToggle';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
 import { PATH_STEPS, pathProgress } from './pathProgress';
@@ -41,6 +42,10 @@ const runTokens = (trace) => trace.reduce((sum, entry) => ({
   output: sum.output + (entry.tokens?.output || 0),
   calls: sum.calls + (entry.tokens ? 1 : 0),
 }), { input: 0, output: 0, calls: 0 });
+// The word on every chip is the status; the tone only adds colour to it (P7).
+const KIND_TONE = { delegate: 'info', 'mcp-call': 'info', 'mcp-result': 'ok', result: 'ok', error: 'danger' };
+const EXCHANGE_TONE = { done: 'ok', working: 'info', stopped: 'danger', waiting: 'neutral' };
+const EXCHANGE_WORD = { done: 'done', working: 'working…', stopped: 'stopped', waiting: 'waiting' };
 const CALL_GROUPS = [
   { label: 'Ask the Remote Agent', items: [
     'List all entitlements for Carol Nguyen.',
@@ -70,7 +75,7 @@ function WireBlocks({ entry, open = false }) {
       {blocks.map(([label, body]) => (
         <div key={label}>
           {blocks.length > 1 && <h4>{label}</h4>}
-          <pre>{body}</pre>
+          <pre tabIndex={0}>{body}</pre>
         </div>
       ))}
     </details>
@@ -263,7 +268,7 @@ export default function PrivilegeA2aTab() {
             <button
               key={question}
               type="button"
-              className="privilege-a2a__chip"
+              className="pu-btn privilege-a2a__chip"
               onClick={() => submitQuestion(null, question)}
               disabled={busy}
             >
@@ -282,26 +287,37 @@ export default function PrivilegeA2aTab() {
     return 'Done. Click any step to see what was sent and what came back.';
   })();
 
+  // P9, one primary per view, read as one primary ACTION AT A TIME. The page's only primary is "Send question":
+  //   idle / composing: Send question (enabled once there is text);
+  //   run in flight:    the same control, disabled and labelled "Reviewing…" (the person's next move is to wait;
+  //                     Cancel and Reset are escapes, so they stay secondary);
+  //   run finished:     Send question again (ask another).
+  // Every other control (chips, Calls, Reset, Cancel, Open run details, Compact agent and its Send, the walkthrough,
+  // the Break-it rows, the exchange rows) is a bordered secondary.
   return (
-    <section className="privilege-a2a" aria-labelledby="privilege-a2a-title">
-      <header className="privilege-a2a__header">
-        <div>
-          <h2 id="privilege-a2a-title">A2A access review</h2>
-          <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} disabled={busy} />
-          <p>The A2A Client sends your question to a Remote Agent with <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a>. The Remote Agent checks access data through MCP.</p>
-        </div>
-        <div className="privilege-a2a__path-wrap">
-        <ol className="privilege-a2a__path" aria-label="Agent request path">
-          {PATH_STEPS.map((label, index) => (
-            <li
-              key={`${index}-${label}`}
-              className={`${index <= progress.reached ? 'is-done' : ''}${progress.active === index ? ' is-active' : ''}`.trim() || undefined}
-              aria-current={progress.active === index ? 'step' : undefined}
-            >
-              {label}
-            </li>
-          ))}
-        </ol>
+    <div className="privilege-a2a">
+      <Section
+        id="privilege-a2a-title"
+        kicker="2 · Ask and watch"
+        title="Send a question to the Remote Agent"
+        lede={<>The A2A Client sends your question to a Remote Agent with <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a>. The Remote Agent checks access data through MCP.</>}
+      >
+        <Card tone="neutral" title="Request path">
+          <div className="privilege-a2a__mode">
+            <span className="pu-label">Agent for this page</span>
+            <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} disabled={busy} />
+          </div>
+          <ol className="privilege-a2a__path" aria-label="Agent request path">
+            {PATH_STEPS.map((label, index) => (
+              <li
+                key={`${index}-${label}`}
+                className={`${index <= progress.reached ? 'is-done' : ''}${progress.active === index ? ' is-active' : ''}`.trim() || undefined}
+                aria-current={progress.active === index ? 'step' : undefined}
+              >
+                {label}
+              </li>
+            ))}
+          </ol>
           <p className="privilege-a2a__now" role="status">
             {nowLine}
             {busy && (
@@ -311,319 +327,346 @@ export default function PrivilegeA2aTab() {
               </span>
             )}
           </p>
-        </div>
-      </header>
+        </Card>
 
-      <div className="privilege-a2a__workspace">
-        <section className="privilege-a2a__conversation" aria-label="Conversation">
-          {!dockOpen && (
-            <button type="button" className="privilege-a2a__dock-open" onClick={() => setDockOpen(true)} aria-label="Open the compact agent">Compact agent</button>
-          )}
-          {dockOpen && (
-            <div className="privilege-a2a__dock" role="dialog" aria-label="Compact agent">
-              <div className="privilege-a2a__dock-bar">
-                <span>Compact agent</span>
-                <button type="button" onClick={() => setDockOpen(false)} aria-label="Minimise the compact agent">−</button>
+        <div className="privilege-a2a__workspace">
+          <Card className="privilege-a2a__conversation" role="region" aria-labelledby="privilege-a2a-conversation-h">
+            {!dockOpen && (
+              <button type="button" className="pu-btn privilege-a2a__dock-open" onClick={() => setDockOpen(true)} aria-label="Open the compact agent">Compact agent</button>
+            )}
+            {dockOpen && (
+              <div className="privilege-a2a__dock" role="dialog" aria-label="Compact agent">
+                <div className="privilege-a2a__dock-bar">
+                  <span>Compact agent</span>
+                  <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setDockOpen(false)} aria-label="Minimise the compact agent">−</button>
+                </div>
+                <textarea
+                  className="privilege-a2a__textarea"
+                  value={dockText}
+                  onChange={(event) => setDockText(event.target.value)}
+                  aria-label="Question for the compact agent"
+                  rows={2}
+                  placeholder="Ask about an entitlement…"
+                />
+                <button
+                  type="button"
+                  className="pu-btn privilege-a2a__dock-send"
+                  disabled={busy || !dockText.trim()}
+                  onClick={() => { const text = dockText.trim(); setDockText(''); submitQuestion(null, text); }}
+                >
+                  Send
+                </button>
               </div>
-              <textarea
-                value={dockText}
-                onChange={(event) => setDockText(event.target.value)}
-                aria-label="Question for the compact agent"
-                rows={2}
-                placeholder="Ask about an entitlement…"
-              />
+            )}
+            <div className="privilege-a2a__head">
+              <h3 className="pu-h3" id="privilege-a2a-conversation-h">Conversation</h3>
+              {/* The movie-reel / sequence view of this run: every hop, claim and gateway decision,
+                  kept after the run ends (until the next run starts). It sits here, not by the trace: once a run
+                  starts, the floating agent panel opens over the right-hand column. */}
               <button
                 type="button"
-                className="privilege-a2a__dock-send"
-                disabled={busy || !dockText.trim()}
-                onClick={() => { const text = dockText.trim(); setDockText(''); submitQuestion(null, text); }}
+                className="pu-btn privilege-a2a__sm"
+                onClick={() => window.dispatchEvent(new CustomEvent('agent-evidence-open', { detail: { view: 'sequence-view' } }))}
+                disabled={!busy && turns.length === 0}
+                title="Open the step-by-step sequence of this run, with details for each hop"
               >
-                Send
+                Open run details
               </button>
             </div>
-          )}
-          <div className="privilege-a2a__head">
-            <h3>Conversation</h3>
-            {/* The movie-reel / sequence view of this run: every hop, claim and gateway decision,
-                kept after the run ends (until the next run starts). It sits here, not by the trace: once a run
-                starts, the floating agent panel opens over the right-hand column. */}
-            <button
-              type="button"
-              className="privilege-a2a__details"
-              onClick={() => window.dispatchEvent(new CustomEvent('agent-evidence-open', { detail: { view: 'sequence-view' } }))}
-              disabled={!busy && turns.length === 0}
-              title="Open the step-by-step sequence of this run, with details for each hop"
-            >
-              Open run details
-            </button>
-          </div>
-          {turns.length === 0 ? (
-            <div className="privilege-a2a__start">
-              <p className="privilege-a2a__empty">Ask who has access to a resource, what roles a person holds, or whether a ticket exists:</p>
-              {suggestedQuestions}
-            </div>
-          ) : (
-            <div className="privilege-a2a__turns" aria-live={busy ? "off" : "polite"}>
-              {turns.map((turn, index) => (
-                <article className="privilege-a2a__turn" key={`${index}-${turn.question}`}>
-                  <p className="privilege-a2a__question">{turn.question}</p>
-                  <div className="privilege-a2a__answer">
-                    {turn.answer ? <MarkdownContent text={turn.answer} /> : (busy && index === turns.length - 1 ? 'Reviewing access…' : '')}
-                  </div>
-                </article>
-              ))}
-              <p className="privilege-a2a__empty">Ask another:</p>
-              {suggestedQuestions}
-            </div>
-          )}
-          {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
-          <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
-        <label htmlFor="privilege-a2a-demo-question">Demo question</label>
-        <select
-          id="privilege-a2a-demo-question"
-          value={selectedQuestion}
-          onChange={event => {
-            setSelectedQuestion(event.target.value);
-            setInput(event.target.value);
-          }}
-          disabled={busy}
-        >
-          <option value="">Choose an A2A access-review question</option>
-          {demoQuestions.map(question => <option key={question} value={question}>{question}</option>)}
-        </select>
-        <label htmlFor="privilege-a2a-question">Your question</label>
-        <textarea
-          id="privilege-a2a-question"
-          value={input}
-          onChange={event => {
-            setInput(event.target.value);
-            if (event.target.value !== selectedQuestion) setSelectedQuestion('');
-          }}
-          maxLength={4000}
-          rows={3}
-          placeholder="For example: Review Carol Nguyen's current entitlements."
-        />
-        <div className="privilege-a2a__actions">
-          {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
-          <button
-            type="button"
-            onClick={resetPage}
-            disabled={!busy && !turns.length && !trace.length && !error && !input}
-            title="Stop any run and clear the conversation, trace and question box"
-          >
-            Reset
-          </button>
-          <div className="privilege-a2a__calls">
-            <button type="button" aria-expanded={callsOpen} aria-controls="privilege-a2a-calls" onClick={() => setCallsOpen((open) => !open)}>Calls ▾</button>
-            {callsOpen && (
-              <ul id="privilege-a2a-calls" className="privilege-a2a__calls-menu" role="listbox" aria-label="Calls you can make">
-                {CALL_GROUPS.map((group) => (
-                  <li key={group.label} role="presentation">
-                    <span className="privilege-a2a__calls-group">{group.label}</span>
-                    {group.items.map((item) => (
-                      <button key={`${group.label}-${item}`} type="button" role="option" aria-selected={input === item}
-                        onClick={() => { setInput(item); setSelectedQuestion(''); setCallsOpen(false); }}>
-                        {item}
-                      </button>
+            {turns.length === 0 ? (
+              <div className="privilege-a2a__start">
+                <p className="pu-note">Ask who has access to a resource, what roles a person holds, or whether a ticket exists:</p>
+                {suggestedQuestions}
+              </div>
+            ) : (
+              <div className="privilege-a2a__turns" aria-live={busy ? "off" : "polite"}>
+                {turns.map((turn, index) => (
+                  <article className="privilege-a2a__turn" key={`${index}-${turn.question}`}>
+                    <p className="privilege-a2a__question">{turn.question}</p>
+                    <div className="privilege-a2a__answer">
+                      {turn.answer ? <MarkdownContent text={turn.answer} /> : (busy && index === turns.length - 1 ? 'Reviewing access…' : '')}
+                    </div>
+                  </article>
+                ))}
+                <p className="pu-note">Ask another:</p>
+                {suggestedQuestions}
+              </div>
+            )}
+            {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
+            <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
+              <label className="pu-label" htmlFor="privilege-a2a-demo-question">Demo question</label>
+              <select
+                id="privilege-a2a-demo-question"
+                className="pu-select"
+                value={selectedQuestion}
+                onChange={event => {
+                  setSelectedQuestion(event.target.value);
+                  setInput(event.target.value);
+                }}
+                disabled={busy}
+              >
+                <option value="">Choose an A2A access-review question</option>
+                {demoQuestions.map(question => <option key={question} value={question}>{question}</option>)}
+              </select>
+              <label className="pu-label" htmlFor="privilege-a2a-question">Your question</label>
+              <textarea
+                id="privilege-a2a-question"
+                className="privilege-a2a__textarea"
+                value={input}
+                onChange={event => {
+                  setInput(event.target.value);
+                  if (event.target.value !== selectedQuestion) setSelectedQuestion('');
+                }}
+                maxLength={4000}
+                rows={3}
+                placeholder="For example: Review Carol Nguyen's current entitlements."
+              />
+              <div className="pu-actions privilege-a2a__actions">
+                {busy && <button className="pu-btn" type="button" onClick={cancelRequest}>Cancel</button>}
+                <button
+                  className="pu-btn"
+                  type="button"
+                  onClick={resetPage}
+                  disabled={!busy && !turns.length && !trace.length && !error && !input}
+                  title="Stop any run and clear the conversation, trace and question box"
+                >
+                  Reset
+                </button>
+                <div className="privilege-a2a__calls">
+                  <button className="pu-btn" type="button" aria-expanded={callsOpen} aria-controls="privilege-a2a-calls" onClick={() => setCallsOpen((open) => !open)}>Calls ▾</button>
+                  {callsOpen && (
+                    <ul id="privilege-a2a-calls" className="privilege-a2a__calls-menu" role="listbox" aria-label="Calls you can make">
+                      {CALL_GROUPS.map((group) => (
+                        <li key={group.label} role="presentation">
+                          <span className="privilege-a2a__calls-group">{group.label}</span>
+                          {group.items.map((item) => (
+                            <button key={`${group.label}-${item}`} type="button" role="option" aria-selected={input === item}
+                              onClick={() => { setInput(item); setSelectedQuestion(''); setCallsOpen(false); }}>
+                              {item}
+                            </button>
+                          ))}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <button className="pu-btn pu-btn--primary" type="submit" disabled={busy || !input.trim()}>
+                  {busy ? 'Reviewing…' : 'Send question'}
+                </button>
+              </div>
+            </form>
+          </Card>
+
+          <aside className="pu-card pu-card--neutral privilege-a2a__trace" aria-label="Agent trace">
+            {record && (
+              <div className="privilege-a2a__record">
+                <h3 className="pu-h3">Gateway record</h3>
+                {record.state === 'needsAuth' && (
+                  <p className="pu-note">
+                    The gateway keeps its own record of this run. To load it, <a href={GATEWAY_RECORD_SIGN_IN_PATH}>sign in to the gateway findings door</a>, then ask again.
+                  </p>
+                )}
+                {record.state === 'error' && <p className="pu-note">The gateway record could not be read: {record.error}</p>}
+                {record.state === 'ready' && recordLines === 0 && (
+                  <p className="pu-note">The gateway recorded nothing for this run.</p>
+                )}
+                {record.state === 'ready' && recordLines > 0 && (
+                  <p className="pu-note">Every line the gateway wrote while this review ran. Its model-call lines do not name the agent, so another session's calls in the same seconds would appear here too.</p>
+                )}
+                {record.state === 'ready' && recordLines > 0 && (
+                  <ol className="privilege-a2a__lines">
+                    {(record.requests || []).map((request, index) => (
+                      <li className="privilege-a2a__trace-entry" key={`request-${index}`}>
+                        <StatusChip tone="ok">accepted</StatusChip>
+                        <span className="privilege-a2a__trace-text">{request.method} {request.path} · app {request.app} · principal {request.principal}</span>
+                      </li>
                     ))}
+                    {(record.denials || []).map((denial, index) => (
+                      <li className="privilege-a2a__trace-entry" key={`denial-${index}`}>
+                        <StatusChip tone="danger">refused</StatusChip>
+                        <span className="privilege-a2a__trace-text">policy denied · app {denial.app} · principal {denial.principal}</span>
+                      </li>
+                    ))}
+                    {record.modelCalls.map((call, index) => (
+                      <li className="privilege-a2a__trace-entry" key={`model-${index}`}>
+                        <StatusChip tone="neutral">model call</StatusChip>
+                        <span className="privilege-a2a__trace-text">
+                          {call.model || call.provider || 'model'} · {call.totalTokens ?? '?'} tokens ({call.promptTokens ?? '?'} in, {call.completionTokens ?? '?'} out)
+                          {call.costUsd != null ? ` · $${call.costUsd.toFixed(6)}` : ''}{call.latencyMs != null ? ` · ${call.latencyMs} ms` : ''}{call.status != null ? ` · HTTP ${call.status}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                    {record.guardrail.map((verdict, index) => (
+                      <li className="privilege-a2a__trace-entry" key={`guardrail-${index}`}>
+                        <StatusChip tone="warn">guardrail</StatusChip>
+                        <span className="privilege-a2a__trace-text">{verdict.event} · {verdict.category}{verdict.client ? ` · ${verdict.client}` : ''}</span>
+                        {verdict.frameworks.length > 0 && (
+                          <ul className="privilege-a2a__compliance" aria-label="Privilege compliance mappings">
+                            {verdict.frameworks.map(framework => (
+                              <li key={framework.label}>{framework.label}: {framework.identifiers.join(', ')}</li>
+                            ))}
+                            {verdict.rules.length > 0 && <li>Rules: {verdict.rules.join(', ')}</li>}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
+            <div className="privilege-a2a__reel-head">
+              <h3 className="pu-h3">Agent trace</h3>
+              <div className="privilege-a2a__reel-actions">
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => navigator.clipboard?.writeText(window.location.href)} disabled={trace.length === 0}>Copy link</button>
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={saveRun} disabled={trace.length === 0}>Save run</button>
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={replayRun} disabled={trace.length === 0 || replaying}>{replaying ? 'Replaying…' : 'Replay'}</button>
+              </div>
+            </div>
+            {trace.length > 0 && (() => {
+              const totals = runTokens(trace);
+              return (
+                <p className="privilege-a2a__run-totals">
+                  {totals.calls > 0
+                    ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens · ${costLabel(totals)}`
+                    : 'No model calls in this run'}
+                </p>
+              );
+            })()}
+            {trace.length === 0 ? (
+              <p className="pu-note pu-empty">Delegation and tool activity will appear here while the review runs.</p>
+            ) : (
+              <ol className="privilege-a2a__lines">
+                {trace.map((entry, index) => (
+                  <li
+                    className={`privilege-a2a__trace-entry${selectedStep === index ? ' is-selected' : ''}`}
+                    key={`${index}-${entry.kind}`}
+                    onClick={() => setSelectedStep(index)}
+                  >
+                    {/* A real control for the keyboard (Tab, then Enter or Space); a click anywhere on the row still selects it. */}
+                    <button type="button" className="privilege-a2a__trace-pick" aria-pressed={selectedStep === index}>
+                      <StatusChip tone={KIND_TONE[entry.kind] ?? 'neutral'}>{entry.kind}</StatusChip>
+                      <span className="privilege-a2a__trace-text">{entry.text}</span>
+                    </button>
+                    {WHY[entry.kind] && <span className="privilege-a2a__why">{WHY[entry.kind]}</span>}
+                    {entry.tokens && <span className="privilege-a2a__tokens">{tokensLine(entry.tokens)}</span>}
+                    {entry.from && entry.to && (
+                      <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
+                    )}
+                    <WireBlocks entry={entry} />
                   </li>
                 ))}
-              </ul>
+              </ol>
             )}
-          </div>
-          <button className="privilege-a2a__send" type="submit" disabled={busy || !input.trim()}>
-            {busy ? 'Reviewing…' : 'Send question'}
-          </button>
+          </aside>
         </div>
-          </form>
-        </section>
+      </Section>
 
-        <aside className="privilege-a2a__trace" aria-label="Agent trace">
-          {record && (
-            <>
-              <h3>Gateway record</h3>
-              {record.state === 'needsAuth' && (
-                <p className="privilege-a2a__empty">
-                  The gateway keeps its own record of this run. To load it, <a href={GATEWAY_RECORD_SIGN_IN_PATH}>sign in to the gateway findings door</a>, then ask again.
-                </p>
-              )}
-              {record.state === 'error' && <p className="privilege-a2a__empty">The gateway record could not be read: {record.error}</p>}
-              {record.state === 'ready' && recordLines === 0 && (
-                <p className="privilege-a2a__empty">The gateway recorded nothing for this run.</p>
-              )}
-              {record.state === 'ready' && recordLines > 0 && (
-                <p className="privilege-a2a__empty">Every line the gateway wrote while this review ran. Its model-call lines do not name the agent, so another session's calls in the same seconds would appear here too.</p>
-              )}
-              {record.state === 'ready' && recordLines > 0 && (
-                <ol>
-                  {(record.requests || []).map((request, index) => (
-                    <li className="privilege-a2a__trace-entry" key={`request-${index}`}>
-                      <span className="privilege-a2a__trace-kind">accepted</span>
-                      <span className="privilege-a2a__trace-text">{request.method} {request.path} · app {request.app} · principal {request.principal}</span>
-                    </li>
-                  ))}
-                  {(record.denials || []).map((denial, index) => (
-                    <li className="privilege-a2a__trace-entry" key={`denial-${index}`}>
-                      <span className="privilege-a2a__trace-kind">refused</span>
-                      <span className="privilege-a2a__trace-text">policy denied · app {denial.app} · principal {denial.principal}</span>
-                    </li>
-                  ))}
-                  {record.modelCalls.map((call, index) => (
-                    <li className="privilege-a2a__trace-entry" key={`model-${index}`}>
-                      <span className="privilege-a2a__trace-kind">model call</span>
-                      <span className="privilege-a2a__trace-text">
-                        {call.model || call.provider || 'model'} · {call.totalTokens ?? '?'} tokens ({call.promptTokens ?? '?'} in, {call.completionTokens ?? '?'} out)
-                        {call.costUsd != null ? ` · $${call.costUsd.toFixed(6)}` : ''}{call.latencyMs != null ? ` · ${call.latencyMs} ms` : ''}{call.status != null ? ` · HTTP ${call.status}` : ''}
-                      </span>
-                    </li>
-                  ))}
-                  {record.guardrail.map((verdict, index) => (
-                    <li className="privilege-a2a__trace-entry" key={`guardrail-${index}`}>
-                      <span className="privilege-a2a__trace-kind">guardrail</span>
-                      <span className="privilege-a2a__trace-text">{verdict.event} · {verdict.category}{verdict.client ? ` · ${verdict.client}` : ''}</span>
-                      {verdict.frameworks.length > 0 && (
-                        <ul className="privilege-a2a__compliance" aria-label="Privilege compliance mappings">
-                          {verdict.frameworks.map(framework => (
-                            <li key={framework.label}>{framework.label}: {framework.identifiers.join(', ')}</li>
-                          ))}
-                          {verdict.rules.length > 0 && <li>Rules: {verdict.rules.join(', ')}</li>}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </>
-          )}
-          <div className="privilege-a2a__reel-head">
-            <h3>Agent trace</h3>
-            <div className="privilege-a2a__reel-actions">
-              <button type="button" onClick={() => navigator.clipboard?.writeText(window.location.href)} disabled={trace.length === 0}>Copy link</button>
-              <button type="button" onClick={saveRun} disabled={trace.length === 0}>Save run</button>
-              <button type="button" onClick={replayRun} disabled={trace.length === 0 || replaying}>{replaying ? 'Replaying…' : 'Replay'}</button>
-            </div>
-          </div>
-          {trace.length > 0 && (() => {
-            const totals = runTokens(trace);
-            return (
-              <p className="privilege-a2a__run-totals">
-                {totals.calls > 0
-                  ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens · ${costLabel(totals)}`
-                  : 'No model calls in this run'}
-              </p>
-            );
-          })()}
-          {trace.length === 0 ? (
-            <p className="privilege-a2a__empty">Delegation and tool activity will appear here while the review runs.</p>
-          ) : (
-            <ol>
-              {trace.map((entry, index) => (
-                <li
-                  className={`privilege-a2a__trace-entry${selectedStep === index ? ' is-selected' : ''}`}
-                  key={`${index}-${entry.kind}`}
-                  onClick={() => setSelectedStep(index)}
-                >
-                  <span className="privilege-a2a__trace-kind">{entry.kind}</span>
-                  <span className="privilege-a2a__trace-text">{entry.text}</span>
-                  {WHY[entry.kind] && <span className="privilege-a2a__why">{WHY[entry.kind]}</span>}
-                  {entry.tokens && <span className="privilege-a2a__tokens">{tokensLine(entry.tokens)}</span>}
-                  {entry.from && entry.to && (
-                    <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
-                  )}
-                  <WireBlocks entry={entry} />
+      <Section
+        id="privilege-a2a-inspect-h"
+        kicker="3 · Inspect and learn"
+        title="Read the run step by step"
+        lede="Pick a step in the trace or in the exchange to see what was sent and what came back. The guide and the notes below explain who acts for whom."
+      >
+        <aside className="pu-card-grid" aria-label="Step details">
+          <Card title="A2A exchange">
+            <ol className="privilege-a2a__exchange" aria-label="A2A exchange">
+              {exchange.map((row) => (
+                <li key={row.label} className={`is-${row.state}`}>
+                  <button type="button" disabled={row.step < 0} onClick={() => setSelectedStep(row.step)}>
+                    <b>{row.label}</b>
+                    <span>{row.who}</span>
+                    <StatusChip tone={EXCHANGE_TONE[row.state]}>{EXCHANGE_WORD[row.state]}</StatusChip>
+                  </button>
+                  {row.step >= 0 && <WireBlocks entry={trace[row.step]} open />}
                 </li>
               ))}
             </ol>
-          )}
-        </aside>
-        <aside className="privilege-a2a__step-panel" aria-label="Step details">
-          <h3>Guide</h3>
-          <div className="privilege-a2a__walk" aria-label="Walkthrough">
-            {walkStep < 0 ? (
-              <button type="button" className="privilege-a2a__walk-start" onClick={() => setWalkStep(0)}>Start walkthrough</button>
-            ) : (
-              <>
-                <p><b>Step {walkStep + 1} of {WALK.length}.</b> {WALK[walkStep]}</p>
-                <div className="privilege-a2a__walk-nav">
-                  <button type="button" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>Back</button>
-                  <button type="button" onClick={() => (walkStep === WALK.length - 1 ? setWalkStep(-1) : setWalkStep((s) => s + 1))}>
-                    {walkStep === WALK.length - 1 ? 'Finish' : 'Next'}
-                  </button>
-                  <button type="button" onClick={() => setWalkStep(-1)}>Stop</button>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="privilege-a2a__breaks" role="group" aria-label="Try a case that stops">
-            {BREAKS.map((item) => (
-              <button key={item.label} type="button" className="privilege-a2a__break" disabled={busy}
-                onClick={() => { setInput(item.question); setSelectedQuestion(''); }}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <h3>A2A exchange</h3>
-          <ol className="privilege-a2a__exchange" aria-label="A2A exchange">
-            {exchange.map((row) => (
-              <li key={row.label} className={`is-${row.state}`}>
-                <button type="button" disabled={row.step < 0} onClick={() => setSelectedStep(row.step)}>
-                  <b>{row.label}</b>
-                  <span>{row.who}</span>
-                  <em>{row.state === 'done' ? 'done' : row.state === 'working' ? 'working…' : row.state === 'stopped' ? 'stopped' : 'waiting'}</em>
-                </button>
-                {row.step >= 0 && <WireBlocks entry={trace[row.step]} open />}
-              </li>
-            ))}
-          </ol>
-          <p className="privilege-a2a__empty">
-            Per the <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a> operation, the Remote Agent answers with a Task (states such as working, completed, input-required) or a direct Message. <a href={A2A_SPEC_URL} target="_blank" rel="noreferrer">A2A specification</a>
-          </p>
-          <h3>Who acts for whom</h3>
-          <ol className="privilege-a2a__chain">
-            <li><span>Signed-in user</span></li>
-            <li><span>A2A Client (main agent){profile?.agentName ? `: ${profile.agentName}` : ''}</span></li>
-            <li><span>Remote Agent (A2A Server){profile?.specialistName ? `: ${profile.specialistName}` : ''}</span></li>
-            <li><span>MCP tools, through the gateway</span></li>
-          </ol>
-          <h3>Selected step</h3>
-          {selectedStep !== null && trace[selectedStep] ? (() => {
-            const entry = trace[selectedStep];
-            return (
-              <>
-                <p className="privilege-a2a__step-kind">{entry.kind}</p>
-                {entry.text && <p>{entry.text}</p>}
-                {entry.from && entry.to && (
-                  <p className="privilege-a2a__trace-route">{entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}</p>
-                )}
-                {entry.detail && <><h4>Details</h4><pre>{entry.detail}</pre></>}
-                {entry.request && <><h4>What was sent</h4><pre>{entry.request}</pre></>}
-                {entry.response && <><h4>What came back</h4><pre>{entry.response}</pre></>}
-              </>
-            );
-          })() : (
-            <p className="privilege-a2a__empty">Click a step in the reel to see what was sent and what came back.</p>
-          )}
-          <h3>Tokens</h3>
-          {selectedStep !== null && trace[selectedStep]?.tokens ? (
-            <p>This step: {tokensLine(trace[selectedStep].tokens)}</p>
-          ) : null}
-          {trace.length > 0 ? (
-            <p className="privilege-a2a__empty">Run total: {tokensLine(runTokens(trace))} · {costLabel(runTokens(trace))}</p>
-          ) : (
-            <p className="privilege-a2a__empty">Token counts appear here once a run starts.</p>
-          )}
-          <h3>Direct or through the gateway?</h3>
-          <table className="privilege-a2a__compare">
-            <tbody>
-              <tr><th scope="row">Who checks the grant</th><td>Direct: the tool trusts the call. Gateway: the gateway checks each hop.</td></tr>
-              <tr><th scope="row">Screening</th><td>Direct: none. Gateway: prompts and replies are screened.</td></tr>
-              <tr><th scope="row">Record</th><td>Direct: only the app's own log. Gateway: every call is in the gateway's log.</td></tr>
-            </tbody>
-          </table>
-          <A2aDocsLinks />
-        </aside>
-      </div>
+            <p className="pu-note">
+              Per the <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a> operation, the Remote Agent answers with a Task (states such as working, completed, input-required) or a direct Message. <a href={A2A_SPEC_URL} target="_blank" rel="noreferrer">A2A specification</a>
+            </p>
+          </Card>
 
-    </section>
+          <Card title="Selected step" tone="neutral">
+            {selectedStep !== null && trace[selectedStep] ? (() => {
+              const entry = trace[selectedStep];
+              return (
+                <>
+                  <p className="pu-status-line"><StatusChip tone={KIND_TONE[entry.kind] ?? 'neutral'}>{entry.kind}</StatusChip></p>
+                  {entry.text && <p className="pu-note">{entry.text}</p>}
+                  {entry.from && entry.to && (
+                    <p className="privilege-a2a__trace-route">{entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}</p>
+                  )}
+                  {entry.detail && <><h4 className="privilege-a2a__h4">Details</h4><pre tabIndex={0}>{entry.detail}</pre></>}
+                  {entry.request && <><h4 className="privilege-a2a__h4">What was sent</h4><pre tabIndex={0}>{entry.request}</pre></>}
+                  {entry.response && <><h4 className="privilege-a2a__h4">What came back</h4><pre tabIndex={0}>{entry.response}</pre></>}
+                </>
+              );
+            })() : (
+              <p className="pu-note pu-empty">Click a step in the trace or the exchange to see what was sent and what came back.</p>
+            )}
+            <h4 className="privilege-a2a__h4">Tokens</h4>
+            {selectedStep !== null && trace[selectedStep]?.tokens ? (
+              <p className="pu-note">This step: {tokensLine(trace[selectedStep].tokens)}</p>
+            ) : null}
+            {trace.length > 0 ? (
+              <p className="pu-note">Run total: {tokensLine(runTokens(trace))} · {costLabel(runTokens(trace))}</p>
+            ) : (
+              <p className="pu-note">Token counts appear here once a run starts.</p>
+            )}
+          </Card>
+
+          <Card title="Guide">
+            <div className="privilege-a2a__walk" aria-label="Walkthrough">
+              {walkStep < 0 ? (
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setWalkStep(0)}>Start walkthrough</button>
+              ) : (
+                <>
+                  <p><b>Step {walkStep + 1} of {WALK.length}.</b> {WALK[walkStep]}</p>
+                  <div className="privilege-a2a__walk-nav">
+                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>Back</button>
+                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => (walkStep === WALK.length - 1 ? setWalkStep(-1) : setWalkStep((s) => s + 1))}>
+                      {walkStep === WALK.length - 1 ? 'Finish' : 'Next'}
+                    </button>
+                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setWalkStep(-1)}>Stop</button>
+                  </div>
+                </>
+              )}
+            </div>
+            <p className="pu-note">Try a case that stops. Each fills the question box; press Send question to run it.</p>
+            <div className="privilege-a2a__breaks" role="group" aria-label="Try a case that stops">
+              {BREAKS.map((item) => (
+                <button key={item.label} type="button" className="pu-btn privilege-a2a__sm privilege-a2a__break" disabled={busy}
+                  onClick={() => { setInput(item.question); setSelectedQuestion(''); }}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Who acts for whom" tone="neutral">
+            <ol className="privilege-a2a__chain">
+              <li><span>Signed-in user</span></li>
+              <li><span>A2A Client (main agent){profile?.agentName ? `: ${profile.agentName}` : ''}</span></li>
+              <li><span>Remote Agent (A2A Server){profile?.specialistName ? `: ${profile.specialistName}` : ''}</span></li>
+              <li><span>MCP tools, through the gateway</span></li>
+            </ol>
+          </Card>
+
+          <Card title="Direct or through the gateway?" tone="neutral">
+            <table className="privilege-a2a__compare">
+              <tbody>
+                <tr><th scope="row">Who checks the grant</th><td>Direct: the tool trusts the call. Gateway: the gateway checks each hop.</td></tr>
+                <tr><th scope="row">Screening</th><td>Direct: none. Gateway: prompts and replies are screened.</td></tr>
+                <tr><th scope="row">Record</th><td>Direct: only the app's own log. Gateway: every call is in the gateway's log.</td></tr>
+              </tbody>
+            </table>
+          </Card>
+
+          <div className="pu-card pu-card--neutral">
+            <A2aDocsLinks className="privilege-a2a__docs" />
+          </div>
+        </aside>
+      </Section>
+    </div>
   );
 }

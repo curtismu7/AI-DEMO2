@@ -1,16 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useThemeOptional } from '../context/ThemeContext';
+import PageHeader from '../components/common/PageHeader';
+import {
+  PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList,
+} from '../components/pingUi';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
 import { usePrivilegeA2aProfile } from '../features/privilegeA2aClient/usePrivilegeA2aProfile';
-// The workbench shell (title bar + status strip) lives in the MCP client's sheet.
-import './PrivilegeMcpClientPage.css';
+// The tab imports its own sheet; naming it here as well lets scripts/check-ui-patterns.mjs scan it for this route.
+import '../features/privilegeA2aClient/PrivilegeA2aTab.css';
 
 /**
- * Privilege A2A access review as its own page. It was a tab on the MCP client;
- * it keeps that page's shell — title bar, a status strip of who is asking and
- * which agents answer, then the workspace — so the two read as one family.
- * The conversation, trace and gateway record are PrivilegeA2aTab, unchanged.
+ * Privilege A2A access review as its own page (it was a tab on the MCP client).
+ *
+ * Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md) through
+ * the shared primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame and
+ * sections, P4 cards, P5 key-value list, P7 chips with a word, P9 buttons. P6 (a fixed-height inspector shell)
+ * and P8 (diagram boxes) are skipped: the three columns of the old workbench become cards in the frame, and the
+ * request path is a plain list. The conversation, trace and gateway record are PrivilegeA2aTab; its primary-button
+ * decision per state is written there. This page's own buttons and links are all secondary.
+ *
+ * The page no longer carries its own light/dark switch (the old workbench shell had one, shared with the MCP
+ * client through the cur_priv_theme key): it follows the app's theme, driven from the main top bar.
  */
 export default function PrivilegeA2aPage({ user }) {
   const profile = usePrivilegeA2aProfile();
@@ -20,69 +30,51 @@ export default function PrivilegeA2aPage({ user }) {
     document.body.classList.add('privilege-a2a-route');
     return () => document.body.classList.remove('privilege-a2a-route');
   }, []);
-  // Shares the MCP client's page-local light/dark key, so flipping it on one page holds on the other.
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('cur_priv_theme') || 'dark'; } catch { return 'dark'; }
-  });
-  // The main top bar's light/dark switch drives this page too. Only a change after mount counts, so the
-  // page's own stored choice still wins on load; its own button keeps working until the next main-bar flip.
-  const { darkMode } = useThemeOptional();
-  const seenDarkMode = useRef(darkMode);
-  useEffect(() => {
-    if (seenDarkMode.current === darkMode) return;
-    seenDarkMode.current = darkMode;
-    setTheme(darkMode ? 'dark' : 'light');
-  }, [darkMode]);
-  useEffect(() => {
-    try { localStorage.setItem('cur_priv_theme', theme); } catch { /* storage disabled */ }
-  }, [theme]);
 
   const identity = user?.email || user?.username || user?.name || '';
-  const row = (n, key, value, testId) => (
-    <li className="cur-rail__row" data-testid={testId}>
-      <span className="cur-rail__n">{n}</span>
-      <span className="cur-rail__k">{key}</span>
-      <span className="cur-rail__v">{value}</span>
-    </li>
-  );
 
   return (
-    // minHeight 0: the shell's 520px floor would push Send below the fold in a short window.
-    <div className="cur-ide" data-cur-theme={theme} data-testid="privilege-a2a-page" style={{ minHeight: 440 }}>
-      <header className="cur-titlebar">
-        <div className="cur-titlebar-left">
-          <span className="cur-titlebar-title">Agent Privilege — A2A access review</span>
-        </div>
-        <div className="cur-titlebar-center">
-          <div className={`cur-status ${identity ? 'cur-status--ok' : ''}`}>
-            <span className="cur-status-dot" />
-            {identity ? 'Signed in' : 'Not signed in'}
-          </div>
-        </div>
-        <div className="cur-titlebar-right">
-          <button
-            type="button"
-            className="cur-flow-trigger"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
-          <a className="cur-flow-trigger" href="/use-case-diagrams/UC46" target="_blank" rel="noopener noreferrer" title="Privilege A2A access review diagram (opens in a new tab)">Diagram</a>
-          <Link className="cur-flow-trigger" to="/privilege-mcp-client">MCP client</Link>
-        </div>
-      </header>
-
-      <ol className="cur-rail cur-rail--4" aria-label="Who is asking and which agents answer">
-        {row(1, 'Identity', identity || '—', 'a2a-identity')}
-        {row(2, 'Vertical', profile?.vertical || '—', 'a2a-vertical')}
-        {row(3, 'A2A Client', profile?.agentName || 'Main agent', 'a2a-main-agent')}
-        {row(4, 'Remote Agent', profile?.specialistName || 'Analyst', 'a2a-worker-agent')}
-      </ol>
-
-      <main className="cur-a2a-main">
+    <PingPage className="a2a-page" data-testid="privilege-a2a-page">
+      <SimBanner data-testid="a2a-banner">
+        <strong>LIVE AGENTS, SAMPLE ACCESS DATA</strong> — a question you send goes from this app&apos;s server to
+        the real A2A Client agent, over A2A to the Remote Agent, and on to the MCP tools through the Agent
+        Privilege gateway when the agents run in gateway mode. Those hops, the trace and the gateway record are
+        real and need the agent processes running. The entitlements, grants and tickets the tools return are
+        sample data. Heuristics mode makes no model call; the other mode calls the model. The cost figure is an
+        estimate at list price, not a bill.
+      </SimBanner>
+      <PageHeader
+        eyebrow="Ping products · Privilege · A2A"
+        title="A2A access review"
+        summary="Ask an agent who has access to what. It hands the lookup to a Remote Agent over A2A, and the Remote Agent reads the access data through MCP tools."
+      />
+      <PageFrame>
+        <Section
+          id="a2a-who-h"
+          kicker="1 · Who is asking"
+          title="The caller and the two agents"
+          lede="Who is signed in, which vertical is active, and which two agents answer for it."
+        >
+          <Card title="Who is asking, which agents answer" aria-label="Who is asking and which agents answer">
+            <p className="pu-status-line">
+              <StatusChip tone={identity ? 'ok' : 'warn'}>{identity ? 'Signed in' : 'Not signed in'}</StatusChip>
+            </p>
+            <KvList
+              items={[
+                { label: 'Identity', value: <span data-testid="a2a-identity">{identity || '—'}</span> },
+                { label: 'Vertical', value: <span data-testid="a2a-vertical">{profile?.vertical || '—'}</span> },
+                { label: 'A2A Client', value: <span data-testid="a2a-main-agent">{profile?.agentName || 'Main agent'}</span> },
+                { label: 'Remote Agent', value: <span data-testid="a2a-worker-agent">{profile?.specialistName || 'Analyst'}</span> },
+              ]}
+            />
+            <div className="pu-actions">
+              <a className="pu-btn" href="/use-case-diagrams/UC46" target="_blank" rel="noopener noreferrer" title="Privilege A2A access review diagram (opens in a new tab)">Diagram</a>
+              <Link className="pu-btn" to="/privilege-mcp-client">MCP client</Link>
+            </div>
+          </Card>
+        </Section>
         <PrivilegeA2aTab />
-      </main>
-    </div>
+      </PageFrame>
+    </PingPage>
   );
 }
