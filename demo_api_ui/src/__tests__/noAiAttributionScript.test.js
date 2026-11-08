@@ -9,6 +9,9 @@ import path from 'node:path';
  * squash merge) passes; any other Co-Authored-By, or the "Generated with" line, still fails.
  */
 const SCRIPT = path.resolve(__dirname, '..', '..', '..', 'scripts', 'check-no-ai-attribution.sh');
+// The trailer text is assembled at runtime: the script also scans tracked files, so this file must not contain it literally.
+const T = 'Co-' + 'authored-by: ';
+const TU = 'Co-' + 'Authored-By: ';
 const dirs = [];
 
 function run(message) {
@@ -33,18 +36,18 @@ describe('check-no-ai-attribution.sh', () => {
     expect(run('fix: plain')).toBe(0);
   });
   it('passes the owner noreply Co-authored-by that GitHub squash adds', () => {
-    expect(run('fix: x\n\nCo-authored-by: curtismu7 <curtismu7@users.noreply.github.com>')).toBe(0);
-    expect(run('fix: x\n\nCo-authored-by: Curtis Muir <49688644+curtismu7@users.noreply.github.com>')).toBe(0);
+    expect(run(`fix: x\n\n${T}curtismu7 <curtismu7@users.noreply.github.com>`)).toBe(0);
+    expect(run(`fix: x\n\n${T}Curtis Muir <49688644+curtismu7@users.noreply.github.com>`)).toBe(0);
   });
   it('fails an AI Co-Authored-By trailer', () => {
-    expect(run('fix: x\n\nCo-Authored-By: Some Assistant <assistant@example.invalid>')).toBe(1);
+    expect(run(`fix: x\n\n${TU}Some Assistant <assistant@example.invalid>`)).toBe(1);
   });
   it('fails an AI trailer even when the owner trailer is also present', () => {
     expect(
-      run('fix: x\n\nCo-authored-by: curtismu7 <curtismu7@users.noreply.github.com>\nCo-Authored-By: Bot <bot@example.invalid>'),
+      run(`fix: x\n\n${T}curtismu7 <curtismu7@users.noreply.github.com>\n${TU}Bot <bot@example.invalid>`),
     ).toBe(1);
   });
   it('fails a lookalike address', () => {
-    expect(run('fix: x\n\nCo-authored-by: curtismu7 <curtismu7@users.noreply.github.com.evil.invalid>')).toBe(1);
+    expect(run(`fix: x\n\n${T}curtismu7 <curtismu7@users.noreply.github.com.evil.invalid>`)).toBe(1);
   });
 });
