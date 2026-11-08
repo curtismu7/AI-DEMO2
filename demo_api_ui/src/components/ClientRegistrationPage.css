@@ -1,52 +1,60 @@
-/* ClientRegistrationPage.css
- * Every element here used to be styled via inline style={{ color, background }}
- * literals (var(--text, #263746), var(--border, #e0e2e4), var(--muted, #5c646b) —
- * none of those custom properties are defined anywhere, so they always fell
- * through to the light literal fallback). AdminSubPageShell already supplies a
- * dark-mode toggle, but this page's own content never tracked it: the shell
- * went dark, the form and result card stayed a light rectangle inside it.
- * Converted to --th-* per THEMING.md so the content actually themes. */
+/* ClientRegistrationPage.css — only what the shared Ping UI primitives (src/styles/ping-ui.css) do not cover:
+ * the form controls, the checkbox row, the copy rows of the result, the CIMD JSON disclosure and the
+ * shell's theme toggle. Tokens only (THEMING.md): buttons never take a vertical's colour. Every rule is scoped
+ * under .crp-page so no other page that shares a class name is touched. */
 
-.crp-body {
-  max-width: 760px;
-  margin: 0 auto;
+/* The shell paints its own light-grey ground; the page's ground is the standard's. */
+.crp-page .app-page-shell {
+  background: var(--th-bg-page);
 }
 
-.crp-info-box {
-  margin-bottom: 32px;
-  padding: 14px 16px;
-  background: var(--th-status-info-bg);
-  border-left: 4px solid var(--brand-navy);
-  border-radius: 0 6px 6px 0;
-  font-size: var(--font-size-sm);
-  color: var(--th-status-info-text);
+/* The shell's Dark/Light toggle is blue (--app-primary-blue), and under a vertical that is the vertical's colour on a
+ * button. On this page it is a bordered secondary like the other toolbar buttons. */
+.crp-page .app-page-toolbar-btn--theme,
+.crp-page .app-page-toolbar-btn--theme:hover {
+  background: var(--th-bg-card);
+  background-image: none;
+  border-color: var(--control-border);
+  color: var(--th-text);
 }
 
-.crp-section {
-  margin-bottom: 32px;
+.crp-page .app-page-toolbar-btn--theme:hover {
+  border-color: var(--btn-accent);
 }
 
-.crp-section-heading {
-  margin: 0 0 16px;
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  color: var(--th-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--th-border);
-  padding-bottom: 8px;
+.crp-page .app-page-toolbar-btn:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
+/* The CDN end-user-nano skin sets word-wrap: break-word on code, and beats a single-class rule: wrap here so a
+ * long unbroken value stays inside its card at 375px. */
+.pu-page.crp-page code,
+.pu-page.crp-page pre {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* The skin also paints code pink (3.78:1 on a dark card): code takes the page ink. */
+.pu-page.crp-page code {
+  color: var(--th-text);
+}
+
+.pu-page.crp-page .crp-how-text {
+  margin: 0;
+}
+
+/* ── Form fields ── */
 .crp-field {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .crp-field-label {
-  display: block;
-  font-weight: 600;
   margin-bottom: 4px;
-  color: var(--th-text);
-  font-size: var(--font-size-body);
+}
+
+.crp-req {
+  color: var(--th-status-error-text);
 }
 
 .crp-field-hint {
@@ -57,18 +65,19 @@
 
 .crp-input,
 .crp-textarea {
+  display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 12px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
   font-family: inherit;
-  background: var(--th-bg-card);
+  background: var(--th-bg-page);
   color: var(--th-text);
-  outline: none;
 }
 
 .crp-input {
+  min-height: 40px;
   font-size: var(--font-size-body);
 }
 
@@ -77,151 +86,126 @@
   resize: vertical;
 }
 
-.crp-input:disabled,
-.crp-textarea:disabled {
-  background: var(--th-bg-inset);
-  color: var(--th-text);
+.pu-page .crp-input::placeholder,
+.pu-page .crp-textarea::placeholder {
+  color: var(--th-text-muted);
+  opacity: 1;
+  -webkit-text-fill-color: var(--th-text-muted);
 }
 
-.crp-select {
-  padding: 8px 12px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-body);
-  font-family: inherit;
-  background: var(--th-bg-card);
-  color: var(--th-text);
+/* Locked while a registration is in flight (readOnly keeps focus; a disabled field would drop it). */
+.crp-input[readonly],
+.crp-textarea[readonly] {
+  background: var(--th-bg-inset);
+}
+
+.crp-input:focus-visible,
+.crp-textarea:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.pu-select[aria-disabled='true'] {
+  background: var(--th-bg-inset);
 }
 
 .crp-checkbox-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px 14px;
 }
 
 .crp-checkbox-label {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 24px;
   font-size: var(--font-size-body);
   color: var(--th-text);
+  cursor: pointer;
+}
+
+.crp-checkbox-label input {
+  accent-color: var(--btn-accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.crp-checkbox-label input:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 .crp-checkbox-code {
   font-size: var(--font-size-sm);
-}
-
-/* ── Submit ── */
-.crp-submit-box {
-  padding: 20px;
-  background: var(--th-bg-inset);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--th-border);
   color: var(--th-text);
 }
 
+/* ── Register card ── */
 .crp-submit-hint {
-  font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
-  margin-bottom: 14px;
+  margin-top: 0;
 }
 
-.crp-submit-btn {
-  padding: 12px 28px;
-  border: none;
-  border-radius: var(--btn-radius);
-  font-weight: var(--btn-weight);
-  font-size: var(--font-size-base);
-  background: var(--brand-navy);
-  color: var(--app-primary-blue-text, #fff);
-  cursor: pointer;
+.crp-error {
+  color: var(--th-status-error-text);
 }
 
-.crp-submit-btn:disabled {
-  background: var(--th-bg-inset);
-  color: var(--th-text-faint);
-  border: 1px solid var(--th-border);
-  cursor: not-allowed;
+/* ── Result ── */
+.crp-result:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
-/* ── Result card ── */
 .crp-result {
-  background: var(--th-status-success-bg);
-  border: 1px solid var(--th-status-success-border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  color: var(--th-status-success-text);
+  margin-top: 24px;
 }
 
-.crp-result-header {
+.crp-value-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  min-width: 0;
 }
 
-.crp-result-icon {
-  font-size: var(--font-size-xl);
-}
-
-.crp-result-header h3 {
-  margin: 0;
-  color: var(--th-status-success-text);
-}
-
-.crp-result-field {
-  margin-bottom: 14px;
-}
-
-.crp-result-field-label {
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  color: var(--th-status-success-text);
-  margin-bottom: 4px;
-}
-
-.crp-result-value-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--th-bg-card);
+.crp-value-row code {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
-  border: 1px solid var(--th-status-success-border);
+  background: var(--th-bg-inset);
   color: var(--th-text);
-}
-
-.crp-result-value-row code {
-  flex: 1;
   font-size: var(--font-size-sm);
-  word-break: break-all;
-  color: var(--th-text);
 }
 
-.crp-copy-btn {
-  padding: 4px 8px;
-  font-size: var(--font-size-2xs);
-  border: 1px solid var(--th-status-success-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: var(--th-bg-card);
-  color: var(--th-status-success-text);
+.pu-page .pu-btn.crp-copy-btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: var(--font-size-sm);
 }
 
-.crp-copy-btn--copied {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
+.crp-copy-status {
+  min-height: 1.25em;
+  margin: 4px 0 0;
 }
 
 .crp-cimd-details {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .crp-cimd-summary {
   cursor: pointer;
   font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--th-status-success-text);
+  font-weight: var(--font-weight-semibold);
+  color: var(--th-text);
+}
+
+.crp-cimd-summary:focus-visible,
+.crp-cimd-pre:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 .crp-cimd-pre {
@@ -233,25 +217,19 @@
   font-size: var(--font-size-2xs);
   overflow: auto;
   max-height: 300px;
+  white-space: pre-wrap;
 }
 
 .crp-warning-box {
-  margin-top: 20px;
-  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 10px 12px;
   background: var(--th-status-warning-bg);
   border: 1px solid var(--th-status-warning-border);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   color: var(--th-status-warning-text);
-}
-
-.crp-reset-btn {
-  margin-top: 16px;
-  padding: 10px 20px;
-  background: var(--brand-navy);
-  color: var(--app-primary-blue-text, #fff);
-  border: none;
-  border-radius: var(--btn-radius);
-  cursor: pointer;
-  font-weight: 600;
 }
