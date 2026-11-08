@@ -213,6 +213,22 @@ describe('PrivilegeA2aTab', () => {
     expect(screen.getByRole('status').textContent).toMatch(/Done\. Click any step/);
   });
 
+  test('a run in flight shows the dancing P logo in the answer slot, and it is gone when the run ends', async () => {
+    let finish;
+    global.fetch.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const user = userEvent.setup();
+    const { container } = render(<PrivilegeA2aTab />);
+
+    expect(container.querySelector('.privilege-a2a__wait')).toBeNull();
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(container.querySelector('.privilege-a2a__wait .ping-spinner__mark--dancing')).not.toBeNull();
+
+    finish(streamResponse([{ event: 'token', data: { text: 'Done.' } }, { event: 'done', data: { sessionId: 's' } }]));
+    await screen.findByText('Done.');
+    expect(container.querySelector('.privilege-a2a__wait')).toBeNull();
+  });
+
   test('the suggested questions stay under the answer after a run, and a click runs the next one', async () => {
     global.fetch
       .mockResolvedValueOnce(streamResponse([{ event: 'token', data: { text: 'First answer.' } }, { event: 'done', data: { sessionId: 's' } }]))
