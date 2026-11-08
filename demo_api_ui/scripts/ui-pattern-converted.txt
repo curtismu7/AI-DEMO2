@@ -15,6 +15,7 @@
 /privilege-gateway-topologies
 /agent-lifecycle
 /privilege-demo
+/agent-builder
 /ungoverned-agent
 /privilege-intent-triage
 /policy-decision-trace
