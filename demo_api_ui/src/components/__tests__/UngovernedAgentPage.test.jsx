@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
@@ -133,6 +133,84 @@ describe('UngovernedAgentPage (Ping UI standard)', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /see the full owasp mapping/i }));
     expect(navigate).toHaveBeenCalledWith('/owasp');
+    await screen.findByText(/no transactions yet/i);
+  });
+
+  it('clears the stale "Updated" time when a later refresh fails (500) or is signed out (401)', async () => {
+    const user = userEvent.setup();
+    for (const [code, text] of [[500, /couldn't load transfers/i], [401, /sign in as a bank customer/i]]) {
+      const spy = mockFetch(200, { transactions: [TX[0]] });
+      const { unmount } = renderPage();
+      await screen.findByRole('list', { name: /recent transfers/i });
+      expect(screen.getByRole('status').textContent).toMatch(/^Updated /);
+      spy.mockResolvedValue({ status: code, ok: false, json: async () => ({}) });
+      await user.click(screen.getByRole('button', { name: 'Refresh' }));
+      await screen.findByText(text);
+      expect(document.body.textContent).not.toMatch(/Updated \S/);
+      unmount();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('Refresh shows Refreshing, is aria-disabled (not disabled, keeps focus) and ignores presses in flight', async () => {
+    const user = userEvent.setup();
+    const spy = mockFetch(200, { transactions: [TX[0]] });
+    renderPage();
+    await screen.findByRole('list', { name: /recent transfers/i });
+    let release;
+    spy.mockImplementation(() => new Promise((r) => { release = () => r({ status: 200, ok: true, json: async () => ({ transactions: TX }) }); }));
+    const refresh = screen.getByRole('button', { name: 'Refresh' });
+    refresh.focus();
+    await user.keyboard('{Enter}');
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(refresh.getAttribute('aria-disabled')).toBe('true');
+    expect(refresh.disabled).toBe(false);
+    expect(document.activeElement).toBe(refresh);
+    expect(screen.getByRole('status').textContent).toBe('Refreshing…');
+    await user.keyboard('{Enter}');
+    await user.click(refresh);
+    expect(spy).toHaveBeenCalledTimes(2);
+    await act(async () => { release(); });
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/^Updated /));
+    expect(refresh.getAttribute('aria-disabled')).toBeNull();
+    expect(within(screen.getByRole('list', { name: /recent transfers/i })).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('discards an older response that lands after a newer one', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const resolvers = [];
+      vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise((r) => resolvers.push(r)));
+      renderPage();
+      expect(resolvers).toHaveLength(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 10); });
+      expect(resolvers).toHaveLength(2);
+      const ok = (transactions) => ({ status: 200, ok: true, json: async () => ({ transactions }) });
+      await act(async () => { resolvers[1](ok(TX)); });
+      await screen.findByRole('list', { name: /recent transfers/i });
+      await act(async () => { resolvers[0](ok([TX[0]])); });
+      expect(within(screen.getByRole('list', { name: /recent transfers/i })).getAllByRole('listitem')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('the Copy accessible name contains the visible text and the copy is announced', async () => {
+    const user = userEvent.setup();
+    mockFetch(200, { transactions: [] });
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue() }, configurable: true });
+    const { container } = renderPage();
+    const regions = () => [...container.querySelectorAll('.ungov-code-block [aria-live="polite"]')];
+    expect(regions()).toHaveLength(2);
+    expect(regions().map((r) => r.textContent)).toEqual(['', '']);
+    const btn = screen.getAllByRole('button', { name: /^copy command/i })[0];
+    expect(btn.getAttribute('aria-label')).toContain(btn.textContent);
+    await user.click(btn);
+    expect(btn.textContent).toBe('Copied!');
+    expect(btn.getAttribute('aria-label')).toContain('Copied!');
+    expect(btn.getAttribute('aria-label')).toContain('npx skills add jackwener/opencli');
+    expect(regions()[0].textContent).toMatch(/copied command to clipboard: npx skills add/i);
+    expect(regions()[1].textContent).toBe('');
     await screen.findByText(/no transactions yet/i);
   });
 

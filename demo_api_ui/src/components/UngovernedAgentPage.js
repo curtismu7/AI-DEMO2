@@ -258,17 +258,21 @@ export default function UngovernedAgentPage() {
 }
 
 function CommandBlock({ command, id, copied, onCopy }) {
+  const done = copied === id;
   return (
     <div className="ungov-code-block">
       <code>{command}</code>
+      {/* The accessible name always starts with the visible text ("Copy" / "Copied!"). */}
       <button
         type="button"
         className="pu-btn"
-        aria-label={`Copy command: ${command}`}
+        aria-label={`${done ? "Copied!" : "Copy"} command: ${command}`}
         onClick={() => onCopy(command, id)}
       >
-        {copied === id ? "Copied!" : "Copy"}
+        {done ? "Copied!" : "Copy"}
       </button>
+      {/* Always mounted so the change is announced. */}
+      <span className="ungov-sr-only" aria-live="polite">{done ? `Copied command to clipboard: ${command}` : ""}</span>
     </div>
   );
 }
@@ -280,21 +284,34 @@ function RecentTransfersWidget() {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ok | unauth | error
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [inflight, setInflight] = useState(false);
   const timerRef = useRef(null);
+  // Every load takes a number; only the newest one may write state, so an older response
+  // (slow poll vs. a later reload) can never overwrite a newer one. Unmount bumps it too.
+  const latestRef = useRef(0);
 
   const load = useCallback(async () => {
+    const mine = ++latestRef.current;
+    const current = () => mine === latestRef.current;
+    setInflight(true);
     try {
       const res = await fetch("/api/transactions/my", { credentials: "include" });
+      if (!current()) return;
       if (res.status === 401 || res.status === 403) {
         setStatus("unauth");
         setRows([]);
+        setUpdatedAt(null);
+        setInflight(false);
         return;
       }
       if (!res.ok) {
         setStatus("error");
+        setUpdatedAt(null);
+        setInflight(false);
         return;
       }
       const data = await res.json();
+      if (!current()) return;
       const list = Array.isArray(data.transactions) ? data.transactions : [];
       // Newest first; cap at 10.
       const sorted = [...list].sort(
@@ -303,8 +320,12 @@ function RecentTransfersWidget() {
       setRows(sorted.slice(0, 10));
       setStatus("ok");
       setUpdatedAt(new Date());
+      setInflight(false);
     } catch {
+      if (!current()) return;
       setStatus("error");
+      setUpdatedAt(null);
+      setInflight(false);
     }
   }, []);
 
@@ -315,8 +336,16 @@ function RecentTransfersWidget() {
     };
     tick();
     timerRef.current = setInterval(tick, 5 * 60 * 1000);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      clearInterval(timerRef.current);
+      latestRef.current += 1;
+    };
   }, [load]);
+
+  // Reload is ignored while one is in flight. aria-disabled (not disabled) keeps keyboard focus on the
+  // button. Signed out, the button is "Sign in", which is never blocked by a background poll.
+  const busy = inflight && status !== "unauth";
+  const refreshing = busy && status !== "loading";
 
   return (
     <Card tone="live" title="Recent transfers" data-testid="ungov-recent-transfers">
@@ -326,7 +355,7 @@ function RecentTransfersWidget() {
           Your stored transactions, polled from <code>/api/transactions/my</code> every 5 min
         </span>
         <span className="ungov-row__time pu-mono" role="status">
-          {updatedAt ? `Updated ${formatDateTime(updatedAt)}` : ""}
+          {refreshing ? "Refreshing…" : updatedAt ? `Updated ${formatDateTime(updatedAt)}` : ""}
         </span>
       </p>
 
@@ -375,8 +404,8 @@ function RecentTransfersWidget() {
         <button
           type="button"
           className="pu-btn pu-btn--primary"
-          disabled={status === "loading"}
-          onClick={status === "unauth" ? () => navigateToCustomerOAuthLogin('/ungoverned-agent') : load}
+          aria-disabled={busy ? "true" : undefined}
+          onClick={status === "unauth" ? () => navigateToCustomerOAuthLogin('/ungoverned-agent') : () => { if (!busy) load(); }}
         >
           {status === "unauth" ? "Sign in" : "Refresh"}
         </button>
