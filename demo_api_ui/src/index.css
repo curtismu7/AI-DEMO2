@@ -1969,12 +1969,6 @@ body {
 :root:not([data-theme="dark"]) .privilege-a2a__step-panel a {
   color: #ffffff;
 }
-:root[data-theme="dark"] .demo-map__group {
-  color: #ffffff;
-}
-:root[data-theme="dark"] .demo-map__group span.demo-map__step-num {
-  color: #ffffff;
-}
 :root[data-theme="dark"] .dsla-table-wrap {
   color: #ffffff;
 }

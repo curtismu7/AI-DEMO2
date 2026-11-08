@@ -82,7 +82,7 @@ describe("DemoMapPage", () => {
     // P2: the note is the first thing on the page, before the title band
     const banner = screen.getByTestId("demo-map-banner");
     expect(banner.getAttribute("role")).toBe("note");
-    expect(banner.textContent).toMatch(/nothing on this page runs/i);
+    expect(banner.textContent).toMatch(/Nothing here runs/i);
     expect(page.firstElementChild.contains(banner)).toBe(true);
     expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1);
     // links only: no button, so no primary and no second action
@@ -104,8 +104,27 @@ describe("DemoMapPage", () => {
     const glyphs = screen.getAllByText("◱").filter((el) => el.tagName === "A");
     expect(glyphs.length).toBeGreaterThan(0);
     for (const a of glyphs) {
-      expect(a.getAttribute("aria-label")).toMatch(/^Use-case diagram: .+/);
+      expect(a.getAttribute("aria-label")).toMatch(/^Use-case diagram: .+ \(.+\)$/);
     }
+  });
+
+  it("no two links share an accessible name and destination (the lane is in the name)", () => {
+    render(
+      <MemoryRouter>
+        <DemoMapPage />
+      </MemoryRouter>,
+    );
+    const pairs = screen.getAllByRole("link").map((a) => `${a.getAttribute("aria-label") || a.textContent}|${a.getAttribute("href")}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
+  });
+
+  it("the key labels the diagram glyph in words, not as a bare glyph", () => {
+    render(
+      <MemoryRouter>
+        <DemoMapPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Diagram link (◱)")).toBeTruthy();
   });
 
   it("planned lanes are labelled Planned, never as live", () => {

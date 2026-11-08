@@ -25,7 +25,7 @@ import "./DemoMapPage.css";
 
 const KEY = [
   { label: "Step links", value: "Open the step in the use-case launcher (/use-cases#UCxx)." },
-  { label: "◱", value: "Open that step's use-case diagram." },
+  { label: "Diagram link (◱)", value: "Open that step's use-case diagram." },
   { label: "Inspectors", value: "Open the pages that show the evidence." },
   { label: "Diagrams", value: "Open the architecture pages." },
   { label: "Learning", value: "Open the topic in the Learning Hub (/learning)." },
@@ -35,14 +35,14 @@ export default function DemoMapPage() {
   const live = MISSION_CONTROL_CATALOG.filter((g) => g.status !== "planned");
   const planned = MISSION_CONTROL_CATALOG.filter((g) => g.status === "planned");
 
-  const stepCell = (ucId) => {
+  const stepCell = (ucId, lane) => {
     const guide = DEMO_STEP_GUIDES[ucId];
     const title = guide?.title || ucId;
     const diagrammed = Boolean(getConfig(ucId));
     return (
       <li key={ucId} className="demo-map__step">
         <span className="demo-map__step-num">{demoStepNumber(ucId) ?? "—"}</span>
-        <Link to={`/use-cases#${ucId}`} title="Open this step in the launcher">
+        <Link to={`/use-cases#${ucId}`} title="Open this step in the launcher" aria-label={`${title} (${lane})`}>
           {title}
         </Link>
         {diagrammed && (
@@ -50,7 +50,7 @@ export default function DemoMapPage() {
             className="demo-map__step-diagram"
             to={useCaseDiagramPath(ucId)}
             title="Open the use-case diagram"
-            aria-label={`Use-case diagram: ${title}`}
+            aria-label={`Use-case diagram: ${title} (${lane})`}
           >
             ◱
           </Link>
@@ -59,26 +59,27 @@ export default function DemoMapPage() {
     );
   };
 
-  const linkList = (links) =>
+  const linkList = (links, lane) =>
     links.map((l) => (
       <li key={l.href + l.label}>
-        <a href={l.href}>{l.label}</a>
+        <a href={l.href} aria-label={`${l.label} (${lane})`}>{l.label}</a>
       </li>
     ));
 
   const rows = (group) => {
     const out = [];
+    const lane = group.shortLabel || group.label;
     if (group.useCaseIds?.length > 0) {
       out.push({
         label: "Demo steps",
-        value: <ul className="demo-map__links">{group.useCaseIds.map(stepCell)}</ul>,
+        value: <ul className="demo-map__links">{group.useCaseIds.map((id) => stepCell(id, lane))}</ul>,
       });
     }
     if (group.inspectors?.length > 0) {
-      out.push({ label: "Inspectors", value: <ul className="demo-map__links">{linkList(group.inspectors)}</ul> });
+      out.push({ label: "Inspectors", value: <ul className="demo-map__links">{linkList(group.inspectors, lane)}</ul> });
     }
     if (group.diagrams?.length > 0) {
-      out.push({ label: "Diagrams", value: <ul className="demo-map__links">{linkList(group.diagrams)}</ul> });
+      out.push({ label: "Diagrams", value: <ul className="demo-map__links">{linkList(group.diagrams, lane)}</ul> });
     }
     if (group.learning?.length > 0) {
       out.push({
@@ -87,7 +88,7 @@ export default function DemoMapPage() {
           <ul className="demo-map__links">
             {group.learning.map((t) => (
               <li key={t.label}>
-                <Link to="/learning">{t.label}</Link>
+                <Link to="/learning" aria-label={`${t.label} (${lane})`}>{t.label}</Link>
               </li>
             ))}
           </ul>
@@ -100,10 +101,8 @@ export default function DemoMapPage() {
   return (
     <PingPage className="demo-map">
       <SimBanner data-testid="demo-map-banner">
-        <strong>NAVIGATION MAP</strong> &mdash; nothing on this page runs, calls a service or checks a
-        status. It lists links taken from the Mission Control catalog, the same list the Demo steps
-        dropdown reads. It does not test whether a step, inspector or tenant is reachable, and it does
-        not need a sign-in to show. Each link opens the page that does the work.
+        <strong>NAVIGATION MAP</strong> &mdash; links only. Nothing here runs or checks a status;
+        each link opens the page that does the work.
       </SimBanner>
       <PageHeader
         eyebrow="Mission Control · demo steps · diagrams · learning"
