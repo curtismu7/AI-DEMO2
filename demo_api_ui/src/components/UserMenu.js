@@ -11,6 +11,7 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('menu');
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   const navigate = useNavigate();
   const { hasActiveToken } = useSessionToken();
 
@@ -30,6 +31,21 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Escape closes the menu and hands focus back to the trigger; Tab out of the menu closes it too, so a
+  // keyboard user is never left with an open dropdown behind them.
+  const handleKeyDown = (event) => {
+    if (event.key === 'Escape' && isOpen) {
+      event.stopPropagation();
+      closeMenu();
+      triggerRef.current?.focus();
+    }
+  };
+
+  const handleBlur = (event) => {
+    // relatedTarget is null when a click lands on a non-focusable spot (Safari buttons); the outside-click handler covers that.
+    if (isOpen && event.relatedTarget && !menuRef.current?.contains(event.relatedTarget)) closeMenu();
+  };
 
   const handleLogout = () => {
     // Close the menu first so the dropdown doesn't overlay the confirmation.
@@ -51,11 +67,15 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
   const settingsPath = isAdminView ? '/settings' : '/security';
 
   return (
-    <div className="user-menu" ref={menuRef}>
+    <div className="user-menu" ref={menuRef} onKeyDown={handleKeyDown} onBlur={handleBlur}>
       <button
+        ref={triggerRef}
         className="user-menu-trigger"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="User menu"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+        aria-controls="user-menu-dropdown"
         type="button"
       >
         <div className="user-menu-avatar">
@@ -65,7 +85,7 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
       </button>
 
       {isOpen && view === 'notifications' && (
-        <div className="user-menu-dropdown">
+        <div className="user-menu-dropdown" id="user-menu-dropdown">
           <NotificationsPanel
             prefs={user?.notificationPrefs}
             onBack={() => setView('menu')}
@@ -74,7 +94,7 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
       )}
 
       {isOpen && view === 'menu' && (
-        <div className="user-menu-dropdown">
+        <div className="user-menu-dropdown" id="user-menu-dropdown">
           <div className="user-menu-header">
             <div className="user-menu-avatar user-menu-avatar-large">
               <FunAvatar seed={user?.id || user?.email} size={48} />
