@@ -6,7 +6,12 @@
 // gateway (privilege/CURRENT-CONFIGURATION.md) — this page shows the config
 // shape and reports the live Test Connection result honestly, it doesn't
 // pretend that path works.
+//
+// Buttons: the page that mounts this (PrivilegeDemoPage) decides which one is the primary and passes the
+// class names in (saveClassName / testClassName), the same way PrivilegeLiveCheck takes buttonClassName.
+// The defaults are both secondaries, so a mount that says nothing adds no primary of its own.
 import { useCallback, useEffect, useState } from 'react';
+import { Card, StatusChip, KvList } from '../pingUi';
 import './PrivilegeMcpOAuthConfig.css';
 
 const API_BASE = process.env.REACT_APP_API_BASE || '';
@@ -16,7 +21,7 @@ const EMPTY_FORM = {
   clientId: '', clientSecret: '', issuer: '', tokenEndpoint: '', scopes: '', audience: '',
 };
 
-export default function PrivilegeMcpOAuthConfig() {
+export default function PrivilegeMcpOAuthConfig({ saveClassName = 'pu-btn', testClassName = 'pu-btn' }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [hasClientSecret, setHasClientSecret] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,41 +79,54 @@ export default function PrivilegeMcpOAuthConfig() {
     }
   }, []);
 
+  const testChip = testResult && testChipFor(testResult);
+
   return (
     <div className="poc">
-      <div className="poc__callout" role="note">
-        <span aria-hidden="true">⚠️</span>
-        <p>
-          <strong>Auth Mode OAuth is a documented platform blocker</strong>, not a config gap —
-          it was already tried against the live Privilege gateway and made discovery worse than
+      <Card tone="warn" data-testid="poc-blocker" role="note">
+        <p className="pu-status-line">
+          <StatusChip tone="warn">Known blocker</StatusChip>
+          <strong>Auth Mode OAuth is a documented platform blocker</strong>, not a config gap.
+        </p>
+        <p className="pu-note">
+          It was already tried against the live Privilege gateway and made discovery worse than
           Auth Mode None. See <code>privilege/CURRENT-CONFIGURATION.md</code>. This form is
           illustrative; Test Connection shows the real, currently-failing result rather than a
           simulated one.
         </p>
-      </div>
+      </Card>
 
-      <section className="poc__panel">
-        <h3>Current registration <span className="poc__badge poc__badge--live">Live &middot; Auth Mode None</span></h3>
-        <dl className="poc__kv">
-          <dt>Application Name</dt><dd>banking-mcp</dd>
-          <dt>MCP Server URL</dt><dd>http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp</dd>
-          <dt>Agent Privilege</dt><dd>ai-demo-cmuir &mdash; https://mcpgw.ai-demo.ping-devops.com</dd>
-          <dt>Mesh Cluster</dt><dd>ai-demo-cmuir</dd>
-        </dl>
-      </section>
+      <Card title="Current registration" tone="neutral" data-testid="poc-registration">
+        <p className="pu-status-line">
+          <StatusChip tone="neutral">Auth Mode None</StatusChip>
+          Written here from <code>privilege/CURRENT-CONFIGURATION.md</code>, not read from the gateway.
+        </p>
+        <KvList
+          items={[
+            { label: 'Application Name', value: 'banking-mcp' },
+            { label: 'MCP Server URL', value: 'http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp', mono: true },
+            { label: 'Agent Privilege', value: 'ai-demo-cmuir \u2014 https://mcpgw.ai-demo.ping-devops.com' },
+            { label: 'Mesh Cluster', value: 'ai-demo-cmuir' },
+          ]}
+        />
+      </Card>
 
-      <section className="poc__panel">
-        <h3>OAuth configuration <span className="poc__badge">Auth Mode OAuth</span></h3>
+      <Card title="OAuth configuration" data-testid="poc-form">
+        <p className="pu-status-line">
+          <StatusChip tone="info">Illustrative</StatusChip>
+          Auth Mode OAuth. Save stores these values on this machine&apos;s BFF; the secret is never shown again.
+        </p>
 
         <div className="poc__field">
-          <label htmlFor="poc-client-id">Client ID</label>
-          <input id="poc-client-id" type="text" value={form.clientId} onChange={handleChange('clientId')} />
+          <label className="pu-label" htmlFor="poc-client-id">Client ID</label>
+          <input id="poc-client-id" className="poc__input" type="text" value={form.clientId} onChange={handleChange('clientId')} />
         </div>
 
         <div className="poc__field">
-          <label htmlFor="poc-client-secret">Client Secret</label>
+          <label className="pu-label" htmlFor="poc-client-secret">Client Secret</label>
           <input
             id="poc-client-secret"
+            className="poc__input"
             type="password"
             value={form.clientSecret}
             onChange={handleChange('clientSecret')}
@@ -118,46 +136,72 @@ export default function PrivilegeMcpOAuthConfig() {
 
         <div className="poc__field-row">
           <div className="poc__field">
-            <label htmlFor="poc-issuer">Authorization Server / Issuer</label>
-            <input id="poc-issuer" type="text" value={form.issuer} onChange={handleChange('issuer')} />
+            <label className="pu-label" htmlFor="poc-issuer">Authorization Server / Issuer</label>
+            <input id="poc-issuer" className="poc__input" type="text" value={form.issuer} onChange={handleChange('issuer')} />
           </div>
           <div className="poc__field">
-            <label htmlFor="poc-token-endpoint">Token Endpoint</label>
-            <input id="poc-token-endpoint" type="text" value={form.tokenEndpoint} onChange={handleChange('tokenEndpoint')} />
+            <label className="pu-label" htmlFor="poc-token-endpoint">Token Endpoint</label>
+            <input id="poc-token-endpoint" className="poc__input" type="text" value={form.tokenEndpoint} onChange={handleChange('tokenEndpoint')} />
           </div>
         </div>
 
         <div className="poc__field-row">
           <div className="poc__field">
-            <label htmlFor="poc-scopes">Scopes</label>
-            <input id="poc-scopes" type="text" value={form.scopes} onChange={handleChange('scopes')} />
+            <label className="pu-label" htmlFor="poc-scopes">Scopes</label>
+            <input id="poc-scopes" className="poc__input" type="text" value={form.scopes} onChange={handleChange('scopes')} />
           </div>
           <div className="poc__field">
-            <label htmlFor="poc-audience">Resource / Audience</label>
-            <input id="poc-audience" type="text" value={form.audience} onChange={handleChange('audience')} />
+            <label className="pu-label" htmlFor="poc-audience">Resource / Audience</label>
+            <input id="poc-audience" className="poc__input" type="text" value={form.audience} onChange={handleChange('audience')} />
           </div>
         </div>
 
-        <div className="poc__actions">
-          <button type="button" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-          <button type="button" onClick={handleTest} disabled={testing}>{testing ? 'Testing…' : 'Test Connection'}</button>
+        <div className="pu-actions">
+          <button type="button" className={saveClassName} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          <button type="button" className={testClassName} onClick={handleTest} disabled={testing}>{testing ? 'Testing…' : 'Test Connection'}</button>
         </div>
 
         {saveResult && (
-          <p className={saveResult.ok ? 'poc__status poc__status--ok' : 'poc__status poc__status--error'}>
-            {saveResult.msg}
+          <p className="pu-status-line poc__result-line" role="status">
+            <StatusChip tone={saveResult.ok ? 'ok' : 'danger'}>{saveResult.ok ? 'Saved' : 'Not saved'}</StatusChip>
+            {saveResult.ok ? 'Stored on this machine.' : saveResult.msg}
           </p>
         )}
 
         {testResult && (
-          <pre className="poc__result">
-            {testResult.step ? `${testResult.step} · ` : ''}
-            {testResult.status !== undefined ? `status ${testResult.status}` : ''}
-            {'\n'}
-            {JSON.stringify(testResult.body ?? testResult, null, 2)}
-          </pre>
+          <div data-testid="poc-test-result">
+            <p className="pu-status-line poc__result-line" role="status">
+              <StatusChip tone={testChip.tone}>{testChip.word}</StatusChip>
+              {testChip.note}
+            </p>
+            <pre className="poc__result">
+              {testResultText(testResult)}
+            </pre>
+          </div>
         )}
-      </section>
+      </Card>
     </div>
   );
+}
+
+// "<step> · status <n>" on a first line when the server reported one, then the body as it came back.
+function testResultText(result) {
+  const head = [
+    result.step ? `${result.step} · ` : '',
+    result.status !== undefined ? `status ${result.status}` : '',
+  ].join('');
+  const body = JSON.stringify(result.body ?? result, null, 2);
+  return head ? `${head}\n${body}` : body;
+}
+
+// The chip carries a word, never the number (the status is in the result block below it). A 2xx from the
+// gateway is the only success; anything else, or a call that never ran, is said plainly.
+function testChipFor(result) {
+  if (result.status === undefined) {
+    return { tone: 'warn', word: 'Not completed', note: 'The test did not run to the end. Real response below.' };
+  }
+  if (result.status >= 200 && result.status < 300) {
+    return { tone: 'ok', word: 'Accepted', note: `The ${result.step} step succeeded. Real response below.` };
+  }
+  return { tone: 'danger', word: 'Refused', note: `The ${result.step} step was refused. Real response below.` };
 }

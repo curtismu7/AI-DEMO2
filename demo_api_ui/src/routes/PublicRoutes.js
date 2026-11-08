@@ -56,7 +56,6 @@ const PingOneProviderGuard = lazyWithRetry(() => import("../components/PingOnePr
 const PingFederateDavinciKitPage = lazyWithRetry(() => import("../pages/PingFederateDavinciKitPage"));
 const CibaApprovalPage = lazyWithRetry(() => import("../pages/CibaApprovalPage"));
 const CibaEmailApprovePage = lazyWithRetry(() => import("../pages/CibaEmailApprovePage"));
-const PrivilegeDemoPage = lazyWithRetry(() => import("../pages/PrivilegeDemoPage"));
 const EnterpriseMcpDemoPage = lazyWithRetry(() => import("../pages/EnterpriseMcpDemoPage"));
 const PingFederateIdJagExplainerPage = lazyWithRetry(() => import("../pages/PingFederateIdJagExplainerPage"));
 const PingFederateIdJagImplementationPage = lazyWithRetry(() => import("../pages/PingFederateIdJagImplementationPage"));
@@ -339,15 +338,6 @@ export function OASDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OASDemoPage user={user} />
-    </AppShell>
-  );
-}
-
-/** SE Privilege demo hub — needs AppShell so logged-in sidebar does not overlay content. */
-export function PrivilegeDemoPageRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <PrivilegeDemoPage />
     </AppShell>
   );
 }
