@@ -5,7 +5,7 @@
 // through the shared primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame,
 // P4 cards, P5 kv, P7 chips. P9: this page has no action buttons (its only controls are links), so it has
 // no primary button and none is invented. Honesty: the architecture, code sample and both tables are fixed
-// text, nothing runs here; only the Active brain card is read live from the BFF.
+// text, nothing runs here; only the Configured brain card is read live from the BFF.
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PageHeader from "../components/common/PageHeader";
@@ -78,6 +78,13 @@ const ALL_FRAMEWORKS = [
   ["compliance_agent", "Compliance (Pydantic AI)", "3007", "AML specialist microservice"],
 ];
 
+// The count comes from the rows below, so the sentence cannot drift from the table.
+const LLM_FRAMEWORK_ROWS = ALL_FRAMEWORKS.filter((r) => r[3].includes("llm_framework=")).length;
+const FRAMEWORKS_LEDE =
+  `Framework packages in this repo: ${ALL_FRAMEWORKS.length} are listed. Banking chat selects ${LLM_FRAMEWORK_ROWS} ` +
+  `of them through llm_framework (langchain_agent); LlamaIndex and Compliance are separate services. ` +
+  `Brains above are independent of which package runs.`;
+
 const DIAGRAM = `Browser  ──►  AIAgent  ──►  BFF
                            │  llm_framework + agent_mode (brain)
                            ├─►  langchain_agent :8888  (AG-UI SSE)
@@ -90,11 +97,15 @@ const LOCAL_PROVIDERS = new Set(["llamacpp", "anthropic-lmstudio"]);
 
 /** What the banner says about the one live part of the page, from the request that actually ran. */
 const BANNER_LIVE_LINE = {
-  loading: "The Active brain card is being read from the BFF now.",
+  loading: "The Configured brain card is being read from the BFF now.",
   ready:
-    "Only the Active brain card is live: it is read from the BFF (/api/langchain/config/status), key flags only, never key material.",
+    "Only the Configured brain card is live: it is read from the BFF (/api/langchain/config/status), key flags only, never key material.",
+  unknown:
+    "The BFF answered, but its answer did not say which brain is configured, so the Configured brain card claims no brain or key.",
+  error:
+    "The BFF answered with an error and did not return a status, so the Configured brain card has nothing to show and no brain or key is claimed.",
   unavailable:
-    "The BFF did not answer, so the Active brain card has nothing to show and no brain or key is claimed.",
+    "The BFF did not answer at all, so the Configured brain card has nothing to show and no brain or key is claimed.",
 };
 
 /** A code or diagram block that can scroll sideways. It is a named region so the keyboard can reach it. */
@@ -108,20 +119,27 @@ function CodeBlock({ label, children, ...rest }) {
 
 export default function LangChainPage() {
   const [status, setStatus] = useState(null);
-  // loading until the BFF answers; unavailable when it does not (so the card never spins forever)
+  // loading until the BFF settles; then ready (it named a provider), unknown (it answered 2xx without the
+  // fields we need), error (it answered with an error status) or unavailable (no answer at all). Never spins forever.
   const [statusState, setStatusState] = useState("loading");
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/langchain/config/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) return { failed: true };
+        return Promise.resolve(r.json()).catch(() => null);
+      })
       .then((d) => {
         if (cancelled) return;
-        if (d) {
+        if (d?.failed) {
+          setStatusState("error");
+        } else if (d && typeof d.provider === "string" && d.provider) {
           setStatus(d);
           setStatusState("ready");
         } else {
-          setStatusState("unavailable");
+          // a 200 without a provider (for example {}) says nothing: do not invent one
+          setStatusState("unknown");
         }
       })
       .catch(() => {
@@ -132,8 +150,10 @@ export default function LangChainPage() {
     };
   }, []);
 
-  const activeProvider = status?.provider ?? null;
-  const isHeuristic = !activeProvider || HEURISTIC_IDS.has(activeProvider);
+  // Only meaningful once statusState is "ready", when the BFF has named a provider.
+  const activeProvider = statusState === "ready" ? status.provider : null;
+  const isHeuristic = activeProvider != null && HEURISTIC_IDS.has(activeProvider);
+  const keyReported = typeof status?.key_set?.[activeProvider] === "boolean";
 
   // The chip word says what the BFF reported; colour only follows it. Green only for a key the BFF says is set.
   let chip;
@@ -144,6 +164,12 @@ export default function LangChainPage() {
   } else if (statusState === "unavailable") {
     cardTone = "warn";
     chip = { tone: "warn", word: "Not reachable" };
+  } else if (statusState === "error") {
+    cardTone = "warn";
+    chip = { tone: "warn", word: "Error answer" };
+  } else if (statusState === "unknown") {
+    cardTone = "neutral";
+    chip = { tone: "neutral", word: "Status not reported" };
   } else if (isHeuristic) {
     cardTone = "live";
     chip = { tone: "info", word: "No key needed" };
@@ -153,13 +179,16 @@ export default function LangChainPage() {
   } else if (LOCAL_PROVIDERS.has(activeProvider)) {
     cardTone = "live";
     chip = { tone: "neutral", word: "Local, no key" };
-  } else {
+  } else if (keyReported) {
     cardTone = "live";
     chip = { tone: "danger", word: "No key set" };
+  } else {
+    cardTone = "live";
+    chip = { tone: "neutral", word: "Key not reported" };
   }
 
   const brainItems = [
-    { label: "Provider", value: isHeuristic ? "heuristics" : activeProvider, mono: true },
+    { label: "Provider", value: activeProvider, mono: true },
     { label: "Model", value: isHeuristic ? "none (deterministic NL parser)" : status?.model ?? "not reported", mono: !isHeuristic },
   ];
 
@@ -178,9 +207,9 @@ export default function LangChainPage() {
       />
 
       <PageFrame>
-        <Section id="lcp-active" kicker="1 · Right now" title="Active brain / provider">
+        <Section id="lcp-active" kicker="1 · Right now" title="Configured brain / provider">
           <CardGrid>
-            <Card tone={cardTone} title="Session brain" data-testid="lcp-active-brain">
+            <Card tone={cardTone} title="Configured brain" data-testid="lcp-active-brain">
               <div className="pu-status-line">
                 {/* the spinner is itself a live region, so it sits beside this one, not inside it */}
                 <span className="pu-status-line" role="status" aria-live="polite">
@@ -188,14 +217,24 @@ export default function LangChainPage() {
                   {statusState === "unavailable" && (
                     <span>The BFF status endpoint did not respond.</span>
                   )}
+                  {statusState === "error" && (
+                    <span>The BFF answered with an error and did not return a status.</span>
+                  )}
+                  {statusState === "unknown" && (
+                    <span>The BFF answered without naming a provider, so none is shown.</span>
+                  )}
                   {statusState === "ready" && isHeuristic && <span>No LLM key required.</span>}
                   {statusState === "ready" && !isHeuristic && chip.tone === "danger" && (
                     <span>Set one in Config or the agent mode picker.</span>
                   )}
                 </span>
-                {statusState === "loading" && <InlineSpinner label="Reading the active brain…" />}
+                {statusState === "loading" && <InlineSpinner label="Reading the configured brain…" />}
               </div>
               {statusState === "ready" && <KvList items={brainItems} />}
+              <p className="pu-note">
+                As the BFF reports it for this browser. Signed out, that is the global configuration, not a choice
+                made in your own session.
+              </p>
               <p className="pu-note">
                 <Link to="/config" className="lcp-link">Change in Config →</Link>
               </p>
@@ -243,17 +282,16 @@ export default function LangChainPage() {
                 </thead>
                 <tbody>
                   {DEMO_BRAINS.map((p) => {
-                    // Marked active only once the BFF has answered; before that nothing is claimed.
+                    // Marked only once the BFF has named a provider; before that, or on an empty answer, nothing is claimed.
                     const active =
                       statusState === "ready" &&
-                      ((p.provider == null && isHeuristic) ||
-                        (p.provider != null && activeProvider === p.provider));
+                      (p.provider == null ? isHeuristic : activeProvider === p.provider);
                     return (
                       <tr key={p.id} className={active ? "lcp-row--active" : undefined}>
                         <td data-label="Brain">
                           {p.label}
                           {active && (
-                            <span className="lcp-cell-chip"><StatusChip tone="info">Active</StatusChip></span>
+                            <span className="lcp-cell-chip"><StatusChip tone="info">Configured</StatusChip></span>
                           )}
                         </td>
                         <td data-label="Provider id"><code>{p.provider ?? "null"}</code></td>
@@ -283,7 +321,7 @@ export default function LangChainPage() {
           id="lcp-agents"
           kicker="6 · Inventory"
           title="All agents we have"
-          lede="Framework packages in this repo. Banking chat swaps among the first four via llm_framework; LlamaIndex and Compliance are separate services. Brains above are independent of which package runs."
+          lede={FRAMEWORKS_LEDE}
         >
           <Card tone="neutral">
             <div className="lcp-table-wrap">
