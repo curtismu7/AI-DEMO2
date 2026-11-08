@@ -87,6 +87,17 @@ test('skips a user whose username another Privilege user already holds (case-ins
   expect(p.dstUsers).toHaveLength(1);
 });
 
+test('adopts a hand-made Privilege user with the same username and no email, and adds it to the group', async () => {
+  const p = fakePingOne({
+    srcUsers: [{ id: 's2', username: 'demoAdmin', email: 'demoAdmin@api.ping.demo' }],
+    dstUsers: [{ id: 'd7', username: 'demoadmin' }],
+  });
+  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet });
+  expect(r.added).toEqual(['demoAdmin@api.ping.demo']);
+  expect(p.dstUsers).toHaveLength(1);
+  expect(p.members).toEqual(['d7']);
+});
+
 test('dry run writes nothing', async () => {
   const p = fakePingOne({ srcUsers: [{ id: 's1', username: 'alice@example.com', email: 'alice@example.com' }], dstUsers: [] });
   await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet, dryRun: true });

@@ -20,8 +20,6 @@
  * Called automatically by bootstrapPingOne.js post-provisioning.
  */
 
-const path = require('node:path');
-
 const GROUP_NAME = 'PrivilegeAdmins';
 
 // Demo sign-in accounts besides the three the bootstrap creates (DEMO_*_USERNAME).
@@ -95,12 +93,16 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
     let target = (await users(dst, `email eq "${source.email}"`))[0];
     if (!target) {
       const holder = (await users(dst, `username eq "${source.username}"`))[0];
-      if (holder) {
+      // Same username with no email (hand-made) is the same account; use it.
+      if (holder && !holder.email) target = holder;
+      else if (holder) {
         // PingOne usernames are case-insensitive: another person already owns this one.
-        log(`[syncPrivilegeUsers] ⚠️  ${label}: username taken in Privilege env by ${holder.email} — skipped`);
+        log(`[syncPrivilegeUsers] ⚠️  ${label}: username taken in Privilege env by another user — not created, not added to ${GROUP_NAME}`);
         result.skipped.push(source.email);
         continue;
       }
+    }
+    if (!target) {
       if (dryRun) {
         log(`[syncPrivilegeUsers] would create ${label} and add to ${GROUP_NAME}`);
         continue;
@@ -147,7 +149,7 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
 }
 
 if (require.main === module) {
-  require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
+  require('./loadDemoEnv').loadDemoEnv();
   syncPrivilegeUsers({ dryRun: process.argv.includes('--dry-run') }).catch((err) => {
     console.error('[syncPrivilegeUsers] Failed:', err.message);
     process.exit(1);
