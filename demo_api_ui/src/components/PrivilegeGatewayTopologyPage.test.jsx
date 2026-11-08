@@ -169,8 +169,10 @@ describe("PrivilegeGatewayTopologyPage diagram data", () => {
     }
   });
 
-  it("honesty: the green status chip appears only on a tab recorded as checked against a cluster; unchecked tabs are neutral or warn", () => {
+  it("honesty: no status chip is green (the page never re-reads a cluster); the checked tab says when it was checked, neutrally, and unchecked tabs say so", () => {
     expect(TABS.filter((t) => t.clusterChecked).map((t) => t.id)).toEqual(["lb"]);
+    expect(TABS.find((t) => t.id === "lb").status).toBe("Checked 2026-10-12");
+    expect(TABS.map((t) => t.status)).not.toContain("Current");
     render(<PrivilegeGatewayTopologyPage />);
     for (const tab of TABS) {
       fireEvent.click(screen.getAllByRole("button").find((b) => b.textContent === tab.label));
@@ -178,7 +180,7 @@ describe("PrivilegeGatewayTopologyPage diagram data", () => {
       const chip = [...card.querySelectorAll(".pu-chip")].find((c) => c.textContent === tab.status);
       expect(chip, `${tab.id} status chip`).toBeTruthy();
       const green = chip.className.includes("pu-chip--ok");
-      expect(green, `${tab.id} green only when checked`).toBe(Boolean(tab.clusterChecked));
+      expect(green, `${tab.id} is never green`).toBe(false);
       if (!tab.clusterChecked) expect(card.textContent, tab.id).toContain("Not checked against a cluster");
     }
     expect(TABS.find((t) => t.id === "a2a").status).toBe("Recorded");

@@ -61,14 +61,16 @@ const KEY_COMPONENTS = [
 ];
 
 // T1-T15 — the OWASP Agentic Security Initiative threat catalog.
-// `lane`: "covered" = enforced in the demo today; "planned" = in our use-case
-// catalog but the control is still needs-build; "out" = a guardrail/sandbox
-// concern outside this demo's identity/authorization focus.
+// `lane`: "covered" = enforced in the demo today (a use case marked maturity "works" in
+// demo_api_server/config/useCases.js carries it: T4 is UC18, rate limiting, live-verified in the
+// readiness run); "out" = a guardrail/sandbox concern outside this demo's identity/authorization
+// focus. There is no "planned" lane while every threat with a use case has its control built: a
+// threat is only listed as covered if its DEMO_MAP row below is a control that exists.
 const THREATS = [
   { id: "T1", name: "Memory Poisoning", lane: "out" },
   { id: "T2", name: "Tool Misuse", lane: "covered" },
   { id: "T3", name: "Privilege Compromise", lane: "covered" },
-  { id: "T4", name: "Resource Overload", lane: "planned" },
+  { id: "T4", name: "Resource Overload", lane: "covered" },
   { id: "T5", name: "Cascading Hallucination", lane: "out" },
   { id: "T6", name: "Intent Breaking & Goal Manipulation", lane: "covered" },
   { id: "T7", name: "Misaligned Behaviors", lane: "out" },
@@ -119,7 +121,7 @@ const DEMO_MAP = [
   { uc: "UC7, UC8", threats: "T10", control: "Step-up MFA and human-in-the-loop consent for high-value actions.", to: "/pingone-authorize" },
   { uc: "UC10, UC11, UC13", threats: "T3, T9, T13", control: "Confused-deputy, bad-client, and rogue-actor-injection rejected at the gateway.", to: "/mcp-inspector" },
   { uc: "UC12, UC17", threats: "T9, T3", control: "Token theft/replay defense (audience binding, DPoP, introspection) + short-lived JIT credentials.", to: "/actor-token-education" },
-  { uc: "UC18", threats: "T4", control: "Rate-limit / resource-overload defense at the agent gateway.", to: "/agent-gateway-capabilities" },
+  { uc: "UC18", threats: "T4", control: "Rate-limit / resource-overload defense at the agent gateway: a burst of tool calls is rejected with a 429 (run the UC18 attack card).", to: "/agent-gateway-capabilities" },
 ];
 
 const LANES = [
@@ -129,13 +131,6 @@ const LANES = [
     word: "In scope",
     heading: "Enforced by this demo",
     note: "Identity, delegation and authorization controls this demo shows today.",
-  },
-  {
-    lane: "planned",
-    tone: "warn",
-    word: "Planned",
-    heading: "In the catalog, still being built",
-    note: "A use case exists, but the control is not built yet.",
   },
   {
     lane: "out",
@@ -152,14 +147,13 @@ export default function OwaspLearnerPage() {
   const [openKc, setOpenKc] = useState(null);
 
   const coveredCount = THREATS.filter((t) => t.lane === "covered").length;
-  const plannedCount = THREATS.filter((t) => t.lane === "planned").length;
 
   return (
     <PingPage className="owasp-page" data-testid="owasp-learner-page">
       <SimBanner data-testid="owasp-banner">
         <strong>STATIC LESSON</strong> &mdash; nothing on this page is simulated, called live, or produces
         sample attack output. The text summarizes the OWASP guide, and the &ldquo;in scope&rdquo; and
-        &ldquo;planned&rdquo; labels are this demo&apos;s own mapping, not an OWASP rating and not tested
+        &ldquo;out of scope&rdquo; labels are this demo&apos;s own mapping, not an OWASP rating and not tested
         here. The use-case rows open the demo pages where the controls actually run.
       </SimBanner>
       <PageHeader
@@ -269,7 +263,7 @@ export default function OwaspLearnerPage() {
           id="owasp-threats-h"
           kicker="3 · Threat catalog"
           title="The 15 agentic threats (T1–T15)"
-          lede="OWASP's threat catalog for agentic systems, grouped by how this demo treats each one. Threats in scope are enforced by this demo's identity & authorization controls today; planned ones are in our use-case catalog but still being built; the rest belong to guardrail, sandboxing, and content-moderation layers."
+          lede="OWASP's threat catalog for agentic systems, grouped by how this demo treats each one. Threats in scope are enforced by this demo's identity & authorization controls today; the rest belong to guardrail, sandboxing, and content-moderation layers."
         >
           <CardGrid>
             {LANES.map(({ lane, tone, word, heading, note }) => {
@@ -332,9 +326,8 @@ export default function OwaspLearnerPage() {
               Our use-case catalog (UC1&ndash;UC20) is tagged to OWASP threats, so every
               control we show has a citable, vendor-neutral backing. We enforce{" "}
               <strong>{coveredCount} of the 15</strong> threats today — the identity,
-              delegation, and authorization ones — with <strong>{plannedCount} more</strong>{" "}
-              in the catalog and still being built. The rest are stated as out-of-scope
-              rather than faked.
+              delegation, authorization and rate-limit ones. The rest are stated as
+              out-of-scope rather than faked.
             </>
           }
         >
@@ -351,7 +344,6 @@ export default function OwaspLearnerPage() {
                 <span className="owasp-map-threats">{row.threats}</span>
                 <span className="owasp-map-control">
                   {row.control}
-                  {row.planned && <StatusChip tone="warn">planned</StatusChip>}
                 </span>
                 <span className="owasp-map-go" aria-hidden="true">&rarr;</span>
               </button>
