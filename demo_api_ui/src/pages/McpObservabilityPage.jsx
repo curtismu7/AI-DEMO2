@@ -114,6 +114,19 @@ export function buildToolHealth(events) {
     .sort((a, b) => (b.denials - a.denials) || (b.calls - a.calls));
 }
 
+// Tool status is derived from errors as well as denials, so a tool that fails every call can never read Healthy.
+// A denial is an authorization decision ("Denials", amber); a failure that was not a denial is an error. Errors
+// win over denials because a broken tool matters more than a refused call; 50% or more of calls erroring is
+// "Failing" (red), anything less is "Errors" (amber). "Healthy" only when there are no errors and no denials.
+export const TOOL_FAILING_SHARE = 0.5;
+export function toolStatus(tool) {
+  const errors = Math.max(0, safeNumber(tool?.failures) - safeNumber(tool?.denials));
+  const calls = safeNumber(tool?.calls);
+  if (errors > 0) return calls && errors / calls >= TOOL_FAILING_SHARE ? { tone: "danger", word: "Failing" } : { tone: "warn", word: "Errors" };
+  if (safeNumber(tool?.denials) > 0) return { tone: "warn", word: "Denials" };
+  return { tone: "ok", word: "Healthy" };
+}
+
 function endpointGet(url) {
   return apiClient.get(url, { _silent: true }).then((response) => response.data);
 }
@@ -132,6 +145,11 @@ const HEALTH_TONE = { healthy: "ok", unavailable: "danger", unknown: "neutral" }
 function healthChip(status) {
   const word = String(status || "unknown");
   return <StatusChip tone={HEALTH_TONE[word] || "warn"}>{word.charAt(0).toUpperCase() + word.slice(1)}</StatusChip>;
+}
+
+function toolStatusChip(tool) {
+  const status = toolStatus(tool);
+  return <StatusChip tone={status.tone}>{status.word}</StatusChip>;
 }
 
 export default function McpObservabilityPage() {
@@ -214,6 +232,8 @@ export default function McpObservabilityPage() {
   const chartLabel = recent.length
     ? `Last ${recent.length} calls, oldest to newest: ${recentCounts.Success || 0} success, ${recentCounts.Failure || 0} failure, ${recentCounts.Denied || 0} denied. Bar height is duration.`
     : "No calls to chart yet.";
+  // Loaded, no read error, nothing in the audit window: say so, because the Live chip alone reads as "all good".
+  const noTraffic = !loading && !error && events.length === 0 && overview.total === 0;
   const liveChip = error
     ? <StatusChip tone="danger">Audit unavailable</StatusChip>
     : <StatusChip tone={lastUpdated ? "ok" : "neutral"}>{lastUpdated ? `Live · ${formatTime(lastUpdated)}` : "Connecting"}</StatusChip>;
@@ -234,6 +254,7 @@ export default function McpObservabilityPage() {
         {error && <div className="mcp-observability-error" role="alert">{error}</div>}
 
         <Section id="mcp-obs-overview-h" kicker="1 · Overview" title="Tool calls at a glance" lede="Totals come from the durable audit store; latency is from the most recent audited calls.">
+          {noTraffic && <p className="pu-note pu-empty" data-testid="mcp-obs-empty">No MCP traffic seen yet: the audit store returned 0 events. The Live chip only means this page reached the audit store; it does not mean agents are calling tools. Counts stay at zero until an agent makes an MCP call.</p>}
           <CardGrid>
             <Metric label="Tool calls" value={loading ? "…" : formatNumber(overview.total)} note="durable MCP audit events" />
             <Metric label="Success rate" value={overview.successRate == null ? "—" : `${overview.successRate.toFixed(1)}%`} note="derived from audit outcomes" />
@@ -291,7 +312,7 @@ export default function McpObservabilityPage() {
               <div className="mcp-observability-table-wrap">
                 <table className="mcp-observability-table" data-testid="mcp-obs-tools">
                   <thead><tr><th scope="col">Tool</th><th scope="col">Status</th><th scope="col">Calls</th><th scope="col">Error rate</th><th scope="col">p95</th><th scope="col">Denials</th><th scope="col">Last seen</th></tr></thead>
-                  <tbody>{tools.map((tool) => <tr key={tool.operation}><td data-label="Tool" className="mcp-observability-tool-name">{tool.operation}</td><td data-label="Status">{tool.denials ? <StatusChip tone="warn">Denials</StatusChip> : <StatusChip tone="ok">Healthy</StatusChip>}</td><td data-label="Calls">{formatNumber(tool.calls)}</td><td data-label="Error rate">{tool.errorRate.toFixed(1)}%</td><td data-label="p95">{formatDuration(tool.p95)}</td><td data-label="Denials">{formatNumber(tool.denials)}</td><td data-label="Last seen">{formatTime(tool.lastSeen)}</td></tr>)}</tbody>
+                  <tbody>{tools.map((tool) => <tr key={tool.operation}><td data-label="Tool" className="mcp-observability-tool-name">{tool.operation}</td><td data-label="Status">{toolStatusChip(tool)}</td><td data-label="Calls">{formatNumber(tool.calls)}</td><td data-label="Error rate">{tool.errorRate.toFixed(1)}%</td><td data-label="p95">{formatDuration(tool.p95)}</td><td data-label="Denials">{formatNumber(tool.denials)}</td><td data-label="Last seen">{formatTime(tool.lastSeen)}</td></tr>)}</tbody>
                 </table>
               </div>
             )}

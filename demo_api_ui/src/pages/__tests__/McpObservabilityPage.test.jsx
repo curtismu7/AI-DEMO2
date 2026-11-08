@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import McpObservabilityPage, { buildObservabilitySummary } from "../McpObservabilityPage";
+import McpObservabilityPage, { buildObservabilitySummary, buildToolHealth, toolStatus } from "../McpObservabilityPage";
 import apiClient from "../../services/apiClient";
 
 vi.mock("../../services/apiClient", () => ({
@@ -34,7 +34,7 @@ const auditEvents = [
   },
 ];
 
-beforeEach(() => {
+function beforeEachMock() {
   apiClient.get.mockImplementation((url) => {
     if (url === "/api/mcp/audit?limit=100") return Promise.resolve({ data: auditEvents });
     if (url === "/api/mcp/audit?summary=1") {
@@ -51,7 +51,9 @@ beforeEach(() => {
     }
     return Promise.reject(new Error(`Unexpected request: ${url}`));
   });
-});
+}
+
+beforeEach(beforeEachMock);
 
 describe("McpObservabilityPage", () => {
   it("counts all alerting authorization failures and preserves missing durations", () => {
@@ -151,5 +153,55 @@ describe("McpObservabilityPage", () => {
     expect(flow.querySelector(".sfd--ping")).toBeTruthy();
     expect(within(flow).getByRole("button", { name: "Simulate" })).toBeInTheDocument();
     expect(within(flow).getByRole("button", { name: /Reset$/ })).toBeInTheDocument();
+  });
+
+  it("never shows a tool that fails every call as Healthy (status is derived from errors, not denials alone)", async () => {
+    const failing = [
+      { eventId: "f1", operation: "flaky_tool", outcome: "failure", duration: 10, timestamp: "2026-09-18T14:30:00.000Z", details: {} },
+      { eventId: "f2", operation: "flaky_tool", outcome: "failure", duration: 12, timestamp: "2026-09-18T14:30:01.000Z", details: {} },
+    ];
+    const [tool] = buildToolHealth(failing);
+    expect(tool).toMatchObject({ calls: 2, failures: 2, denials: 0 });
+    expect(tool.errorRate).toBe(100);
+    expect(toolStatus(tool)).toEqual({ tone: "danger", word: "Failing" });
+
+    apiClient.get.mockImplementation((url) => (url === "/api/mcp/audit?limit=100" ? Promise.resolve({ data: failing }) : Promise.resolve({ data: {} })));
+    render(<McpObservabilityPage />);
+    const table = await screen.findByTestId("mcp-obs-tools");
+    const row = within(table).getByText("flaky_tool").closest("tr");
+    expect(within(row).getByText("100.0%")).toBeInTheDocument();
+    expect(within(row).getByText("Failing")).toBeInTheDocument();
+    expect(within(row).queryByText("Healthy")).toBeNull();
+  });
+
+  it("grades tool status: Healthy only with no errors and no denials, Errors below half, Denials for denials", () => {
+    expect(toolStatus({ calls: 4, failures: 0, denials: 0 })).toEqual({ tone: "ok", word: "Healthy" });
+    expect(toolStatus({ calls: 4, failures: 1, denials: 0 })).toEqual({ tone: "warn", word: "Errors" });
+    expect(toolStatus({ calls: 4, failures: 2, denials: 0 })).toEqual({ tone: "danger", word: "Failing" });
+    expect(toolStatus({ calls: 2, failures: 2, denials: 2 })).toEqual({ tone: "warn", word: "Denials" });
+    expect(toolStatus({ calls: 3, failures: 2, denials: 1 })).toEqual({ tone: "warn", word: "Errors" });
+  });
+
+  it("says no traffic was seen when the audit store is reachable but empty, and not when there are events", async () => {
+    apiClient.get.mockImplementation((url) => (url === "/api/mcp/audit?limit=100" ? Promise.resolve({ data: [] }) : Promise.resolve({ data: {} })));
+    const { unmount } = render(<McpObservabilityPage />);
+    const note = await screen.findByTestId("mcp-obs-empty");
+    expect(note.textContent).toMatch(/No MCP traffic seen yet/);
+    expect(screen.getByText(/^Live ·/)).toBeInTheDocument();
+    unmount();
+
+    beforeEachMock();
+    render(<McpObservabilityPage />);
+    await screen.findAllByText("transfer_funds");
+    expect(screen.queryByTestId("mcp-obs-empty")).toBeNull();
+  });
+
+  it("keeps the shared diagram toolbar under the .pu-page root so the demoted-secondary rule applies", async () => {
+    const { container } = render(<McpObservabilityPage />);
+    await screen.findByRole("region", { name: "Where this page's data comes from" });
+    const root = container.querySelector(".pu-page");
+    expect(root).toBeTruthy();
+    const simulate = root.querySelector(".dc-toolbar .dc-ctrl-btn");
+    expect(simulate).toBeTruthy();
   });
 });
