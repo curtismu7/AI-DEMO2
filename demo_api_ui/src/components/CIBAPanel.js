@@ -17,6 +17,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { notifyError } from '../utils/appToast';
 import './CIBAPanel.css';
+// The education tabs render <pre className="edu-code">; that rule lives here, not in CIBAPanel.css, and nothing else
+// loads it before the drawer opens, so the code blocks painted unstyled on first open.
+import './shared/EducationDrawer.css';
 import {
   CibaWhatContent,
   CibaFullStackContent,
