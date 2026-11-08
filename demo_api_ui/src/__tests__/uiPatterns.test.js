@@ -16,6 +16,10 @@ import {
   buttonClasses,
   parseCss,
   loadGlobalTokens,
+  scanColours,
+  scanEscapes,
+  classTokens,
+  colorSpaceToRgb,
   SHARED_FILES,
 } from '../../scripts/check-ui-patterns.mjs';
 
@@ -27,6 +31,9 @@ import {
  * components are one more rule set, enforced whatever the allowlist says. End-to-end mutations (a temp copy
  * of the page and shared files, run through the real script) live in uiPatternsMutation.test.js.
  */
+// Round 2 fails closed on a var() it cannot resolve, so pages are checked with the app's real token map.
+const tokens = loadGlobalTokens();
+const check = (page) => checkPage({ tokens, ...page });
 const drifted = (results) => results.filter((r) => r.status === 'DRIFT').map((r) => r.rule);
 
 const saasFile = loadRoutes()['/privilege-saas-access'];
@@ -56,52 +63,52 @@ describe('ui pattern check', () => {
   });
 
   it('the converted page passes as published', () => {
-    expect(drifted(checkPage(saas))).toEqual([]);
+    expect(drifted(check(saas))).toEqual([]);
   });
 
   it('fails when a second primary button appears', () => {
     const jsx = saas.jsx.replace('className="pu-btn" onClick={reset}', 'className="pu-btn pu-btn--primary" onClick={reset}');
     expect(jsx).not.toBe(saas.jsx);
-    expect(drifted(checkPage({ jsx, css: saas.css }))).toEqual(['P9 one primary button']);
+    expect(drifted(check({ jsx, css: saas.css }))).toEqual(['P9 one primary button']);
   });
 
   it('counts the live-check default trigger (btn-primary) as a primary', () => {
     const jsx = saas.jsx.replace('buttonClassName="pu-btn"', '');
-    expect(drifted(checkPage({ jsx, css: saas.css }))).toEqual(['P9 one primary button']);
+    expect(drifted(check({ jsx, css: saas.css }))).toEqual(['P9 one primary button']);
   });
 
   it('fails on a chip with no text, whether StatusChip or a chip class', () => {
     const a = saas.jsx.replace('<StatusChip tone="info">Live call</StatusChip>', '<StatusChip tone="info" />');
-    expect(drifted(checkPage({ jsx: a, css: saas.css }))).toEqual(['P7 chips carry text']);
+    expect(drifted(check({ jsx: a, css: saas.css }))).toEqual(['P7 chips carry text']);
     const b = saas.jsx.replace(
       '<StatusChip tone="info">Live call</StatusChip>',
       '<span className="pu-chip pu-chip--info"><span className="pu-chip__dot" aria-hidden="true" /></span>',
     );
-    expect(drifted(checkPage({ jsx: b, css: saas.css }))).toEqual(['P7 chips carry text']);
+    expect(drifted(check({ jsx: b, css: saas.css }))).toEqual(['P7 chips carry text']);
   });
 
   it('fails on an indigo/violet button literal and on a vertical colour token on a button', () => {
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-x-btn { background: #4f46e5; }') }))).toEqual([
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-x-btn { background: #4f46e5; }') }))).toEqual([
       'P9 no violet/indigo or vertical colour on buttons',
     ]);
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-x-btn { background: var(--app-primary-red); }') }))).toEqual([
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-x-btn { background: var(--app-primary-red); }') }))).toEqual([
       'P9 no violet/indigo or vertical colour on buttons',
     ]);
     // A non-button rule may still use a vertical colour (card edges do).
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-x-card { border-top-color: var(--app-primary-red); }') }))).toEqual([]);
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-x-card { border-top-color: var(--app-primary-red); }') }))).toEqual([]);
   });
 
   it('fails on inline colour, a font under 10px, and a banner that is not first', () => {
     const inline = saas.jsx.replace('<p className="psa-justification">', '<p className="psa-justification" style={{ color: "#333" }}>');
-    expect(drifted(checkPage({ jsx: inline, css: saas.css }))).toEqual(['H3 no inline colour']);
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-tiny { font-size: 9px; }') }))).toEqual(['H2 10px font floor']);
+    expect(drifted(check({ jsx: inline, css: saas.css }))).toEqual(['H3 no inline colour']);
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-tiny { font-size: 9px; }') }))).toEqual(['H2 10px font floor']);
     const noBanner = saas.jsx.replace(/<SimBanner[\s\S]*?<\/SimBanner>/, '');
-    expect(drifted(checkPage({ jsx: noBanner, css: saas.css }))).toEqual(['P2 banner first']);
+    expect(drifted(check({ jsx: noBanner, css: saas.css }))).toEqual(['P2 banner first']);
   });
 
   it('ignores commented-out violations', () => {
     const jsx = `${saas.jsx}\n// <button className="pu-btn--primary">x</button>\n/* style={{ color: '#fff' }} */`;
-    expect(drifted(checkPage({ jsx, css: saas.css }))).toEqual([]);
+    expect(drifted(check({ jsx, css: saas.css }))).toEqual([]);
   });
 
   it('classifies violet and indigo but not Ping blue, red or green', () => {
@@ -154,7 +161,9 @@ describe('ui pattern check', () => {
     expect(lengthToPx('62.5%')).toBe(10);
     expect(lengthToPx('clamp(8px, 2vw, 14px)')).toBe(8);
     expect(lengthToPx('calc(0.5rem + 1px)')).toBe(9);
-    expect(lengthToPx('2vw')).toBeNull();
+    // Round 2: viewport units are judged at 375/768/1280/1920 px (2vw is 7.5px on a phone) instead of passing as unknown.
+    expect(lengthToPx('2vw')).toBe(7.5);
+    expect(lengthToPx('1lh')).toBeNull();
   });
 
   it('parses CSS nesting, @media and url() values with semicolons', () => {
@@ -168,15 +177,102 @@ describe('ui pattern check', () => {
   it('treats a class the JSX puts on a button as a button selector, whatever it is called', () => {
     const jsx = '<button type="button" className="psa-go">Go</button><a className="btn psa-link" href="/x">x</a><div className="psa-card" />';
     expect([...buttonClasses(jsx)].sort()).toEqual(['btn', 'psa-go', 'psa-link']);
-    const r = checkPage({ jsx: saas.jsx + jsx, css: cssWith('.psa-go { background: hsl(250 80% 50%); } .psa-card { background: hsl(250 80% 50%); }') });
+    const r = check({ jsx: saas.jsx + jsx, css: cssWith('.psa-go { background: hsl(250 80% 50%); } .psa-card { background: hsl(250 80% 50%); }') });
     expect(drifted(r)).toEqual(['P9 no violet/indigo or vertical colour on buttons']);
   });
 
   it('follows the font shorthand and a var() size', () => {
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-tiny { font: italic 700 9px/1.2 sans-serif; }') }))).toEqual(['H2 10px font floor']);
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-ok { font: 700 10px/1.2 sans-serif; }') }))).toEqual([]);
-    const tokens = loadGlobalTokens();
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-tiny { font: italic 700 9px/1.2 sans-serif; }') }))).toEqual(['H2 10px font floor']);
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-ok { font: 700 10px/1.2 sans-serif; }') }))).toEqual([]);
     expect(tokens.get('--btn-accent')).toBeTruthy();
-    expect(drifted(checkPage({ jsx: saas.jsx, css: cssWith('.psa-tiny { font-size: var(--font-size-3xs); }'), tokens }))).toEqual([]);
+    expect(drifted(check({ jsx: saas.jsx, css: cssWith('.psa-tiny { font-size: var(--font-size-3xs); }') }))).toEqual([]);
+  });
+
+  it('round 2: converts every color() space, white maps to white, and calc()/relative syntax resolve', () => {
+    const d65 = [0.95045592705, 1, 1.08905775076];
+    const d50 = [0.3457 / 0.3585, 1, (1 - 0.3457 - 0.3585) / 0.3585];
+    for (const sp of ['srgb', 'srgb-linear', 'display-p3', 'a98-rgb', 'prophoto-rgb', 'rec2020']) expect(colorSpaceToRgb(sp, [1, 1, 1]), sp).toEqual([255, 255, 255]);
+    expect(colorSpaceToRgb('xyz-d65', d65)).toEqual([255, 255, 255]);
+    expect(colorSpaceToRgb('xyz-d50', d50)).toEqual([255, 255, 255]);
+    expect(colorSpaceToRgb('nope', [1, 1, 1])).toBeNull();
+    // #4f46e5 expressed in xyz-d65 and in linear sRGB comes back as itself.
+    expect(colourFunctionToRgb('color(xyz-d65 0.1955 0.117 0.7535)')).toEqual([79, 70, 229]);
+    expect(colourFunctionToRgb('color(srgb-linear 0.0782 0.0612 0.7835)')?.map((v) => Math.round(v / 2))).toEqual([40, 35, 115]);
+    expect(colourFunctionToRgb('hsl(calc(200 + 50) 80% 50%)')).toEqual([60, 25, 230]);
+    for (const fn of ['rgb', 'hsl', 'hwb', 'lab', 'lch', 'oklab', 'oklch']) {
+      const names = { rgb: 'r g b', hsl: 'h s l', hwb: 'h w b', lab: 'l a b', lch: 'l c h', oklab: 'l a b', oklch: 'l c h' }[fn];
+      const back = colourFunctionToRgb(`${fn}(from #4f46e5 ${names})`);
+      expect(back?.every((v, i) => Math.abs(v - [79, 70, 229][i]) <= 1), `${fn} relative round trip ${back}`).toBe(true);
+    }
+    expect(colourFunctionToRgb('hsl(from red calc(h + 250) s l)')).toEqual([43, 0, 255]);
+  });
+
+  it('round 2: scanColours reports violet and unknown separately and never fails open', () => {
+    expect(scanColours('color-mix(in srgb, #ff0066, #0066ff)').violet).not.toEqual([]);
+    expect(scanColours('color-mix(in srgb, #d20e0f 40%, transparent)')).toEqual({ violet: [], unknown: [] });
+    expect(scanColours('light-dark(#111, #fff)')).toEqual({ violet: [], unknown: [] });
+    expect(scanColours('1px solid currentColor').unknown).toEqual([]);
+    expect(scanColours('linear-gradient(90deg, #d20e0f 55%, #aa0005)')).toEqual({ violet: [], unknown: [] });
+    expect(scanColours('var(--x)').unknown).toEqual(['var(--x)']);
+    expect(scanColours('attr(data-c type(<color>))').unknown).toHaveLength(1);
+    expect(scanColours('AccentColor').unknown).toEqual(['AccentColor']);
+    expect(scanColours('VisitedText').violet).toEqual(['VisitedText']);
+    expect(scanColours('hsl(calc(var(--h) + 1) 50% 50%)').unknown).toHaveLength(1);
+    expect(scanColours('color(future-space 1 2 3)').unknown).toHaveLength(1);
+    expect(scanColours('url(#4f46e5) "violet"')).toEqual({ violet: [], unknown: [] });
+  });
+
+  it('round 2: class names resolve through variables, ternaries, template literals, clsx objects and maps', () => {
+    const scope = new Map([
+      ['goCls', ["'psa-go'"]],
+      ['map', ["{ a: 'psa-map-a', b: 'psa-map-b' }"]],
+    ]);
+    const toks = (attrs) => [...classTokens(attrs, scope)];
+    expect(toks(' className={goCls}')).toEqual(['psa-go']);
+    expect(toks(' className={ok ? goCls : "x y"}').sort()).toEqual(['psa-go', 'x', 'y']);
+    expect(toks(' className={map[k]}').sort()).toEqual(['psa-map-a', 'psa-map-b']);
+    expect(toks(' className={clsx("a", { b: on, "c-d": on })}').sort()).toEqual(['a', 'b', 'c-d']);
+    const tpl = classTokens(' className={`psa-${unknown}`}', scope);
+    expect([...tpl]).toEqual([]);
+    expect(tpl.patterns.some((re) => re.test('psa-anything'))).toBe(true);
+    expect(buttonClasses('function Btn(p) { return <button className={p.className} />; }\n<Btn className="x-go">Go</Btn>').has('x-go')).toBe(true);
+    expect(buttonClasses('const cls = "x-go";\n<button className={cls}>Go</button>').has('x-go')).toBe(true);
+    expect(buttonClasses('<button className={`x-${what}`}>Go</button>').has('x-anything')).toBe(true);
+  });
+
+  it('round 2: parseCss descends into any-case at-rules and @keyframes, reads @property and escapes, and numbers lines', () => {
+    const rules = parseCss('@MEDIA (x) { .a { color: red; } }\n@KEYFRAMES k { to { font-size: 8px } }\n@property --btn-accent { syntax: "<color>"; inherits: true; initial-value: teal }\n.b {\n  b\\61 ckground: blue;\n}');
+    expect(rules.map((r) => r.selector)).toEqual(['.a', '@keyframes k to', '@property --btn-accent', '.b']);
+    expect(rules.find((r) => r.keyframes === 'k')).toBeTruthy();
+    expect(rules.find((r) => r.selector.startsWith('@property')).decls[0].slice(0, 2)).toEqual(['--btn-accent', 'teal']);
+    const b = rules.find((r) => r.selector === '.b').decls[0];
+    expect(b.slice(0, 2)).toEqual(['background', 'blue']);
+    expect(b[2]).toEqual({ line: 5, endLine: 5 });
+  });
+
+  it('round 2: expandVars reports undefined custom properties and honours fallbacks', () => {
+    const tokens = new Map([['--a', new Set(['#fff'])]]);
+    expect(expandVars('var(--a)', tokens).undef).toEqual([]);
+    expect(expandVars('var(--nope)', tokens).undef).toEqual(['--nope']);
+    expect(expandVars('var(--nope, 1px)', tokens).undef).toEqual([]);
+    expect(expandVars('var(--app-primary-red)', tokens).undef).toEqual([]);
+    expect(expandVars('var(--loop)', new Map([['--loop', new Set(['var(--loop)'])]])).undef).toEqual(['--loop']);
+  });
+
+  it('round 2: sizes are judged at 375/768/1280/1920 px with interval arithmetic', () => {
+    expect(lengthToPx('1vmin')).toBe(3.75);
+    expect(lengthToPx('calc(1rem + 0.5vw)')).toBeGreaterThanOrEqual(10);
+    expect(lengthToPx('0')).toBe(0);
+    expect(lengthToPx('max(4px, 1vw)')).toBe(4);
+    expect(lengthToPx('max(var(--x), 12px)')).toBe(12);
+    expect(lengthToPx('max(var(--x), 4px)')).toBeNull();
+    expect(lengthToPx('1cqw')).toBeNull();
+    expect(lengthToPx('calc(1px * 2 + 3px)')).toBe(5);
+  });
+
+  it('round 2: escape comments need a reason of 8+ characters', () => {
+    expect(scanEscapes('/* ui-pattern: allow vertical shell sets this */')).toEqual({ ok: [{ line: 1, reason: 'vertical shell sets this' }], bad: [] });
+    expect(scanEscapes('\n/* ui-pattern: allow */').bad).toEqual([{ line: 2, reason: '' }]);
+    expect(scanEscapes('/* ui-pattern: allow ok */').bad).toHaveLength(1);
   });
 });
