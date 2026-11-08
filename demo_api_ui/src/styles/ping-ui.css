@@ -302,6 +302,26 @@
   opacity: 0.88;
 }
 
+/* A control that cannot act right now but must keep keyboard focus (a disabled button drops focus to the page body)
+   takes aria-disabled instead; the handler ignores the click. Same look as :disabled, and no hover reaction. */
+.pu-page .pu-btn[aria-disabled='true'] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.pu-page button.pu-btn.pu-btn--primary[aria-disabled='true'] {
+  opacity: 0.88;
+}
+
+.pu-page .pu-btn[aria-disabled='true']:hover:not(:disabled) {
+  border-color: var(--control-border);
+}
+
+.pu-page button.pu-btn.pu-btn--primary[aria-disabled='true']:hover:not(:disabled) {
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+}
+
 .pu-page .pu-btn:focus-visible,
 .pu-page .pu-select:focus-visible {
   outline: 3px solid var(--th-status-info-text);

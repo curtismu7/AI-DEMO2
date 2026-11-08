@@ -353,6 +353,7 @@ ${inlineStyles}
         role="dialog"
         aria-label={title}
         aria-modal={noBackdrop ? undefined : "true"}
+        data-placement={placement}
         style={{
           left: placement === "right" ? "auto" : pos.x,
           right: placement === "right" ? 0 : "auto",

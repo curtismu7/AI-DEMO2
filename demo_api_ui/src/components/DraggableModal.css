@@ -46,6 +46,19 @@
   }
 }
 
+/* Narrow viewports: the panel never outgrows the screen, and a floating panel (not the right-docked one) sits inside
+   it even when its stored drag position or its default width came from a wider window (a 360px panel at 375px
+   otherwise lost its title-bar controls off the right edge). !important beats the inline left the drag hook sets. */
+.dm-panel {
+  max-width: calc(100vw - 16px);
+}
+
+@media (max-width: 480px) {
+  .dm-panel[data-placement="center"] {
+    left: 8px !important;
+  }
+}
+
 /* ── Title bar ─────────────────────────────────────────────────────────── */
 
 .dm-titlebar {
