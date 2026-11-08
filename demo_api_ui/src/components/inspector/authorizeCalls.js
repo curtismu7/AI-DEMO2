@@ -22,6 +22,8 @@ function nextStep(r) {
 /** @returns {import('./inspectorCalls').InspectorCall} */
 export function authorizeCallFromResult({ result, error, parameters, preset, elapsedMs, at, policies }) {
   const r = result ?? {};
+  // The Mock engine answers from the BFF's built-in policy: no worker token, no PingOne call. Say so everywhere.
+  const mock = r.engine === 'simulated';
   const raw = r.pingoneResponse ?? r.raw;
   const statements = statementsOf(raw);
   const names = statements.map((s) => s.name);
@@ -35,8 +37,8 @@ export function authorizeCallFromResult({ result, error, parameters, preset, ela
   } else if (r.decision === 'DENY') {
     status = err('DENY');
     banner = r.stepUpRequired
-      ? { tone: 'err', title: 'Denied until the user steps up', text: 'PingOne Authorize wants a stronger sign-in. Statement: ' + names[0] }
-      : { tone: 'err', title: 'Denied by PingOne Authorize', text: names.join(', ') || 'No statements returned.' };
+      ? { tone: 'err', title: 'Denied until the user steps up', text: (mock ? 'The mock policy wants a stronger sign-in. Statement: ' : 'PingOne Authorize wants a stronger sign-in. Statement: ') + names[0] }
+      : { tone: 'err', title: mock ? 'Denied by the mock policy' : 'Denied by PingOne Authorize', text: names.join(', ') || 'No statements returned.' };
   } else if (needsApproval) {
     status = warn('PERMIT · needs approval');
     banner = { tone: 'warn', title: 'Permitted, with a condition', text: "The app must get the user's approval before the tool runs." };
@@ -45,11 +47,15 @@ export function authorizeCallFromResult({ result, error, parameters, preset, ela
   }
 
   const chips = [];
+  if (mock) chips.push(idle('Mock: PingOne not called'));
   if (r.ruleName) chips.push(idle('Rule: ' + r.ruleName));
   if (r.policyEvalMs != null) chips.push(idle('Policy eval ' + r.policyEvalMs + ' ms'));
 
   const cached = !!r.workerTokenCached;
-  const hops = [
+  const hops = mock ? [
+    { dir: 'Browser → BFF', call: 'POST /api/authorize/evaluate-endpoint', what: 'You sent the decision request to the backend, asking for the Mock engine.', status: error ? err('error') : ok('200'), ms: elapsedMs ?? null, request: parameters, response: error ? { error } : raw },
+    { dir: 'BFF → built-in mock policy', call: 'in-process evaluation', what: 'The backend answered from its own simulated policy. No worker token and no call to PingOne Authorize.', status: idle('mock'), ms: null, request: null, response: raw ?? null },
+  ] : [
     { dir: 'Browser → BFF', call: 'POST /api/authorize/evaluate-endpoint', what: 'You sent the decision request to the backend.', status: error ? err('error') : ok('200'), ms: elapsedMs ?? null, request: parameters, response: error ? { error } : raw },
     {
       dir: 'BFF → PingOne', call: 'POST /as/token',
@@ -59,34 +65,47 @@ export function authorizeCallFromResult({ result, error, parameters, preset, ela
     { dir: 'BFF → PingOne Authorize', call: 'POST /decisionEndpoints/{id}', what: 'The backend asked PingOne Authorize for a decision.', status: error ? err('error') : ok('200'), ms: r.policyEvalMs ?? null, request: r.pingoneRequest?.body ?? null, response: raw ?? null },
   ];
 
+  const request = { title: 'Built the decision request', status: ok('done'), text: 'The page turned the form into Trust Framework parameters.', kv: kvOf(parameters) };
+  const evaluated = {
+    title: mock ? 'Evaluated by the mock policy' : 'Evaluated the policies', status: status.tone === 'err' ? err(r.decision ?? 'Error') : ok('done'),
+    text: mock
+      ? 'The built-in mock policy decided. The policy tree below is the PingOne policy list, shown for reference; it did not decide this call.'
+      : 'Matched rules are worked out from the returned statements; PingOne does not return a per-rule trace.',
+    policyTree: { policies: policies ?? [], result: r },
+  };
+  const statementsStep = names.length
+    ? { title: 'Returned statements', status: ok(String(names.length)), text: names.join(', ') }
+    : { title: 'No statements', status: idle('none'), text: mock ? 'The mock policy returned no statements.' : 'PingOne returned no statements.' };
   const steps = [
-    { title: 'Built the decision request', status: ok('done'), text: 'The page turned the form into Trust Framework parameters.', kv: kvOf(parameters) },
-    { title: 'Got a worker token', status: cached ? idle('cached') : ok('fetched'), text: cached ? 'A cached worker token was reused.' : 'The backend fetched a fresh worker token.' },
-    { title: 'Called the decision endpoint', status: error ? err('failed') : ok('done'), text: error ? error : `Sent the request to PingOne Authorize (${r.path ?? 'decision endpoint'}).` },
-    {
-      title: 'Evaluated the policies', status: status.tone === 'err' ? err(r.decision ?? 'Error') : ok('done'),
-      text: 'Matched rules are worked out from the returned statements; PingOne does not return a per-rule trace.',
-      policyTree: { policies: policies ?? [], result: r },
-    },
-    names.length
-      ? { title: 'Returned statements', status: ok(String(names.length)), text: names.join(', ') }
-      : { title: 'No statements', status: idle('none'), text: 'PingOne returned no statements.' },
+    request,
+    ...(mock ? [
+      { title: 'No worker token', status: idle('not needed'), text: 'The Mock engine does not call PingOne, so no token is fetched.' },
+      { title: 'Asked the built-in mock policy', status: error ? err('failed') : ok('done'), text: error ? error : 'The backend answered from its own simulated policy. PingOne Authorize was not called.' },
+    ] : [
+      { title: 'Got a worker token', status: cached ? idle('cached') : ok('fetched'), text: cached ? 'A cached worker token was reused.' : 'The backend fetched a fresh worker token.' },
+      { title: 'Called the decision endpoint', status: error ? err('failed') : ok('done'), text: error ? error : `Sent the request to PingOne Authorize (${r.path ?? 'decision endpoint'}).` },
+    ]),
+    evaluated,
+    statementsStep,
     { title: 'What the app does next', status, text: error ? 'Nothing: the call failed.' : nextStep(r) },
   ];
 
   return {
     id: `authz-${at}-${r.decisionId ?? 'x'}`,
     at,
-    kind: `Decision · ${preset}`,
+    kind: `Decision · ${preset}${mock ? ' · mock' : ''}`,
     title: titleFor(preset, parameters),
     src: 'you',
+    mock,
     ms: elapsedMs ?? null,
     status,
     chips,
     banner,
     corr: r.decisionId ?? null,
     request: { label: 'Decision request', ...(r.pingoneRequest?.url ? { where: 'POST ' + r.pingoneRequest.url } : {}), body: r.pingoneRequest?.body ?? { parameters } },
-    response: { label: 'PingOne Authorize response', where: 'PingOne Authorize → BFF', body: error ? { error } : raw },
+    response: mock
+      ? { label: 'Mock policy response', where: 'Built-in mock policy → BFF', body: error ? { error } : raw }
+      : { label: 'PingOne Authorize response', where: 'PingOne Authorize → BFF', body: error ? { error } : raw },
     tokens: tokensFromEvents(r.tokenEvents),
     hops,
     steps,
