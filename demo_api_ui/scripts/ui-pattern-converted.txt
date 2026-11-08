@@ -16,6 +16,7 @@
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
+/pingfederate-config
 /privilege-prompt-log
 /demo-config
 /privilege-pf-token
