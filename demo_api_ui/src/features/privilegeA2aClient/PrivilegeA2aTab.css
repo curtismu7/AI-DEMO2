@@ -6,6 +6,9 @@
   --a2a-border: #454545;
   --a2a-accent: #12538d;
   --a2a-error: #fecaca;
+  /* Breakpoints below are container queries: @media widths ignore the page zoom dial, so at 125% the three columns were
+     squeezed into 20% less room than the viewport suggested. */
+  container: pa2a / inline-size;
   height: 100%;
   min-height: 0;
   display: grid;
@@ -114,8 +117,9 @@
 .cur-ide .privilege-a2a__workspace {
   min-height: 0;
   display: grid;
-  /* Three equal columns: the agent (conversation and prompt), the movie reel, and the details. */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Three columns: the agent (conversation and prompt) gets a little more than the movie reel and the details, because it
+     holds the question box and the suggestion chips. */
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -350,7 +354,13 @@
   opacity: 0.6;
 }
 
-@media (max-width: 900px) {
+/* Below about 1100px the three columns get too narrow; the details row drops under the other two. */
+@container pa2a (max-width: 1100px) {
+  .cur-ide .privilege-a2a__workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .cur-ide .privilege-a2a__step-panel { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--a2a-border); }
+}
+
+@container pa2a (max-width: 720px) {
   .cur-ide .privilege-a2a__header {
     flex-direction: column;
     gap: 15px;
@@ -373,7 +383,7 @@
   }
 }
 
-@media (max-width: 560px) {
+@container pa2a (max-width: 560px) {
   .cur-ide .privilege-a2a__header,
   .cur-ide .privilege-a2a__composer {
     padding-right: 16px;
@@ -482,10 +492,6 @@
 }
 .cur-ide .privilege-a2a__chips .privilege-a2a__chip:hover:not(:disabled) { border-color: var(--a2a-accent); color: var(--a2a-accent); }
 .cur-ide .privilege-a2a__chips .privilege-a2a__chip:focus-visible { outline: 2px solid var(--a2a-accent); outline-offset: 2px; }
-@media (max-width: 1100px) {
-  .cur-ide .privilege-a2a__workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .cur-ide .privilege-a2a__step-panel { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--a2a-border); }
-}
 
 /* ── Tokens, call picker, share and replay ─────────────────────────────── */
 .cur-ide .privilege-a2a__tokens { display: block; margin-top: 2px; font-size: var(--font-size-xs); font-variant-numeric: tabular-nums; color: var(--a2a-accent); }
@@ -518,7 +524,7 @@
   order: -1;
   flex-shrink: 0;
   align-self: flex-start;
-  margin: 0 0 10px;
+  margin: 0 0 14px;
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--a2a-accent);
