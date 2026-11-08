@@ -1,0 +1,93 @@
+/* /pingone-authorize: only what the shared Ping UI primitives (styles/ping-ui.css) and the shared inspector
+   stylesheet (components/inspector/Inspector.css) do not cover. Tokens only. */
+
+/* The banner lines up with the inspector (100rem, same side padding) instead of the 1100px frame. */
+.p1az-page .pu-banner-wrap {
+  max-width: 100rem;
+  padding-inline: clamp(16px, 2.5vw, 2rem);
+}
+
+.p1az-page .p1az-banner-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The More tools views keep the padding the page had before. */
+.p1az-page .p1az-body {
+  padding: 28px 32px;
+  box-sizing: border-box;
+}
+
+.p1az-page .p1az-back {
+  margin-bottom: 14px;
+}
+
+.p1az-page .p1az-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* Scope Audit | Scope Reference: the selected view is marked by weight and a Ping Red underline, not a fill. */
+.p1az-page .p1az-subtabs .pu-btn[aria-pressed='true'] {
+  border-color: var(--btn-accent-edge);
+  box-shadow: inset 0 -3px 0 var(--btn-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Send is the console's one primary (P9). The inspector's toggles (Mock | Real P1AZ, Decision type, All | Problems)
+   keep their pressed state but as the neutral emphasis fill, so they do not read as extra Ping Red primaries.
+   Scoped to this page; the MCP and Agent Gateway inspectors keep their own look. */
+.p1az-page .insp-seg button[aria-pressed='true'] {
+  background: var(--th-bg-emphasis);
+  background-image: none;
+  color: var(--th-text-on-emphasis);
+}
+
+/* Signed out: SignInPrompt's Sign in button is the view's one primary, on the fixed Ping Red; its Forgot password
+   button (the --ghost variant) stays the bordered secondary App.css gives it. */
+.p1az-page .signin-prompt__btn:not(.signin-prompt__btn--ghost) {
+  min-height: 40px;
+  border: 1px solid var(--btn-accent-edge);
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+}
+
+.p1az-page .signin-prompt__btn:not(.signin-prompt__btn--ghost):hover {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+}
+
+.p1az-page .signin-prompt__btn:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+/* 375px: the inspector grid sized its one column to the widest toggle group (Transaction | MCP tool | Custom), so
+   the hero and Send card ran past the viewport and the app shell clipped them. Let the column shrink and the
+   toggle group wrap. Scoped to this page; the other inspectors keep Inspector.css as it is. */
+.p1az-page .insp {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.p1az-page .insp-seg {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+/* Live region for Send: in flight, then the result. Read by screen readers, not shown. */
+.p1az-page .p1az-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

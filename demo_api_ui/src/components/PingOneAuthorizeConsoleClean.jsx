@@ -1,5 +1,5 @@
 // Authorize Inspector console tab, built on the shared inspector layout (Task 6).
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePingOneAuthorizeConsole } from '../hooks/usePingOneAuthorizeConsole';
 import InspectorLayout from './inspector/InspectorLayout';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
@@ -21,6 +21,12 @@ const NODE_SUBS = {
   PingOne: ['Issues the worker token'],
   'PingOne Authorize': ['Runs the policy tree', 'returns decision + statements'],
 };
+// The diagram follows the selected call, not the engine toggle: a Mock call never reaches PingOne.
+const MOCK_NODE_SUBS = {
+  ...NODE_SUBS,
+  BFF: ['Builds the parameters', 'and answers itself'],
+  'built-in mock policy': ['Simulated, not PingOne', 'PingOne is not called'],
+};
 
 const PRESETS = [
   { value: 'transaction', label: 'Transaction' },
@@ -39,6 +45,16 @@ function persistLastRun(policies, result) {
     const payload = JSON.stringify({ policies, result, savedAt: Date.now() });
     if (payload.length <= MAX_STORED_CHARS) localStorage.setItem(LAST_RUN_KEY, payload);
   } catch { /* storage unavailable */ }
+}
+
+// What the live region says once a call finishes. A Mock verdict is never announced as PingOne's.
+function announcementFor(e) {
+  if (e.error) return `The decision request failed: ${e.error}`;
+  const mock = e.result?.engine === 'simulated';
+  const verdict = e.decision ?? 'no verdict';
+  return mock
+    ? `Mock decision: ${verdict}. Simulated by the built-in policy; PingOne was not called.`
+    : `PingOne Authorize decision: ${verdict}.`;
 }
 
 const countKind = (nodes, kind) => nodes.reduce((n, p) => n + (p.kind === kind ? 1 : 0) + countKind(p.children || [], kind), 0);
@@ -64,9 +80,14 @@ export default function PingOneAuthorizeConsoleClean({
   records, setRecords,
   // Mock is the default; tests and callers can open the console on 'live'.
   defaultMode,
+  // The host page's mode banner follows the engine picked here.
+  onModeChange,
+  // Class for the Send button; the host passes the shared Ping UI primary. Omitted: the inspector's own button.
+  buttonClassName = 'insp-btn',
 }) {
   const [pickedId, setPickedId] = useState(null);
   const [includeRecent, setIncludeRecent] = useState(false);
+  const [announce, setAnnounce] = useState('');
   const policies = policiesState.policies;
 
   // Latest policies for persistLastRun without re-creating onEvaluated (the hook re-runs pending tests when it changes).
@@ -76,6 +97,7 @@ export default function PingOneAuthorizeConsoleClean({
   const onEvaluated = useCallback((e) => {
     setRecords((rs) => [{ ...e, at: Date.now() }, ...rs]);
     setPickedId(null);
+    setAnnounce(announcementFor(e));
     onRan?.();
     if (e.result) persistLastRun(policiesRef.current, e.result);
   }, [onRan, setRecords]);
@@ -94,6 +116,7 @@ export default function PingOneAuthorizeConsoleClean({
     defaultToolName: vertical.authorize.toolName, defaultAmount: String(vertical.authorize.amount),
     pendingTest, onClearPendingTest, onEvaluated, defaultMode,
   });
+  useEffect(() => { onModeChange?.(h.mode); }, [h.mode, onModeChange]);
   // An edited call keeps its own preset and type even when this vertical has neither.
   const presets = PRESETS.filter((p) => p.value !== 'transaction' || txTypes.length || h.preset === 'transaction');
   const typeOptions = txTypes.includes(h.txType) ? txTypes : [...txTypes, h.txType];
@@ -107,6 +130,7 @@ export default function PingOneAuthorizeConsoleClean({
   }, [records, policies, includeRecent, recent]);
 
   const selectedId = pickedId ?? calls[0]?.id ?? null;
+  const selectedCall = calls.find((c) => c.id === selectedId);
 
   const onResend = useCallback((call) => { h.runParameters(call.input.parameters, call.input.preset); }, [h]);
   const onEdit = useCallback((call) => {
@@ -136,6 +160,20 @@ export default function PingOneAuthorizeConsoleClean({
     <label className="insp-field"><span>{label}</span><input type="text" value={value} onChange={(e) => set(e.target.value)} /></label>
   );
 
+  // Real P1AZ needs an endpoint. Say why Send is unavailable: in the page, to screen readers, and on a press.
+  const noRealEndpoint = h.mode === 'live' && !endpointId;
+  const blockedReason = !noRealEndpoint ? null
+    : loadState === 'error'
+      ? 'Send is unavailable in Real P1AZ: the PingOne Authorize configuration could not be read, so nothing can be sent to PingOne. Switch to Mock to send.'
+      : 'Send is unavailable in Real P1AZ: no PingOne Authorize decision endpoint is configured, so nothing can be sent to PingOne. Switch to Mock to send.';
+  const sendBlocked = h.running || noRealEndpoint;
+  // Live region: in-flight, then the result, so a screen reader hears it without hunting for the Calls pane.
+  const status = h.running ? 'Sending the decision request…' : announce;
+  const onSend = () => {
+    if (h.running) return;
+    if (blockedReason) { setAnnounce(blockedReason); return; }
+    h.run();
+  };
   const send = (
     <div className="insp-send-body">
       <div className="insp-send-row">
@@ -181,8 +219,11 @@ export default function PingOneAuthorizeConsoleClean({
           </React.Fragment>
         ))}
         {h.preset !== 'custom' && field('User ID', h.userId, h.setUserId)}
-        <button type="button" className="insp-btn" onClick={h.run} disabled={h.running || (h.mode === 'live' && !endpointId)}>{h.running ? 'Sending…' : 'Send'}</button>
+        {/* aria-disabled, not disabled: a disabled Send drops keyboard focus to the page body the moment it is pressed. */}
+        <button type="button" className={buttonClassName} onClick={onSend} aria-disabled={sendBlocked || undefined} aria-describedby={blockedReason ? 'p1az-send-reason' : undefined}>{h.running ? 'Sending…' : 'Send'}</button>
       </div>
+      {blockedReason && <p id="p1az-send-reason" className="insp-hint p1az-send-reason">{blockedReason}</p>}
+      <p className="p1az-sr" role="status" aria-live="polite" aria-atomic="true" data-testid="p1az-status">{status}</p>
       <details>
         <summary>{`Policies on this endpoint · ${countKind(policies, 'POLICY')} policies, ${countKind(policies, 'RULE')} rules`}</summary>
         {policiesState.error && <p className="insp-err">{policiesState.error}</p>}
@@ -204,7 +245,7 @@ export default function PingOneAuthorizeConsoleClean({
       title="Authorize Inspector"
       lede="Every decision for this demo: the parameters sent, the verdict and statements returned, the token used, and the API calls behind it. Mock (the default) answers from a built-in policy with no PingOne call; Real P1AZ sends to PingOne Authorize."
       related={RELATED}
-      mode={h.mode === 'mock' ? ok('Mock') : loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : ok('Real P1AZ')}
+      mode={h.mode === 'mock' ? ok('Mock') : loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : !endpointId ? idle('No endpoint') : ok('Real P1AZ')}
       source={{
         label: 'Endpoint',
         value: endpointId,
@@ -219,7 +260,7 @@ export default function PingOneAuthorizeConsoleClean({
       onSelect={setPickedId}
       onResend={onResend}
       onEdit={onEdit}
-      nodeSubs={NODE_SUBS}
+      nodeSubs={selectedCall?.mock ? MOCK_NODE_SUBS : NODE_SUBS}
     />
   );
 }
