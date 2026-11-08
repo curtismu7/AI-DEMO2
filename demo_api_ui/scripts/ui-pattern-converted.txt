@@ -7,3 +7,4 @@
 /privilege-intent-triage
 /privilege-prompt-log
 /privilege-shelf
+/privilege-for-ai
