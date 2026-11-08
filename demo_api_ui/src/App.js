@@ -36,6 +36,7 @@ const PrivilegePfTokenDemoPage = lazyWithRetry(() => import("./pages/PrivilegePf
 const P1ThirdPartyExchangePage = lazyWithRetry(() => import("./pages/P1ThirdPartyExchangePage"));
 const PrivilegeGatewayTopologyPage = lazyWithRetry(() => import("./components/PrivilegeGatewayTopologyPage"));
 const GatewayStatsPage = lazyWithRetry(() => import("./components/GatewayStatsPage"));
+const WhereEverythingRunsPage = lazyWithRetry(() => import("./components/WhereEverythingRunsPage"));
 const PrivilegeDocsIndexPage = lazyWithRetry(() => import("./pages/PrivilegeDocsIndexPage"));
 const PrivilegeShelfPage = lazyWithRetry(() => import("./pages/PrivilegeShelfPage"));
 // Privilege Platform Update (29 Oct 2026) demos.
@@ -2475,6 +2476,10 @@ function AppWithAuth() {
                             <Route
                               path="/gateway-stats"
                               element={<GatewayStatsPage />}
+                            />
+                            <Route
+                              path="/where-everything-runs"
+                              element={<WhereEverythingRunsPage />}
                             />
                             <Route
                               path="/demo-track"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList } from '../components/pingUi';
 import './PingFederateConfigByUseCasePage.css';
 
 /**
@@ -9,6 +10,18 @@ import './PingFederateConfigByUseCasePage.css';
  * be checked against the source. Story text lives here; object names/settings
  * mirror scripts/pingfederate/ (do not restate settings that are not in the
  * scripts — this page documents what we configured, not what PF can do).
+ *
+ * Layout follows the Ping UI Standard on the shared primitives (components/pingUi,
+ * docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv, P7 chips, P9 button.
+ * Skipped: P6 (not an inspector), P8 (no diagram). The standalone shell bar is not added (the
+ * app has its own).
+ *
+ * Honesty: this is a static lesson. It never calls PingFederate, so no chip says "configured" or
+ * "present"; the chip says where the claim comes from (a script) or that the script itself is
+ * marked UNVERIFIED. An object is flagged `unverified` only where the script says so.
+ *
+ * P9, one primary per view state: "ID-JAG hub" (a link in the header) is the only action and so
+ * the only primary. The page has a single state (static text), so there is nothing else to choose.
  */
 
 const USE_CASES = [
@@ -71,10 +84,12 @@ const USE_CASES = [
         what: 'Turns a fresh PingFederate into "Acme Corp", an outside issuer. The password-grant + refresh-token exchange policy (actorTokenRequired false, refresh_token subject) lets acme-agent trade its refresh token for an ID-JAG aimed at our MCP authorization servers. The JWKS-publisher ATM plus a STATIC JWKS (only the ID-JAG key — PF verifies by x5t and multiple keys break redemption with "Invalid JWT token") make the ID-JAGs verifiable downstream.',
       },
       {
+        unverified: true,
         name: 'PF-to-PF (SE): SP connection aiDemoPfIdJagAcmeSp on the issuer; idjagFromSePf IdP connection + idjagRedeemerAtm + ai-demo-pf-idjag-redeemer (EXTENSION grant) on the redeemer',
         what: 'One PingFederate issues, a different PingFederate redeems. The issuer\u2019s SP connection names the redeemer as audience (cloned at runtime from the local-PF SP shape). The redeemer trusts the issuer\u2019s JWKS via an OIDC IdP connection (browser SSO disabled — it only learns keys), mints its own tokens in idjagRedeemerAtm, and performs the JWT-bearer redemption with the redeemer client. Expected ID-JAG: iss = issuer PF, aud = redeemer PF, typ oauth-id-jag+jwt.',
       },
       {
+        unverified: true,
         name: 'SAML path: CA trust aidemosamlca, SAML processor aiDemoSaml, policy aiDemoSamlPolicy, client ai-demo-pf-saml',
         what: 'The BFF signs a SAML 2.0 assertion and trades it for an ID-JAG in ONE exchange: subjectTokenType saml2, actorTokenRequired false, subject from SAML_SUBJECT. The CA import is what makes PF trust the BFF\u2019s signature. Per-SP-connection mappings attach the policy to whichever entity the playground mode uses. (Marked UNVERIFIED in the script — not yet run against SE.)',
       },
@@ -126,61 +141,89 @@ const USE_CASES = [
   },
 ];
 
+// Kept outside the JSX: the pattern check reads a tag's attributes as text, so a link written inside the
+// PageHeader `actions` prop would be counted as a second primary.
+const hubLink = (
+  <Link className="pu-btn pu-btn--primary pfconfig__hub" to="/pingfederate-id-jag">
+    ID-JAG hub
+  </Link>
+);
+
 export default function PingFederateConfigByUseCasePage() {
   return (
-    <main className="pfconfig" data-testid="pingfederate-config-by-use-case">
+    <PingPage className="pfconfig" data-testid="pingfederate-config-by-use-case">
+      <SimBanner data-testid="pfconfig-banner">
+        <strong>STATIC LESSON, NOT A LIVE CHECK</strong> — this page is written from the provisioning scripts in{' '}
+        <code>scripts/pingfederate/</code>. It never calls PingFederate, so it cannot show what exists on the
+        PingFederate you are running. The SAML and PF-to-PF scripts are marked UNVERIFIED in their source.
+      </SimBanner>
+
       <PageHeader
         eyebrow="PingFederate · what we configured"
         title="PingFederate config by use case"
-        summary="Every PingFederate object this demo provisions, grouped by the use case it serves. Each card names the provisioning script that creates it, so every claim is checkable against the source in scripts/pingfederate/."
-        actions={
-          <Link className="pfconfig__secondary" to="/pingfederate-id-jag">
-            ID-JAG hub
-          </Link>
-        }
+        summary="Every PingFederate object this demo provisions, grouped by the use case it serves. Each group names the provisioning script that creates it, so every claim is checkable against the source in scripts/pingfederate/."
+        actions={hubLink}
       />
 
-      <section className="pfconfig__intro">
-        <p>
-          Nothing on this page was clicked by hand: every object below is created (or
-          repaired) by an idempotent provisioning script, so a fresh PingFederate can be
-          rebuilt from scratch. Object names are exact — they are the names the scripts
-          send to the PingFederate admin API.
-        </p>
-      </section>
+      <PageFrame>
+        <Section
+          id="pfconfig-intro"
+          kicker="About this page"
+          title="Built from the scripts, not clicked by hand"
+          lede="Every object below is created (or repaired) by an idempotent provisioning script, so a fresh PingFederate can be rebuilt from scratch. Object names are exact: they are the names the scripts send to the PingFederate admin API."
+        />
 
-      {USE_CASES.map((uc) => (
-        <section key={uc.id} className="pfconfig__group" aria-labelledby={`pfconfig-${uc.id}`}>
-          <h2 id={`pfconfig-${uc.id}`}>{uc.name}</h2>
-          <p className="pfconfig__why">{uc.why}</p>
-          <p className="pfconfig__script">
-            <span aria-hidden="true">🛠</span> <code>{uc.script}</code>
-          </p>
-          <ul className="pfconfig__objects">
-            {uc.objects.map((obj) => (
-              <li key={obj.name} className="pfconfig__object">
-                <h3>{obj.name}</h3>
-                <p>{obj.what}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+        {USE_CASES.map((uc, index) => (
+          <Section
+            key={uc.id}
+            id={`pfconfig-${uc.id}`}
+            kicker={`Group ${index + 1} of ${USE_CASES.length}`}
+            title={uc.name}
+            lede={uc.why}
+          >
+            <KvList items={[{ label: 'Script', value: <code>{uc.script}</code>, mono: true }]} />
+            <ul className="pu-card-grid pfconfig__objects">
+              {uc.objects.map((obj) => (
+                <li key={obj.name}>
+                  <Card tone={obj.unverified ? 'warn' : undefined} title={obj.name}>
+                    <p className="pu-status-line">
+                      {obj.unverified ? (
+                        <StatusChip tone="warn">Unverified</StatusChip>
+                      ) : (
+                        <StatusChip tone="neutral">From script</StatusChip>
+                      )}
+                    </p>
+                    <p className="pfconfig__what">{obj.what}</p>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ))}
 
-      <section className="pfconfig__caveats">
-        <h2>Caveats</h2>
-        <ul>
-          <li>
-            The SAML and pf-pf scripts carry explicit UNVERIFIED markers — they were
-            written against the design and have not been run against the SE PingFederate
-            (see docs/runbooks/idjag-pfpf-se.md).
-          </li>
-          <li>
-            The A2A audience list in provision-a2a-sp-connections.sh must stay in sync
-            with demo_api_server/config/a2aSpecialists.js and services/scopeTopology.js.
-          </li>
-        </ul>
-      </section>
-    </main>
+        <Section id="pfconfig-caveats" kicker="Limits" title="Caveats">
+          <CardGrid>
+            <Card tone="warn" title="Not run against the SE PingFederate">
+              <p className="pu-status-line">
+                <StatusChip tone="warn">Unverified</StatusChip>
+              </p>
+              <p className="pfconfig__what">
+                The SAML and pf-pf scripts carry explicit UNVERIFIED markers — they were written against the
+                design and have not been run against the SE PingFederate (see docs/runbooks/idjag-pfpf-se.md).
+              </p>
+            </Card>
+            <Card tone="neutral" title="Two lists that must match">
+              <p className="pu-status-line">
+                <StatusChip tone="neutral">Keep in sync</StatusChip>
+              </p>
+              <p className="pfconfig__what">
+                The A2A audience list in provision-a2a-sp-connections.sh must stay in sync with
+                demo_api_server/config/a2aSpecialists.js and services/scopeTopology.js.
+              </p>
+            </Card>
+          </CardGrid>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
 }
