@@ -8,13 +8,18 @@
  * group PrivilegeAdmins. Demo users live in PINGONE_ENVIRONMENT_ID, so a demo
  * user missing from Privilege's env is refused by every Privilege door.
  *
- * For each account below that exists in the demo env: create it in Privilege's
- * env (same email, username, name; default population, no password) if
- * missing, then add it to PrivilegeAdmins. Idempotent.
+ * Accounts: the three the bootstrap creates (DEMO_*_USERNAME) plus
+ * PRIVILEGE_SYNC_ACCOUNTS (comma-separated usernames or emails). For each one
+ * that exists in the demo env: create it in Privilege's env (same email,
+ * username, name; default population, no password) if missing, then add it to
+ * PrivilegeAdmins. Idempotent.
  *
- * Needs the demo worker (PINGONE_WORKER_CLIENT_ID/_SECRET) to hold Identity
- * Data Admin on Privilege's env. Skips (exit 0) when Privilege's env is not
- * configured or is the demo env itself.
+ * The demo worker (PINGONE_WORKER_CLIENT_ID/_SECRET) needs Identity Data Admin
+ * on Privilege's env; without it PingOne returns empty user lists there rather
+ * than a 403. If the role is missing the script tries to assign it to the
+ * worker (works only when the worker may delegate it, e.g. holds Organization
+ * Admin); if it can't, it warns and syncs anyway. Skips (exit 0) when
+ * Privilege's env is not configured or is the demo env itself.
  *
  * Run standalone: node scripts/syncPrivilegeUsers.js [--dry-run]
  * Called automatically by bootstrapPingOne.js post-provisioning.
@@ -22,16 +27,7 @@
 
 const GROUP_NAME = 'PrivilegeAdmins';
 
-// Demo sign-in accounts besides the three the bootstrap creates (DEMO_*_USERNAME).
-// Accounts not found in the demo env are skipped, so other tenants are unaffected.
-const EXTRA_ACCOUNTS = [
-  'cmuir+demouser@pingone.com',
-  'cmuir+AgentAdmin@pingone.com',
-  'cmuir+AgentEnduser@pingone.com',
-  'cmuir+p1privilege@pingone.com',
-  'cmuir+jordan@pingone.com',
-  'cmuir.idjag@pingone.com',
-];
+const ROLE_NAME = 'Identity Data Admin';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -51,18 +47,20 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
     return { skipped: true };
   }
 
-  const tokenRes = await fetchImpl(`https://auth.pingone.${region}/${src}/as/token`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-      authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-    },
-    body: 'grant_type=client_credentials',
-  });
-  const token = (await tokenRes.json()).access_token;
-  if (!token) throw new Error(`worker token refused (HTTP ${tokenRes.status})`);
-
-  const H = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  const workerHeaders = async () => {
+    const tokenRes = await fetchImpl(`https://auth.pingone.${region}/${src}/as/token`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      },
+      body: 'grant_type=client_credentials',
+    });
+    const token = (await tokenRes.json()).access_token;
+    if (!token) throw new Error(`worker token refused (HTTP ${tokenRes.status})`);
+    return { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  };
+  let H = await workerHeaders();
   const api = (e) => `https://api.pingone.${region}/v1/environments/${e}`;
   const get = async (url) => {
     const r = await fetchImpl(url, { headers: H });
@@ -73,6 +71,38 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
   const users = async (e, filter) =>
     (await get(`${api(e)}/users?filter=${encodeURIComponent(filter)}`))._embedded?.users || [];
 
+  // Best effort: make sure the worker holds the role, but never let this
+  // check stop a sync that would work anyway. A worker's client id is its
+  // application id in PingOne.
+  const manual = `grant the worker app ${ROLE_NAME} on environment ${dst} (PingOne → env ${src} → Applications → worker → Roles)`;
+  try {
+    const role = ((await get(`https://api.pingone.${region}/v1/roles`))._embedded?.roles || []).find((r) => r.name === ROLE_NAME);
+    const assignUrl = `${api(src)}/applications/${clientId}/roleAssignments`;
+    const hasRole = ((await get(assignUrl))._embedded?.roleAssignments || []).some(
+      (a) => a.role?.id === role?.id && (a.scope?.type === 'ORGANIZATION' || (a.scope?.type === 'ENVIRONMENT' && a.scope?.id === dst)),
+    );
+    if (!hasRole && !role) {
+      log(`[syncPrivilegeUsers] ⚠️  Role ${ROLE_NAME} not found; if users are missed, ${manual}`);
+    } else if (!hasRole && dryRun) {
+      log(`[syncPrivilegeUsers] would assign the worker ${ROLE_NAME} on Privilege env`);
+    } else if (!hasRole) {
+      const r = await fetchImpl(assignUrl, {
+        method: 'POST',
+        headers: H,
+        body: JSON.stringify({ role: { id: role.id }, scope: { id: dst, type: 'ENVIRONMENT' } }),
+      });
+      if (r.ok) {
+        log(`[syncPrivilegeUsers] ✅ Assigned ${ROLE_NAME} on Privilege env to the worker`);
+        await sleep(retryDelayMs * 2); // let the assignment settle
+        H = await workerHeaders(); // a new role reaches a fresh token only
+      } else {
+        log(`[syncPrivilegeUsers] ⚠️  Could not assign ${ROLE_NAME} on Privilege env (HTTP ${r.status}); if users are missed, ${manual}`);
+      }
+    }
+  } catch (err) {
+    log(`[syncPrivilegeUsers] ⚠️  Could not check the worker's roles (${err.message}); continuing`);
+  }
+
   const groups = (await get(`${api(dst)}/groups?filter=${encodeURIComponent(`name eq "${GROUP_NAME}"`)}`))._embedded?.groups || [];
   if (!groups[0]) {
     log(`[syncPrivilegeUsers] No ${GROUP_NAME} group in Privilege env — skipping`);
@@ -82,7 +112,7 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
   const pops = (await get(`${api(dst)}/populations`))._embedded?.populations || [];
   const pop = pops.find((p) => p.default) || pops[0];
 
-  const accounts = [...new Set([env.DEMO_USER_USERNAME, env.DEMO_ADMIN_USERNAME, env.DEMO_DELEGATE_USERNAME, ...EXTRA_ACCOUNTS].filter(Boolean))];
+  const accounts = [...new Set([env.DEMO_USER_USERNAME, env.DEMO_ADMIN_USERNAME, env.DEMO_DELEGATE_USERNAME, ...(env.PRIVILEGE_SYNC_ACCOUNTS || '').split(',').map((a) => a.trim())].filter(Boolean))];
   const result = { created: [], added: [], ok: [], skipped: [] };
 
   for (const account of accounts) {
@@ -156,4 +186,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { syncPrivilegeUsers, EXTRA_ACCOUNTS };
+module.exports = { syncPrivilegeUsers };

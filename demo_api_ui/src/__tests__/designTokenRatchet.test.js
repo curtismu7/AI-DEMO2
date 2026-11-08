@@ -12,8 +12,8 @@ import { describe, it, expect } from 'vitest';
  */
 const SRC = path.resolve(__dirname, '..');
 const SKIP = ['aiFootprintMocks', 'agent-clinical', 'ChatgptLoginPage', 'FootprintMockGallery', 'ConsentMockPhoneFlow', 'PrivilegeMcpClientPage'];
-const MAX_LITERAL_RADIUS = 627;
-const MAX_LITERAL_FONT_SIZE = 2251;
+const MAX_LITERAL_RADIUS = 625;
+const MAX_LITERAL_FONT_SIZE = 2250;
 
 function cssFiles(dir) {
   const out = [];

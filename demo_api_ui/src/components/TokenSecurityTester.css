@@ -139,3 +139,18 @@
 .pu-page.tst-page .jh-focus {
   color: var(--th-status-error-text);
 }
+
+/* The result footer (Status, Scenario, Type) is a nowrap flex row in the shared shell: a long scenario
+   name pushed the Type cell far past the phone width. Here it wraps and every cell may shrink.
+   Scoped under the page class so the end-user-nano skin's word-wrap rules cannot beat it. */
+.pu-page.tst-page .inspector-shell-output-footer {
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  min-width: 0;
+}
+
+.pu-page.tst-page .inspector-shell-output-footer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

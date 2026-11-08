@@ -16,6 +16,7 @@
 /privilege-gateway-topologies
 /agent-lifecycle
 /privilege-demo
+/agent-builder
 /ungoverned-agent
 /privilege-intent-triage
 /policy-decision-trace
@@ -27,6 +28,8 @@
 /autonomous-agents
 /p1-third-party-exchange
 /privilege-shelf
+/personal-agent
+/personal-agent/full
 /ai-products/core
 /ai-products/gateway
 /gateway-claims

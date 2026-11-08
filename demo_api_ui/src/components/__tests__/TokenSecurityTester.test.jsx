@@ -1,6 +1,8 @@
 import React from 'react';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 const post = vi.hoisted(() => vi.fn());
@@ -80,9 +82,13 @@ describe('TokenSecurityTester (standalone UI standard)', () => {
     fireEvent.click(execute());
     expect(post).toHaveBeenCalledWith('/api/test/token-validation/scenario/missing-act');
     const card = await screen.findByTestId('tst-result');
-    expect(card.className).toContain('pu-card--danger');
-    expect(card.getAttribute('role')).toBe('status');
-    expect(card.querySelector('.pu-chip').textContent.trim()).toBe('Rejected');
+    // the reply is pre-written, so the chip says so and does not wear the danger tone of a real verdict
+    expect(card.className).not.toContain('pu-card--danger');
+    expect(card.querySelector('.pu-chip').textContent.trim()).toBe('Simulated rejection');
+    expect(card.querySelector('.pu-chip').className).toContain('pu-chip--info');
+    expect(card.querySelector('.pu-chip').className).not.toContain('pu-chip--danger');
+    // a live region that mounts together with its text is often not announced: the card is not one
+    expect(card.getAttribute('role')).toBeNull();
     expect(card.textContent).toMatch(/simulated/i);
     expect(card.querySelector('dl.pu-kv').textContent).toMatch(/DELEGATION_030/);
     expect(card.querySelector('dl.pu-kv').textContent).toMatch(/401/);
@@ -171,5 +177,87 @@ describe('TokenSecurityTester (standalone UI standard)', () => {
     const card = await screen.findByTestId('tst-result');
     expect(card.querySelector('dl.pu-kv').textContent).toContain(long);
     expect(document.querySelectorAll('input[readonly]')).toHaveLength(0);
+  });
+
+  it('announces the outcome through the persistent hint live region, whose text changes', async () => {
+    post.mockResolvedValue(reply());
+    renderPage();
+    pick('Missing Act Claim');
+    const hint = document.getElementById('tst-exec-hint');
+    expect(hint.getAttribute('role')).toBe('status');
+    expect(hint.textContent).toMatch(/mints a test token/i);
+    fireEvent.click(execute());
+    expect(document.getElementById('tst-exec-hint')).toBe(hint);
+    expect(hint.textContent).toMatch(/asking the bff/i);
+    await screen.findByTestId('tst-result');
+    expect(document.getElementById('tst-exec-hint')).toBe(hint);
+    expect(hint.textContent).toMatch(/simulated rejection/i);
+    expect(hint.textContent).toMatch(/Missing Act Claim/);
+    expect(hint.textContent).toMatch(/401/);
+    expect(hint.textContent).toMatch(/DELEGATION_030/);
+  });
+
+  it('announces a failed run in the hint and no longer tells the person to click Execute to run it', async () => {
+    post.mockRejectedValue({ response: { data: { message: 'Nope.' } } });
+    renderPage();
+    pick('Expired Token');
+    expect(screen.getByText(/Click Execute to run the scenario/i)).not.toBeNull();
+    fireEvent.click(execute());
+    await screen.findByRole('alert');
+    expect(document.getElementById('tst-exec-hint').textContent).toMatch(/run failed/i);
+    expect(screen.queryByText(/Click Execute to run the scenario/i)).toBeNull();
+    expect(screen.getByText(/No result: the run failed/i)).not.toBeNull();
+  });
+
+  describe('stacked (phone) layout', () => {
+    const realMatchMedia = window.matchMedia;
+    const realScroll = window.HTMLElement.prototype.scrollIntoView;
+    afterEach(() => {
+      window.matchMedia = realMatchMedia;
+      window.HTMLElement.prototype.scrollIntoView = realScroll;
+    });
+    const stub = (narrow) => {
+      const scroll = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scroll;
+      window.matchMedia = vi.fn((query) => ({
+        matches: narrow, media: query, addEventListener() {}, removeEventListener() {},
+        addListener() {}, removeListener() {},
+      }));
+      return scroll;
+    };
+
+    it('scrolls the result pane into view after a run and leaves focus on Execute', async () => {
+      const scroll = stub(true);
+      post.mockResolvedValue(reply());
+      renderPage();
+      pick('Missing Act Claim');
+      execute().focus();
+      fireEvent.click(execute());
+      expect(scroll).not.toHaveBeenCalled();
+      await screen.findByTestId('tst-result');
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll.mock.instances[0].className).toContain('inspector-shell-col-right');
+      expect(document.activeElement).toBe(execute());
+    });
+
+    it('does not scroll on the wide, side-by-side layout', async () => {
+      const scroll = stub(false);
+      post.mockResolvedValue(reply());
+      renderPage();
+      pick('Missing Act Claim');
+      fireEvent.click(execute());
+      await screen.findByTestId('tst-result');
+      expect(scroll).not.toHaveBeenCalled();
+    });
+  });
+
+  it('lets the result footer wrap and shrink under the page class (shared shell keeps it nowrap)', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../TokenSecurityTester.css'), 'utf8');
+    const rule = css.match(/\.pu-page\.tst-page \.inspector-shell-output-footer\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule[1]).toMatch(/min-width:\s*0/);
+    const cell = css.match(/\.pu-page\.tst-page \.inspector-shell-output-footer > span\s*\{([^}]*)\}/);
+    expect(cell[1]).toMatch(/overflow-wrap:\s*anywhere/);
   });
 });

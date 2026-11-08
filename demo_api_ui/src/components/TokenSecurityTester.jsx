@@ -11,12 +11,17 @@
 // P9 buttons. Primitives: components/pingUi, styles/ping-ui.css, docs/ping-ui-primitives.md.
 // The standalone shell bar is not added (the app has its own).
 //
+// The outcome is announced through ONE persistent live region (the hint line, #tst-exec-hint):
+// a region that is mounted together with its text is often not announced, one whose text changes is.
+// On a phone the three columns stack, so after a result lands the result pane is scrolled into view
+// (focus is not moved: it stays on Execute, so the keyboard order is unchanged).
+//
 // Primary button per view state (exactly one, always Execute):
 //   no scenario picked  Execute, aria-disabled, reason shown ("Pick a scenario first")
 //   scenario picked     Execute
 //   running             Execute, aria-disabled, "Executing..." (focus stays on it)
 //   result or error     Execute again (re-run); Clear stays a secondary
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import apiClient from '../services/apiClient';
 import JsonHighlight from './shared/JsonHighlight';
 import InspectorShell from './shared/InspectorShell';
@@ -150,6 +155,7 @@ export default function TokenSecurityTester() {
                 loading={loading}
                 blocked={blocked}
                 error={error}
+                result={result}
                 onExecute={handleExecute}
                 onClear={handleClear}
               />
@@ -158,6 +164,8 @@ export default function TokenSecurityTester() {
               <ScenarioOutput
                 scenario={selectedScenario}
                 result={result}
+                error={error}
+                loading={loading}
                 activeTab={outputTab}
                 onTab={setOutputTab}
               />
@@ -191,10 +199,15 @@ function ScenarioList({ selectedId, onSelect }) {
   );
 }
 
-function ScenarioForm({ scenario, loading, blocked, error, onExecute, onClear }) {
+function ScenarioForm({ scenario, loading, blocked, error, result, onExecute, onClear }) {
   let hint = 'Mints a test token and asks the BFF for the rejection it earns.';
   if (!scenario) hint = 'Pick a scenario first: Execute is not available yet.';
   else if (loading) hint = 'Asking the BFF...';
+  else if (error) hint = 'The run failed. Execute is available to try again.';
+  else if (result) {
+    hint = `Simulated rejection: ${result.scenario_name || scenario.name}, HTTP ${result.http_status}, `
+      + `${result.error_code}. The result is in the result pane. Execute runs it again.`;
+  }
 
   return (
     <>
@@ -225,7 +238,7 @@ function ScenarioForm({ scenario, loading, blocked, error, onExecute, onClear })
         >
           Clear
         </button>
-        <p id="tst-exec-hint" className="tst-hint" role="status">{hint}</p>
+        <p id="tst-exec-hint" className="tst-hint" role="status" aria-live="polite">{hint}</p>
       </div>
       {error && (
         <p className="pu-status-line tst-error" role="alert" data-testid="tst-error">
@@ -272,23 +285,39 @@ function ScenarioForm({ scenario, loading, blocked, error, onExecute, onClear })
   );
 }
 
-function ScenarioOutput({ scenario, result, activeTab, onTab }) {
+// Phone width: the shell stacks its columns (InspectorShell.css, max-width 768px).
+const NARROW = '(max-width: 768px)';
+
+function ScenarioOutput({ scenario, result, error, loading, activeTab, onTab }) {
+  const bodyRef = useRef(null);
+
+  // When a result arrives on a stacked layout it sits far below Execute: bring it into view.
+  useEffect(() => {
+    if (!result || typeof window.matchMedia !== 'function' || !window.matchMedia(NARROW).matches) return;
+    const pane = bodyRef.current?.closest('.inspector-shell-col-right') || bodyRef.current;
+    if (pane && typeof pane.scrollIntoView === 'function') pane.scrollIntoView({ block: 'start' });
+  }, [result]);
+
+  let emptyText = 'Select a scenario and execute it to see results.';
+  if (scenario) emptyText = 'Click Execute to run the scenario and see the result here.';
+  if (scenario && loading) emptyText = 'Waiting for the BFF to answer...';
+  if (scenario && error && !loading) emptyText = 'No result: the run failed (see the Failed message under Execute). Execute tries again.';
+
   return (
     <>
       <InspectorTabs tabs={OUTPUT_TABS} activeKey={activeTab} onChange={onTab} />
 
       {result ? (
         <>
-          <div className="inspector-shell-output-body">
+          <div className="inspector-shell-output-body" ref={bodyRef}>
             {activeTab === 'result' && (
               <Card
-                tone="danger"
+                tone="neutral"
                 title={result.scenario_name || result.scenario}
                 data-testid="tst-result"
-                role="status"
               >
                 <p className="pu-status-line">
-                  <StatusChip tone="danger">Rejected</StatusChip>
+                  <StatusChip tone="info">Simulated rejection</StatusChip>
                   <span>Simulated: the reply is pre-written, no server judged this token.</span>
                 </p>
                 <KvList
@@ -348,9 +377,7 @@ function ScenarioOutput({ scenario, result, activeTab, onTab }) {
         </>
       ) : (
         <div className="inspector-shell-output-empty">
-          {scenario
-            ? 'Click Execute to run the scenario and see the result here.'
-            : 'Select a scenario and execute it to see results.'}
+          {emptyText}
         </div>
       )}
     </>
