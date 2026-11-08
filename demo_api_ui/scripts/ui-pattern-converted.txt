@@ -4,3 +4,4 @@
 /privilege-saas-access
 /privilege-coding-agents
 /privilege-pii-detection
+/privilege-intent-triage
