@@ -54,7 +54,7 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.dreel-card--now .dreel-n { background: var(--th-status-info); }
+.dreel-card--now .dreel-n { background: var(--th-status-info); color: #ffffff; }
 .dreel-title {
   font-size: var(--font-size-2xs);
   font-weight: 700;
