@@ -242,6 +242,10 @@ function StepUpSlot({ isNext, onDone }) {
   const [message, setMessage] = React.useState('');
   const [engine, setEngine] = React.useState(null); // 'simulated' | 'pingone' once CIBA has started
   const timerRef = React.useRef(null);
+  // Cleared on unmount: a poll fetch already in flight must not go on to retry the checkout, or schedule
+  // another poll, once the user has left the page.
+  const aliveRef = React.useRef(true);
+  const abortRef = React.useRef(null);
   // The gateway-issued HITL challengeId from the first 428, threaded through
   // CIBA initiate and the retry — see postCheckout's _hitl_challenge_id note.
   const hitlChallengeIdRef = React.useRef(null);
@@ -314,17 +318,23 @@ function StepUpSlot({ isNext, onDone }) {
 
   const pollCiba = React.useCallback((authReqId, intervalMs) => {
     timerRef.current = setTimeout(async () => {
+      if (!aliveRef.current) return;
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
-        const res = await fetch(`/api/auth/ciba/poll/${authReqId}`, { credentials: 'include' });
+        const res = await fetch(`/api/auth/ciba/poll/${authReqId}`, { credentials: 'include', signal: controller.signal });
+        if (!aliveRef.current) return;
         if (res.status === 403 || res.status === 404 || res.status === 410) {
           setPhase('error');
           setMessage('CIBA approval was denied or expired.');
           return;
         }
         const data = await res.json().catch(() => ({}));
+        if (!aliveRef.current) return;
         if (data.status === 'approved') {
           setMessage('Approved — retrying checkout…');
           const retry = await postCheckout(hitlChallengeIdRef.current);
+          if (!aliveRef.current) return;
           if (retry.ok) {
             setPhase('approved');
             setMessage('Checkout completed.');
@@ -337,6 +347,7 @@ function StepUpSlot({ isNext, onDone }) {
         }
         pollCiba(authReqId, intervalMs);
       } catch (err) {
+        if (!aliveRef.current) return;
         setPhase('error');
         setMessage(err.message || 'CIBA polling failed');
       }
@@ -348,6 +359,7 @@ function StepUpSlot({ isNext, onDone }) {
     setMessage('');
     setEngine(null);
     const { status, ok, body } = await postCheckout();
+    if (!aliveRef.current) return;
     // Step-up and HITL both clear via CIBA approval (session stepUpVerified +
     // hitlVerified). Start CIBA for either 428 — otherwise a HITL-only gate
     // would fall through to a false "Checkout completed".
@@ -372,6 +384,7 @@ function StepUpSlot({ isNext, onDone }) {
           }),
         });
         const { auth_req_id, interval, engine } = await initRes.json();
+        if (!aliveRef.current) return;
         setPhase('waiting-approval');
         // initiate reports which engine answers: 'simulated' (the local backchannel, which auto-approves
         // after a few seconds, see docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md) or
@@ -395,7 +408,14 @@ function StepUpSlot({ isNext, onDone }) {
     onDone();
   }, [postCheckout, pollCiba, onDone]);
 
-  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+  React.useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      clearTimeout(timerRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const busy = phase === 'checking-out' || phase === 'waiting-approval';
   const chip = {
@@ -507,10 +527,20 @@ function RevokeSlot({ which, onFlow, flow }) {
   const confirmRevoke = React.useCallback(async (id, reason, scope = 'instance') => {
     try {
       await apiClient.post(`/api/admin/agent/${id}/kill-switch`, { reason, scope });
-    } catch (_) {
+    } catch (err) {
       // A 401 here is expected once the session dies mid-request — the
-      // retry below is the real proof, not this call's own success.
+      // retry below is the real proof, not this call's own success. Any other
+      // failure (500, 403, network) means the revoke did not register: say so,
+      // keep the Revoke button live, and rethrow so the dialog stays open on
+      // its own error with the Confirm button ready for a retry.
+      const status = err?.response?.status ?? err?.status ?? err?.statusCode;
+      if (status !== 401) {
+        const why = status ? `HTTP ${status}` : (err?.message || 'request failed');
+        setRetryResult(`Revoke failed (${why}) — the agent may not have been stopped. Try again.`);
+        throw err instanceof Error ? err : new Error(`Revoke failed (${why})`);
+      }
     }
+    setRetryResult('');
     setShowModal(false);
     onFlow({ modalOpen: false, revoked: true, scopeFull: scope === 'full' });
     try {

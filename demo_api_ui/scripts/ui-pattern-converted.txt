@@ -21,10 +21,13 @@
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
+/pingfederate-config
 /privilege-prompt-log
 /governance-timeline
 /demo-config
+/davinci-ciba-flows
 /privilege-pf-token
+/ping-products/verify-recognize
 /autonomous-agents
 /p1-third-party-exchange
 /privilege-shelf
@@ -33,6 +36,7 @@
 /ai-products/core
 /ai-products/gateway
 /gateway-claims
+/gateway-stats
 /ai-products/authorize
 /ai-products/protect
 /owasp

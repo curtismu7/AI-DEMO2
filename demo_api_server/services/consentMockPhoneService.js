@@ -5,7 +5,7 @@ const { step: traceStep } = require('./pfAiAgentTrace');
 
 // /transaction-consent mock phone: a session-scoped stand-in for the user's CIBA device. Unlike the
 // PingFederate mock (pfAiAgentCibaService) it has no environment gate and serves any signed-in user,
-// because it moves no money and issues no token: it only proves the page's push -> tap -> result flow.
+// because it moves no money and issues no token: it only proves the page's prompt -> tap -> result flow.
 const MAX_PENDING_MS = 5 * 60 * 1000;
 const TYPES = ['transfer', 'withdrawal'];
 
@@ -43,12 +43,12 @@ function start(req, { amount, type, description } = {}, { now = Date.now } = {})
         id: 'start',
         title: 'Backchannel authentication request (mock)',
         request: { method: 'POST', url: '/bc-authorize', params: { login_hint: loginHint, scope: 'openid', binding_message: `${type}.${value}`, auth_req_id: '<held by the BFF>' } },
-        note: 'The BFF holds the request instead of calling PingOne. A real run answers 200 with an auth_req_id and pushes to the user\'s device.',
+        note: 'The BFF holds the request instead of calling PingOne. A real run answers 200 with an auth_req_id and PingOne delivers the approval request by email or SMS.',
       }),
       traceStep({
         id: 'push',
-        title: 'Push to the user\'s device',
-        note: 'The mock phone shows the notification. The user decides there, never in the browser that started the request.',
+        title: 'Approval prompt to the user (email or SMS in PingOne)',
+        note: 'The mock phone stands in for that email or SMS. The user decides there, never in the browser that started the request.',
       }),
     ],
   };

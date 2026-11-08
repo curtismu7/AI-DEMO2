@@ -104,7 +104,7 @@ const PRODUCTS = {
     runExamples: [
       ["A2A access review through the gateway", "Main agent, worker agent and MCP tools, every hop through the Agent Privilege. The agents and hops are live; the access data the tools return is sample data.", "/privilege-a2a", "sample"],
       ["Three-deep agent chain", "Opens the dashboard; run Demo Step 26 there for an allowed run, a blocked prompt injection and a refused hand-off, played in the reel and sequence view. Needs the agents running.", "/dashboard", "live"],
-      ["Agent-to-agent architecture", "Where the gateway sits between the agents, the tool server and the model provider. A diagram page; live node stats appear only for an admin.", "/privilege-gateway-topologies", "guide"],
+      ["Agent-to-agent architecture", "Where the gateway sits between the agents, the tool server and the model provider. Drawings, not telemetry; for an admin the default tab also calls this app's admin API for live node stats and Park / Unpark controls.", "/privilege-gateway-topologies", "drawing"],
       ["A2A protocol walkthrough", "Fetches the live Agent Card and runs the bearer and nested-act delegation. When no live run is available it shows a recorded run, and each section is labelled live or recorded.", "/a2a-protocol-learning", "switch"],
       ["Delegation chain", "Follow a user-to-agent-to-specialist chain with narrowed authority. Both scenarios run through the live token-exchange and authorization path.", "/delegation-chain-value", "live"],
     ],
@@ -171,6 +171,7 @@ const RUN_KIND = {
   switch: "Opens a live page with a simulated option",
   sample: "Opens live agents with sample data",
   guide: "Opens an explainer, nothing is called",
+  drawing: "Opens drawings; admins also get live controls",
 };
 
 const BANNER = {

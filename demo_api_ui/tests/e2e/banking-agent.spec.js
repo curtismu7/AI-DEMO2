@@ -24,7 +24,7 @@
  *   - Customer agent renders inline on /dashboard (no FAB); admin opens via FAB
  *   - Panel shows role badge in header subtitle (Admin / Customer)
  *   - Inline title ends with "Assistant"; admin float title ends with "AI Agent"
- *   - Dashboard nav button (`.ba-left-auth-btn.primary`) shows My/Admin Dashboard
+ *   - Dashboard nav button (`.ba-left-auth-btn.ba-left-nav-btn`) shows My/Admin Dashboard
  *   - Login action buttons NOT shown when authenticated
  *   - Admin-only tools reachable from the Admin Tools popout
  *   - ?oauth=success URL param auto-renders / cleans the URL
@@ -438,7 +438,7 @@ test.describe('BankingAgent — Authenticated (admin logged in)', () => {
     await page.goto('/admin');
     await ensureAgentReady(page);
     await expect(
-      page.locator('.banking-agent-panel .ba-left-auth-btn.primary', { hasText: 'Admin Dashboard' })
+      page.locator('.banking-agent-panel .ba-left-auth-btn.ba-left-nav-btn', { hasText: 'Admin Dashboard' })
     ).toBeVisible();
   });
 

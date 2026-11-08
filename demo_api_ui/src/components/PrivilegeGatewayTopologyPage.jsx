@@ -240,7 +240,7 @@ export const TABS = [
     id: "lb",
     label: "Live LB topology",
     title: "Live load-balanced topology",
-    status: "Current",
+    status: "Checked 2026-10-12",
     clusterChecked: true,
     checked: "Against the SE cluster, 2026-10-12",
     static: true,
@@ -403,7 +403,7 @@ export default function PrivilegeGatewayTopologyPage() {
           <Card tone="neutral" title="About this drawing" className="pgt-about">
             <p className="pu-status-line">
               <StatusChip tone="neutral">Illustration</StatusChip>
-              <StatusChip tone={archived ? "warn" : activeTabMeta.clusterChecked ? "ok" : "neutral"}>{activeTabMeta.status}</StatusChip>
+              <StatusChip tone={archived ? "warn" : "neutral"}>{activeTabMeta.status}</StatusChip>
             </p>
             <KvList
               items={[
@@ -500,13 +500,22 @@ function LbRuntimePanel() {
   const [state, setState] = useState(null); // {nodes, errors} | "denied"
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState(null); // { tone, word, text } | null
+  // A read that failed for a reason other than sign-in (500, network). The last good nodes stay on screen.
+  const [readError, setReadError] = useState(null);
 
   const load = useCallback(async () => {
     try {
       const res = await apiClient.get("/api/admin/lb/runtime");
       setState(res.data);
-    } catch {
-      setState("denied");
+      setReadError(null);
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        setState("denied");
+        setReadError(null);
+      } else {
+        setReadError(status ? `HTTP ${status}` : (e?.message || "request failed"));
+      }
     }
   }, []);
 
@@ -556,8 +565,12 @@ function LbRuntimePanel() {
   return (
     <Card tone={state ? "live" : "neutral"} title="LB runtime controls" className="pgt-runtime">
       <p className="pu-status-line">
-        {state ? <StatusChip tone="info">Live, admin only</StatusChip> : <StatusChip tone="neutral">Checking</StatusChip>}
-        <span>{state ? "Node state read from the load balancer pods every 10s. Park and Unpark change the live load balancer." : "Reading node state from the load balancer."}</span>
+        {readError
+          ? <StatusChip tone="danger">Unavailable</StatusChip>
+          : state ? <StatusChip tone="info">Live, admin only</StatusChip> : <StatusChip tone="neutral">Checking</StatusChip>}
+        <span>{readError
+          ? `Could not read the load balancer (${readError}). ${state ? "Showing the last nodes it reported; " : ""}retrying every 10s.`
+          : state ? "Node state read from the load balancer pods every 10s. Park and Unpark change the live load balancer." : "Reading node state from the load balancer."}</span>
       </p>
       <p className="pu-note pgt-hint">
         Runtime-only — resets when the LB pods roll; persistent parking still goes

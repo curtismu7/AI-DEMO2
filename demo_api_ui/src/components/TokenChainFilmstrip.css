@@ -420,6 +420,9 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 
 .tcfs-more-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 
+/* On the dark header bar in both themes: the browser's default ring is 2.1:1 there in light theme. */
+.tcfs-more-trigger:focus-visible { outline: 3px solid var(--th-focus-ring-on-band); outline-offset: 2px; }
+
 .tcfs-more-pop {
   position: absolute;
   top: calc(100% + 5px);

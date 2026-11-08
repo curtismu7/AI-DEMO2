@@ -175,13 +175,13 @@ export const MORE_PAGE_GUIDES = {
   "/transaction-consent": {
     title: "Transaction Consent Guide",
     talkingPoints: [
-      "High-value or agent-initiated transactions can require explicit human approval through a CIBA push notification.",
-      "The real flow opens this page from a deep link with a ?challenge= id; without one the page runs in simulate mode.",
+      "High-value or agent-initiated transactions can require explicit human approval through CIBA: PingOne delivers the request by email or SMS, and the mock phone on this page is the local stand-in.",
+      "The real flow opens this page from a link with a ?challenge= id (this BFF sends no push); without one the page runs in simulate mode.",
       "Sign-in is required: signed-out visitors see a sign-in prompt.",
     ],
     walkthrough: steps([
-      ["Sign in and read the flow", "The simulate landing explains how production works: a step-up obligation from PingOne Authorize, a CIBA push, then approval on the user's device.", "Sign in, then read 'How it works in production' and the numbered 'CIBA Consent Flow' list."],
-      ["Pick a scenario", "Preset transactions let you show the consent modal without waiting for a live push.", "Under 'Pick a scenario to simulate', click Standard Transfer ($500), High-Value Transfer ($15,000), ATM Withdrawal ($200) or AI Agent-Initiated ($2,500)."],
+      ["Sign in and read the flow", "The simulate landing explains how production works: a step-up obligation from PingOne Authorize, a CIBA request that PingOne delivers by email or SMS, then approval.", "Sign in, then read 'How the real flow differs' and the numbered 'The CIBA consent flow' list."],
+      ["Pick a scenario", "Preset transactions let you show the consent modal without waiting for a live email or SMS.", "Under 'Pick a scenario to simulate', click Standard Transfer ($500), High-Value Transfer ($15,000), ATM Withdrawal ($200) or AI Agent-Initiated ($2,500)."],
       ["Approve or decline in the modal", "The modal shows the transaction snapshot and asks for verification before the transaction proceeds or is blocked.", "Review the details in the consent modal and follow its prompts to approve or decline; closing it returns you to the scenario list."],
     ]),
   },
