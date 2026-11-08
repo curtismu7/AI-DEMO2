@@ -1202,6 +1202,14 @@ async function main() {
       console.warn('[Bootstrap] TraT claims setup failed (non-fatal):', err.message);
     }
 
+    // Privilege only accepts users of its own PingOne env — copy the demo
+    // sign-in accounts there. Non-fatal; skips when no Privilege env is set.
+    try {
+      execSync('node scripts/syncPrivilegeUsers.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+    } catch (err) {
+      console.warn('[Bootstrap] Privilege user sync failed (non-fatal):', err.message);
+    }
+
     // Offer to auto-run ./run.sh restart so the running services pick up
     // the new .env. Skipped under --non-interactive (CI / scripted runs print
     // the instruction and exit). The repo root is two levels up from this
