@@ -675,3 +675,16 @@
 :root[data-theme="dark"] .tctr-tok-inspect {
   color: var(--th-status-info-text);
 }
+
+/* JSON blocks in the rail (shared JsonHighlight): the default palette is for light grounds, and the rail's blocks sit on
+   the dark inset in dark mode without the jh-dark class, so keys were 2:1 and strings 3:1. Same palette as .jh-dark. */
+:root[data-theme="dark"] .tctr .jh-key     { color: #79c0ff; }
+:root[data-theme="dark"] .tctr .jh-string  { color: #7ee787; }
+:root[data-theme="dark"] .tctr .jh-number  { color: #ffa657; }
+:root[data-theme="dark"] .tctr .jh-keyword { color: #fecaca; }
+:root[data-theme="dark"] .tctr .jh-punct,
+:root[data-theme="dark"] .tctr .jh-empty   { color: #ffffff; }
+:root[data-theme="dark"] .tctr .jh-focus    { background: rgba(255, 82, 82, 0.18); color: #ff5252; }
+:root[data-theme="dark"] .tctr .jh-critical { color: #ff6b6b; }
+:root[data-theme="dark"] .tctr .jh-guide    { border-left-color: rgba(255, 255, 255, 0.14); }
+
