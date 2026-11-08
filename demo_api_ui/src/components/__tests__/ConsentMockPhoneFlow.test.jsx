@@ -78,3 +78,31 @@ describe('ConsentMockPhoneFlow', () => {
     });
   });
 });
+
+describe('ConsentMockPhoneFlow pingUi (the /transaction-consent page chrome)', () => {
+  beforeEach(() => { vi.clearAllMocks(); apiClient.post.mockResolvedValueOnce({ data: pendingView }); });
+
+  it('drops its own heading and uses the shared button classes', async () => {
+    render(<ConsentMockPhoneFlow pingUi scenario={scenario} onDone={vi.fn()} />);
+    await screen.findByTestId('consent-mock-phone');
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancel' }).className).toBe('pu-btn');
+  });
+
+  it('gives the outcome a chip with a word, and keeps the default look unchanged without the prop', async () => {
+    const { unmount } = render(<ConsentMockPhoneFlow pingUi scenario={scenario} onDone={vi.fn()} />);
+    await screen.findByTestId('consent-mock-phone');
+    apiClient.post.mockResolvedValueOnce({ data: { ...pendingView, state: 'approved' } });
+    fireEvent.click(screen.getByText('Approve on mock phone'));
+    const outcome = await screen.findByTestId('consent-outcome');
+    expect(outcome.querySelector('.pu-chip').textContent).toBe('Approved (mock)');
+    expect(screen.getByRole('button', { name: 'Pick another scenario' }).className).toBe('pu-btn pu-btn--primary');
+    unmount();
+
+    apiClient.post.mockResolvedValueOnce({ data: pendingView });
+    render(<ConsentMockPhoneFlow scenario={scenario} onDone={vi.fn()} />);
+    await screen.findByTestId('consent-mock-phone');
+    expect(document.querySelector('.pu-chip')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancel' }).className).toBe('cmp__back');
+  });
+});

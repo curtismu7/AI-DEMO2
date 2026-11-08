@@ -10,6 +10,15 @@
 // 'enduser' for a plain session cookie). A session-riding transfer is therefore
 // stored as indistinguishable from the human. The Recent Transfers widget below
 // polls GET /api/transactions/my and badges each row by clientType.
+//
+// Layout follows the standalone Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P7 chips, P9 buttons. P5 (key-value)
+// is skipped: the page has no label/value summary, only a control-by-control matrix, which the primitives
+// keep page-local. P9's "one primary per view" is read as one primary ACTION AT A TIME: the Recent
+// transfers control is the one primary and is ONE element for every state, so keyboard focus stays on it.
+// Signed out it reads "Sign in" (nothing below works without a session); otherwise "Refresh" (run a
+// transfer outside this page, then reload the list without waiting for the 5-minute poll). The Copy
+// buttons and the OWASP link are secondaries in every state.
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
@@ -17,6 +26,9 @@ import { formatCurrency, formatDateTime } from "../utils/formatters";
 import "./UngovernedAgentPage.css";
 import InlineSpinner from './shared/InlineSpinner';
 import PageHeader from './common/PageHeader';
+import {
+  PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip,
+} from './pingUi';
 
 const OPENCLI_URL = "https://github.com/jackwener/OpenCLI";
 
@@ -72,118 +84,6 @@ function copyToClipboard(text) {
   navigator.clipboard?.writeText(text).catch(() => {});
 }
 
-function CommandBlock({ command, id, copied, onCopy }) {
-  return (
-    <div className="ungov-code-block">
-      <code>{command}</code>
-      <button className="ungov-copy-btn" onClick={() => onCopy(command, id)}>
-        {copied === id ? "Copied!" : "Copy"}
-      </button>
-    </div>
-  );
-}
-
-// Recent Transfers widget — polls /api/transactions/my and badges each row by
-// clientType. This is the live proof: an ungoverned session-riding transfer
-// shows the same amber "Direct user session" badge as the human typing.
-function RecentTransfersWidget() {
-  const [rows, setRows] = useState([]);
-  const [status, setStatus] = useState("loading"); // loading | ok | unauth | error
-  const timerRef = useRef(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/transactions/my", { credentials: "include" });
-      if (res.status === 401 || res.status === 403) {
-        setStatus("unauth");
-        setRows([]);
-        return;
-      }
-      if (!res.ok) {
-        setStatus("error");
-        return;
-      }
-      const data = await res.json();
-      const list = Array.isArray(data.transactions) ? data.transactions : [];
-      // Newest first; cap at 10.
-      const sorted = [...list].sort(
-        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-      );
-      setRows(sorted.slice(0, 10));
-      setStatus("ok");
-    } catch {
-      setStatus("error");
-    }
-  }, []);
-
-  useEffect(() => {
-    const tick = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      load();
-    };
-    tick();
-    timerRef.current = setInterval(tick, 5 * 60 * 1000);
-    return () => clearInterval(timerRef.current);
-  }, [load]);
-
-  return (
-    <div className="ungov-widget">
-      <div className="ungov-widget__head">
-        <h3>Recent transfers</h3>
-        <span className="ungov-widget__hint">
-          Live · polls <code>/api/transactions/my</code> every 5 min
-        </span>
-      </div>
-
-      {status === "unauth" && (
-        <p className="ungov-widget__empty">
-          Sign in as a bank customer to see live transfers. The seeded demo
-          customer (<code>john.doe</code>) is the account the sidecar and OpenCLI
-          drive.{" "}
-          <button
-            type="button"
-            className="ungov-widget__signin"
-            onClick={() => navigateToCustomerOAuthLogin('/ungoverned-agent')}
-          >
-            Sign in
-          </button>
-        </p>
-      )}
-      {status === "error" && (
-        <p className="ungov-widget__empty">Couldn't load transfers. Is the API up?</p>
-      )}
-      {status === "loading" && <p className="ungov-widget__empty"><InlineSpinner label="Loading…" /></p>}
-      {status === "ok" && rows.length === 0 && (
-        <p className="ungov-widget__empty">No transactions yet. Run a transfer to populate this list.</p>
-      )}
-
-      {status === "ok" && rows.length > 0 && (
-        <ul className="ungov-widget__list">
-          {rows.map((t) => {
-            const agent = t.clientType === "ai_agent";
-            return (
-              <li key={t.id} className="ungov-row">
-                <span className="ungov-row__main">
-                  <span className="ungov-row__type">{t.type}</span>
-                  <span className="ungov-row__amount">{formatCurrency(Number(t.amount))}</span>
-                  <span className="ungov-row__desc">{t.description}</span>
-                </span>
-                <span className="ungov-row__meta">
-                  <span className="ungov-row__time">{formatDateTime(t.createdAt)}</span>
-                  <span className={`ungov-badge ungov-badge--${agent ? "governed" : "direct"}`}>
-                    {agent ? "Governed agent (act-as chain)" : "Direct user session"}
-                    {agent && t.actorSub ? ` · acting as ${t.actorSub}` : ""}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 export default function UngovernedAgentPage() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(null);
@@ -198,133 +98,318 @@ export default function UngovernedAgentPage() {
   const skillCmd = "npx skills add jackwener/opencli";
 
   return (
-    <div className="ungov-page" data-testid="ungoverned-agent-page">
+    <PingPage className="ungov-page" data-testid="ungoverned-agent-page">
+      <SimBanner data-testid="ungov-banner">
+        <strong>EXPLANATION, NOT A SIMULATION</strong> — nothing on this page runs an agent. The
+        comparison, the three-step proof and the OWASP threats are written explanation, not measured
+        results; the two transfers you compare are run outside this page with the commands below. The
+        one real call is Recent transfers: it reads your own stored transactions from this machine&apos;s
+        BFF and labels each by the caller type the bank recorded.
+      </SimBanner>
       <PageHeader className="ungov-header" eyebrow="UNGOVERNED" title="The Ungoverned Agent" summary={<>What agent access looks like when you do nothing: an AI agent rides the
           user's own logged-in browser session and moves money through the bank's
           UI — with full user power, and nothing to identify, scope, consent, or
           audit it.</>} />
 
-      <section className="ungov-section">
-        <h2>The anti-pattern</h2>
-        <p className="ungov-intro">
-          Tools like{" "}
-          <a href={OPENCLI_URL} target="_blank" rel="noopener noreferrer">OpenCLI</a>{" "}
-          (25.9k, Apache-2.0) let an AI agent drive your <em>logged-in desktop
-          Chrome</em> — "Browser Use on your logged-in Chrome." The agent inherits
-          your cookies, so from the application's side it simply <strong>is
-          you</strong>. There is no separate agent identity, no delegated token, no
-          scope to narrow what it can touch, no consent prompt on a high-value
-          action, and no audit record that attributes the action to an agent. It
-          could check your balance — or drain the account — and the bank cannot
-          tell an agent did it. This isn't a strawman: it's a popular, shipping
-          tool people install today.
-        </p>
-      </section>
+      <PageFrame>
+        <Section id="ungov-anti-h" kicker="1 · The pattern" title="The anti-pattern">
+          <Card tone="danger">
+            <p className="pu-status-line">
+              <StatusChip tone="danger">Anti-pattern</StatusChip>
+              <span>Session riding: the agent works with the user's own cookie.</span>
+            </p>
+            <p className="ungov-prose">
+              Tools like{" "}
+              <a href={OPENCLI_URL} target="_blank" rel="noopener noreferrer">OpenCLI</a>{" "}
+              (25.9k, Apache-2.0) let an AI agent drive your <em>logged-in desktop
+              Chrome</em> — "Browser Use on your logged-in Chrome." The agent inherits
+              your cookies, so from the application's side it simply <strong>is
+              you</strong>. There is no separate agent identity, no delegated token, no
+              scope to narrow what it can touch, no consent prompt on a high-value
+              action, and no audit record that attributes the action to an agent. It
+              could check your balance — or drain the account — and the bank cannot
+              tell an agent did it. This isn't a strawman: it's a popular, shipping
+              tool people install today.
+            </p>
+          </Card>
+        </Section>
 
-      <section className="ungov-section">
-        <h2>Governed vs. ungoverned</h2>
-        <p className="ungov-section-intro">
-          Same transfer, two worlds. The governed path is this demo's Agent
-          Gateway; the ungoverned path is a session-riding agent.
-        </p>
-        <div className="ungov-table" role="table" aria-label="Governed versus ungoverned agent access">
-          <div className="ungov-table__head" role="row">
-            <span role="columnheader">Control</span>
-            <span role="columnheader">Governed (Agent Gateway)</span>
-            <span role="columnheader">Ungoverned (session-riding)</span>
-          </div>
-          {COMPARISON.map((r) => (
-            <div className="ungov-table__row" role="row" key={r.dimension}>
-              <span className="ungov-table__dim" role="cell">{r.dimension}</span>
-              <span className="ungov-table__gov" role="cell">{r.governed}</span>
-              <span className="ungov-table__ungov" role="cell">{r.ungoverned}</span>
+        <Section
+          id="ungov-compare-h"
+          kicker="2 · The contrast"
+          title="Governed vs. ungoverned"
+          lede="Same transfer, two worlds. The governed path is this demo's Agent Gateway; the ungoverned path is a session-riding agent."
+        >
+          <Card tone="neutral">
+            <div className="ungov-table-wrap">
+              <table className="ungov-table" aria-label="Governed versus ungoverned agent access">
+                <thead>
+                  <tr>
+                    <th scope="col">Control</th>
+                    <th scope="col"><StatusChip tone="ok">Governed</StatusChip> Agent Gateway</th>
+                    <th scope="col"><StatusChip tone="danger">Ungoverned</StatusChip> session-riding</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {COMPARISON.map((r) => (
+                    <tr key={r.dimension}>
+                      <th scope="row" className="ungov-table__dim">{r.dimension}</th>
+                      <td className="ungov-table__gov" data-label="Governed (Agent Gateway)">{r.governed}</td>
+                      <td className="ungov-table__ungov" data-label="Ungoverned (session-riding)">{r.ungoverned}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      </section>
+          </Card>
+        </Section>
 
-      <section className="ungov-section">
-        <h2>See it live</h2>
-        <p className="ungov-section-intro">
-          Two ways to run the ungoverned side. Both produce a transfer that the
-          widget below badges <strong>"Direct user session"</strong> — the same
-          badge as the human typing. Then run the same transfer through the
-          embedded governed agent and watch it badge{" "}
-          <strong>"Governed agent"</strong> with a full token chain and audit
-          trail.
-        </p>
+        <Section
+          id="ungov-live-h"
+          kicker="3 · The proof"
+          title="See it live"
+          lede={<>Two ways to run the ungoverned side. Both produce a transfer that the
+            list below labels <strong>"Direct user session"</strong> — the same
+            label as the human typing. Then run the same transfer through the
+            embedded governed agent and watch it labelled{" "}
+            <strong>"Governed agent"</strong> with a full token chain and audit
+            trail.</>}
+        >
+          <ol className="ungov-steps" aria-label="Live proof sequence">
+            <li className="ungov-step"><span className="ungov-step__n" aria-hidden="true">1</span><strong>Run the transfer</strong><small>through a browser session</small></li>
+            <li className="ungov-step ungov-step--danger"><span className="ungov-step__n" aria-hidden="true">2</span><strong>Same user label</strong><small>no agent identity or actor</small></li>
+            <li className="ungov-step ungov-step--safe"><span className="ungov-step__n" aria-hidden="true">3</span><strong>Run it governed</strong><small>compare the token chain</small></li>
+          </ol>
 
-        <div className="ungov-proof-strip" aria-label="Live proof sequence">
-          <div className="ungov-proof-step"><span>1</span><strong>Run the transfer</strong><small>through a browser session</small></div>
-          <div className="ungov-proof-arrow" aria-hidden="true">→</div>
-          <div className="ungov-proof-step ungov-proof-step--danger"><span>2</span><strong>Same user badge</strong><small>no agent identity or actor</small></div>
-          <div className="ungov-proof-arrow" aria-hidden="true">→</div>
-          <div className="ungov-proof-step ungov-proof-step--safe"><span>3</span><strong>Run it governed</strong><small>compare the token chain</small></div>
-        </div>
+          <CardGrid>
+            <Card tone="neutral" title="Live: OpenCLI on the presenter's host">
+              <p className="pu-status-line"><StatusChip tone="neutral">Runs on the presenter's laptop</StatusChip></p>
+              <p className="ungov-prose">
+                OpenCLI needs desktop Chrome + its Browser Bridge extension, so it
+                runs on the presenter's laptop (it can't run headless / in Docker —
+                that's the point). Install it as an agent skill, then tell the agent
+                to make the transfer on the open banking tab.
+              </p>
+              <CommandBlock command={skillCmd} id="skill" copied={copied} onCopy={copy} />
+              <p className="pu-note">
+                Full step-by-step in the presenter runbook:{" "}
+                <code>docs/runbooks/ungoverned-agent-opencli.md</code>
+              </p>
+            </Card>
 
-        <div className="ungov-demo-cols">
-          <div className="ungov-demo-col">
-            <h3>Live: OpenCLI on the presenter's host</h3>
-            <p>
-              OpenCLI needs desktop Chrome + its Browser Bridge extension, so it
-              runs on the presenter's laptop (it can't run headless / in Docker —
-              that's the point). Install it as an agent skill, then tell the agent
-              to make the transfer on the open banking tab.
+            <Card tone="neutral" title="Reproducible: containerized sidecar">
+              <p className="pu-status-line"><StatusChip tone="neutral">Runs in Docker or Kubernetes</StatusChip></p>
+              <p className="ungov-prose">
+                A headless-Playwright <code>ungoverned-agent</code> service reuses a
+                signed-in customer's session and drives the same transfer form — no
+                presenter install. It runs <em>inside the cluster</em>, beside the
+                governed gateway: even here, it's still just the user's cookie, with
+                no gateway, authz, or audit. (Pass the customer's <code>connect.sid</code>{" "}
+                via <code>UNGOV_SESSION_COOKIE</code> — see the runbook.)
+              </p>
+              <CommandBlock command={sidecarCmd} id="sidecar" copied={copied} onCopy={copy} />
+              <p className="pu-note">
+                Also shippable as a Kubernetes Job (<code>k8s/80-ungoverned-agent-job.yaml</code>).
+              </p>
+            </Card>
+          </CardGrid>
+
+          <RecentTransfersWidget />
+
+          <Card tone="neutral" title="What to watch for">
+            <p className="ungov-prose">
+              The amount can be identical in both runs. The
+              security difference is the caller evidence: <b>Direct user session</b> means the
+              bank cannot distinguish the agent from the customer; <b>Governed agent</b> exposes
+              the actor, delegated scope, policy decision, and audit trail.
             </p>
-            <CommandBlock command={skillCmd} id="skill" copied={copied} onCopy={copy} />
-            <p className="ungov-demo-note">
-              Full step-by-step in the presenter runbook:{" "}
-              <code>docs/runbooks/ungoverned-agent-opencli.md</code>
-            </p>
+          </Card>
+        </Section>
+
+        <Section
+          id="ungov-owasp-h"
+          kicker="4 · The risk"
+          title="Why it matters — OWASP agentic threats"
+          lede={<>The session-riding pattern leaves these OWASP "Securing Agentic
+            Applications" threats un-mitigated — the same threats this demo's
+            identity &amp; authorization controls close on the governed path.</>}
+        >
+          <div className="ungov-threats">
+            {OWASP_THREATS.map((t) => (
+              <Card tone="danger" title={`${t.id} · ${t.name}`} key={t.id}>
+                <p className="pu-status-line"><StatusChip tone="danger">Not mitigated</StatusChip></p>
+                <p className="ungov-prose">{t.why}</p>
+              </Card>
+            ))}
           </div>
-
-          <div className="ungov-demo-col">
-            <h3>Reproducible: containerized sidecar</h3>
-            <p>
-              A headless-Playwright <code>ungoverned-agent</code> service reuses a
-              signed-in customer's session and drives the same transfer form — no
-              presenter install. It runs <em>inside the cluster</em>, beside the
-              governed gateway: even here, it's still just the user's cookie, with
-              no gateway, authz, or audit. (Pass the customer's <code>connect.sid</code>{" "}
-              via <code>UNGOV_SESSION_COOKIE</code> — see the runbook.)
-            </p>
-            <CommandBlock command={sidecarCmd} id="sidecar" copied={copied} onCopy={copy} />
-            <p className="ungov-demo-note">
-              Also shippable as a Kubernetes Job (<code>k8s/80-ungoverned-agent-job.yaml</code>).
-            </p>
+          <div className="pu-actions">
+            <button
+              type="button"
+              className="pu-btn"
+              onClick={() => navigate("/owasp")}
+            >
+              See the full OWASP mapping &rarr;
+            </button>
           </div>
-        </div>
+        </Section>
+      </PageFrame>
+    </PingPage>
+  );
+}
 
-        <RecentTransfersWidget />
-
-        <div className="ungov-watch-callout">
-          <strong>What to watch for:</strong> the amount can be identical in both runs. The
-          security difference is the caller evidence: <b>Direct user session</b> means the
-          bank cannot distinguish the agent from the customer; <b>Governed agent</b> exposes
-          the actor, delegated scope, policy decision, and audit trail.
-        </div>
-      </section>
-
-      <section className="ungov-section">
-        <h2>Why it matters — OWASP agentic threats</h2>
-        <p className="ungov-section-intro">
-          The session-riding pattern leaves these OWASP "Securing Agentic
-          Applications" threats un-mitigated — the same threats this demo's
-          identity &amp; authorization controls close on the governed path.
-        </p>
-        <div className="ungov-threats">
-          {OWASP_THREATS.map((t) => (
-            <div className="ungov-threat" key={t.id}>
-              <span className="ungov-threat__id">{t.id}</span>
-              <span className="ungov-threat__name">{t.name}</span>
-              <span className="ungov-threat__why">{t.why}</span>
-            </div>
-          ))}
-        </div>
-        <button type="button" className="ungov-owasp-link" onClick={() => navigate("/owasp")}>
-          See the full OWASP mapping &rarr;
-        </button>
-      </section>
+function CommandBlock({ command, id, copied, onCopy }) {
+  const done = copied === id;
+  return (
+    <div className="ungov-code-block">
+      <code>{command}</code>
+      {/* The accessible name always starts with the visible text ("Copy" / "Copied!"). */}
+      <button
+        type="button"
+        className="pu-btn"
+        aria-label={`${done ? "Copied!" : "Copy"} command: ${command}`}
+        onClick={() => onCopy(command, id)}
+      >
+        {done ? "Copied!" : "Copy"}
+      </button>
+      {/* Always mounted so the change is announced. */}
+      <span className="ungov-sr-only" aria-live="polite">{done ? `Copied command to clipboard: ${command}` : ""}</span>
     </div>
+  );
+}
+
+// Recent Transfers widget — polls /api/transactions/my and badges each row by
+// clientType. This is the live proof: an ungoverned session-riding transfer
+// shows the same amber "Direct user session" badge as the human typing.
+function RecentTransfersWidget() {
+  const [rows, setRows] = useState([]);
+  const [status, setStatus] = useState("loading"); // loading | ok | unauth | error
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [inflight, setInflight] = useState(false);
+  const timerRef = useRef(null);
+  // Every load takes a number; only the newest one may write state, so an older response
+  // (slow poll vs. a later reload) can never overwrite a newer one. Unmount bumps it too.
+  const latestRef = useRef(0);
+
+  const load = useCallback(async () => {
+    const mine = ++latestRef.current;
+    const current = () => mine === latestRef.current;
+    setInflight(true);
+    try {
+      const res = await fetch("/api/transactions/my", { credentials: "include" });
+      if (!current()) return;
+      if (res.status === 401 || res.status === 403) {
+        setStatus("unauth");
+        setRows([]);
+        setUpdatedAt(null);
+        setInflight(false);
+        return;
+      }
+      if (!res.ok) {
+        setStatus("error");
+        setUpdatedAt(null);
+        setInflight(false);
+        return;
+      }
+      const data = await res.json();
+      if (!current()) return;
+      const list = Array.isArray(data.transactions) ? data.transactions : [];
+      // Newest first; cap at 10.
+      const sorted = [...list].sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      );
+      setRows(sorted.slice(0, 10));
+      setStatus("ok");
+      setUpdatedAt(new Date());
+      setInflight(false);
+    } catch {
+      if (!current()) return;
+      setStatus("error");
+      setUpdatedAt(null);
+      setInflight(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      load();
+    };
+    tick();
+    timerRef.current = setInterval(tick, 5 * 60 * 1000);
+    return () => {
+      clearInterval(timerRef.current);
+      latestRef.current += 1;
+    };
+  }, [load]);
+
+  // Reload is ignored while one is in flight. aria-disabled (not disabled) keeps keyboard focus on the
+  // button. Signed out, the button is "Sign in", which is never blocked by a background poll.
+  const busy = inflight && status !== "unauth";
+  const refreshing = busy && status !== "loading";
+
+  return (
+    <Card tone="live" title="Recent transfers" data-testid="ungov-recent-transfers">
+      <p className="pu-status-line">
+        <StatusChip tone="info">Live read</StatusChip>
+        <span>
+          Your stored transactions, polled from <code>/api/transactions/my</code> every 5 min
+        </span>
+        <span className="ungov-row__time pu-mono" role="status">
+          {refreshing ? "Refreshing…" : updatedAt ? `Updated ${formatDateTime(updatedAt)}` : ""}
+        </span>
+      </p>
+
+      {status === "unauth" && (
+        <p className="pu-empty pu-note">
+          Sign in as a bank customer to see live transfers. The seeded demo
+          customer (<code>john.doe</code>) is the account the sidecar and OpenCLI
+          drive.
+        </p>
+      )}
+      {status === "error" && (
+        <p className="pu-empty pu-note" role="status">Couldn't load transfers. Is the API up?</p>
+      )}
+      {status === "loading" && <p className="pu-empty pu-note"><InlineSpinner label="Loading…" /></p>}
+      {status === "ok" && rows.length === 0 && (
+        <p className="pu-empty pu-note">No transactions yet. Run a transfer to populate this list.</p>
+      )}
+
+      {status === "ok" && rows.length > 0 && (
+        <ul className="ungov-list" aria-label="Recent transfers, newest first">
+          {rows.map((t) => {
+            const agent = t.clientType === "ai_agent";
+            return (
+              <li key={t.id} className="ungov-row">
+                <span className="ungov-row__main">
+                  <span className="ungov-row__type">{t.type}</span>
+                  <span className="ungov-row__amount">{formatCurrency(Number(t.amount))}</span>
+                  <span className="ungov-row__desc">{t.description}</span>
+                </span>
+                <span className="ungov-row__meta">
+                  <span className="ungov-row__time pu-mono">{formatDateTime(t.createdAt)}</span>
+                  <StatusChip tone={agent ? "ok" : "warn"}>
+                    {agent ? "Governed agent (act-as chain)" : "Direct user session"}
+                  </StatusChip>
+                  {agent && t.actorSub ? (
+                    <span className="ungov-row__actor pu-mono">acting as {t.actorSub}</span>
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {/* One element for every state, so the one primary keeps keyboard focus when its label changes. */}
+      <div className="pu-actions">
+        <button
+          type="button"
+          className="pu-btn pu-btn--primary"
+          aria-disabled={busy ? "true" : undefined}
+          onClick={status === "unauth" ? () => navigateToCustomerOAuthLogin('/ungoverned-agent') : () => { if (!busy) load(); }}
+        >
+          {status === "unauth" ? "Sign in" : "Refresh"}
+        </button>
+      </div>
+    </Card>
   );
 }

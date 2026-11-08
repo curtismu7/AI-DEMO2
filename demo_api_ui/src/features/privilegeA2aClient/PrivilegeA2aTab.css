@@ -250,22 +250,37 @@
 }
 
 .a2a-page .privilege-a2a__actions {
+  position: relative;
   justify-content: flex-end;
   align-items: center;
 }
 
-/* Calls picker: opens upward over the question box. */
+/* Send question stays focusable while a run is in flight or the box is empty (a disabled button drops keyboard focus
+   to the page body); the click is ignored in the handler. Same look as the disabled primary in ping-ui.css. */
+.a2a-page button.pu-btn.pu-btn--primary[aria-disabled='true'] {
+  opacity: 0.88;
+  cursor: not-allowed;
+}
+
+/* An aria-disabled primary does not react to hover: keep the resting gradient and edge (ping-ui.css only excludes :disabled). */
+.a2a-page button.pu-btn.pu-btn--primary[aria-disabled='true']:hover:not(:disabled) {
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+}
+
+/* Calls picker: opens upward over the question box. It is anchored to the actions row (not to the Calls button, which sits
+   mid-row once the row wraps) and never wider than that row, so it stays inside the card, and the card inside the viewport,
+   at 375px. */
 .a2a-page .privilege-a2a__calls {
-  position: relative;
   display: inline-block;
 }
 
 .a2a-page .privilege-a2a__calls-menu {
   position: absolute;
-  left: 0;
+  right: 0;
   bottom: 100%;
   z-index: 30;
-  width: min(460px, 80vw);
+  width: min(460px, 100%);
   max-height: 320px;
   margin: 0 0 6px;
   padding: 6px;
@@ -665,9 +680,10 @@ body.privilege-a2a-route > .banking-agent-float-root {
   }
 }
 
+/* On a narrow tab the Calls list is narrower still; the 100% cap keeps it inside the row at any width. */
 @container pa2a (max-width: 640px) {
   .a2a-page .privilege-a2a__calls-menu {
-    width: min(320px, 78vw);
+    width: min(320px, 100%);
   }
 }
 

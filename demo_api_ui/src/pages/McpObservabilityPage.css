@@ -1,165 +1,325 @@
-.mcp-observability-page {
-  --mcp-ink: var(--th-text, #17202b);
-  --mcp-muted: var(--th-text-body, #526170);
-  --mcp-quiet: var(--th-text-muted, #748293);
-  --mcp-ground: var(--th-bg-card, #ffffff);
-  --mcp-inset: var(--th-bg-inset, #f5f7fa);
-  --mcp-border: var(--th-border, #d8dee6);
-  --mcp-strong-border: var(--th-border-strong, #aab6c3);
-  --mcp-cyan: #12538d;
-  --mcp-blue: #4771b8;
-  --mcp-amber: #9a5f10;
-  --mcp-red: #b23b38;
-  --mcp-green: #16734c;
-  max-width: 1480px;
-  margin: 0 auto;
-  padding: 24px 26px 42px;
-  color: var(--mcp-ink);
+/* MCP observability page: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only
+   (H1), type comes from the --font-size-* scale (H2). The only inline styles are the data-driven
+   bar heights and hop widths (geometry, not colour). */
+
+/* Header actions sit in the dark band: the live chip and the buttons wrap under the title at phone width. */
+.mcp-observability-header-actions {
+  justify-content: flex-end;
+  margin-top: 0;
 }
 
-:root[data-theme="dark"] .mcp-observability-page {
-  --mcp-ink: #e9edf2;
-  --mcp-muted: #ffffff;
-  --mcp-quiet: #8490a0;
-  --mcp-ground: #111d29;
-  --mcp-inset: #0d1822;
-  --mcp-border: #2b3b4b;
-  --mcp-strong-border: #53677a;
-  --mcp-cyan: #12538d;
-  --mcp-blue: #82a9f7;
-  --mcp-amber: #e8b064;
-  --mcp-red: #ec7c77;
-  --mcp-green: #6bd3a4;
+.mcp-observability-error {
+  margin: 16px 0 0;
+  padding: 10px 13px;
+  border: 1px solid var(--th-status-error);
+  border-radius: var(--radius-lg);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-body);
 }
 
-.mcp-observability-header,
-.mcp-observability-header-actions,
-.mcp-observability-section-title,
-.mcp-observability-panel-head,
-.mcp-observability-trace-head,
-.mcp-observability-trace-foot,
-.mcp-observability-live,
-.mcp-observability-server,
-.mcp-observability-tool-name {
+/* Visually hidden live region for the manual-refresh result. */
+.mcp-observability-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mcp-observability-metric__value {
+  margin: 0 0 6px;
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.03em;
+}
+
+.mcp-observability-detail {
+  display: block;
+  margin-top: 2px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+}
+
+/* Traffic health: chart beside the server list, stacked at tablet width. */
+.mcp-observability-health-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.mcp-observability-bars {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  gap: 6px;
+  height: 140px;
+  border-bottom: 1px solid var(--th-border-strong);
 }
 
-.mcp-observability-header-actions { gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
-.mcp-observability-live { gap: 8px; color: var(--mcp-green); font-size: var(--font-size-2xs); font-family: var(--font-mono); }
-.mcp-observability-button { display: inline-block; border: 1px solid var(--mcp-strong-border); border-radius: var(--btn-radius); background: var(--mcp-ground); color: var(--mcp-ink); cursor: pointer; padding: 7px 11px; font-size: var(--font-size-sm); text-decoration: none; }
-.mcp-observability-button:hover { background: var(--mcp-inset); }
-.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: #ffffff; font-weight: var(--btn-weight); }
+.mcp-observability-bar {
+  min-width: 8px;
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  background: var(--th-text-muted);
+}
 
-.mcp-observability-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--mcp-quiet); }
-.mcp-observability-dot--healthy,
-.mcp-observability-dot--success { background: var(--mcp-green); }
-.mcp-observability-dot--warning,
-.mcp-observability-dot--pending { background: var(--mcp-amber); }
-.mcp-observability-dot--denied,
-.mcp-observability-dot--failure,
-.mcp-observability-dot--unavailable { background: var(--mcp-red); }
+.mcp-observability-bar--ok {
+  background: var(--th-status-success);
+}
 
-.mcp-observability-error { margin-bottom: 16px; border: 1px solid var(--mcp-red); border-radius: var(--radius-md); background: color-mix(in srgb, var(--mcp-red) 10%, var(--mcp-ground)); color: var(--mcp-red); padding: 10px 13px; font-size: var(--font-size-body); }
-.mcp-observability-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.mcp-observability-metric { position: relative; min-height: 113px; overflow: hidden; border: 1px solid var(--mcp-border); border-radius: var(--radius-lg); background: var(--mcp-ground); padding: 15px 16px 13px; }
-.mcp-observability-metric::after { content: ""; position: absolute; right: -24px; bottom: -33px; width: 98px; height: 98px; border: 1px solid var(--mcp-border); transform: rotate(45deg); opacity: .6; }
-.mcp-observability-metric__label { display: block; color: var(--mcp-muted); font-size: var(--font-size-sm); }
-.mcp-observability-metric strong { display: block; margin: 11px 0 6px; color: var(--mcp-ink); font-family: var(--font-mono); font-size: var(--font-size-xl); letter-spacing: -0.05em; }
-.mcp-observability-metric small { color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-metric small::first-letter { color: var(--mcp-green); }
-.mcp-observability-metric.cyan strong { color: var(--mcp-cyan); }
-.mcp-observability-metric.warn strong { color: var(--mcp-amber); }
-.mcp-observability-metric.danger strong { color: var(--mcp-red); }
+.mcp-observability-bar--warn {
+  background: var(--th-status-warning);
+}
 
-.mcp-observability-section-title { justify-content: space-between; margin: 22px 0 10px; }
-.mcp-observability-section-title h2 { margin: 0; color: var(--mcp-ink); font-size: var(--font-size-lg); font-weight: 700; }
-.mcp-observability-section-title span { color: var(--mcp-quiet); font-family: var(--font-mono); font-size: var(--font-size-2xs); }
-.mcp-observability-health-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .8fr); gap: 11px; }
-.mcp-observability-panel { overflow: hidden; border: 1px solid var(--mcp-border); border-radius: var(--radius-lg); background: var(--mcp-ground); }
-.mcp-observability-panel-head { justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--mcp-border); padding: 13px 15px; }
-.mcp-observability-panel-head strong { color: var(--mcp-ink); font-size: var(--font-size-sm); }
-.mcp-observability-panel-head span { color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-chart-panel { min-height: 218px; }
-.mcp-observability-bars { display: flex; align-items: end; gap: 7px; height: 151px; margin: 16px 16px 0; border-bottom: 1px solid var(--mcp-border); background: repeating-linear-gradient(to bottom, transparent 0, transparent 36px, color-mix(in srgb, var(--mcp-border) 65%, transparent) 37px, transparent 38px); }
-.mcp-observability-bars span { min-width: 8px; flex: 1; border-radius: 2px 2px 0 0; background: var(--mcp-cyan); opacity: .82; }
-.mcp-observability-bars span.failed { background: var(--mcp-amber); }
-.mcp-observability-bars span.denied { background: var(--mcp-red); }
-.mcp-observability-chart-caption { display: flex; justify-content: space-between; padding: 8px 16px; color: var(--mcp-quiet); font: var(--font-size-3xs) var(--font-mono, var(--font-primary)); }
-.mcp-observability-server-list { padding: 3px 15px 7px; }
-.mcp-observability-server { gap: 10px; border-bottom: 1px solid var(--mcp-border); padding: 12px 0; }
-.mcp-observability-server:last-child { border-bottom: 0; }
-.mcp-observability-server > div { min-width: 0; flex: 1; }
-.mcp-observability-server strong { display: block; color: var(--mcp-ink); font-size: var(--font-size-sm); }
-.mcp-observability-server small { display: block; margin-top: 3px; color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-server > span:last-child { color: var(--mcp-muted); font-size: var(--font-size-2xs); }
+.mcp-observability-bar--danger {
+  background: var(--th-status-error);
+}
 
-.mcp-observability-explorer-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, .78fr); min-height: 365px; }
-.mcp-observability-request-list { border-right: 1px solid var(--mcp-border); }
-.mcp-observability-filterbar { display: flex; gap: 7px; border-bottom: 1px solid var(--mcp-border); padding: 10px 12px; }
-.mcp-observability-filterbar input,
-.mcp-observability-filterbar select { min-width: 0; border: 1px solid var(--mcp-strong-border); border-radius: var(--radius-sm); background: var(--mcp-inset); color: var(--mcp-ink); padding: 7px 9px; font-size: var(--font-size-2xs); }
-.mcp-observability-filterbar input { flex: 1; }
-.mcp-observability-request { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: start; gap: 9px; width: 100%; border: 0; border-bottom: 1px solid var(--mcp-border); background: transparent; color: var(--mcp-ink); cursor: pointer; padding: 12px 14px; text-align: left; }
+.mcp-observability-chart-caption {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0 10px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-family: var(--font-mono);
+}
+
+/* Request explorer: list beside the trace, stacked at tablet width. */
+.mcp-observability-explorer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.mcp-observability-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mcp-observability-filterbar input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.mcp-observability-filterbar select {
+  flex: 0 1 160px;
+  width: auto;
+}
+
+.mcp-observability-requests {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* Each request is a real button (Tab, then Enter or Space); aria-current marks the open trace. */
+.mcp-observability-request {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--th-border-strong);
+  background: transparent;
+  color: var(--th-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .mcp-observability-request:hover,
-.mcp-observability-request.selected { background: color-mix(in srgb, var(--mcp-cyan) 8%, var(--mcp-ground)); }
-.mcp-observability-request.selected { box-shadow: inset 2px 0 var(--mcp-cyan); }
-.mcp-observability-request > span:nth-child(2) { min-width: 0; }
-.mcp-observability-request strong { display: block; overflow: hidden; color: var(--mcp-ink); font: var(--font-size-sm) var(--font-mono, var(--font-primary)); text-overflow: ellipsis; white-space: nowrap; }
-.mcp-observability-request small { display: block; overflow: hidden; margin-top: 4px; color: var(--mcp-muted); font-size: var(--font-size-2xs); text-overflow: ellipsis; white-space: nowrap; }
-.mcp-observability-request time { color: var(--mcp-quiet); font: var(--font-size-2xs) var(--font-mono, var(--font-primary)); }
-.mcp-observability-trace { background: var(--mcp-inset); }
-.mcp-observability-trace-head { justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--mcp-border); padding: 14px 15px 13px; }
-.mcp-observability-trace-id { color: var(--mcp-cyan); font: var(--font-size-2xs) var(--font-mono, var(--font-primary)); }
-.mcp-observability-trace h3 { margin: 10px 0 4px; color: var(--mcp-ink); font: 700 var(--font-size-lg) var(--font-mono, var(--font-primary)); }
-.mcp-observability-trace p { margin: 0; color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-status { border: 1px solid var(--mcp-green); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--mcp-green) 12%, var(--mcp-ground)); color: var(--mcp-green); padding: 5px 7px; font: var(--font-size-3xs) var(--font-mono, var(--font-primary)); }
-.mcp-observability-status--denied { border-color: var(--mcp-red); background: color-mix(in srgb, var(--mcp-red) 12%, var(--mcp-ground)); color: var(--mcp-red); }
-.mcp-observability-status--pending { border-color: var(--mcp-amber); background: color-mix(in srgb, var(--mcp-amber) 12%, var(--mcp-ground)); color: var(--mcp-amber); }
-.mcp-observability-waterfall { padding: 16px 15px 11px; }
-.mcp-observability-hop { display: grid; grid-template-columns: 105px minmax(0, 1fr) 43px; align-items: center; gap: 8px; min-height: 34px; }
-.mcp-observability-hop > span { color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-hop i { display: block; height: 12px; border-radius: 2px; background: var(--mcp-cyan); }
-.mcp-observability-hop i.auth { background: var(--mcp-amber); }
-.mcp-observability-hop i.policy { background: var(--mcp-blue); }
-.mcp-observability-hop i.backend { background: var(--mcp-green); }
-.mcp-observability-hop b { color: var(--mcp-quiet); font: var(--font-size-3xs) var(--font-mono, var(--font-primary)); text-align: right; }
-.mcp-observability-trace-loading { color: var(--mcp-muted); font-size: var(--font-size-sm); padding: 18px 0; }
-.mcp-observability-trace-foot { justify-content: space-between; gap: 12px; border-top: 1px solid var(--mcp-border); padding: 12px 15px 14px; color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-trace-foot b { color: var(--mcp-ink); font: var(--font-size-2xs) var(--font-mono, var(--font-primary)); font-weight: 500; }
-.mcp-observability-empty { color: var(--mcp-muted); padding: 24px 16px; font-size: var(--font-size-sm); }
+.mcp-observability-request[aria-current='true'] {
+  background: var(--th-bg-inset);
+}
 
-.mcp-observability-table-wrap { overflow-x: auto; }
-.mcp-observability-table-wrap table { width: 100%; border-collapse: collapse; }
-.mcp-observability-table-wrap th,
-.mcp-observability-table-wrap td { border-bottom: 1px solid var(--mcp-border); padding: 12px 14px; text-align: left; white-space: nowrap; }
-.mcp-observability-table-wrap th { color: var(--mcp-quiet); font-size: var(--font-size-2xs); font-weight: 600; }
-.mcp-observability-table-wrap td { color: var(--mcp-muted); font: var(--font-size-2xs) var(--font-mono, var(--font-primary)); }
-.mcp-observability-table-wrap td:first-child { color: var(--mcp-ink); font-family: var(--font-primary); font-weight: 600; }
-.mcp-observability-table-wrap tr:last-child td { border-bottom: 0; }
-.mcp-observability-tool-name { gap: 8px; }
-.mcp-observability-table-wrap .good { color: var(--mcp-green); }
-.mcp-observability-table-wrap .bad { color: var(--mcp-red); }
-.mcp-observability-table-wrap .caution { color: var(--mcp-amber); }
+.mcp-observability-request[aria-current='true'] {
+  box-shadow: inset 4px 0 var(--btn-accent);
+}
 
-@media (max-width: 980px) {
-  .mcp-observability-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mcp-observability-request:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: -3px;
+}
+
+.mcp-observability-request__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.mcp-observability-request strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.mcp-observability-request small {
+  display: block;
+  margin-top: 4px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+}
+
+.mcp-observability-request__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.mcp-observability-request time {
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+}
+
+.mcp-observability-trace {
+  min-width: 0;
+}
+
+.mcp-observability-waterfall {
+  margin-top: 8px;
+}
+
+.mcp-observability-hop {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.mcp-observability-hop > span {
+  overflow-wrap: anywhere;
+  color: var(--th-text-body);
+  font-size: var(--font-size-2xs);
+}
+
+.mcp-observability-hop i {
+  display: block;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--th-status-info);
+}
+
+.mcp-observability-hop b {
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  text-align: right;
+}
+
+/* Tool table: scrolls inside its own wrapper when wide, stacks as labelled rows at phone width. */
+.mcp-observability-table-wrap {
+  overflow-x: auto;
+}
+
+.mcp-observability-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.mcp-observability-table th,
+.mcp-observability-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--th-border-strong);
+  color: var(--th-text);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.mcp-observability-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mcp-observability-table td.mcp-observability-tool-name {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.mcp-observability-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 900px) {
   .mcp-observability-health-grid,
-  .mcp-observability-explorer-grid { grid-template-columns: 1fr; }
-  .mcp-observability-request-list { border-right: 0; border-bottom: 1px solid var(--mcp-border); }
+  .mcp-observability-explorer-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-@media (max-width: 620px) {
-  .mcp-observability-page { padding: 18px 14px 30px; }
-  .mcp-observability-header-actions { justify-content: flex-start; margin-top: 14px; }
-  .mcp-observability-metrics { gap: 7px; }
-  .mcp-observability-metric { min-height: 100px; padding: 12px; }
-  .mcp-observability-metric strong { font-size: var(--font-size-lg); }
-  .mcp-observability-filterbar { flex-wrap: wrap; }
-  .mcp-observability-filterbar input { flex-basis: 100%; }
-  .mcp-observability-filterbar select { flex: 1; }
-}
+@media (max-width: 600px) {
+  .mcp-observability-header-actions {
+    justify-content: flex-start;
+    margin-top: 14px;
+  }
 
-.ping-page-header .mcp-observability-live {
-  color: #ffffff;
+  /* The request row stacks: the tool name keeps the full width, the outcome chip and time sit under it. */
+  .mcp-observability-request {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mcp-observability-request__side {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mcp-observability-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .mcp-observability-table,
+  .mcp-observability-table tbody,
+  .mcp-observability-table tr,
+  .mcp-observability-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .mcp-observability-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .mcp-observability-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .mcp-observability-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
