@@ -58,6 +58,7 @@ const SECTIONS = [
       { title: "SaaS Access Management", text: "JIT, time-bound access with a receipt per grant and drift detection.", isNew: true, to: "/privilege-saas-access" },
       { title: "Prompt Logging, encrypted to you", text: "Sealed prompt records opened only with your private key, in the browser.", isNew: true, to: "/privilege-prompt-log" },
       { title: "Personal data detection", text: "PII from 5 kinds to 23, checksum-validated, with the graduated response.", isNew: true, to: "/privilege-pii-detection" },
+      { title: "Privilege Logging Lab", text: "Drive each gateway use case and see what gets logged: user, agent, tool and policy decision, scored. Standalone Docker app (port 7801), Mock and Real.", isNew: true, href: "https://github.com/curtismu7/privilege-logging-LAB" },
     ],
   },
   {

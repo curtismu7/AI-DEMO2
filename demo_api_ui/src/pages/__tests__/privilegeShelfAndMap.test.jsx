@@ -34,6 +34,13 @@ describe("PrivilegeShelfPage", () => {
     }
   });
 
+  it("lists the Privilege Logging Lab, linking its repository in a new tab", () => {
+    renderAt(<PrivilegeShelfPage />);
+    const a = screen.getByRole("link", { name: /Privilege Logging Lab/ });
+    expect(a.getAttribute("href")).toBe("https://github.com/curtismu7/privilege-logging-LAB");
+    expect(a.getAttribute("target")).toBe("_blank");
+  });
+
   it("links the privilege-map GitHub repository in a new tab", () => {
     renderAt(<PrivilegeShelfPage />);
     const a = screen.getByRole("link", { name: /privilege-map on GitHub/ });
