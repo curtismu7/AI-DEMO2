@@ -5,6 +5,7 @@
 /privilege-map
 /privilege-coding-agents
 /privilege-pii-detection
+/agent-lifecycle
 /privilege-demo
 /privilege-intent-triage
 /privilege-prompt-log

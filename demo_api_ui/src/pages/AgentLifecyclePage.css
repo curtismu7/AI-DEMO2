@@ -1,178 +1,113 @@
-/* Document-flow height (not 100vh): a viewport-tall wrap overflowed under
-   .footer (z-index 10) and .topnav, so slot buttons looked clickable but
-   pointer events hit the chrome instead. Themed with --th-* per THEMING.md —
-   the monochrome ink/ground design inverts consistently in dark mode since
-   "button" and "active state" are literally --th-text on --th-bg-page. */
-.alp-wrap {
-  padding: 48px 24px 80px;
-  background: var(--th-bg-page);
-  color: var(--th-text);
-  font-family: var(--font-primary);
+/* /agent-lifecycle: only what the shared Ping UI primitives (styles/ping-ui.css) do not cover. Surfaces, cards,
+   chips, key-value lists and buttons all come from .pu-*; colours are --th-* tokens, never a vertical colour. */
+
+/* Steps on the left, the token-chain rail on the right; stacks below ~900px. */
+.alp-page .alp-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
 }
-.alp-title {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
+.alp-page .alp-slots {
+  flex: 1 1 420px;
+  min-width: 0;
 }
-.alp-subtitle {
-  color: var(--th-text-muted);
-  margin-bottom: 40px;
-  font-size: var(--font-size-base);
-}
-.alp-theme-toggle {
-  display: block;
-  margin: 0 0 16px auto;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  cursor: pointer;
-}
-.alp-theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-.alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; }
-.alp-slots { flex: 1 1 auto; min-width: 0; }
-.alp-run-layout {
-  flex: 0 1 520px;
-  min-width: 320px;
+.alp-page .alp-run-layout {
+  flex: 0 1 460px;
+  min-width: min(100%, 320px);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 16px;
   position: sticky;
   top: 24px;
 }
-.alp-agent-host { overflow: visible; }
-.alp-rail-host { min-width: 0; }
-.alp-slot {
-  border-top: 1px solid var(--th-text);
-  padding: 32px 0;
-  margin-bottom: 0;
+.alp-page .alp-agent-host { overflow: visible; }
+.alp-page .alp-rail-host { min-width: 0; }
+
+.alp-page .alp-video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 8px;
 }
-.alp-slot__title {
-  font-size: var(--font-size-base);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-.alp-slot__desc { color: var(--th-text-muted); margin-bottom: 16px; font-size: var(--font-size-body); line-height: 1.5; }
-.alp-slot__status { margin-top: 14px; font-size: var(--font-size-body); }
-.alp-video { width: 100%; display: block; }
-.alp-btn {
-  background: var(--th-text);
-  color: var(--th-bg-page);
-  border: none;
-  padding: 14px 28px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--btn-weight);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.alp-btn:disabled {
-  background: var(--th-text-faint);
-  color: var(--th-bg-page);
-  cursor: not-allowed;
-}
-.alp-result {
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  padding: 16px;
-  overflow-x: auto;
-  font-size: var(--font-size-sm);
-  margin-top: 16px;
-}
-.alp-error { color: var(--th-status-error-text); margin-top: 10px; font-size: var(--font-size-body); }
-.alp-audit-link {
-  display: inline-block;
-  margin-top: 16px;
-  color: var(--th-text);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+
+.alp-page .alp-link {
+  color: var(--th-status-info-text);
+  font-weight: var(--font-weight-semibold);
   text-decoration: underline;
 }
-.alp-view-toggle {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  margin-bottom: 16px;
+.alp-page .alp-link:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
-.alp-view-btn {
+
+/* A busy button stays focusable (aria-disabled) so keyboard focus is not dropped; it just looks inert. */
+.alp-page .pu-btn[aria-disabled="true"] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+/* Selected view toggle: heavier edge and an inset ground, never a fill colour. */
+.alp-page .alp-toggle[aria-pressed="true"] {
   background: var(--th-bg-inset);
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
-  padding: 8px 16px;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
-}
-.alp-view-btn:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-.alp-view-btn--active {
-  background: var(--th-text);
-  color: var(--th-bg-page);
   border-color: var(--th-text);
+  font-weight: var(--font-weight-bold);
 }
-.alp-form-container {
-  margin-top: 16px;
+.alp-page .alp-toggle[aria-pressed="true"]::before {
+  content: "\2713\00a0";
+}
+
+.alp-page .alp-orders {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  margin-top: 12px;
 }
-.alp-form-empty {
-  background: var(--th-bg-inset);
-  padding: 24px;
-  text-align: center;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-body);
-  margin-top: 16px;
-}
-.alp-form-card {
+.alp-page .alp-order {
+  padding: 8px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
+}
+.alp-page .alp-order .pu-kv { margin: 0; }
+
+.alp-page .alp-result {
+  margin: 12px 0 0;
+  padding: 12px;
+  overflow-x: auto;
   border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
 }
-.alp-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-}
-.alp-form-field {
-  display: flex;
-  flex-direction: column;
-}
-.alp-form-label {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-  margin-bottom: 6px;
-}
-.alp-form-value {
+
+.alp-page .alp-status {
+  margin: 12px 0 0;
   font-size: var(--font-size-body);
   color: var(--th-text);
-  word-break: break-word;
-  padding: 8px;
-  background: var(--th-bg-card);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border);
-  min-height: 32px;
+  overflow-wrap: anywhere;
+}
+.alp-page .alp-waiting {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 10px;
+}
+.alp-page .alp-waiting > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.alp-page .alp-error {
+  margin: 12px 0 0;
+  font-size: var(--font-size-body);
+  color: var(--th-status-error-text);
+}
+
+@media (max-width: 900px) {
+  .alp-page .alp-run-layout {
+    position: static;
+    flex-basis: 100%;
+  }
 }

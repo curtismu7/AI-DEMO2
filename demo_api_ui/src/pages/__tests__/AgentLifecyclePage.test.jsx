@@ -49,10 +49,10 @@ describe('AgentLifecyclePage', () => {
     expect(screen.getByText(/A user registers a Banking Agent/i)).toBeInTheDocument();
     expect(screen.getByText(/one Banking Agent's full access lifecycle/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/1\. Register agent \+ scoped consent/),
+      screen.getByText(/Register agent \+ scoped consent/),
     ).toBeInTheDocument();
     const video = screen.getByLabelText(
-      'Agent registration and consent walkthrough',
+      'Agent registration and consent walkthrough (recording)',
     );
     expect(video).toHaveAttribute(
       'src',
@@ -102,7 +102,7 @@ describe('AgentLifecyclePage — Slot 2 scoped MCP call', () => {
     fireEvent.click(screen.getByText('Call list_orders as agent'));
     // Default view is Pretty Form (not raw JSON).
     await waitFor(() => expect(screen.getByText('o1')).toBeInTheDocument());
-    expect(screen.getByText('Pretty Form')).toHaveClass('alp-view-btn--active');
+    expect(screen.getByText('Pretty Form')).toHaveAttribute('aria-pressed', 'true');
     expect(callMcpTool).toHaveBeenCalledWith(
       'list_orders',
       {},
@@ -172,7 +172,7 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     fireEvent.click(screen.getByText('Checkout $600 headphones'));
 
     await waitFor(() =>
-      expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument(),
+      expect(screen.getByTestId('alp-checkout-status')).toHaveTextContent(/Waiting for approval/),
     );
 
     await vi.advanceTimersByTimeAsync(1000); // first poll: pending
@@ -234,7 +234,7 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     fireEvent.click(screen.getByText('Checkout $600 headphones'));
 
     await waitFor(() =>
-      expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument(),
+      expect(screen.getByTestId('alp-checkout-status')).toHaveTextContent(/Waiting for approval/),
     );
 
     // The original gateway challengeId must ride along on the CIBA initiate
@@ -310,7 +310,7 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     fireEvent.click(screen.getByText('Checkout $600 headphones'));
 
     await waitFor(() =>
-      expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument(),
+      expect(screen.getByTestId('alp-checkout-status')).toHaveTextContent(/Waiting for approval/),
     );
     expect(screen.queryByText('Checkout completed.')).not.toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
@@ -350,7 +350,7 @@ describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
     callMcpTool.mockRejectedValue(new Error('token revoked'));
     render(<AgentLifecyclePage />);
 
-    await waitFor(() => expect(screen.getByText('Revoke agent access')).toBeEnabled());
+    await waitFor(() => expect(screen.getByText('Revoke agent access')).not.toHaveAttribute('aria-disabled'));
     fireEvent.click(screen.getByText('Revoke agent access'));
     fireEvent.click(screen.getByText('ConfirmRevoke'));
 
@@ -380,7 +380,7 @@ describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
     });
     render(<AgentLifecyclePage />);
 
-    await waitFor(() => expect(screen.getByText('Revoke agent access')).toBeEnabled());
+    await waitFor(() => expect(screen.getByText('Revoke agent access')).not.toHaveAttribute('aria-disabled'));
     fireEvent.click(screen.getByText('Revoke agent access'));
     fireEvent.click(screen.getByText('ConfirmRevoke'));
 
