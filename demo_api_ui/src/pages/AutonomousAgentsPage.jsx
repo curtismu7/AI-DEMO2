@@ -81,6 +81,10 @@ export default function AutonomousAgentsPage() {
   const [openRunId, setOpenRunId] = useState(null);
   const [openRun, setOpenRun] = useState(null);
   const [busy, setBusy] = useState(false);
+  // The flag read failed (not "still checking"): shown as Unavailable with a Retry.
+  const [flagError, setFlagError] = useState(false);
+  // Which open() call is the latest. A slow response for an earlier row must not land under a later one.
+  const openSeq = useRef(0);
   // After a decision the Approve / Decline buttons leave the page; focus goes to the run's own row
   // button so a keyboard user is not dropped back to the top of the document.
   const [focusRunId, setFocusRunId] = useState(null);
@@ -102,21 +106,29 @@ export default function AutonomousAgentsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const flagCancelled = useRef(false);
+  const readFlag = useCallback(() => {
+    setFlagError(false);
     apiClient
       .get("/api/autonomous-runs/flag")
       .then((res) => {
-        if (cancelled) return;
+        if (flagCancelled.current) return;
         const on = Boolean(res.data?.enabled);
         setEnabled(on);
         if (on) loadRuns();
       })
       .catch(() => {
-        if (!cancelled) notifyError("Could not read the autonomous-agents setting");
+        if (flagCancelled.current) return;
+        setFlagError(true);
+        notifyError("Could not read the autonomous-agents setting");
       });
-    return () => { cancelled = true; };
   }, [loadRuns]);
+
+  useEffect(() => {
+    flagCancelled.current = false;
+    readFlag();
+    return () => { flagCancelled.current = true; };
+  }, [readFlag]);
 
   async function toggle() {
     if (busy || enabled === null) return;
@@ -128,7 +140,7 @@ export default function AutonomousAgentsPage() {
       setEnabled(on);
       notifySuccess(on ? "Autonomous agents on" : "Autonomous agents off");
       if (on) loadRuns();
-      else { setRuns([]); setOpenRunId(null); setOpenRun(null); }
+      else { openSeq.current += 1; setRuns([]); setOpenRunId(null); setOpenRun(null); }
     } catch {
       notifyError("Could not change the setting");
     } finally {
@@ -162,6 +174,7 @@ export default function AutonomousAgentsPage() {
 
   /** Expand a run: fetch the full record and replay its chain into the reel. */
   async function open(runId) {
+    const seq = ++openSeq.current;
     if (openRunId === runId) {
       setOpenRunId(null);
       setOpenRun(null);
@@ -171,6 +184,7 @@ export default function AutonomousAgentsPage() {
     setOpenRun(null);
     try {
       const res = await apiClient.get(`/api/autonomous-runs/${runId}`);
+      if (seq !== openSeq.current) return; // a later open() or close superseded this one
       const run = res.data?.run;
       setOpenRun(run);
       // Feeds the same store TokenChainFilmstrip subscribes to. Returns false
@@ -178,6 +192,7 @@ export default function AutonomousAgentsPage() {
       // and the detail below says so rather than rendering an empty one.
       replayUnattendedRun(run);
     } catch {
+      if (seq !== openSeq.current) return;
       notifyError("Could not load that run");
       setOpenRunId(null);
     }
@@ -197,7 +212,8 @@ export default function AutonomousAgentsPage() {
             : "The approval request had already expired",
       );
       await loadRuns();
-      setOpenRun(run);
+      // Only update the open record if this run is still the one on screen.
+      if (run) setOpenRun((cur) => (cur && cur.runId !== runId ? cur : run));
       setFocusRunId(runId);
     } catch {
       notifyError("Could not record that decision");
@@ -207,10 +223,10 @@ export default function AutonomousAgentsPage() {
   }
 
   // P9 (one primary per state, see the header comment).
-  const approvalShowing = Boolean(enabled && openRun && openRun.status === "parked");
-  const switchPrimary = enabled !== true;
+  const approvalShowing = Boolean(enabled && openRun && openRun.runId === openRunId && openRun.status === "parked");
+  const switchPrimary = enabled !== true && !flagError;
   const fraudPrimary = enabled === true && !approvalShowing;
-  const stateWord = enabled === null ? "Checking" : enabled ? "On" : "Off";
+  const stateWord = flagError ? "Unavailable" : enabled === null ? "Checking" : enabled ? "On" : "Off";
 
   return (
     <PingPage className="aap">
@@ -341,25 +357,34 @@ export default function AutonomousAgentsPage() {
             <div className="aap-toggle-row">
               <div>
                 <p className="pu-status-line">
-                  <StatusChip tone={enabled ? "warn" : "neutral"}>{stateWord}</StatusChip>
+                  <StatusChip tone={flagError ? "danger" : enabled ? "warn" : "neutral"}>{stateWord}</StatusChip>
                   <code>ff_autonomous_agents</code>
                 </p>
                 <p className="aap-sub">
-                  {enabled === null
+                  {flagError
+                    ? "Could not read the setting, so the switch is locked until it can be read. Try again."
+                    : enabled === null
                     ? "Checking the setting…"
                     : enabled
                       ? "On: the nightly jobs are scheduled and runs can be started."
                       : "Off: nothing is scheduled and no run can be started."}
                 </p>
               </div>
-              <ActionButton
-                emphasis={switchPrimary}
-                busy={busy || enabled === null}
-                onClick={toggle}
-                data-testid="aap-switch"
-              >
-                {enabled ? "Turn off" : "Turn on"}
-              </ActionButton>
+              <div className="pu-actions">
+                {flagError ? (
+                  <ActionButton emphasis onClick={readFlag} data-testid="aap-flag-retry">
+                    Retry
+                  </ActionButton>
+                ) : null}
+                <ActionButton
+                  emphasis={switchPrimary}
+                  busy={busy || enabled === null}
+                  onClick={toggle}
+                  data-testid="aap-switch"
+                >
+                  {enabled ? "Turn off" : "Turn on"}
+                </ActionButton>
+              </div>
             </div>
           </Card>
           {enabled === false ? (
@@ -404,6 +429,8 @@ export default function AutonomousAgentsPage() {
               <ul className="aap-list">
                 {runs.map((run) => {
                   const isOpen = openRunId === run.runId;
+                  // Render the record only under its own row (a stale record never shows under another).
+                  const shown = openRun && openRun.runId === run.runId ? openRun : null;
                   const tone = STATUS_TONE[run.status] || "neutral";
                   return (
                     <li key={run.runId}>
@@ -425,18 +452,18 @@ export default function AutonomousAgentsPage() {
 
                         {isOpen ? (
                           <div className="aap-detail" id={`aap-detail-${run.runId}`}>
-                            {!openRun ? (
+                            {!shown ? (
                               <p className="pu-empty pu-note"><InlineSpinner label="Loading the run…" /></p>
                             ) : (
                               <>
-                                <KvList items={runFacts(openRun)} />
+                                <KvList items={runFacts(shown)} />
 
-                                {openRun.identity && !openRun.identity.ownIdentity ? (
+                                {shown.identity && !shown.identity.ownIdentity ? (
                                   <Card tone="warn" title="No identity of its own" data-testid="aap-no-identity">
                                     <p className="pu-status-line"><StatusChip tone="warn">Did not run</StatusChip></p>
                                     <p className="aap-body">
                                       <strong>This agent has no identity of its own, so it did not run.</strong>{" "}
-                                      {openRun.identity.reason}. It deliberately does not borrow a shared
+                                      {shown.identity.reason}. It deliberately does not borrow a shared
                                       client: an agent acting under someone else&apos;s identity is the thing
                                       this demo exists to make visible. Configure its credentials and
                                       provision the registration, and the run proceeds.
@@ -444,11 +471,11 @@ export default function AutonomousAgentsPage() {
                                   </Card>
                                 ) : null}
 
-                                {openRun.findings?.length ? (
+                                {shown.findings?.length ? (
                                   <div className="aap-findings">
                                     <h3 className="pu-h3">Findings</h3>
                                     <ul className="aap-points">
-                                      {openRun.findings.map((f, i) => (
+                                      {shown.findings.map((f, i) => (
                                         <li key={f.transactionId || i}>
                                           {f.amount != null ? `${f.amount}` : ""}{" "}
                                           {f.description || f.fromName || f.transactionId}{" "}
@@ -460,28 +487,28 @@ export default function AutonomousAgentsPage() {
                                   </div>
                                 ) : null}
 
-                                {openRun.status === "parked" ? (
+                                {shown.status === "parked" ? (
                                   <Card tone="warn" title="Waiting on the account owner" data-testid="aap-parked">
                                     <p className="pu-status-line"><StatusChip tone="warn">Waiting on approval</StatusChip></p>
                                     <p className="aap-body">
                                       Over the standing mandate, so the agent cannot do this on its own.
-                                      A simulated CIBA request was raised for {openRun.pending?.loginHint}.
+                                      A simulated CIBA request was raised for {shown.pending?.loginHint}.
                                       It goes to a mock phone or email, not a real device, so Approve and
                                       Decline below stand in for the answer. Left unanswered, it lapses
-                                      after {Math.round((openRun.pending?.expiresIn || 300) / 60)} minutes.
+                                      after {Math.round((shown.pending?.expiresIn || 300) / 60)} minutes.
                                     </p>
                                     <div className="pu-actions">
                                       <ActionButton
                                         emphasis={approvalShowing}
                                         busy={busy}
-                                        onClick={() => decide(openRun.runId, "approve")}
+                                        onClick={() => decide(shown.runId, "approve")}
                                         data-testid="aap-approve"
                                       >
                                         Approve
                                       </ActionButton>
                                       <ActionButton
                                         busy={busy}
-                                        onClick={() => decide(openRun.runId, "deny")}
+                                        onClick={() => decide(shown.runId, "deny")}
                                         data-testid="aap-decline"
                                       >
                                         Decline
@@ -492,7 +519,7 @@ export default function AutonomousAgentsPage() {
 
                                 <div className="aap-reel">
                                   <h3 className="pu-h3">Token chain</h3>
-                                  {openRun.tokenEvents?.length ? (
+                                  {shown.tokenEvents?.length ? (
                                     <>
                                       <p className="aap-sub">
                                         The chain this run actually produced. The subject is the agent and

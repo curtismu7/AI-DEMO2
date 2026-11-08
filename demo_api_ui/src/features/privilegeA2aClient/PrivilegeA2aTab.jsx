@@ -139,6 +139,17 @@ export default function PrivilegeA2aTab() {
   const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
   const abortRef = useRef(null);
   const recordTimerRef = useRef(null);
+  // Keyboard focus. A control that disables itself or unmounts when pressed would drop focus to <body>, with the
+  // next Tab starting again at the top of the document. Buttons that go inert take aria-disabled (still focusable);
+  // where the pressed control is replaced, focus is sent to what replaces it, after the commit.
+  const focusRefs = useRef({});
+  const keepRef = (key) => (el) => { focusRefs.current[key] = el; };
+  const [focusTarget, setFocusTarget] = useState(null);
+  useEffect(() => {
+    if (!focusTarget) return;
+    focusRefs.current[focusTarget]?.focus();
+    setFocusTarget(null);
+  }, [focusTarget]);
 
   useEffect(() => () => {
     abortRef.current?.abort();
@@ -227,7 +238,7 @@ export default function PrivilegeA2aTab() {
     }
   };
 
-  const cancelRequest = () => abortRef.current?.abort();
+  const cancelRequest = () => { abortRef.current?.abort(); setFocusTarget('send'); };
 
   // Back to a blank page: stop a run in flight, drop its conversation, trace and gateway record, and clear the boxes. The agent mode stays.
   const resetPage = () => {
@@ -287,8 +298,8 @@ export default function PrivilegeA2aTab() {
               key={question}
               type="button"
               className="pu-btn privilege-a2a__chip"
-              onClick={() => submitQuestion(null, question)}
-              disabled={busy}
+              onClick={() => { if (busy) return; submitQuestion(null, question); setFocusTarget('conversation'); }}
+              aria-disabled={busy || undefined}
             >
               {question}
             </button>
@@ -350,16 +361,22 @@ export default function PrivilegeA2aTab() {
         <div className="privilege-a2a__workspace">
           <Card className="privilege-a2a__conversation" role="region" aria-labelledby="privilege-a2a-conversation-h">
             {!dockOpen && (
-              <button type="button" className="pu-btn privilege-a2a__dock-open" onClick={() => setDockOpen(true)} aria-label="Open the compact agent">Compact agent</button>
+              <button type="button" className="pu-btn privilege-a2a__dock-open" ref={keepRef('dockOpen')} onClick={() => { setDockOpen(true); setFocusTarget('dockText'); }} aria-label="Open the compact agent">Compact agent</button>
             )}
             {dockOpen && (
-              <div className="privilege-a2a__dock" role="dialog" aria-label="Compact agent">
+              <div
+                className="privilege-a2a__dock"
+                role="dialog"
+                aria-label="Compact agent"
+                onKeyDown={(event) => { if (event.key === 'Escape') { setDockOpen(false); setFocusTarget('dockOpen'); } }}
+              >
                 <div className="privilege-a2a__dock-bar">
                   <span>Compact agent</span>
-                  <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setDockOpen(false)} aria-label="Minimise the compact agent">−</button>
+                  <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => { setDockOpen(false); setFocusTarget('dockOpen'); }} aria-label="Minimise the compact agent">−</button>
                 </div>
                 <textarea
                   className="privilege-a2a__textarea"
+                  ref={keepRef('dockText')}
                   value={dockText}
                   onChange={(event) => setDockText(event.target.value)}
                   aria-label="Question for the compact agent"
@@ -369,23 +386,23 @@ export default function PrivilegeA2aTab() {
                 <button
                   type="button"
                   className="pu-btn privilege-a2a__dock-send"
-                  disabled={busy || !dockText.trim()}
-                  onClick={() => { const text = dockText.trim(); setDockText(''); submitQuestion(null, text); }}
+                  aria-disabled={busy || !dockText.trim() ? 'true' : undefined}
+                  onClick={() => { const text = dockText.trim(); if (busy || !text) return; setDockText(''); submitQuestion(null, text); }}
                 >
                   Send
                 </button>
               </div>
             )}
             <div className="privilege-a2a__head">
-              <h3 className="pu-h3" id="privilege-a2a-conversation-h">Conversation</h3>
+              <h3 className="pu-h3" id="privilege-a2a-conversation-h" tabIndex={-1} ref={keepRef('conversation')}>Conversation</h3>
               {/* The movie-reel / sequence view of this run: every hop, claim and gateway decision,
                   kept after the run ends (until the next run starts). It sits here, not by the trace: once a run
                   starts, the floating agent panel opens over the right-hand column. */}
               <button
                 type="button"
                 className="pu-btn privilege-a2a__sm"
-                onClick={() => window.dispatchEvent(new CustomEvent('agent-evidence-open', { detail: { view: 'sequence-view' } }))}
-                disabled={!busy && turns.length === 0}
+                onClick={() => { if (!busy && turns.length === 0) return; window.dispatchEvent(new CustomEvent('agent-evidence-open', { detail: { view: 'sequence-view' } })); }}
+                aria-disabled={!busy && turns.length === 0 ? 'true' : undefined}
                 title="Open the step-by-step sequence of this run, with details for each hop"
               >
                 Open run details
@@ -444,8 +461,8 @@ export default function PrivilegeA2aTab() {
                 <button
                   className="pu-btn"
                   type="button"
-                  onClick={resetPage}
-                  disabled={!busy && !turns.length && !trace.length && !error && !input}
+                  onClick={() => { if (!busy && !turns.length && !trace.length && !error && !input) return; resetPage(); }}
+                  aria-disabled={!busy && !turns.length && !trace.length && !error && !input ? 'true' : undefined}
                   title="Stop any run and clear the conversation, trace and question box"
                 >
                   Reset
@@ -468,7 +485,7 @@ export default function PrivilegeA2aTab() {
                     </ul>
                   )}
                 </div>
-                <button className="pu-btn pu-btn--primary" type="submit" aria-disabled={busy || !input.trim() ? 'true' : undefined}>
+                <button className="pu-btn pu-btn--primary" type="submit" ref={keepRef('send')} aria-disabled={busy || !input.trim() ? 'true' : undefined}>
                   {busy ? 'Reviewing…' : 'Send question'}
                 </button>
               </div>
@@ -535,9 +552,9 @@ export default function PrivilegeA2aTab() {
             <div className="privilege-a2a__reel-head">
               <h3 className="pu-h3">Agent trace</h3>
               <div className="privilege-a2a__reel-actions">
-                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => navigator.clipboard?.writeText(window.location.href)} disabled={trace.length === 0}>Copy link</button>
-                <button type="button" className="pu-btn privilege-a2a__sm" onClick={saveRun} disabled={trace.length === 0}>Save run</button>
-                <button type="button" className="pu-btn privilege-a2a__sm" onClick={replayRun} disabled={trace.length === 0 || replaying}>{replaying ? 'Replaying…' : 'Replay'}</button>
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => { if (trace.length) navigator.clipboard?.writeText(window.location.href); }} aria-disabled={trace.length === 0 ? 'true' : undefined}>Copy link</button>
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => { if (trace.length) saveRun(); }} aria-disabled={trace.length === 0 ? 'true' : undefined}>Save run</button>
+                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => { if (trace.length && !replaying) replayRun(); }} aria-disabled={trace.length === 0 || replaying ? 'true' : undefined}>{replaying ? 'Replaying…' : 'Replay'}</button>
               </div>
             </div>
             {trace.length > 0 && (() => {
@@ -636,16 +653,16 @@ export default function PrivilegeA2aTab() {
           <Card title="Guide">
             <div className="privilege-a2a__walk" aria-label="Walkthrough">
               {walkStep < 0 ? (
-                <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setWalkStep(0)}>Start walkthrough</button>
+                <button type="button" className="pu-btn privilege-a2a__sm" ref={keepRef('walkStart')} onClick={() => { setWalkStep(0); setFocusTarget('walkNext'); }}>Start walkthrough</button>
               ) : (
                 <>
                   <p><b>Step {walkStep + 1} of {WALK.length}.</b> {WALK[walkStep]}</p>
                   <div className="privilege-a2a__walk-nav">
-                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>Back</button>
-                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => (walkStep === WALK.length - 1 ? setWalkStep(-1) : setWalkStep((s) => s + 1))}>
+                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => { if (walkStep > 0) setWalkStep((s) => s - 1); }} aria-disabled={walkStep === 0 ? 'true' : undefined}>Back</button>
+                    <button type="button" className="pu-btn privilege-a2a__sm" ref={keepRef('walkNext')} onClick={() => { if (walkStep === WALK.length - 1) { setWalkStep(-1); setFocusTarget('walkStart'); } else setWalkStep((s) => s + 1); }}>
                       {walkStep === WALK.length - 1 ? 'Finish' : 'Next'}
                     </button>
-                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => setWalkStep(-1)}>Stop</button>
+                    <button type="button" className="pu-btn privilege-a2a__sm" onClick={() => { setWalkStep(-1); setFocusTarget('walkStart'); }}>Stop</button>
                   </div>
                 </>
               )}
@@ -653,8 +670,8 @@ export default function PrivilegeA2aTab() {
             <p className="pu-note">Try a case that stops. Each fills the question box; press Send question to run it.</p>
             <div className="privilege-a2a__breaks" role="group" aria-label="Try a case that stops">
               {BREAKS.map((item) => (
-                <button key={item.label} type="button" className="pu-btn privilege-a2a__sm privilege-a2a__break" disabled={busy}
-                  onClick={() => { setInput(item.question); setSelectedQuestion(''); }}>
+                <button key={item.label} type="button" className="pu-btn privilege-a2a__sm privilege-a2a__break" aria-disabled={busy || undefined}
+                  onClick={() => { if (busy) return; setInput(item.question); setSelectedQuestion(''); }}>
                   {item.label}
                 </button>
               ))}
