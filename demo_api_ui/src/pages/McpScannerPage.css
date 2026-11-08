@@ -1,17 +1,8 @@
-/* MCP Metadata Scanner (/mcp-scanner). Themed via --th-* (both modes, dark is
-   data-theme="dark" only); every rule with a --th background sets a --th color on
-   its own line (THEMING §1.5 ratchet); code uses var(--font-mono), never a literal
-   family. Font sizes from the scale. */
+/* MCP Content Scanner (/mcp-scanner): only what is specific to this page. The banner, frame, cards, key-value
+   lists, chips and buttons are the shared Ping UI primitives (src/styles/ping-ui.css,
+   docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only, type comes from the --font-size-* scale,
+   code uses var(--font-mono), no inline styles. */
 
-.mcps-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 32px 20px 64px;
-  color: var(--th-text);
-  font-family: var(--font-primary);
-}
-
-.mcps-hero { margin-bottom: 28px; }
 .mcps-code {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
@@ -21,47 +12,10 @@
   border-radius: var(--radius-sm, 5px);
 }
 
-.mcps-panel {
-  padding: 20px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md, 10px);
-}
-
-.mcps-run-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.mcps-run-hint { font-size: var(--font-size-xs); color: var(--th-text-muted); }
-
-.mcps-btn {
-  font-family: var(--font-primary);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  padding: 9px 16px;
-  cursor: pointer;
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm, 6px);
-}
-.mcps-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.mcps-btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
-.mcps-btn-primary {
-  background: var(--th-status-info-solid);
-  color: var(--th-text-invert);
-  border-color: var(--th-status-info);
-}
-
-.mcps-custom { margin-top: 18px; }
-.mcps-summary {
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--th-status-info-text);
-}
-.mcps-textarea {
+.mcps-page .mcps-textarea {
   display: block;
   width: 100%;
-  margin: 12px 0;
+  margin: 8px 0;
   padding: 12px;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
@@ -69,60 +23,31 @@
   resize: vertical;
   background: var(--th-code-bg);
   color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+}
+.mcps-page .mcps-textarea:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
-.mcps-error {
-  margin: 20px 0 0;
-  padding: 12px 16px;
-  font-size: var(--font-size-sm);
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-  border: 1px solid var(--th-status-error, var(--th-border));
-  border-radius: var(--radius-sm, 6px);
+/* A finding list: the list is the card grid, each item holds one card. */
+.mcps-page .mcps-findings {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
 }
-
-.mcps-results { margin-top: 24px; }
-.mcps-scanned {
-  margin: 0 0 12px;
+.mcps-page .mcps-findings > li > .pu-card { margin: 0; }
+.mcps-page .mcps-findings .pu-h3 { margin: 0; overflow-wrap: anywhere; }
+.mcps-page .mcps-detail {
+  margin-top: 6px;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
+  overflow-wrap: anywhere;
 }
 
-.mcps-clean {
-  padding: 16px 18px;
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-  border: 1px solid var(--th-status-success, var(--th-border));
-  border-radius: var(--radius-md, 10px);
+/* The app body leaves line-height at "normal", which reads cramped in a card. */
+.mcps-page .pu-card,
+.mcps-page .pu-empty {
+  line-height: var(--line-height-normal);
 }
-
-.mcps-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.mcps-finding {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
-  border-left: 4px solid var(--mcps-edge, var(--th-border));
-  border-radius: var(--radius-md, 10px);
-}
-.mcps-kind-hidden-instruction { --mcps-edge: var(--th-status-error); }
-.mcps-kind-exfil-sink { --mcps-edge: var(--th-status-warning); }
-.mcps-finding-head { font-size: var(--font-size-sm); color: var(--th-text); }
-.mcps-finding-detail { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text-muted); }
-
-.mcps-verdict {
-  margin: 14px 0 0;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--th-status-error-text);
-}
-
-:root[data-theme="dark"] .mcps-btn-primary { --th-status-info: #051727; }
