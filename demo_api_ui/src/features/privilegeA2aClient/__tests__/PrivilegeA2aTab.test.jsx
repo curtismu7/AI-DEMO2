@@ -263,11 +263,32 @@ describe('PrivilegeA2aTab', () => {
     const exchange = within(screen.getByRole('list', { name: 'A2A exchange' }));
     expect(exchange.getByText(/message\/send/)).toBeTruthy();
     expect(exchange.getByText(/HTTP 200/)).toBeTruthy();
-    expect(exchange.getByText('listEntitlements(Carol)')).toBeTruthy();
+    expect(exchange.getByText(/arguments: listEntitlements\(Carol\)/)).toBeTruthy();
     const trace = within(screen.getByRole('complementary', { name: 'Agent trace' }));
     expect(trace.getAllByText('Request').length).toBeGreaterThan(0);
     expect(trace.getAllByText('Response').length).toBeGreaterThan(0);
     expect(trace.getAllByText('Detail').length).toBeGreaterThan(0);
+  });
+
+  test('step 2 shows the tool, "(no arguments)" for {}, and what the tool returned', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message' } },
+      { event: 'trace', data: { kind: 'mcp-call', from: 'analyst', to: 'mcp', text: 'analyst → get_purchase_history', detail: '{}' } },
+      { event: 'trace', data: { kind: 'mcp-result', from: 'mcp', to: 'analyst', text: 'get_purchase_history returned', detail: 'ORD-8841 Returned' } },
+      { event: 'trace', data: { kind: 'result', from: 'analyst', to: 'main', text: 'Remote Agent finished' } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Which were returned?');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Done.');
+
+    const exchange = within(screen.getByRole('list', { name: 'A2A exchange' }));
+    expect(exchange.getByText(/analyst → get_purchase_history\s+arguments: \(no arguments\)/)).toBeTruthy();
+    expect(exchange.getByText(/get_purchase_history returned\s+ORD-8841 Returned/)).toBeTruthy();
+    expect(exchange.queryByText('{}')).toBeNull();
   });
 
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {

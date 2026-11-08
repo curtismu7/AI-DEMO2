@@ -255,9 +255,26 @@ export default function PrivilegeA2aTab() {
   const failed = trace.some((entry) => entry.kind === 'error');
   const toolCalls = trace.filter((entry) => entry.kind === 'mcp-call').length;
   const answered = Boolean(turns.length && turns[turns.length - 1].answer);
+  // Step 2's own wire: each MCP call's tool and arguments, then what the tool
+  // returned. The mcp-call entry alone carries only the arguments, which read
+  // as a bare "{}" for a tool called with none.
+  const toolWire = (() => {
+    const request = [];
+    const response = [];
+    trace.forEach((entry) => {
+      if (entry.kind === 'mcp-call') {
+        const args = entry.detail && entry.detail !== '{}' ? entry.detail : '(no arguments)';
+        request.push(`${entry.text || 'tool call'}\narguments: ${args}`);
+      } else if (entry.kind === 'mcp-result') {
+        response.push(`${entry.text || 'tool result'}\n${entry.detail || '(empty result)'}`);
+      }
+    });
+    return request.length ? { request: request.join('\n\n'), response: response.join('\n\n') } : null;
+  })();
   const exchange = [
     { label: '1. Send Message', who: 'A2A Client → Remote Agent', step: sentAt, state: sentAt >= 0 ? 'done' : busy ? 'working' : 'waiting' },
     { label: '2. Remote Agent works', who: toolCalls ? `${toolCalls} MCP tool call${toolCalls === 1 ? '' : 's'}` : 'checks access data', step: trace.findIndex((entry) => entry.kind === 'mcp-call'),
+      wire: toolWire,
       state: replyAt >= 0 ? 'done' : failed ? 'stopped' : sentAt >= 0 && busy ? 'working' : 'waiting' },
     { label: '3. Reply returned', who: 'Remote Agent → A2A Client', step: replyAt, state: replyAt >= 0 ? 'done' : failed && sentAt >= 0 ? 'stopped' : 'waiting' },
     { label: '4. Client answers', who: 'A2A Client → you', step: -1, state: answered && replyAt >= 0 ? 'done' : replyAt >= 0 && busy ? 'working' : 'waiting' },
@@ -578,7 +595,7 @@ export default function PrivilegeA2aTab() {
                     <span>{row.who}</span>
                     <StatusChip tone={EXCHANGE_TONE[row.state]}>{EXCHANGE_WORD[row.state]}</StatusChip>
                   </button>
-                  {row.step >= 0 && <WireBlocks entry={trace[row.step]} open />}
+                  {row.step >= 0 && <WireBlocks entry={row.wire || trace[row.step]} open />}
                 </li>
               ))}
             </ol>
