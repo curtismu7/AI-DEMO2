@@ -4,6 +4,8 @@
 /privilege-saas-access
 /delegation-chain-value
 /privilege-map
+/weather-mcp
+/brave-mcp
 /demo-track
 /privilege-coding-agents
 /demo-summary

@@ -62,6 +62,9 @@ export default function WeatherStateControl() {
   useEffect(() => { load(); }, [load]);
 
   const handleChange = async (e) => {
+    // The select stays enabled while a save is in flight (a disabled control drops keyboard
+    // focus); a second change in that window is ignored and the controlled value snaps back.
+    if (saving) return;
     const next = e.target.value;
     const prev = value;
     setValue(next);
@@ -89,15 +92,19 @@ export default function WeatherStateControl() {
 
   return (
     <div className="weather-state-control">
-      <label className="weather-state-control__label">
-        Allowed state
-        <select value={value} onChange={handleChange} disabled={saving}>
-          {OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </label>
-      {error && <span className="weather-state-control__error">{error}</span>}
+      <label className="pu-label" htmlFor="weather-state-select">Allowed state</label>
+      <select
+        id="weather-state-select"
+        className="pu-select weather-state-control__select"
+        value={value}
+        onChange={handleChange}
+        aria-busy={saving || undefined}
+      >
+        {OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      {error && <span className="weather-state-control__error" role="alert">{error}</span>}
     </div>
   );
 }

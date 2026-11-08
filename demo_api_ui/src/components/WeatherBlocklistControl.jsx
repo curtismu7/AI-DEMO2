@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import InlineSpinner from './shared/InlineSpinner';
 
 /**
@@ -17,6 +17,7 @@ export default function WeatherBlocklistControl() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const inputRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +65,7 @@ export default function WeatherBlocklistControl() {
   );
 
   const remove = useCallback(async (label) => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -73,13 +75,17 @@ export default function WeatherBlocklistControl() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) setError(data.error || `Could not remove ${label}.`);
-      else setCities(data.cities || []);
+      else {
+        setCities(data.cities || []);
+        // The removed row's button is gone: keep keyboard focus on the page, not on <body>.
+        inputRef.current?.focus();
+      }
     } catch (err) {
       setError(err.message || 'Could not reach the server.');
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [busy]);
 
   return (
     <div className="wbl">
@@ -99,9 +105,9 @@ export default function WeatherBlocklistControl() {
               </span>
               <button
                 type="button"
-                className="wbl__remove"
+                className="pu-btn wbl__remove"
                 onClick={() => remove(c.label)}
-                disabled={busy}
+                aria-disabled={busy ? 'true' : undefined}
                 aria-label={`Remove ${c.label}`}
               >
                 ✕
@@ -112,7 +118,7 @@ export default function WeatherBlocklistControl() {
       </ul>
 
       <form className="wbl__add" onSubmit={add}>
-        <label className="wbl__srlabel" htmlFor="wbl-city">
+        <label className="pu-label wbl__label" htmlFor="wbl-city">
           City to block
         </label>
         <input
@@ -122,9 +128,14 @@ export default function WeatherBlocklistControl() {
           placeholder="Denver, CO"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          disabled={busy}
+          ref={inputRef}
+          readOnly={busy}
         />
-        <button type="submit" className="wbl__btn" disabled={busy || !input.trim()}>
+        <button
+          type="submit"
+          className="pu-btn wbl__btn"
+          aria-disabled={busy || !input.trim() ? 'true' : undefined}
+        >
           {busy ? 'Working…' : 'Block city'}
         </button>
       </form>

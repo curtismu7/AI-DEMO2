@@ -1,234 +1,88 @@
-/* McpShowcasePage — the weather and Brave gateway-capability pages.
-   Themed entirely with --th-* per THEMING.md: no literals, no
-   prefers-color-scheme block. Dark comes from :root[data-theme="dark"]
-   redefining the tokens, so there is nothing to duplicate here. */
-
-.mcpsc {
-  min-height: 100%;
-  padding: 28px 24px 80px;
-  background: var(--th-bg-page);
-  color: var(--th-text);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.mcpsc__head,
-.mcpsc__card {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  padding: 22px 24px;
-}
-
-.mcpsc__head {
-  position: relative;
-}
-
-.mcpsc__theme-toggle {
-  position: absolute;
-  top: 22px;
-  right: 24px;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.mcpsc__theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.mcpsc__eyebrow {
-  margin: 0 0 6px;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-
-.mcpsc__title {
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  color: var(--th-text);
-}
-
-.mcpsc__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--font-size-lg);
-  color: var(--th-text-muted);
-}
-
-.mcpsc__lede {
-  margin: 14px 0 0;
-  max-width: 90ch;
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  color: var(--th-text);
-}
-
-.mcpsc__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 32px;
-  margin: 18px 0 0;
-}
-
-.mcpsc__fact dt {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-
-.mcpsc__fact dd {
-  margin: 4px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--font-size-base);
-}
-
-.mcpsc__pill {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border-strong);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.mcpsc__pill--on {
-  background: var(--th-status-success-bg);
-  border-color: var(--th-status-success-border);
-  color: var(--th-status-success-text);
-}
-
-.mcpsc__pill--off {
-  background: var(--th-status-error-bg);
-  border-color: var(--th-status-error-border);
-  color: var(--th-status-error-text);
-}
-
-.mcpsc__pill--unknown {
-  background: var(--th-bg-inset);
-  color: var(--th-text-muted);
-}
+/* McpShowcasePage — the weather and Brave gateway-capability pages: only what is specific to them.
+   The banner, frame, cards, key-value list, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1),
+   type comes from the --font-size-* scale (H2), no inline styles (H3). Dark comes from
+   :root[data-theme="dark"] redefining the tokens, so there is no dark block here.
+   Buttons are .pu-btn: this sheet never colours one. */
 
 /* Qualified with .mcpsc on purpose: PingOne's end-user-nano.css (loaded from
    assets.pingone.com) carries a `code` rule at 0.875em that outranks a bare
    single class, so an unqualified .mcpsc__prompt font-size never applied. */
-.mcpsc .mcpsc__flagid,
-.mcpsc .mcpsc__prompt,
-.mcpsc .mcpsc__refs code,
-.mcpsc .mcpsc__terms code,
-.mcpsc .mcpsc__fact code {
+.mcpsc code {
   font-family: var(--font-mono);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   background: var(--th-code-bg);
   color: var(--th-code-text);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
 }
 
-.mcpsc__warn {
-  margin: 16px 0 0;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-status-warning-border);
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-  font-size: var(--font-size-base);
+/* Fixed (read-only) Brave blocklist. */
+.mcpsc .mcpsc__terms,
+.mcpsc .mcpsc__refs {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.mcpsc__card h2 {
-  margin: 0 0 12px;
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--th-text);
+.mcpsc .mcpsc__terms {
+  flex-wrap: wrap;
 }
 
+.mcpsc .mcpsc__refs {
+  flex-direction: column;
+  margin-top: 0;
+  gap: 6px;
+}
+
+/* Free-form ask: label on its own line, then the input and its button on one wrapping row. */
 .mcpsc__free {
+  margin-top: 8px;
+}
+
+.mcpsc__freerow {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-top: 12px;
 }
 
-.mcpsc__freeinput {
-  flex: 1 1 220px;
+/* Text inputs on this page (free-form ask, blocked-city add). Edge is --control-border (dark-mode
+   control contrast rule); the ring matches .pu-btn. */
+.mcpsc .mcpsc__input,
+.mcpsc .wbl__input {
+  flex: 1 1 180px;
   min-width: 0;
-  padding: 7px 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-card);
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
   color: var(--th-text);
-  font-size: var(--font-size-base);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
 }
 
-/* Visually hidden, still announced — the input needs a real label. */
-.mcpsc__srlabel {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.mcpsc__subhead {
-  margin: 20px 0 0;
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--th-text);
+.mcpsc .mcpsc__input:focus-visible,
+.mcpsc .wbl__input:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 /* ── Allowed-state picker (WeatherStateControl) ────────────────────── */
-/* The component shipped with no stylesheet at all, so its native <select>
-   kept the browser's light chrome on a dark page. `color-scheme` is what
-   themes the dropdown popup — the <option> list renders outside our CSS —
-   and it is keyed to data-theme, never the OS setting. */
+/* The select is .pu-select; the dropdown popup follows :root color-scheme from index.css. */
 
-.weather-state-control__label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-  margin-top: 12px;
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--th-text);
+.weather-state-control__select {
+  max-width: 100%;
 }
-
-.weather-state-control select {
-  color-scheme: light;
-  padding: 7px 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-base);
-  font-weight: 400;
-}
-
-:root[data-theme="dark"] .weather-state-control select { color-scheme: dark; }
 
 .weather-state-control__error {
   display: block;
   margin-top: 6px;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   color: var(--th-status-error-text);
 }
 
@@ -238,10 +92,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
-.wbl__list {
+.mcpsc .wbl__list {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -251,50 +105,48 @@
 }
 
 .wbl__empty {
-  font-size: var(--font-size-base);
-  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
 }
 
 .wbl__item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
 }
 
-.wbl__label { flex: 1; font-weight: 600; }
+.wbl__label {
+  flex: 0 0 100%;
+  margin: 0;
+}
+
+.wbl__item > span:first-child {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
 
 .wbl__coords {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   font-variant-numeric: tabular-nums;
 }
 
-.wbl__remove {
+/* The remove button is a .pu-btn at a compact size (still a 32px target). */
+.pu-page .wbl .wbl__remove {
   flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-sm);
-  line-height: 1;
-  cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
 }
-
-.wbl__remove:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.wbl__remove:disabled { opacity: 0.5; cursor: default; }
 
 .wbl__add {
   display: flex;
@@ -303,180 +155,8 @@
   align-items: center;
 }
 
-/* Visually hidden, still read aloud — the input needs a real label. */
-.wbl__srlabel {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.wbl__input {
-  flex: 1 1 200px;
-  min-width: 0;
-  padding: 7px 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-base);
-}
-
-.wbl__btn {
-  flex: none;
-  padding: 7px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.wbl__btn:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.wbl__btn:disabled { opacity: 0.55; cursor: default; }
-
 .wbl__error {
   margin: 0;
-  font-size: var(--font-size-base);
-  color: var(--th-status-error-text);
-}
-
-.mcpsc__note {
-  margin: 12px 0 0;
-  max-width: 90ch;
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  color: var(--th-text-muted);
-}
-
-.mcpsc__terms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mcpsc__runs {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 14px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mcpsc__run {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 12px 14px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-}
-
-.mcpsc__runtext {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  min-width: 0;
-}
-
-.mcpsc__runnote {
   font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
-}
-
-.mcpsc__outcome {
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-}
-
-.mcpsc__outcome--permit {
-  background: var(--th-status-success-bg);
-  color: #14532d;
-  border: 1px solid var(--th-status-success-border);
-}
-
-.mcpsc__outcome--deny {
-  background: var(--th-status-error-bg);
-  color: #7f1d1d;
-  border: 1px solid var(--th-status-error-border);
-}
-
-.mcpsc__btn {
-  flex: none;
-  padding: 7px 18px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.mcpsc__btn:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.mcpsc__btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.mcpsc__error {
-  margin: 14px 0 0;
-  font-size: var(--font-size-base);
-  color: var(--th-status-error-text);
-}
-
-.mcpsc__refs {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (max-width: 640px) {
-  .mcpsc { padding: 18px 14px 60px; }
-  .mcpsc__head,
-  .mcpsc__card { padding: 16px 16px; }
-  .mcpsc__theme-toggle {
-    position: static;
-    display: inline-block;
-    margin-bottom: 12px;
-  }
-}
-
-:root[data-theme="dark"] .mcpsc__outcome--permit { color: var(--th-status-success-text); }
-:root[data-theme="dark"] .mcpsc__outcome--deny { color: var(--th-status-error-text); }
-
-/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
-:root[data-theme="dark"] .mcpsc__outcome--permit {
-  color: #ffffff;
-}
-
-:root[data-theme="dark"] .mcpsc__outcome--deny {
   color: var(--th-status-error-text);
 }
