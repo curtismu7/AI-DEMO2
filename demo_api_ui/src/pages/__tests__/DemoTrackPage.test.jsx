@@ -263,6 +263,54 @@ describe("DemoTrackPage — Ping UI Standard", () => {
     expect(screen.getByText("Error")).toBeInTheDocument();
   });
 
+  it("names the gauntlet in the LIVE RUN banner only when the track has the gauntlet step", async () => {
+    const { unmount } = render(<DemoTrackPage />);
+    expect(await screen.findByTestId("dtp-banner")).toHaveTextContent(/the gauntlet sends 2 deliberately flawed tokens/);
+    unmount();
+    window.history.pushState({}, "", "/demo-track?track=support");
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/demo-track?track=support") {
+        return Promise.resolve({ data: { track: { steps: [
+          { stepId: "support-verify", act: 1, title: "Verify the customer", capability: "pi.flow", slots: {}, proved: {} },
+        ] }, run: { activeStepId: "support-verify", slots: {} } } });
+      }
+      return Promise.resolve({ data: { runs: [] } });
+    });
+    render(<DemoTrackPage />);
+    await screen.findByText("Verify the customer");
+    const banner = screen.getByTestId("dtp-banner");
+    expect(banner).toHaveTextContent(/LIVE RUN/);
+    expect(banner).not.toHaveTextContent(/gauntlet/i);
+  });
+
+  it("labels the theme toggle with its action only: no aria-pressed, no emoji glyph", async () => {
+    render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    const btn = screen.getByRole("button", { name: /^(Dark|Light) mode$/ });
+    expect(btn).not.toHaveAttribute("aria-pressed");
+    expect(btn.textContent).toMatch(/^(Dark|Light) mode$/);
+  });
+
+  it("keeps the page and the focused control mounted when a later poll fails, with a role=alert card", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<DemoTrackPage />);
+      await screen.findByText("Delegated access");
+      const btn = screen.getByText("Start new run");
+      btn.focus();
+      apiClient.get.mockRejectedValue(new Error("poll down"));
+      await vi.advanceTimersByTimeAsync(5100);
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/Demo Track unavailable — poll down/);
+      expect(screen.getByText("Start new run")).toBe(btn);
+      expect(document.activeElement).toBe(btn);
+      expect(screen.getByText("Delegated access")).toBeInTheDocument();
+      expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/LAST RUN RECEIVED/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("has exactly one primary: the next unstamped Run in the open step", async () => {
     const { container } = render(<DemoTrackPage />);
     await screen.findByText("Delegated access");

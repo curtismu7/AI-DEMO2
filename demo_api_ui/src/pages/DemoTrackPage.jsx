@@ -318,12 +318,15 @@ export default function DemoTrackPage() {
 
   // Every state renders inside the page frame with the banner first, so what is live and what is
   // not is stated even while loading or when the server did not answer.
-  const ready = !error && state && run;
+  // A failed poll must not unmount the page (and the focused control in it): once a run has been
+  // received, `ready` stays true and the error shows as an alert card above the last data.
+  const ready = Boolean(state && run);
   const track = ready ? state.track : null;
   const steps = ready ? track.steps : [];
   // The support track (config/supportDemoTrack.js) has no gauntlet — the field
   // is absent, not empty, so a bare .filter would throw.
   const gauntletSims = ready && Array.isArray(track.gauntletSims) ? track.gauntletSims : [];
+  const hasGauntlet = ready && steps.some((s) => s.stepId === "attack-gauntlet");
   const gauntletBlocked = ready ? gauntletSims.filter((g) => run.gauntlet?.[g.sim]?.blocked).length : 0;
   const allDone = ready && steps.every((s) => stepComplete(s, run, gauntletSims));
   const doneCount = ready ? steps.filter((s) => stepComplete(s, run, gauntletSims)).length : 0;
@@ -363,13 +366,19 @@ export default function DemoTrackPage() {
         <strong>NOT CONNECTED</strong> — this page has not received a run from the server yet, so nothing below is
         current. It shows no sample data in its place.
       </>
+    ) : isLive && error ? (
+      <>
+        <strong>LAST RUN RECEIVED</strong> — the server did not answer the latest refresh, so this may be out of
+        date. The page keeps retrying every 5 seconds. It shows no sample data in its place.
+      </>
     ) : isLive ? (
       <>
         <strong>LIVE RUN</strong> — this page follows the run the server is recording now and refreshes every 5
         seconds. Each verdict stamp is a decision the server logged when the agent or the gateway handled a call;
         none of it is sample data. Run sends a step&apos;s prompt through this app&apos;s agent (Heuristics routes
-        it with fixed rules, llama.cpp lets the local model choose the tool), and the gauntlet sends six
-        deliberately flawed tokens to the real gateway.
+        it with fixed rules, llama.cpp lets the local model choose the tool){hasGauntlet
+          ? `, and the gauntlet sends ${gauntletSims.length} deliberately flawed tokens to the real gateway`
+          : ""}.
       </>
     ) : (
       <>
@@ -539,21 +548,26 @@ export default function DemoTrackPage() {
           : "Two acts, and every step ends with a permit AND a deny."}
       />
       <PageFrame>
-        {error ? (
+        {error && (
           <Section id="dtp-error-h" kicker="Status" title="Demo Track unavailable">
             <Card tone="danger">
               <p className="pu-status-line" role="alert">
                 <StatusChip tone="danger">Error</StatusChip>
                 <span className="dtp-error">Demo Track unavailable — {error}</span>
               </p>
-              <p className="pu-note">The page keeps trying every 5 seconds and fills in as soon as the server answers.</p>
+              <p className="pu-note">
+                {ready
+                  ? "The last run received is still shown below, but it is no longer current. The page keeps trying every 5 seconds."
+                  : "The page keeps trying every 5 seconds and fills in as soon as the server answers."}
+              </p>
             </Card>
           </Section>
-        ) : !ready ? (
+        )}
+        {!ready ? (error ? null : (
           <Section id="dtp-loading-h" kicker="Status" title="Loading the run">
             <div className="dtp-loading"><InlineSpinner label="Loading demo track…" /></div>
           </Section>
-        ) : (
+        )) : (
           <>
             <Section
               id="dtp-controls-h"
@@ -619,10 +633,9 @@ export default function DemoTrackPage() {
                   </PuButton>
                   <PuButton
                     onClick={toggleDarkMode}
-                    aria-pressed={darkMode}
                     title="Switch this page between light and dark"
                   >
-                    {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+                    {darkMode ? "Light mode" : "Dark mode"}
                   </PuButton>
                 </div>
               </Card>
