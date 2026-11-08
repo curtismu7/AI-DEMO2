@@ -1749,19 +1749,101 @@ function importedCss(file, jsx, root, seen = new Set(), unreadable = []) {
   return out;
 }
 
-/** Map route path -> page file, read from the <Route path element> entries of App.js. */
+/** Default imports and `const X = lazyWithRetry(() => import("./..."))` bindings of a module: name -> relative specifier. */
+function moduleComps(src) {
+  const comps = {};
+  for (const m of src.matchAll(/const\s+(\w+)\s*=\s*lazyWithRetry\(\s*\(\)\s*=>\s*import\(\s*["'](\.[^"']+)["']\s*\)\s*\)/g)) comps[m[1]] = m[2];
+  for (const m of src.matchAll(/import\s+(\w+)\s+from\s+["'](\.[^"']+)["']/g)) comps[m[1]] = m[2];
+  return comps;
+}
+
+/** Named imports, `import { A, B as C } from "./..."`: local name -> relative specifier. */
+function namedImports(src) {
+  const named = {};
+  for (const m of src.matchAll(/import\s*(?:\w+\s*,\s*)?\{([^}]*)\}\s*from\s*["'](\.[^"']+)["']/g)) {
+    for (const part of m[1].split(',')) {
+      const [orig, alias] = part.trim().split(/\s+as\s+/);
+      if (orig) named[alias || orig] = { spec: m[2], orig };
+    }
+  }
+  return named;
+}
+
+/** Source of `export function Name` / `export const Name =` up to the next top-level export, or null. */
+function exportedBody(src, name) {
+  const head = new RegExp(`export\\s+(?:default\\s+)?(?:function\\s+${escapeRe(name)}\\b|const\\s+${escapeRe(name)}\\s*=)`).exec(src);
+  if (!head) return null;
+  const rest = src.slice(head.index + head[0].length);
+  const next = rest.search(/\n(?:export|function|const|class)\s/);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+// Where a real page lives. A component imported from anywhere else (routes/ wrappers, context providers, hooks)
+// is chrome around a page, never the page.
+const PAGE_DIR = /^(?:pages|components)\//;
+// Chrome and guards that wrap a page inside a routes/ wrapper (nav bar, sign-in prompt, provider-switch guard).
+const WRAPPER_CHROME = /^(?:AppShell|TopNav|SignInPrompt|ConfirmModal)$|(?:Guard|Provider)$/;
+
+/**
+ * The page file a wrapper component (a named export of a routes/ module, such as `IntentBindingLearningPageRoute`,
+ * which is AppShell + the page) renders: the first tag in its body that is a default import, a lazy import or a
+ * named import from pages/ or components/. Follows a wrapper that renders another wrapper of the same module.
+ */
+function wrapperPage(modFile, exportName, seen = new Set(), depth = 0) {
+  const key = `${modFile}#${exportName}`;
+  if (depth > 3 || seen.has(key) || !fs.existsSync(modFile)) return null;
+  seen.add(key);
+  const src = fs.readFileSync(modFile, 'utf8');
+  const body = exportedBody(src, exportName);
+  if (body == null) return null;
+  const comps = moduleComps(src);
+  const named = namedImports(src);
+  const dir = path.dirname(modFile);
+  for (const m of body.matchAll(/<([A-Z]\w*)/g)) {
+    const n = m[1];
+    if (WRAPPER_CHROME.test(n)) continue;
+    const spec = comps[n] || named[n]?.spec;
+    const f = spec && resolveFile(dir, spec);
+    if (f && PAGE_DIR.test(path.relative(path.dirname(dir), f).split(path.sep).join('/'))) {
+      return f;
+    } else if (!spec && exportedBody(src, n)) {
+      const inner = wrapperPage(modFile, n, seen, depth + 1);
+      if (inner) return inner;
+    }
+  }
+  return null;
+}
+
+/**
+ * Map route path -> page file, read from the <Route path element> entries of App.js. A page behind a named
+ * wrapper from src/routes/ (`<XPageRoute>` = AppShell + the page) resolves to the real page, also when the element
+ * is `user ? <XPageRoute/> : <SignInRequired/>` or sits inside `<RequireAdminLogin>`.
+ */
 export function loadRoutes(root = UI_ROOT) {
   const appFile = path.join(root, 'src', 'App.js');
   const app = fs.readFileSync(appFile, 'utf8');
-  const comps = {};
-  for (const m of app.matchAll(/const\s+(\w+)\s*=\s*lazyWithRetry\(\s*\(\)\s*=>\s*import\(\s*["'](\.[^"']+)["']\s*\)\s*\)/g)) comps[m[1]] = m[2];
-  for (const m of app.matchAll(/import\s+(\w+)\s+from\s+["'](\.[^"']+)["']/g)) comps[m[1]] = m[2];
+  const comps = moduleComps(app);
+  const named = namedImports(app);
   const routes = {};
   // element={<Wrapper><Page /></Wrapper>}: the page is the first component that is not a routes/ wrapper.
   for (const m of app.matchAll(/path=["'](\/[^"']*)["']\s*element=\{(?=((?:(?!<Route\b)[\s\S]){0,300}))/g)) {
-    const names = [...m[2].matchAll(/<([A-Z]\w*)/g)].map((x) => x[1]).filter((n) => comps[n]);
-    const name = names.find((n) => !/\/routes\//.test(comps[n])) || names[0];
-    const file = name && resolveFile(path.dirname(appFile), comps[name]);
+    const allNames = [...m[2].matchAll(/<([A-Z]\w*)/g)].map((x) => x[1]);
+    const names = allNames.filter((n) => comps[n]);
+    const name = names.find((n) => !/\/routes\//.test(comps[n]));
+    let file = name && resolveFile(path.dirname(appFile), comps[name]);
+    if (!file) {
+      // Only a routes/ file (SignInRequired, RequireAdminLogin, ...) or nothing resolved: follow a named wrapper to its page.
+      for (const n of allNames) {
+        const imp = named[n];
+        const mod = imp && /\/routes\//.test(imp.spec) && resolveFile(path.dirname(appFile), imp.spec);
+        const page = mod && wrapperPage(mod, imp.orig);
+        if (page) {
+          file = page;
+          break;
+        }
+      }
+    }
+    if (!file && names[0]) file = resolveFile(path.dirname(appFile), comps[names[0]]);
     if (file) routes[m[1]] = file;
   }
   return routes;
