@@ -6,4 +6,5 @@
 /privilege-pii-detection
 /privilege-intent-triage
 /privilege-prompt-log
+/privilege-shelf
 /privilege-a2a

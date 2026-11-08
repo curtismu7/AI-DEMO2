@@ -54,6 +54,11 @@ spec:
           image: pingidentity/pingfederate:13.1.3-alpine_3.24.2-al25-edge@sha256:522cca2db24360fba3fffb90ce099e9ebdf3f59112a742cfed5d8d3109569655
           env:
             - { name: PING_IDENTITY_ACCEPT_EULA, value: "YES" }
+            # Audit trail on stdout (kubectl logs), same as scripts/pingfederate/docker-compose.local.yml.
+            # The image default tails only server.log and init.log. Plain text, no ANSI colour.
+            - name: TAIL_LOG_FILES
+              value: "/opt/out/instance/log/server.log /opt/out/instance/log/init.log /opt/out/instance/log/audit.log /opt/out/instance/log/admin.log /opt/out/instance/log/admin-api.log"
+            - { name: COLORIZE_LOGS, value: "false" }
             - name: PING_IDENTITY_PASSWORD
               valueFrom:
                 secretKeyRef: { name: pingfederate-admin, key: password }
