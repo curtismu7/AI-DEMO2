@@ -14,8 +14,10 @@ const env = {
 };
 
 // Fake PingOne: src/dst user directories, one group, a membership table.
-function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false }) {
+function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false, hasRole = true, grantStatus = 201 }) {
   const calls = [];
+  let tokens = 0;
+  const assignments = hasRole ? [{ role: { id: 'r-ida' }, scope: { type: 'ENVIRONMENT', id: DST } }] : [];
   let pending404 = first404;
   const json = (body, status = 200) => ({ ok: status < 300, status, json: async () => body });
   const match = (list, filter) => {
@@ -25,7 +27,13 @@ function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false }) {
   const fetchImpl = async (url, opts = {}) => {
     const method = opts.method || 'GET';
     calls.push(`${method} ${url.replace(/\?.*/, '')}`);
-    if (url.includes('/as/token')) return json({ access_token: 't' });
+    if (url.includes('/as/token')) { tokens++; return json({ access_token: `t${tokens}` }); }
+    if (url.endsWith('/v1/roles')) return json({ _embedded: { roles: [{ id: 'r-ida', name: 'Identity Data Admin' }] } });
+    if (url.endsWith(`/${SRC}/applications/id/roleAssignments`)) {
+      if (method === 'GET') return json({ _embedded: { roleAssignments: assignments } });
+      if (grantStatus < 300) assignments.push(JSON.parse(opts.body));
+      return json({}, grantStatus);
+    }
     const filter = decodeURIComponent((url.split('filter=')[1] || ''));
     if (url.includes('/groups?')) return json({ _embedded: { groups: [{ id: 'g1', name: 'PrivilegeAdmins' }] } });
     if (url.endsWith('/populations')) return json({ _embedded: { populations: [{ id: 'p1', default: true }] } });
@@ -45,7 +53,7 @@ function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false }) {
     }
     throw new Error(`unexpected ${method} ${url}`);
   };
-  return { fetchImpl, calls, dstUsers, members };
+  return { fetchImpl, calls, dstUsers, members, assignments, tokenCount: () => tokens };
 }
 
 const quiet = () => {};
@@ -103,4 +111,27 @@ test('dry run writes nothing', async () => {
   await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet, dryRun: true });
   expect(p.dstUsers).toHaveLength(0);
   expect(p.members).toHaveLength(0);
+});
+
+test('syncs the extra accounts listed in PRIVILEGE_SYNC_ACCOUNTS', async () => {
+  const p = fakePingOne({ srcUsers: [{ id: 's3', username: 'jordan.ellis', email: 'jordan@example.com' }], dstUsers: [] });
+  const r = await syncPrivilegeUsers({ env: { ...env, PRIVILEGE_SYNC_ACCOUNTS: ' jordan@example.com , ' }, fetchImpl: p.fetchImpl, log: quiet });
+  expect(r.created).toEqual(['jordan@example.com']);
+});
+
+test('assigns the worker Identity Data Admin on the Privilege env when missing, then uses a fresh token', async () => {
+  const p = fakePingOne({ srcUsers: [], dstUsers: [], hasRole: false });
+  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: quiet });
+  expect(r.skipped).toEqual([]);
+  expect(p.assignments).toEqual([{ role: { id: 'r-ida' }, scope: { id: DST, type: 'ENVIRONMENT' } }]);
+  expect(p.tokenCount()).toBe(2);
+});
+
+test('stops with instructions when the role cannot be assigned', async () => {
+  const lines = [];
+  const p = fakePingOne({ srcUsers: [{ id: 's1', username: 'alice@example.com', email: 'alice@example.com' }], dstUsers: [], hasRole: false, grantStatus: 403 });
+  const r = await syncPrivilegeUsers({ env, fetchImpl: p.fetchImpl, log: (l) => lines.push(l) });
+  expect(r.skipped).toBe(true);
+  expect(p.dstUsers).toHaveLength(0);
+  expect(lines.join('\n')).toMatch(/HTTP 403.*grant the worker app Identity Data Admin on environment dst-env/);
 });
