@@ -31,7 +31,7 @@ export default function InspectorListItem({
     : 'inspector-shell-tree-item';
 
   return (
-    <button type="button" className={itemClass} onClick={onClick}>
+    <button type="button" className={itemClass} onClick={onClick} aria-pressed={active}>
       {kind === 'token' ? (
         <span className={tokenIconClass}>▮</span>
       ) : (

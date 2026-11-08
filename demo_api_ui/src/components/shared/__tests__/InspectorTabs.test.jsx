@@ -38,4 +38,11 @@ describe('InspectorTabs', () => {
     const { container } = render(<InspectorTabs tabs={[]} activeKey="" onChange={() => {}} />);
     expect(container.querySelectorAll('button')).toHaveLength(0);
   });
+
+  it('exposes the active tab with aria-pressed', () => {
+    render(<InspectorTabs tabs={TABS} activeKey="request" onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Request' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Response' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'History' })).toHaveAttribute('aria-pressed', 'false');
+  });
 });

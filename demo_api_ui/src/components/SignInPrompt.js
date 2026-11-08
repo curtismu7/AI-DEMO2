@@ -20,6 +20,8 @@ export default function SignInPrompt({
   message,
   admin = false,
   variant = "card",
+  // A full-page gate (SignInRequired) is the page's only heading, so it passes 1; a prompt inside a panel keeps h3.
+  headingLevel = 3,
   returnTo = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search || ""}` : undefined,
 }) {
   const handleSignIn = () => {
@@ -57,9 +59,10 @@ export default function SignInPrompt({
     );
   }
 
+  const Heading = `h${headingLevel}`;
   return (
     <div className="signin-prompt" role="alert">
-      <h3 className="signin-prompt__title">{heading}</h3>
+      <Heading className="signin-prompt__title">{heading}</Heading>
       <p className="signin-prompt__text">{body}</p>
       <button type="button" className="signin-prompt__btn" onClick={handleSignIn}>
         {cta}

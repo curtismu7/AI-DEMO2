@@ -56,6 +56,12 @@ function build(mutate) {
       fs.mkdirSync(path.dirname(file(rel)), { recursive: true });
       fs.writeFileSync(file(rel), text);
     },
+    edit: (rel, fn) => {
+      const src = fs.readFileSync(file(rel), 'utf8');
+      const out = fn(src);
+      if (out === src) throw new Error(`edit changed nothing in ${rel}`);
+      fs.writeFileSync(file(rel), out);
+    },
     replace: (rel, from, to) => {
       const src = fs.readFileSync(file(rel), 'utf8');
       if (!src.includes(from)) throw new Error(`mutation anchor not found in ${rel}: ${from}`);
@@ -667,5 +673,76 @@ export function SaasRoute({ user, logout }) {
     });
     expect(r.status, r.out).toBe(1);
     expectDrift(r.out, /H3/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Round 3: nine violations a 28-case battery got past the round-2 script. Each exits 0 on the round-2 script
+// (run with UI_PATTERN_SCRIPT=<that script> to see it) and 1 on this one. The page keeps exactly one primary
+// button, so a red case is caused by the mutation and not by a second primary the old script already counted.
+// ---------------------------------------------------------------------------------------------------------------
+
+const PRIMARY = 'className="pu-btn pu-btn--primary"';
+const SECONDARY_RESET = 'className="pu-btn" onClick={reset}';
+const BANNER_BLOCK = /<SimBanner data-testid="psa-banner">[\s\S]*?<\/SimBanner>/;
+
+describe('check-ui-patterns: round 3 (a skeptic battery, 9 of 28 passed)', () => {
+  const cases = [
+    [
+      'a primary button rendered by .map() (repeats per item, so more than one primary)',
+      (h) => {
+        h.replace(PAGE_JSX, PRIMARY, 'className="pu-btn"');
+        h.replace(PAGE_JSX, RESET, `${RESET}\n                {[1, 2, 3].map((n) => <button key={n} type="button" className="pu-btn pu-btn--primary">Go {n}</button>)}`);
+      },
+      /P9 one primary button/,
+    ],
+    ['a StatusChip whose only child is {icon} (a glyph, no words)', (h) => h.replace(PAGE_JSX, '<StatusChip tone="info">Live call</StatusChip>', '<StatusChip tone="info">{icon}</StatusChip>'), /P7 chips carry text/],
+    [
+      'a chip whose child is a variable that is only ever the empty string',
+      (h) => {
+        h.replace(PAGE_JSX, STAGE_ANCHOR, `const blankLabel = '';\n${STAGE_ANCHOR}`);
+        h.replace(PAGE_JSX, '<StatusChip tone="info">Live call</StatusChip>', '<StatusChip tone="info">{blankLabel}</StatusChip>');
+      },
+      /P7 chips carry text/,
+    ],
+    [
+      "an inline style set from script, el.setAttribute('style', ...)",
+      (h) => h.replace(PAGE_JSX, '<p className="psa-justification">', `<p className="psa-justification" ref={(el) => el && el.setAttribute('style', 'font-size: 9px')}>`),
+      /H3 no inline colour/,
+    ],
+    ['a button whose style spreads a value the check cannot read, style={{ ...tint }}', (h) => h.replace(PAGE_JSX, RESET, `${RESET}\n                <button type="button" className="pu-btn" style={{ ...tint }}>Tinted</button>`), /H3 no inline colour/],
+    ['an empty <SimBanner>', (h) => h.edit(PAGE_JSX, (src) => src.replace(BANNER_BLOCK, '<SimBanner data-testid="psa-banner"></SimBanner>')), /P2 banner first/],
+    [
+      'the banner under a plain <div> root instead of <PingPage>',
+      (h) => h.edit(PAGE_JSX, (src) => src.replace('<PingPage className="psa-page">', '<div className="psa-page">').replace('</PingPage>\n  );', '</div>\n  );')),
+      /P2 content inside PingPage/,
+    ],
+    [
+      'a button beside <PingPage>, outside it',
+      (h) =>
+        h.edit(PAGE_JSX, (src) =>
+          src.replace('<PingPage className="psa-page">', '<div><PingPage className="psa-page">').replace('</PingPage>\n  );', '</PingPage><button type="button" className="pu-btn">Stray</button></div>\n  );'),
+        ),
+      /P2 content inside PingPage/,
+    ],
+    ['a Tailwind-style violet utility class on a button (bg-indigo-600)', (h) => h.replace(PAGE_JSX, SECONDARY_RESET, 'className="pu-btn bg-indigo-600" onClick={reset}'), /P9 no violet/],
+  ];
+  it.each(cases)('%s', (_name, mutate, rule) => {
+    const r = run(mutate);
+    expect(r.status, r.out).toBe(1);
+    expectDrift(r.out, rule);
+  });
+
+  it('stays clean: a conditional primary in a loop (the selected tab), a secondary in a loop, a button returned by a helper outside the root', () => {
+    const r = run((h) => {
+      h.append(PAGE_JSX, 'function renderSpare() {\n  return (\n    <div className="psa-spare"><button type="button" className="pu-btn">Spare</button></div>\n  );\n}');
+      h.replace(
+        PAGE_JSX,
+        RESET,
+        `${RESET}\n                {[1, 2].map((n) => <button key={n} type="button" className={n === 1 ? 'pu-btn pu-btn--primary' : 'pu-btn'}>Tab {n}</button>)}\n                {[1, 2].map((n) => <button key={n} type="button" className="pu-btn">Row {n}</button>)}`,
+      );
+      h.replace(PAGE_JSX, PRIMARY, 'className="pu-btn"');
+    });
+    expect(r.status, r.out).toBe(0);
   });
 });

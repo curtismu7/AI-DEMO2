@@ -115,7 +115,7 @@ describe('diagram controls on a converted page (.pu-page)', () => {
   it('shows a visible focus ring on the same tokens as .pu-btn', () => {
     const f = css.filter((r) => r.sel.includes('.pu-page') && r.sel.includes('.dc-ctrl-btn') && r.sel.includes(':focus-visible'));
     expect(f.length).toBeGreaterThan(0);
-    expect(f.map((r) => r.body).join(';')).toMatch(/outline:\s*3px solid var\(--th-status-info-text\)/);
+    expect(f.map((r) => r.body).join(';')).toMatch(/outline:\s*3px solid var\(--th-focus-ring\)/);
   });
 
   it('leaves the base DiagramControls look alone for unconverted pages', () => {

@@ -61,6 +61,9 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
   const close = () => {
     setOpen(false);
     onClearNode?.();
+    // The Close button unmounts with the panel; without this focus falls to the page body. Back to the card in focus
+    // (the one that opened the row), or the first card when a diagram node opened it.
+    stripRef.current?.querySelectorAll(".dreel-card")[Math.max(step, 0)]?.focus();
   };
   const pick = (i) => {
     onClearNode?.();
