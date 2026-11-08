@@ -193,7 +193,7 @@ function PolicyState({ state }) {
 }
 
 // Only these outcomes are an answer the gateway actually gave; sign-in and error come from this page or the BFF.
-const GATEWAY_ANSWERS = new Set(['allow', 'hold', 'deny', 'unclear']);
+const GATEWAY_ANSWERS = new Set(['allow', 'hold', 'deny', 'tool-error']);
 
 function Verdict({ result }) {
   const o = OUTCOMES[result.outcome];
