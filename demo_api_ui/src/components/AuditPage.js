@@ -47,8 +47,10 @@ function projectComplianceRow(ev) {
     group,
     groupPass,
     acr: d.acr || '—',
-    // true when the gateway recorded no explicit decision and the status is inferred from the outcome
-    derived: !d.decision,
+    // Where the status came from: the recorded decision, the call outcome (derived), or nothing at all.
+    // 'none' means no decision and no mapped outcome (token_chain events carry no top-level outcome), so nothing
+    // was derived and no source is claimed.
+    source: d.decision ? 'decision' : status === '—' ? 'none' : 'outcome',
     delegated: !!(ev.agentId || d.exchangedToken),
     denyReason: d.deny_reason || null,
     raw: ev,
@@ -57,7 +59,7 @@ function projectComplianceRow(ev) {
 function toCsv(rows) {
   const head = ['Time', 'User', 'Action', 'Status', 'Status source', 'Scope', 'Group check', 'ACR', 'Delegated', 'Reason'];
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lines = rows.map((r) => [r.time, r.user, r.action, r.status, r.derived ? 'outcome' : 'decision', r.scope,
+  const lines = rows.map((r) => [r.time, r.user, r.action, r.status, r.source === 'none' ? '' : r.source, r.scope,
     r.groupPass === null ? '' : (r.groupPass ? `pass (${r.group})` : `fail (${r.group})`),
     r.acr, r.delegated ? 'yes' : 'no', r.denyReason || ''].map(esc).join(','));
   return [head.map(esc).join(','), ...lines].join('\n');
@@ -70,6 +72,8 @@ function downloadBlob(name, type, content) {
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
+
+const FOCUSABLE = 'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const MIN_W = 420;
 const MIN_H = 300;
@@ -162,6 +166,32 @@ export default function AuditPage({ onClose } = {}) {
       }
     };
   }, [isPopout]);
+
+  // Escape closes the window, and Tab stays inside it (aria-modal promises both). A select that is open handles its
+  // own Escape, so that key is left alone when it comes from a select.
+  useEffect(() => {
+    if (isPopout) return undefined;
+    const win = windowRef.current;
+    if (!win) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (e.defaultPrevented || e.target.tagName === 'SELECT') return;
+        if (onClose) onClose(); else navigate(-1);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = [...win.querySelectorAll(FOCUSABLE)].filter((el) => el.getAttribute('aria-disabled') !== 'true' || el === document.activeElement);
+      if (items.length === 0) { e.preventDefault(); win.focus(); return; }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === win)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+      else if (!win.contains(active)) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isPopout, onClose, navigate]);
 
   useEffect(() => {
     if (isPopout) {
@@ -273,18 +303,16 @@ export default function AuditPage({ onClose } = {}) {
     return new Date(ts).toLocaleString();
   }
 
-  // P2: the banner comes first in the file and in the window. It says what is real on THIS page:
-  // every row is an event the gateway recorded; the page itself simulates nothing.
+  // P2: the banner comes first in the file and in the window. It says what is real on THIS page. The store is fed
+  // by the MCP gateway and by the demo's own server (credential issuance, delegation changes), so it says both.
   const banner = (
     <SimBanner data-testid="audit-banner">
-      <strong>Real gateway data, nothing simulated on this page.</strong> Every row is an event the MCP gateway
-      recorded in its durable audit store; calls made by demo agents and mock tools are recorded the same way.
-      Admins see every caller&apos;s events, anyone else sees only their own.
+      <strong>Real audit records, nothing simulated here.</strong> The log holds events from the MCP gateway and
+      from this demo&apos;s server (credentials issued, delegation changes). Admins see every caller; others see their own.
       {view === 'compliance' && (
         <>
           {' '}
-          Status is the decision the gateway recorded. Where it recorded none, the status is derived from the call
-          outcome (success is Permit, failure is Deny, partial is Step-up) and marked <em>from outcome</em>.
+          Where no decision was recorded, the status is derived from the call outcome and marked <em>derived</em>.
         </>
       )}
     </SimBanner>
@@ -293,12 +321,13 @@ export default function AuditPage({ onClose } = {}) {
   // ── Scenario 5: Compliance Report (formal PERMIT/DENY · Scope · Group · ACR) ──
   const complianceRows = useMemo(() => events.map(projectComplianceRow), [events]);
   const complianceSummary = useMemo(() => {
-    const s = { total: complianceRows.length, permit: 0, deny: 0, stepup: 0, delegated: 0 };
+    const s = { total: complianceRows.length, permit: 0, deny: 0, stepup: 0, delegated: 0, derived: 0 };
     for (const r of complianceRows) {
       if (r.status === 'PERMIT') s.permit++;
       else if (r.status === 'DENY') s.deny++;
       else if (r.status === 'STEP-UP') s.stepup++;
       if (r.delegated) s.delegated++;
+      if (r.source === 'outcome') s.derived++;
     }
     return s;
   }, [complianceRows]);
@@ -322,7 +351,7 @@ export default function AuditPage({ onClose } = {}) {
         type="button"
         className="pu-btn pu-btn--primary"
         aria-disabled={loading || undefined}
-        aria-label="Refresh audit log now"
+        aria-label={loading ? 'Refreshing audit log' : 'Refresh audit log now'}
         onClick={() => { if (!loading) fetchEvents(); }}
       >
         {loading ? 'Refreshing…' : 'Refresh'}
@@ -340,11 +369,10 @@ export default function AuditPage({ onClose } = {}) {
           ))}
         </select>
       </label>
-      {lastUpdated ? (
-        <span className="audit-last-updated" title="Last refreshed">
-          Updated {new Date(lastUpdated).toLocaleTimeString()}
-        </span>
-      ) : null}
+      {/* A live region, always mounted so a change is announced: the refresh state and the stamp. */}
+      <span className="audit-last-updated" role="status" title="Last refreshed">
+        {loading ? 'Refreshing…' : lastUpdated ? `Updated ${new Date(lastUpdated).toLocaleTimeString()}` : ''}
+      </span>
       {view === 'compliance' && (
         <>
           <button type="button" className="pu-btn" onClick={() => exportCompliance('csv')}>Export CSV</button>
@@ -365,7 +393,7 @@ export default function AuditPage({ onClose } = {}) {
   const eventsContent = (
     <>
       {summary && (
-        <Section id="audit-summary" kicker="1 · Totals" title="What the gateway recorded">
+        <Section id="audit-summary" kicker="1 · Totals" title="What the log holds">
           <div className="audit-stats">
             <Stat value={summary.totalEvents ?? 0} label="Total events" />
             {Object.entries(summary.byOutcome ?? {}).map(([k, v]) => (
@@ -437,7 +465,7 @@ export default function AuditPage({ onClose } = {}) {
                         <React.Fragment key={rowKey}>
                           {/* The whole row is a mouse target; the Details button is the keyboard control. */}
                           <tr
-                            className={`audit-row audit-row--${ev.outcome} token-chain-row audit-row--clickable`}
+                            className={`audit-row audit-row--${ev.outcome} audit-token-row audit-row--clickable`}
                             onClick={toggle}
                           >
                             <td data-label="Time" className="audit-cell--time">{formatTime(ev.timestamp)}</td>
@@ -445,11 +473,11 @@ export default function AuditPage({ onClose } = {}) {
                             <td data-label="Agent ID" className="audit-cell--user" title={exchangedToken?.sub || ''}>
                               {exchangedToken
                                 ? <>{(exchangedToken.sub || '').substring(0, 15)}{exchangedToken.act ? ' (delegated)' : ''}</>
-                                : <span className="no-exchange">Direct</span>}
+                                : <span className="audit-no-exchange">Direct</span>}
                             </td>
                             <td data-label="User ID" className="audit-cell--user" title={userToken.sub}>{userToken.sub ? userToken.sub.substring(0, 20) : '—'}</td>
                             <td data-label="Tool / operation">
-                              <span className="tool-name">{detail.toolName || '—'}</span>
+                              <span className="audit-tool-name">{detail.toolName || '—'}</span>
                               <span className="audit-cell-sub">scopes: {scopes}</span>
                             </td>
                             <td data-label="Outcome"><OutcomeChip outcome={result.success ? 'success' : 'failure'} /></td>
@@ -467,22 +495,22 @@ export default function AuditPage({ onClose } = {}) {
                             </td>
                           </tr>
                           {isExpanded && (
-                            <tr className="token-chain-detail-row">
+                            <tr className="audit-token-detail-row">
                               <td colSpan={8}>
-                                <div className="token-detail">
-                                  <div className="token-section">
+                                <div className="audit-token-detail">
+                                  <div className="audit-token-section">
                                     <h4>User Token</h4>
-                                    <pre className="audit-details-pre"><JsonHighlight value={userToken} /></pre>
+                                    <pre className="audit-details-pre" tabIndex={0} aria-label="User token JSON"><JsonHighlight value={userToken} /></pre>
                                   </div>
                                   {exchangedToken && (
-                                    <div className="token-section">
+                                    <div className="audit-token-section">
                                       <h4>Exchanged Token (Delegation)</h4>
-                                      <pre className="audit-details-pre"><JsonHighlight value={exchangedToken} /></pre>
+                                      <pre className="audit-details-pre" tabIndex={0} aria-label="Exchanged token JSON"><JsonHighlight value={exchangedToken} /></pre>
                                     </div>
                                   )}
-                                  <div className="token-section">
+                                  <div className="audit-token-section">
                                     <h4>Execution</h4>
-                                    <pre className="audit-details-pre"><JsonHighlight value={result} /></pre>
+                                    <pre className="audit-details-pre" tabIndex={0} aria-label="Execution result JSON"><JsonHighlight value={result} /></pre>
                                   </div>
                                 </div>
                               </td>
@@ -541,7 +569,7 @@ export default function AuditPage({ onClose } = {}) {
                       {detailObj && isExpanded && (
                         <tr className="audit-detail-row">
                           <td colSpan={8}>
-                            <pre className="audit-json jh-dark"><JsonHighlight value={detailObj} /></pre>
+                            <pre className="audit-json jh-dark" tabIndex={0} aria-label={`Details JSON: ${opName}`}><JsonHighlight value={detailObj} /></pre>
                           </td>
                         </tr>
                       )}
@@ -565,6 +593,7 @@ export default function AuditPage({ onClose } = {}) {
           <Stat value={complianceSummary.permit} label="Permit" tone="ok" />
           <Stat value={complianceSummary.deny} label="Deny" tone="danger" />
           <Stat value={complianceSummary.stepup} label="Step-ups" tone="warn" />
+          <Stat value={complianceSummary.derived} label="Derived from outcome" tone="neutral" />
           <Stat value={`${complianceSummary.delegated}/${complianceSummary.total}`} label="Delegation (act)" tone="neutral" />
         </div>
       </Section>
@@ -582,15 +611,17 @@ export default function AuditPage({ onClose } = {}) {
                   {loading && <tr><td colSpan={7} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
                   {!loading && complianceRows.length === 0 && <tr><td colSpan={7} className="audit-table__empty">No audit events found.</td></tr>}
                   {!loading && complianceRows.map((r, i) => (
-                    <tr key={r.eventId ?? i} className={`audit-row audit-row--${r.status === 'PERMIT' ? 'success' : r.status === 'DENY' ? 'failure' : 'partial'}`}>
+                    <tr key={r.eventId ?? i} className={`audit-row audit-row--${r.status === 'PERMIT' ? 'success' : r.status === 'DENY' ? 'failure' : r.status === 'STEP-UP' ? 'partial' : 'unknown'}`}>
                       <td data-label="Time" className="audit-cell--time">{formatTime(r.time)}</td>
                       <td data-label="User" className="audit-cell--user" title={r.agentId ? `agent: ${r.agentId}` : ''}>{r.user}</td>
                       <td data-label="Action">{r.action}</td>
                       <td data-label="Status">
+                        {/* A derived status keeps the word and tone of a recorded one, so the text says which it is. */}
                         <StatusChip tone={STATUS_TONE[r.status] || 'neutral'}>{r.status === '—' ? 'Unknown' : r.status}</StatusChip>
-                        {r.derived && <span className="audit-cell-sub">from outcome</span>}
+                        {r.source === 'outcome' && <span className="audit-cell-sub">derived from outcome</span>}
+                        {r.source === 'none' && <span className="audit-cell-sub">no decision or outcome recorded</span>}
                       </td>
-                      <td data-label="Scope" className="scopes audit-cell--token">{r.scope}</td>
+                      <td data-label="Scope" className="audit-cell--token">{r.scope}</td>
                       <td data-label="Group check" title={r.denyReason || ''}>
                         {r.groupPass === null
                           ? '—'
@@ -688,9 +719,9 @@ function Stat({ value, label, tone }) {
   return (
     <Card tone={tone} className="audit-stat">
       <span className="audit-stat__value">{value}</span>
-      {/* A break opportunity after each underscore (token_chain, banking_operation) keeps long labels in whole words. */}
+      {/* A break opportunity after each underscore, which stays with the word before it (token_chain, banking_operation) keeps long labels in whole words. */}
       <span className="audit-stat__label">
-        {String(label).split('_').map((part, i) => (i === 0 ? part : <React.Fragment key={i}><wbr />{`_${part}`}</React.Fragment>))}
+        {String(label).split('_').map((part, i, all) => (i === all.length - 1 ? part : <React.Fragment key={i}>{`${part}_`}<wbr /></React.Fragment>))}
       </span>
     </Card>
   );

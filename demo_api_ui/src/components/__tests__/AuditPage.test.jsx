@@ -118,6 +118,7 @@ const EVENTS = [
   { eventId: "a2", timestamp: "2026-11-08T10:00:01Z", eventType: "tool_call", userId: "u2", operation: "transfer_funds", outcome: "failure", duration: 5, details: { alert: true, reason: "insufficient_scope", requiredScopes: ["banking:write"], availableScopes: [] } },
   { eventId: "a3", timestamp: "2026-11-08T10:00:02Z", eventType: "token_chain", outcome: "success", details: { toolName: "get_accounts", userToken: { sub: "user-sub-1", scope: ["banking:read"] }, exchangedToken: { sub: "agent-sub-1", act: { sub: "x" }, scope: ["banking:read"] }, result: { success: true, duration: 7 } } },
 ];
+const NO_OUTCOME = { eventId: "a4", timestamp: "2026-11-08T10:00:03Z", eventType: "token_chain", userId: "nobody-9", details: { toolName: "get_x", userToken: { sub: "u4", scope: [] }, result: { success: true } } };
 const SUMMARY = { totalEvents: 3, byOutcome: { success: 2, failure: 1 }, byEventType: { tool_call: 2, token_chain: 1 } };
 
 function mockAudit({ events = EVENTS } = {}) {
@@ -133,6 +134,9 @@ describe("AuditPage — Ping UI Standard", () => {
     const banner = screen.getByTestId("audit-banner");
     expect(banner).toHaveAttribute("role", "note");
     expect(banner.textContent).toMatch(/nothing simulated/i);
+    // It names every writer of the store, not the gateway alone.
+    expect(banner.textContent).toMatch(/gateway and from this demo/i);
+    expect(banner.textContent).not.toMatch(/every row is an event the mcp gateway recorded/i);
     // The banner is the first thing in the window's content, above the view switch and every section.
     const first = document.querySelector(".audit-pu").firstElementChild;
     expect(first).toContainElement(banner);
@@ -216,14 +220,14 @@ describe("AuditPage — Ping UI Standard", () => {
     fireEvent.click(btn);
     expect(screen.getByRole("button", { name: "Hide token details: get_accounts" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("User Token")).toBeInTheDocument();
-    fireEvent.click(document.querySelector("tr.token-chain-row")); // mouse users can still click the row
+    fireEvent.click(document.querySelector("tr.audit-token-row")); // mouse users can still click the row
     expect(screen.queryByText("User Token")).not.toBeInTheDocument();
   });
 
   it("token_chain cells sit under their own column headers", async () => {
     mockAudit();
     await renderSettled({ onClose: vi.fn() });
-    const row = document.querySelector("tr.token-chain-row");
+    const row = document.querySelector("tr.audit-token-row");
     const byLabel = (l) => row.querySelector(`td[data-label="${l}"]`);
     expect(byLabel("Event type")).toHaveTextContent("token_chain");
     expect(byLabel("User ID")).toHaveTextContent("user-sub-1");
@@ -239,8 +243,8 @@ describe("AuditPage — Ping UI Standard", () => {
     const rows = [...document.querySelectorAll(".audit-table tbody tr")];
     const decided = rows.find((r) => r.textContent.includes("get_balance"));
     const inferred = rows.find((r) => r.textContent.includes("transfer_funds"));
-    expect(decided.textContent).not.toMatch(/from outcome/);
-    expect(inferred.textContent).toMatch(/from outcome/);
+    expect(decided.textContent).not.toMatch(/derived from outcome/);
+    expect(inferred.textContent).toMatch(/derived from outcome/);
     expect(inferred.querySelector('td[data-label="Status"] .pu-chip')).toHaveTextContent("DENY");
     expect(decided.querySelector('td[data-label="Group check"] .pu-chip')).toHaveTextContent("Pass: Customers");
   });
@@ -266,6 +270,41 @@ describe("AuditPage — Ping UI Standard", () => {
     expect(lines.find((l) => l.includes("transfer_funds"))).toContain('"outcome"');
   });
 
+  it("claims no status source for a row with neither a decision nor an outcome", async () => {
+    // Real token_chain events carry no top-level outcome and no decision: nothing was derived.
+    mockAudit({ events: [...EVENTS, NO_OUTCOME] });
+    await renderSettled({ onClose: vi.fn() });
+    fireEvent.click(screen.getByRole("button", { name: "Compliance Report" }));
+    const rows = [...document.querySelectorAll(".audit-table tbody tr")];
+    const none = rows.find((r) => r.textContent.includes("nobody-9"));
+    const cell = none.querySelector('td[data-label="Status"]');
+    expect(cell.querySelector(".pu-chip")).toHaveTextContent("Unknown");
+    expect(cell.textContent).not.toMatch(/derived from outcome/);
+    expect(cell.textContent).toMatch(/no decision or outcome recorded/);
+    // The two rows that did get a status from their outcome (a2 failure, a3 success) are the only derived ones.
+    expect(screen.getByText("Derived from outcome").previousSibling).toHaveTextContent("2");
+  });
+
+  it("writes an empty status source in the CSV when nothing was derived", async () => {
+    mockAudit({ events: [...EVENTS, NO_OUTCOME] });
+    await renderSettled({ onClose: vi.fn() });
+    fireEvent.click(screen.getByRole("button", { name: "Compliance Report" }));
+    let blob;
+    const orig = { c: URL.createObjectURL, r: URL.revokeObjectURL };
+    URL.createObjectURL = vi.fn((b) => { blob = b; return "blob:x"; });
+    URL.revokeObjectURL = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    anchorClick.mockRestore();
+    URL.createObjectURL = orig.c;
+    URL.revokeObjectURL = orig.r;
+    const text = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsText(blob); });
+    const row = text.split("\n").find((l) => l.includes("nobody-9"));
+    expect(row).toContain('"—"');
+    expect(row).not.toContain('"outcome"');
+    expect(row).not.toContain('"decision"');
+  });
+
   it("shows a load failure as an alert with the word Error", async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) }));
     await renderSettled({ onClose: vi.fn() });
@@ -282,5 +321,93 @@ describe("AuditPage — Ping UI Standard", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByTestId("audit-banner")).toBeInTheDocument();
     expect(document.querySelectorAll(".pu-btn--primary")).toHaveLength(1);
+  });
+});
+
+describe("AuditPage - class names, dialog behaviour and live regions", () => {
+  it("uses no class that another stylesheet owns (the token-chain row must stay a table row)", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    fireEvent.click(document.querySelector("tr.audit-token-row"));
+    const page = document.querySelector(".audit-pu");
+    for (const cls of ["token-chain-row", "token-chain-detail-row", "token-section", "token-detail", "tool-name", "no-exchange"]) {
+      expect(page.querySelector(`.${cls}`)).toBeNull();
+    }
+  });
+
+  it("closes on Escape, and not on Escape from an open select", async () => {
+    mockAudit();
+    const onClose = vi.fn();
+    await renderSettled({ onClose });
+    fireEvent.keyDown(screen.getByLabelText("Filter by event type"), { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Tab inside the window: last wraps to first, Shift+Tab from the first wraps to the last", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    const dialog = screen.getByRole("dialog");
+    const items = [...dialog.querySelectorAll('button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+    const first = items[0];
+    const last = items[items.length - 1];
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(first).toHaveFocus();
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(last).toHaveFocus();
+    // from the dialog container itself, Shift+Tab goes to the last control
+    dialog.focus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(last).toHaveFocus();
+  });
+
+  it("pulls focus back in when it is outside the window", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    outside.focus();
+    fireEvent.keyDown(outside, { key: "Tab" });
+    expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
+    outside.remove();
+  });
+
+  it("exposes the refresh state in the button name and in a status region", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    const status = document.querySelector('.audit-last-updated');
+    expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveTextContent(/^Updated \d/);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh audit log now" }));
+    expect(screen.getByRole("button", { name: "Refreshing audit log" })).toHaveAttribute("aria-disabled", "true");
+    expect(status).toHaveTextContent("Refreshing…");
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Refresh audit log now" })).toBeInTheDocument();
+  });
+
+  it("names every scrollable <pre> and makes it focusable", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    // One row is expanded at a time: the token_chain row shows three boxes, a plain row shows one.
+    fireEvent.click(screen.getByRole("button", { name: "Show token details: get_accounts" }));
+    const pres = [...document.querySelectorAll("pre")];
+    fireEvent.click(screen.getByRole("button", { name: "Show details: get_balance" }));
+    const plain = [...document.querySelectorAll("pre")];
+    expect(pres.length).toBe(3);
+    expect(plain.length).toBe(1);
+    for (const pre of [...pres, ...plain]) {
+      expect(pre).toHaveAttribute("tabindex", "0");
+      expect(pre.getAttribute("aria-label")).toMatch(/JSON/);
+    }
+  });
+
+  it("breaks stat labels after the underscore, not before it", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    const label = [...document.querySelectorAll(".audit-stat__label")].find((l) => l.textContent === "token_chain");
+    const kids = [...label.childNodes].map((n) => (n.nodeType === 3 ? n.textContent : n.nodeName));
+    expect(kids).toEqual(["token_", "WBR", "chain"]);
   });
 });

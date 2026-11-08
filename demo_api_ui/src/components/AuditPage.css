@@ -87,7 +87,9 @@
 .audit-float-btn:focus-visible,
 .audit-float-close:focus-visible,
 .audit-view-tab:focus-visible,
-.audit-details-toggle:focus-visible {
+.audit-details-toggle:focus-visible,
+.audit-json:focus-visible,
+.audit-details-pre:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
@@ -307,8 +309,12 @@
   color: var(--th-text-body);
 }
 
+/* A user or agent id can be 100 characters with no break. The column keeps a floor width so such an id wraps
+   (overflow-wrap:anywhere, set under .audit-pu below) in a readable block instead of a one-character-wide strip
+   that makes the row hundreds of pixels tall. */
 .audit-table td.audit-cell--user {
-  max-width: 160px;
+  min-width: 7.5rem;
+  max-width: 14rem;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--th-text-body);
@@ -416,38 +422,41 @@ tr.audit-detail-row > td {
   flex-shrink: 0;
 }
 
-/* ── Token chain row styles ── */
-tr.token-chain-row {
+/* ── Token chain row styles ──
+   Every class here carries the audit- prefix: the unprefixed names (.token-chain-row, .token-section) are also
+   global rules in education/TokenChainPanel.css and UserDashboard.css, and .token-chain-row there is display:flex,
+   which collapsed this page's <tr> out of the table layout. */
+tr.audit-token-row {
   background-color: var(--th-status-info-bg);
   color: var(--th-text);
 }
 
-tr.token-chain-row td:first-child {
+tr.audit-token-row td:first-child {
   border-left: 4px solid var(--th-status-info);
 }
 
-tr.token-chain-row:hover {
+tr.audit-token-row:hover {
   background-color: var(--th-bg-hover);
 }
 
-.token-chain-row .tool-name {
+.audit-token-row .audit-tool-name {
   font-weight: var(--font-weight-semibold);
   color: var(--th-status-info-text);
 }
 
-.token-chain-row .no-exchange {
+.audit-token-row .audit-no-exchange {
   color: var(--th-text-body);
   font-style: italic;
 }
 
-tr.token-chain-detail-row td {
+tr.audit-token-detail-row td {
   padding: 12px;
   background-color: var(--th-bg-card);
   color: var(--th-text);
   border: none;
 }
 
-.token-detail {
+.audit-token-detail {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
@@ -457,11 +466,11 @@ tr.token-chain-detail-row td {
   border: 1px solid var(--th-border-strong);
 }
 
-.token-detail .token-section {
+.audit-token-detail .audit-token-section {
   min-width: 0;
 }
 
-.token-detail .token-section h4 {
+.audit-token-detail .audit-token-section h4 {
   margin: 0 0 8px 0;
   font-size: var(--font-size-sm);
   color: var(--th-status-info-text);
@@ -487,7 +496,7 @@ tr.token-chain-detail-row td {
 
 /* ── Phone width: the table stacks into labelled rows (same pattern as .psa-table) ── */
 @media (max-width: 768px) {
-  .token-detail {
+  .audit-token-detail {
     grid-template-columns: 1fr;
   }
 }
@@ -555,7 +564,7 @@ tr.token-chain-detail-row td {
   .audit-row--partial td:first-child,
   .audit-row--success td:first-child,
   .audit-row--alert td:first-child,
-  tr.token-chain-row td:first-child {
+  tr.audit-token-row td:first-child {
     border-left: 0;
   }
 
@@ -563,7 +572,7 @@ tr.token-chain-detail-row td {
   .audit-row--partial { border-left: 3px solid var(--th-status-warning); }
   .audit-row--success { border-left: 3px solid var(--th-status-success); }
   .audit-row--alert { border-left: 3px solid var(--th-status-error); }
-  tr.token-chain-row { border-left: 4px solid var(--th-status-info); }
+  tr.audit-token-row { border-left: 4px solid var(--th-status-info); }
 
   .audit-alert {
     display: block;
