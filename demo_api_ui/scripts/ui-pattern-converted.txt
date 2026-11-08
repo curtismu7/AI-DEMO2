@@ -2,10 +2,14 @@
 # Every other routed page is reported but advisory. Add a route in the SAME PR that converts the page.
 # One route path per line, exactly as in src/App.js.
 /privilege-saas-access
+/privilege-map
 /privilege-coding-agents
 /privilege-pii-detection
+/privilege-demo
 /privilege-intent-triage
 /privilege-prompt-log
+/privilege-pf-token
 /privilege-shelf
 /privilege-a2a
 /privilege-for-ai
+/privilege-ai-policies
