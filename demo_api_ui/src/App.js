@@ -2190,7 +2190,8 @@ function AppWithAuth() {
                                 loading ? null : user ? (
                                   <SecretRotationPage />
                                 ) : (
-                                  <SignInRequired />
+                                  /* Inside the shell that already renders TopNav: SignInRequired would paint a second one. */
+                                  <SignInPrompt message="This page needs a signed-in session." />
                                 )
                               }
                             />
@@ -2358,7 +2359,8 @@ function AppWithAuth() {
                                 loading ? null : user ? (
                                   <AgentBuilderPage />
                                 ) : (
-                                  <SignInRequired />
+                                  /* Inside the shell that already renders TopNav: SignInRequired would paint a second one. */
+                                  <SignInPrompt message="This page needs a signed-in session." />
                                 )
                               }
                             />

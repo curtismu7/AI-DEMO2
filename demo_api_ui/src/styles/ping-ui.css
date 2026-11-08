@@ -31,14 +31,26 @@
 }
 
 .pu-banner {
-  padding: 10px 12px;
+  /* Line height and block padding are variables so the phone clamp (end of file) cuts exactly on a line. */
+  --pu-banner-lh: 1.5;
+  --pu-banner-pad: 10px;
+  padding: var(--pu-banner-pad) 12px;
   border: 1px solid var(--th-border-strong);
   border-left: 4px solid var(--btn-accent);
   border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-size: var(--font-size-sm);
-  line-height: 1.5;
+  line-height: var(--pu-banner-lh);
+}
+
+/* The More / Less button under a clipped banner (SimBanner). It is only rendered while the text is clipped, which
+   happens only in the phone block at the end of this file. */
+.pu-page .pu-banner__more {
+  min-height: 36px;
+  margin-top: 6px;
+  padding: 4px 14px;
+  font-size: var(--font-size-sm);
 }
 
 /* P3: one centred frame, sections labelled by a kicker and an h2. The headings carry .pu-page so they
@@ -70,6 +82,38 @@
   max-width: 78ch;
   font-size: var(--font-size-sm);
   color: var(--th-text-body);
+}
+
+/* Long ids, audiences, URLs and agent names have no spaces to break at, so on a phone they ran past the card and
+   were clipped. overflow-wrap: anywhere (which, unlike break-word, also lowers the min-content size) with min-width: 0
+   lets every text-bearing class shrink to its column. The selectors start at .pu-page because the PingOne
+   end-user-nano skin sets word-wrap: break-word on bare elements and beats single-class rules. */
+.pu-page .pu-banner,
+.pu-page .pu-kicker,
+.pu-page .pu-h2,
+.pu-page .pu-h3,
+.pu-page .pu-lede,
+.pu-page .pu-note,
+.pu-page .pu-label,
+.pu-page .pu-status-line,
+.pu-page .pu-empty,
+.pu-page .pu-kv dt,
+.pu-page .pu-kv dd,
+.pu-page .pu-chip,
+.pu-page .pu-btn,
+.pu-page .plc__hint,
+.pu-page .pu-card p,
+.pu-page .pu-card li,
+.pu-page .pu-frame > section > p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Flex and grid children default to min-width: auto, which holds a long unbroken word at full width. */
+.pu-status-line > *,
+.pu-actions > *,
+.pu-card-grid > * {
+  min-width: 0;
 }
 
 /* P4: cards with a 4px accent top edge, in a grid that wraps at phone width. */
@@ -213,7 +257,10 @@
   color: var(--th-text);
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-bold);
-  white-space: nowrap;
+  /* A chip wraps inside its column instead of running off the screen (it was nowrap with no max-width). */
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
 }
 
 .pu-chip__dot {
@@ -369,6 +416,14 @@
 }
 
 @media (max-width: 600px) {
+  /* The honest banner copy filled 41-80% of a phone screen. Hold it to three lines of the banner's own line height
+     (padding and border included, so the cut falls between lines); SimBanner's More button opens the rest. */
+  .pu-banner.pu-banner--clamp {
+    box-sizing: border-box;
+    max-height: calc(var(--pu-banner-lh) * 3em + 2 * var(--pu-banner-pad) + 2px);
+    overflow: hidden;
+  }
+
   .pu-card {
     padding: 14px;
   }

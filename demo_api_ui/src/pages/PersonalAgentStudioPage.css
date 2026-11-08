@@ -20,9 +20,10 @@
 }
 
 .pas-page .pu-banner {
-  padding: 5px 10px;
+  --pu-banner-pad: 5px;
+  --pu-banner-lh: 1.4;
+  padding: var(--pu-banner-pad) 10px;
   font-size: var(--font-size-2xs);
-  line-height: 1.4;
 }
 
 /* Fixed-height views (the Add to ChatGPT / Claude and Delegation proof tabs): the page is the window below the app

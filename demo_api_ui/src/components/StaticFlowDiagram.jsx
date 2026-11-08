@@ -81,6 +81,9 @@ const FIT = { padding: { top: "20px", right: "20px", bottom: "20px", left: "56px
 // pingStyle: routed arrows and their number badges run in the free border outside the outermost boxes, so leave room for them.
 const FIT_PING = { padding: { top: "40px", right: "60px", bottom: "40px", left: "100px" } };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
+// A pane narrower than this (a phone) cannot show a whole hand-placed layout at a legible size: the fit stops at
+// READABLE_ZOOM (13px labels land at about 10.4px) and the drawing is panned instead of shrunk to unreadable dots.
+const READABLE = { narrowBelow: 640, minZoom: 0.8 };
 
 // Handle ids are sl/sr/sb (source) and tl/tr/tt (target): the second letter is the side of the box (l/r/b/t).
 const handleDir = (id) => id[1];
@@ -274,7 +277,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
   const ref = useRef(null);
   const lastDragEnd = useRef(0);
   const fit = pingStyle ? FIT_PING : FIT;
-  useFitOnResize(ref, fit);
+  const pannable = useFitOnResize(ref, fit, READABLE);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
   const [dragging, setDragging] = useState(false);
   const nodeLookup = useStore((st) => st.nodeLookup);
@@ -393,7 +396,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
   );
 
   return (
-    <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-testid={testId} data-route-fallbacks={routing.fallbacks ?? undefined} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
+    <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-pannable={pannable ? "true" : undefined} data-testid={testId} data-route-fallbacks={routing.fallbacks ?? undefined} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
       <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
         <defs>
           <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
@@ -427,6 +430,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {pannable && <p className="sfd-pan-hint">Drag to pan, use + and − to zoom</p>}
     </div>
   );
 }

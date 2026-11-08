@@ -5,6 +5,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  /* Label over select when the bar is too narrow for both (phone width, A+ text zoom), not past the edge. */
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 .dc-steptime-label {
   font-size: 0.75rem;
@@ -21,6 +25,8 @@
   color: var(--th-text);
   cursor: pointer;
   font-family: inherit;
+  max-width: 100%;
+  min-width: 0;
 }
 .dc-steptime-select:disabled {
   color: var(--th-text);
