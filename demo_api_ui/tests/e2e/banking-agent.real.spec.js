@@ -137,7 +137,7 @@ test.describe('BankingAgent — Real login (admin)', () => {
   test('admin sees Admin Dashboard button in panel nav', async ({ page }) => {
     await ensureAgentReady(page);
     await expect(
-      page.locator('.banking-agent-panel .ba-left-auth-btn.primary', { hasText: 'Admin Dashboard' })
+      page.locator('.banking-agent-panel .ba-left-auth-btn.ba-left-nav-btn', { hasText: 'Admin Dashboard' })
     ).toBeVisible();
   });
 

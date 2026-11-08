@@ -319,7 +319,7 @@ export function CibaFullStackContent() {
 
       <h3>Agent Gateway-style architecture map</h3>
       <figure role="group" aria-label="Agent Gateway-style architecture map" style={{ margin: '12px 0' }}>
-        <figcaption style={{ fontSize: '0.78rem', color: '#374151', marginBottom: 6 }}>
+        <figcaption style={{ fontSize: '0.78rem', color: 'var(--th-text-body)', marginBottom: 6 }}>
           Pattern source: Agent Gateway demo architecture.vsdx (swimlanes + RFC strips)
         </figcaption>
         <StaticFlowDiagram NODES={FULL_STACK_NODES} EDGES={FULL_STACK_EDGES} GROUPS={FULL_STACK_GROUPS} testId="ciba-fullstack-diagram" />
@@ -361,7 +361,7 @@ Phase 3 — Resource access
       <h3>Key API endpoints (this deployment)</h3>
       <pre className="edu-code">{OAUTH_API_CHEATSHEET}</pre>
 
-      <p style={{ fontSize: '0.85rem', color: '#374151' }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--th-text-body)' }}>
         <strong>Agent path:</strong> POST /api/agent/invoke routes to the BFF, which calls runReasonLoop() at demo_agent_service (port 3006). Tool execution is BFF-side:{' '}
         BFF → demo_mcp_gateway (port 3005) → demo_mcp_server (port 8080) → Banking API.
       </p>
@@ -534,9 +534,10 @@ export function TokenExchangeContent() {
         style={{
           marginBottom: 14,
           padding: '12px 14px',
-          background: '#f0fdf4',
+          background: 'var(--th-status-success-bg)',
+          color: 'var(--th-text)',
           borderRadius: 8,
-          border: '1px solid #86efac',
+          border: '1px solid var(--th-status-success-border)',
         }}
       >
         <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem' }}>Implementation in this monorepo</h4>
@@ -644,7 +645,7 @@ Content-Type: application/json
         <li>User invokes MCP tool → Backend-for-Frontend (BFF) may exchange subject token for MCP-audience token (RFC 8693).</li>
         <li>Only after step 2 does the MCP layer see a Bearer suited to the tool/RS chain.</li>
       </ol>
-      <p style={{ fontSize: '0.85rem', color: '#374151' }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--th-text-body)' }}>
         Open the Config page → "MCP Inspector setup" for env snippets that match your URL.
       </p>
 
@@ -678,7 +679,7 @@ HTTP/1.1 200 OK
   permits this client + grant combination. If not configured:
   HTTP/1.1 400 { "error": "invalid_grant", "error_description": "..." }`}</pre>
 
-      <p style={{ fontSize: '0.85rem', color: '#374151' }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--th-text-body)' }}>
         <strong>Related:</strong> the <strong>Sign-in &amp; roles</strong> tab in the CIBA Guide
         explains "on behalf of" and <code>/api/agent/identity/bootstrap</code>.{' '}
         <strong>Application Configuration</strong> includes an MCP Inspector setup wizard that
@@ -1265,7 +1266,7 @@ MCP spec reference:
         <li><strong>RFC 9449 DPoP</strong> (best practice) — sender-constrained tokens; stolen Bearer unusable.</li>
       </ul>
 
-      <p style={{ fontSize: '0.85rem', color: '#374151' }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--th-text-body)' }}>
         See the <strong>Full stack</strong> tab in the CIBA Guide for how this demo maps
         these RFCs to PingOne, the Banking Backend-for-Frontend (BFF), and <code>demo_mcp_server</code>.
       </p>
@@ -1342,11 +1343,11 @@ export function RFC9728Content() {
           <pre className="edu-code">{JSON.stringify(metadata, null, 2)}</pre>
         </>
       ) : fetchError ? (
-        <p style={{ color: '#b91c1c', fontSize: '0.875rem' }}>
+        <p style={{ color: 'var(--th-status-error-text)', fontSize: '0.875rem' }}>
           Could not load live metadata: {fetchError}. Is the BFF running?
         </p>
       ) : (
-        <p style={{ fontSize: '0.875rem', color: '#374151' }}>Loading live metadata\u2026</p>
+        <p style={{ fontSize: '0.875rem', color: 'var(--th-text-body)' }}>Loading live metadata\u2026</p>
       )}
     </>
   );

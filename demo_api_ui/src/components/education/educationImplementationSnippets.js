@@ -4,16 +4,16 @@ import React from 'react';
 
 export function EduImplIntro({ repoPath, mock, children }) {
   return (
-    <p style={{ fontSize: '0.82rem', color: '#475569', marginTop: 0, marginBottom: '0.65rem', lineHeight: 1.55 }}>
+    <p style={{ fontSize: '0.82rem', color: 'var(--th-text-body)', marginTop: 0, marginBottom: '0.65rem', lineHeight: 1.55 }}>
       {mock ? (
         <>
-          <strong style={{ color: '#b45309' }}>Illustrative</strong>
+          <strong style={{ color: 'var(--th-status-warning-text)' }}>Illustrative</strong>
           {' — '}
           {children}
         </>
       ) : (
         <>
-          <strong style={{ color: '#166534' }}>This repo</strong>
+          <strong style={{ color: 'var(--th-status-success-text)' }}>This repo</strong>
           {repoPath ? (
             <>
               {': '}
