@@ -13,6 +13,7 @@
 /privilege-intent-triage
 /mcp-observability
 /privilege-prompt-log
+/demo-config
 /privilege-pf-token
 /p1-third-party-exchange
 /privilege-shelf
