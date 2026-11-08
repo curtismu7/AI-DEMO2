@@ -64,7 +64,7 @@ spec:
             - containerPort: 9900
           env:
             - name: OPENSEARCH_URL
-              value: "http://opensearch:9200"
+              value: {{ .Values.opensearchMcpServer.opensearchUrl | default "http://opensearch:9200" | quote }}
             - name: OPENSEARCH_NO_AUTH
               value: "true"
           resources:

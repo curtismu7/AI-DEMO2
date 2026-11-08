@@ -165,6 +165,9 @@ redis:
 
 opensearchMcpServer:
   enabled: true
+  # Where the adapter searches. Default: the OpenSearch in this namespace. A release that has no OpenSearch of its own
+  # (opensearch.enabled: false) sets another namespace's Service name here.
+  opensearchUrl: "http://opensearch:9200"
   image: cjmuir710/opensearch-mcp-server:latest
   imagePullSecret: dockerhub-creds
   resources:

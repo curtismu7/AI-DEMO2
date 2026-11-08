@@ -38,14 +38,16 @@ image:
   tag: v1.261102
 
 # Gateway 2's per-node OpenSearch MCP sidecar, added by hand with kubectl; a helm upgrade dropped
-# it on 2026-10-25. OPENSEARCH_URL resolves in this namespace's own opensearch Service.
+# it on 2026-10-25. It searches the OpenSearch in gateway 1's namespace, the same one logShipping writes to above, so a
+# call the load balancer sends to either node sees the same data. (Before this it searched a second, stale copy in this
+# namespace: gateway-events there stopped at 2026-10-26.)
 nodeExtraContainers:
   - name: opensearch-mcp-server
     image: cjmuir710/opensearch-mcp-server:latest
     imagePullPolicy: Always
     args: ["--transport", "stream", "--host", "0.0.0.0", "--port", "9900"]
     env:
-      - {name: OPENSEARCH_URL, value: "http://opensearch:9200"}
+      - {name: OPENSEARCH_URL, value: "http://opensearch.ping-devops-curtismuir.svc.cluster.local:9200"}
       - {name: OPENSEARCH_NO_AUTH, value: "true"}
     ports:
       - containerPort: 9900
@@ -61,9 +63,10 @@ nodeExtraContainers:
       requests: {cpu: 25m, memory: 256Mi}
       limits: {cpu: 500m, memory: 512Mi}
 
-# The opensearch Deployment's live CPU request was set to 25m by hand; match it so Helm's
-# server-side apply doesn't conflict on that field.
+# This namespace no longer runs its own OpenSearch (see docs/runbooks/opensearch-consolidation.md). Helm removes the
+# Deployment, Service and the opensearch-data volume claim on the next upgrade.
 opensearch:
-  resources:
-    requests:
-      cpu: 25m
+  enabled: false
+# The standalone adapter searches gateway 1's OpenSearch too.
+opensearchMcpServer:
+  opensearchUrl: "http://opensearch.ping-devops-curtismuir.svc.cluster.local:9200"
