@@ -169,6 +169,21 @@ describe("PrivilegeGatewayTopologyPage diagram data", () => {
     }
   });
 
+  it("honesty: the green status chip appears only on a tab recorded as checked against a cluster; unchecked tabs are neutral or warn", () => {
+    expect(TABS.filter((t) => t.clusterChecked).map((t) => t.id)).toEqual(["lb"]);
+    render(<PrivilegeGatewayTopologyPage />);
+    for (const tab of TABS) {
+      fireEvent.click(screen.getAllByRole("button").find((b) => b.textContent === tab.label));
+      const card = screen.getByText("About this drawing").closest(".pu-card");
+      const chip = [...card.querySelectorAll(".pu-chip")].find((c) => c.textContent === tab.status);
+      expect(chip, `${tab.id} status chip`).toBeTruthy();
+      const green = chip.className.includes("pu-chip--ok");
+      expect(green, `${tab.id} green only when checked`).toBe(Boolean(tab.clusterChecked));
+      if (!tab.clusterChecked) expect(card.textContent, tab.id).toContain("Not checked against a cluster");
+    }
+    expect(TABS.find((t) => t.id === "a2a").status).toBe("Recorded");
+  });
+
   it("diagram groups use page tokens, never a hex colour, and every legend swatch has a class", () => {
     for (const tab of TABS) for (const g of Object.values(tab.groups)) expect(g.bg).toMatch(/^var\(--pgt-(ping|app|infra)\)$/);
     render(<PrivilegeGatewayTopologyPage />);

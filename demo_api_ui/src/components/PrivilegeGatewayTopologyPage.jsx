@@ -241,6 +241,7 @@ export const TABS = [
     label: "Live LB topology",
     title: "Live load-balanced topology",
     status: "Current",
+    clusterChecked: true,
     checked: "Against the SE cluster, 2026-10-12",
     static: true,
     nodes: LB_NODES,
@@ -300,7 +301,7 @@ export const TABS = [
     id: "a2a",
     label: "Agent-to-agent",
     title: "Agent-to-agent through the gateway",
-    status: "Current",
+    status: "Recorded",
     checked: "Not checked against a cluster on this page",
     static: true,
     nodes: A2A_NODES,
@@ -402,7 +403,7 @@ export default function PrivilegeGatewayTopologyPage() {
           <Card tone="neutral" title="About this drawing" className="pgt-about">
             <p className="pu-status-line">
               <StatusChip tone="neutral">Illustration</StatusChip>
-              <StatusChip tone={archived ? "warn" : "ok"}>{activeTabMeta.status}</StatusChip>
+              <StatusChip tone={archived ? "warn" : activeTabMeta.clusterChecked ? "ok" : "neutral"}>{activeTabMeta.status}</StatusChip>
             </p>
             <KvList
               items={[
