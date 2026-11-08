@@ -74,12 +74,53 @@ describe("PingAiProductPage", () => {
     expect(within(screen.getByRole("navigation", { name: "AI product pages" })).getByRole("link", { current: "page" })).toHaveTextContent("Agent Gateway");
   });
 
-  it("links the Privilege LLM story to a concrete prompt-injection run", () => {
+  it("links the Privilege LLM story to a prompt-injection attempt without promising a verdict", () => {
     render(<MemoryRouter><PingAiProductPage product="privilegeLlm" /></MemoryRouter>);
-    expect(screen.getByRole("link", { name: /Prompt injection blocked/ })).toHaveAttribute(
-      "href",
-      "/llm-gateway?attack=prompt_injection",
-    );
+    const link = screen.getByRole("link", { name: /Try a prompt-injection attack/ });
+    expect(link).toHaveAttribute("href", "/llm-gateway?attack=prompt_injection");
+    expect(screen.queryByText(/prompt injection blocked/i)).not.toBeInTheDocument();
+    expect(link.closest(".pai-run")).toHaveTextContent(/outcome is not decided in advance/i);
+  });
+
+  it.each(["core", "gateway", "authorize", "privilegeLlm", "privilegeA2a", "privilegeMcp"])(
+    "%s banner does not claim every destination labels what it runs live and what it simulates",
+    (product) => {
+      render(<MemoryRouter><PingAiProductPage product={product} /></MemoryRouter>);
+      const text = screen.getByTestId("pai-banner").textContent;
+      expect(text).not.toMatch(/each of those says/i);
+      expect(text).toMatch(/not every one of them labels/i);
+      expect(text).toMatch(/Start with button and the cards below open other demo pages/i);
+    },
+  );
+
+  it.each(["core", "gateway", "authorize", "privilegeLlm", "privilegeA2a", "privilegeMcp"])(
+    "%s run cards each say what the destination is, and none reads as a real verdict",
+    (product) => {
+      const { container } = render(<MemoryRouter><PingAiProductPage product={product} /></MemoryRouter>);
+      const cards = container.querySelectorAll(".pai-run");
+      expect(cards.length).toBeGreaterThan(0);
+      const kinds = [/live calls/, /mixes live and simulated/, /simulated option/, /sample data/, /nothing is called/];
+      cards.forEach((card) => {
+        expect(card.querySelector(".pai-run__label").textContent).toMatch(new RegExp(kinds.map((k) => k.source).join("|")));
+        const title = card.querySelector("h3").textContent;
+        // "Gateway ..." is reserved for pages that call the real gateway (the live inspector); never for a mix, a sample or an explainer.
+        if (/^Gateway\b/.test(title)) expect(card.querySelector(".pai-run__label").textContent).toMatch(/live calls|simulated option/);
+        expect(title).not.toMatch(/\b(blocked|denied)\b/i);
+        expect(card.textContent).not.toMatch(/Open agent run/);
+      });
+    },
+  );
+
+  it("words the shared workbench and the Authorize console honestly", () => {
+    const { container, unmount } = render(<MemoryRouter><PingAiProductPage product="gateway" /></MemoryRouter>);
+    const workbench = [...container.querySelectorAll(".pai-run")].find((c) => c.querySelector("a").getAttribute("href") === "/use-cases/live");
+    expect(workbench.querySelector(".pai-run__label")).toHaveTextContent(/mixes live and simulated/);
+    expect(workbench).toHaveTextContent(/Run sim cards are labelled simulations/);
+    unmount();
+    render(<MemoryRouter><PingAiProductPage product="authorize" /></MemoryRouter>);
+    const consoleCard = screen.getByRole("link", { name: "Policy console" }).closest(".pai-run");
+    expect(consoleCard).toHaveTextContent(/starts in Mock mode/);
+    expect(consoleCard).not.toHaveTextContent(/evaluate live/i);
   });
 
   it("renders the standalone browser risk evaluation instead of authentication or agent dispatch", () => {
