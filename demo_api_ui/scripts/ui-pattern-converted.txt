@@ -19,6 +19,7 @@
 /privilege-prompt-log
 /demo-config
 /privilege-pf-token
+/ping-products/verify-recognize
 /autonomous-agents
 /p1-third-party-exchange
 /privilege-shelf
