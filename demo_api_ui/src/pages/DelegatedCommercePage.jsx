@@ -125,6 +125,8 @@ export default function DelegatedCommercePage({ user }) {
   }, []);
   const [ciba, setCiba] = React.useState(null);
   const pollTimerRef = React.useRef(null);
+  // Bumped by Reset and on unmount. A checkout / poll started under an older token drops its result.
+  const runTokenRef = React.useRef(0);
   const primaryRef = React.useRef(null);
   const consentWasOpen = React.useRef(false);
   const consentFirstFieldRef = React.useRef(null);
@@ -150,7 +152,10 @@ export default function DelegatedCommercePage({ user }) {
       .catch(() => {});
   }, []);
 
-  React.useEffect(() => () => window.clearTimeout(pollTimerRef.current), []);
+  React.useEffect(() => () => {
+    runTokenRef.current += 1;
+    window.clearTimeout(pollTimerRef.current);
+  }, []);
 
   // The consent dialog opened: DraggableModal is shared and does not move focus, so it would stay on the page button
   // behind the dialog. Put it on the first scope checkbox. When the dialog closes and focus falls to the body, hand it
@@ -271,21 +276,25 @@ export default function DelegatedCommercePage({ user }) {
     }
   }, []);
 
-  const pollCiba = React.useCallback((authReqId, intervalMs) => {
+  const pollCiba = React.useCallback((authReqId, intervalMs, token) => {
     pollTimerRef.current = window.setTimeout(async () => {
+      if (token !== runTokenRef.current) return;
       try {
         const response = await apiClient.get(`/api/auth/ciba/poll/${authReqId}`);
+        if (token !== runTokenRef.current) return;
         setCiba((current) => ({ ...current, ...response.data }));
         if (response.data.status === "approved") {
           const retry = await postCheckout();
+          if (token !== runTokenRef.current) return;
           if (!retry.ok) throw new Error(retry.message || retry.error || "Checkout retry failed.");
           setStepResult(2, "Checkout completed after human approval.");
           markComplete(2, { advance: false });
           setBusy("");
           return;
         }
-        pollCiba(authReqId, intervalMs);
+        pollCiba(authReqId, intervalMs, token);
       } catch (err) {
+        if (token !== runTokenRef.current) return;
         setBusy("");
         notifyError(err.response?.data?.message || err.message || "Approval polling failed.");
       }
@@ -293,9 +302,11 @@ export default function DelegatedCommercePage({ user }) {
   }, [markComplete, postCheckout, setStepResult]);
 
   const checkout = async () => {
+    const token = ++runTokenRef.current;
     setBusy("checkout");
     setStepResult(2, "");
     const initial = await postCheckout();
+    if (token !== runTokenRef.current) return;
     const gated = initial.status === 428 || [
       "mcp_step_up_required",
       "mcp_hitl_required",
@@ -317,14 +328,16 @@ export default function DelegatedCommercePage({ user }) {
         amount: 600,
         tool: "checkout",
       });
+      if (token !== runTokenRef.current) return;
       const request = response.data;
       setCiba({ ...request, status: "pending" });
       setEvidence((current) => ({
         ...current,
         approval: { requestId: request.auth_req_id, engine: request.engine },
       }));
-      pollCiba(request.auth_req_id, Math.max(1000, (request.interval || 5) * 1000));
+      pollCiba(request.auth_req_id, Math.max(1000, (request.interval || 5) * 1000), token);
     } catch (err) {
+      if (token !== runTokenRef.current) return;
       setBusy("");
       notifyError(err.response?.data?.message || err.message || "Could not start approval.");
     }
@@ -414,6 +427,10 @@ export default function DelegatedCommercePage({ user }) {
   };
 
   const reset = () => {
+    // Cancel an approval that is still being polled: no later retry, and the controls come back.
+    runTokenRef.current += 1;
+    window.clearTimeout(pollTimerRef.current);
+    setBusy("");
     window.sessionStorage.removeItem(CLAIM_CODE_KEY);
     setActiveStep(0);
     setCompleted([]);
