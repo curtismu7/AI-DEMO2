@@ -69,6 +69,7 @@ export default function PrivilegePromptLogPage() {
   // linger in state for a record it was not entered for. Mouse (row click) and keyboard (the
   // button in the first cell, whose click bubbles to the row) share this one path.
   const selectRecord = (id) => {
+    if (id === selectedId) return; // re-activating the current record changes nothing: keep an open record and its key
     setSelectedId(id);
     setUnsealedId(null);
     setPrivateKey('');
@@ -121,7 +122,8 @@ export default function PrivilegePromptLogPage() {
                           <button
                             type="button"
                             className="ppl-row-btn"
-                            aria-pressed={r.id === selectedId}
+                            aria-current={r.id === selectedId ? 'true' : undefined}
+                            aria-label={`${r.id}, ${r.agent}, ${r.category}, ${r.decision}`}
                             data-testid={`ppl-row-${r.id}`}
                           >
                             {r.id}

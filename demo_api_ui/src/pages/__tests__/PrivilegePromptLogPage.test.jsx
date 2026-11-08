@@ -68,25 +68,40 @@ describe('PrivilegePromptLogPage (standalone UI standard)', () => {
     expect(screen.getByTestId('ppl-sealed')).toBeTruthy();
   });
 
-  it('records are chosen from the keyboard: a real button per row with aria-pressed on the selected one', async () => {
+  it('records are chosen from the keyboard: a real button per row with aria-current on the selected one', async () => {
     const user = userEvent.setup();
     render(<PrivilegePromptLogPage />);
     const [first, second] = SEALED_PROMPT_RECORDS;
     const firstBtn = screen.getByTestId(`ppl-row-${first.id}`);
     const secondBtn = screen.getByTestId(`ppl-row-${second.id}`);
     expect(firstBtn.tagName).toBe('BUTTON');
-    expect(firstBtn.getAttribute('aria-pressed')).toBe('true');
-    expect(secondBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(firstBtn.getAttribute('aria-current')).toBe('true');
+    expect(secondBtn.getAttribute('aria-current')).toBeNull();
     secondBtn.focus();
     expect(document.activeElement).toBe(secondBtn);
     await user.keyboard('{Enter}');
     expect(screen.getByTestId('ppl-detail').textContent).toContain(`Record ${second.id}`);
-    expect(secondBtn.getAttribute('aria-pressed')).toBe('true');
-    expect(firstBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(secondBtn.getAttribute('aria-current')).toBe('true');
+    expect(firstBtn.getAttribute('aria-current')).toBeNull();
     firstBtn.focus();
     await user.keyboard(' ');
     expect(screen.getByTestId('ppl-detail').textContent).toContain(`Record ${first.id}`);
-    expect(firstBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(firstBtn.getAttribute('aria-current')).toBe('true');
+  });
+
+  it('a row control is named with its agent, category and decision, not just the id', () => {
+    render(<PrivilegePromptLogPage />);
+    const r = SEALED_PROMPT_RECORDS[0];
+    expect(screen.getByTestId(`ppl-row-${r.id}`).getAttribute('aria-label')).toBe(`${r.id}, ${r.agent}, ${r.category}, ${r.decision}`);
+  });
+
+  it('choosing the record that is already selected keeps an open record open', () => {
+    render(<PrivilegePromptLogPage />);
+    fireEvent.change(screen.getByLabelText(/private key/i), { target: { value: 'k' } });
+    fireEvent.click(screen.getByTestId('ppl-open'));
+    fireEvent.click(screen.getByTestId(`ppl-row-${SEALED_PROMPT_RECORDS[0].id}`));
+    expect(screen.getByTestId('ppl-close')).toBeTruthy();
+    expect(screen.queryByTestId('ppl-sealed')).toBeNull();
   });
 
   it('keeps keyboard focus on the one primary as it turns from Open into Close and back', async () => {
