@@ -8,8 +8,9 @@
 // P9, "exactly one primary per view", by state:
 //   loading          no buttons.
 //   ready / saving   "Save & refresh sidebar" is the only primary: it is the page's one job and the
-//                    only control that writes the sidebar. Reset order, Apply, Delete, Save as new
-//                    config, expand, reorder and section toggles are secondaries.
+//                    only control that writes the sidebar. Reset order, Apply, Delete (then Confirm
+//                    delete / Cancel in the row), Save as new config, expand, reorder and section
+//                    toggles are secondaries.
 //   error            same primary; the error card adds only a secondary Dismiss.
 // Busy controls use aria-disabled, never the disabled attribute, so focus stays on the control that
 // was activated. A group, or a page inside its group, can be reordered by keyboard with its up/down buttons.
@@ -160,6 +161,10 @@ export default function DemoConfigPage() {
   const messagesRef = useRef(null);
   const configListRef = useRef(null);
   const newNameRef = useRef(null);
+  // Two-step delete: the id whose row is asking "Confirm delete / Cancel", and the id whose Delete
+  // button should get focus back once the row returns to its normal state.
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const returnFocusIdRef = useRef(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -452,9 +457,35 @@ export default function DemoConfigPage() {
     }
   };
 
+  const findConfigButton = (attr, id) =>
+    Array.from(configListRef.current?.querySelectorAll(`[${attr}]`) || []).find((el) => el.getAttribute(attr) === id);
+
+  // Focus follows the two-step delete: Delete -> Cancel (the safe choice); Cancel/Escape/failure -> Delete again.
+  useEffect(() => {
+    if (confirmDeleteId) {
+      findConfigButton("data-dc-cancel", confirmDeleteId)?.focus();
+    } else if (returnFocusIdRef.current) {
+      findConfigButton("data-dc-delete", returnFocusIdRef.current)?.focus();
+      returnFocusIdRef.current = null;
+    }
+  }, [confirmDeleteId]);
+
+  const askDelete = (config) => {
+    if (busy) return;
+    setConfirmDeleteId(config.id);
+    setAnnounce(`Delete "${config.name}"? This removes it from the shared library for everyone. Confirm or cancel.`);
+  };
+
+  const cancelDelete = () => {
+    returnFocusIdRef.current = confirmDeleteId;
+    setConfirmDeleteId(null);
+    setAnnounce("");
+  };
+
   const deleteConfig = async (config) => {
     if (busy) return;
     setBusy(true);
+    setAnnounce("");
     setError(null);
     try {
       const res = await fetch(`/api/nav-configs/${config.id}`, {
@@ -469,8 +500,10 @@ export default function DemoConfigPage() {
       // The card that held focus is gone: land on the saved-configs list, not the top of the page.
       configListRef.current?.focus();
     } catch (err) {
+      returnFocusIdRef.current = config.id;
       setError(`Failed to delete "${config.name}": ${err.message}`);
     } finally {
+      setConfirmDeleteId(null);
       setBusy(false);
     }
   };
@@ -496,8 +529,9 @@ export default function DemoConfigPage() {
     <PingPage className="dc-page">
       <SimBanner data-testid="dc-banner">
         <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. Save &amp; refresh sidebar writes your
-        sidebar choices to this server, for your account only. Applying a saved config also sets the feature flags
-        stored with it, and feature flags apply to everyone using this server.
+        sidebar choices to this server, for your account only. Saved configs are shared: saving or deleting a named
+        config changes the one library everyone using this server sees. Applying a saved config also sets the
+        feature flags stored with it, and feature flags apply to everyone using this server.
       </SimBanner>
       <PageHeader
         eyebrow="Admin · Presenter tools"
@@ -527,6 +561,7 @@ export default function DemoConfigPage() {
                   className="pu-btn dc-dismiss"
                   onClick={() => {
                     setError(null);
+                    setAnnounce("");
                     messagesRef.current?.focus();
                   }}
                 >
@@ -814,7 +849,15 @@ export default function DemoConfigPage() {
                             { label: "Flags", value: Object.keys(config.flagSnapshot || {}).length },
                           ]}
                         />
-                        <div className="pu-actions">
+                        <div
+                          className="pu-actions"
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape" && confirmDeleteId === config.id) {
+                              e.stopPropagation();
+                              cancelDelete();
+                            }
+                          }}
+                        >
                           <button
                             type="button"
                             className="pu-btn"
@@ -824,16 +867,39 @@ export default function DemoConfigPage() {
                           >
                             Apply
                           </button>
-                          {!config.isBuiltin && (
+                          {!config.isBuiltin && confirmDeleteId !== config.id && (
                             <button
                               type="button"
                               className="pu-btn dc-btn-danger"
-                              onClick={() => deleteConfig(config)}
+                              data-dc-delete={config.id}
+                              onClick={() => askDelete(config)}
                               aria-disabled={busy ? "true" : undefined}
                               aria-label={`Delete ${config.name}`}
                             >
                               Delete
                             </button>
+                          )}
+                          {!config.isBuiltin && confirmDeleteId === config.id && (
+                            <>
+                              <button
+                                type="button"
+                                className="pu-btn dc-btn-danger"
+                                onClick={() => deleteConfig(config)}
+                                aria-disabled={busy ? "true" : undefined}
+                                aria-label={`Confirm delete ${config.name}`}
+                              >
+                                Confirm delete
+                              </button>
+                              <button
+                                type="button"
+                                className="pu-btn"
+                                data-dc-cancel={config.id}
+                                onClick={cancelDelete}
+                                aria-label={`Cancel delete ${config.name}`}
+                              >
+                                Cancel
+                              </button>
+                            </>
                           )}
                         </div>
                       </Card>

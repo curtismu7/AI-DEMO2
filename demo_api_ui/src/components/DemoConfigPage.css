@@ -104,10 +104,17 @@
 .dc-page .dc-icon-btn:focus-visible,
 .dc-page .dc-section__toggle:focus-visible,
 .dc-page .dc-open-link:focus-visible,
-.dc-page .dc-group-toggle input:focus-visible,
 .dc-page .dc-input:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
+}
+
+/* The global checkbox sweep (styles/controls.css) sets outline:none and a faint red halo; this selector
+ * is more specific so the page's real ring wins and the halo is switched off. */
+.dc-page .dc-group-toggle input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .dc-search-wrap {

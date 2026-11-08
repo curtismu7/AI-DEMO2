@@ -284,7 +284,7 @@ describe("DemoConfigPage", () => {
     expect(input).toHaveValue("");
   });
 
-  it("moves focus to the saved-configs list when the focused config is deleted", async () => {
+  function mockOneConfig() {
     global.fetch = vi.fn((url, opts) => {
       const method = (opts && opts.method) || "GET";
       if (method === "DELETE") return Promise.resolve({ ok: true, json: async () => ({}) });
@@ -293,14 +293,78 @@ describe("DemoConfigPage", () => {
       }
       return Promise.resolve({ ok: true, json: async () => PREFS_RESPONSE });
     });
+  }
+  const deletes = () => global.fetch.mock.calls.filter((c) => c[1]?.method === "DELETE");
+
+  it("asks for confirmation before deleting a saved config, then moves focus to the saved-configs list", async () => {
+    mockOneConfig();
     render(<DemoConfigPage />);
     await screen.findByText("Mine");
 
     const del = screen.getByRole("button", { name: "Delete Mine" });
     del.focus();
     fireEvent.click(del);
+    // First click only asks: nothing is deleted, the row now offers Confirm / Cancel, focus lands on the safe one.
+    expect(deletes()).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Delete Mine" })).not.toBeInTheDocument();
+    const cancel = screen.getByRole("button", { name: "Cancel delete Mine" });
+    await waitFor(() => expect(cancel).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent(/shared library/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm delete Mine" }));
     await waitFor(() => expect(screen.queryByText("Mine")).not.toBeInTheDocument());
+    expect(deletes()).toHaveLength(1);
     expect(screen.getByRole("group", { name: "Saved configs" })).toHaveFocus();
+  });
+
+  it("cancelling a delete (button or Escape) keeps the config and returns focus to its Delete button", async () => {
+    mockOneConfig();
+    render(<DemoConfigPage />);
+    await screen.findByText("Mine");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Mine" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel delete Mine" }));
+    const del = screen.getByRole("button", { name: "Delete Mine" });
+    await waitFor(() => expect(del).toHaveFocus());
+    expect(deletes()).toHaveLength(0);
+
+    fireEvent.click(del);
+    const cancel = await screen.findByRole("button", { name: "Cancel delete Mine" });
+    fireEvent.keyDown(cancel, { key: "Escape" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Delete Mine" })).toHaveFocus());
+    expect(screen.getByText("Mine")).toBeInTheDocument();
+    expect(deletes()).toHaveLength(0);
+  });
+
+  it("says in the banner that saved configs are a shared library", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    expect(screen.getByTestId("dc-banner")).toHaveTextContent(/saved configs are shared/i);
+    expect(screen.getByTestId("dc-banner")).toHaveTextContent(/for your account only/i);
+  });
+
+  it("clears the screen-reader move announcement when an error is dismissed", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Move Skin Studio down" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Moved Skin Studio down");
+
+    // Force an error (save fails), then dismiss it.
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "boom" }) }));
+    fireEvent.click(screen.getByRole("button", { name: "Save & refresh sidebar" }));
+    const dismiss = await screen.findByRole("button", { name: "Dismiss" });
+    fireEvent.click(dismiss);
+    expect(document.querySelector(".dc-sr-only")).toHaveTextContent("");
+    expect(document.querySelector(".dc-messages")).toHaveFocus();
+  });
+
+  it("group visibility checkbox focus ring beats the global checkbox sweep", () => {
+    const css = fs.readFileSync("src/components/DemoConfigPage.css", "utf8");
+    const rule = css.match(/([^{}]*\.dc-group-toggle input\[type="checkbox"\]:focus-visible[^{}]*)\{([^}]*)\}/);
+    expect(rule).toBeTruthy();
+    expect(rule[2]).toMatch(/outline:\s*3px solid/);
+    expect(rule[2]).toMatch(/box-shadow:\s*none/);
   });
 
   it("dismisses an error and returns focus to the message area", async () => {
