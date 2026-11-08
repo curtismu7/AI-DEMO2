@@ -21,8 +21,10 @@ describe('pathProgress', () => {
     expect(pathProgress(run, false)).toEqual({ reached: 4, active: null });
   });
 
-  test('nothing, or events that say nothing about the path, leave it idle', () => {
-    expect(pathProgress([], true)).toEqual({ reached: -1, active: null });
-    expect(pathProgress([e('session'), e('error')], true)).toEqual({ reached: -1, active: null });
+  test('nothing reached yet: idle when not running, the first segment working while the first model call is out', () => {
+    expect(pathProgress([], false)).toEqual({ reached: -1, active: null });
+    expect(pathProgress([e('session'), e('error')], false)).toEqual({ reached: -1, active: null });
+    expect(pathProgress([], true)).toEqual({ reached: -1, active: 0 });
+    expect(pathProgress([e('session')], true)).toEqual({ reached: -1, active: 0 });
   });
 });
