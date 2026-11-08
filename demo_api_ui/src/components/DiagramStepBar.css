@@ -19,11 +19,15 @@
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .dstep-bar .dc-toolbar { margin-bottom: 0; }
 /* a global `select { width: 100% }` and a block `label` otherwise stack the dropdown under its label */
 .dstep-bar .dc-steptime { display: inline-flex; flex-direction: row; align-items: center; }
+.dstep-bar .dc-toolbar { min-width: 0; max-width: 100%; }
 .dstep-bar .dc-steptime-select { width: auto; }
 
 .dstep-caption {

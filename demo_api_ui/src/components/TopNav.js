@@ -1,7 +1,7 @@
 import PageGuideButton from './PageGuideButton';
 import { useEffect, useState } from "react";
 import {
-  MdAccountBalance, MdLogin, MdLogout, MdSearch, MdSwapHoriz,
+  MdAccountBalance, MdClose, MdLogin, MdLogout, MdMenu, MdSearch, MdSwapHoriz,
   MdLocalHospital, MdShoppingCart, MdStorefront, MdWork, MdSportsBasketball,
   MdFlight, MdGavel, MdSchool, MdRestaurant, MdDirectionsCar,
 } from "react-icons/md";
@@ -69,6 +69,13 @@ export default function TopNav({ user, onLogout }) {
   // (token revocation, PingOne signoff) stay untouched behind it.
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const requestLogout = () => setShowLogoutConfirm(true);
+
+  // Phone width (<= 600px): everything after the brand folds behind one Menu button so the bar is a single
+  // row, not 30-79% of the screen. Above that width the button is hidden and the controls sit where they always did.
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   // After Run/Open from /use-cases, show a clear "← Use Cases" control in the top bar.
   const [fromUseCases, setFromUseCases] = useState(() => cameFromUseCases());
@@ -152,7 +159,7 @@ export default function TopNav({ user, onLogout }) {
       : user?.username || user?.email || null;
 
   return (
-    <header className="topnav">
+    <header className={`topnav${menuOpen ? " topnav--menu-open" : ""}`}>
       <div className="topnav-container">
 
         {/* Left: Brand — Ping mark on Ping surfaces, vertical logo elsewhere.
@@ -193,6 +200,18 @@ export default function TopNav({ user, onLogout }) {
           </button>
         </div>
 
+        <button
+          type="button"
+          className="topnav-menu-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="topnav-menu"
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? <MdClose size={20} aria-hidden="true" /> : <MdMenu size={20} aria-hidden="true" />}
+          <span>Menu</span>
+        </button>
+
+        <div id="topnav-menu" className="topnav-menu">
         {/* Context chip — Customer / Admin / Setup */}
         {user && (
           <span className="topnav-context-chip">
@@ -500,6 +519,7 @@ export default function TopNav({ user, onLogout }) {
           />
         </div>
 
+        </div>
       </div>
 
       <ConfirmModal

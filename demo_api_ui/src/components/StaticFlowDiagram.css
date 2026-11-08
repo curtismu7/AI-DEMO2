@@ -154,3 +154,22 @@
 .sfd-ping-key li { display: inline-flex; align-items: center; gap: 8px; }
 .sfd-key-line { display: inline-block; width: 26px; height: 0; border-top: 3px solid var(--sfd-ping-arrow); }
 .sfd-key-line--dashed { border-top-style: dashed; border-top-color: var(--sfd-ping-dash); }
+
+/* Phone pane (data-pannable, set by useFitOnResize): the drawing is held at a legible scale and panned, not shrunk
+   to dots, so say so. A real element rather than a pseudo, so a screen reader hears it too. */
+.sfd-pan-hint {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  margin: 0;
+  max-width: calc(100% - 16px);
+  padding: 3px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  font-size: var(--font-size-2xs);
+  line-height: 1.4;
+  pointer-events: none;
+}
