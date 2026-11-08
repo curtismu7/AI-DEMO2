@@ -5,3 +5,4 @@
 /privilege-coding-agents
 /privilege-pii-detection
 /privilege-intent-triage
+/privilege-prompt-log

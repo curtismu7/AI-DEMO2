@@ -1,144 +1,108 @@
-/* Privilege Prompt Log page. Tokens only; px spacing. */
-
-.ppl-page {
-  min-height: 100vh;
-  background: var(--th-bg-page);
-  color: var(--th-text);
-}
-
-.ppl-body {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.ppl-banner {
-  margin: 0 0 16px;
-  padding: 10px 14px;
-  border: 1px solid var(--th-status-info-border);
-  border-left: 4px solid var(--th-status-info);
-  border-radius: var(--radius-sm);
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-xs);
-}
+/* Privilege Prompt Log page: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips, labels and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only
+   (H1), type comes from the --font-size-* scale (H2), no inline styles (H3). */
 
 .ppl-layout {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
 @media (max-width: 900px) {
   .ppl-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* The CDN end-user-nano skin sets the app root's line-height to 1 (--bs-body-line-height), which every
+   unstyled paragraph on this page inherited. Body text here takes the app's normal reading height.
+   (A shared .pu-page line-height would fix it for every converted page; that file is not this PR's.) */
+.ppl-page {
+  line-height: var(--line-height-normal);
+}
+
+/* Record table: scrolls inside its own wrapper when wide, stacks as labelled rows at phone width. */
+.ppl-table-wrap {
+  overflow-x: auto;
 }
 
 .ppl-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .ppl-table th,
 .ppl-table td {
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--th-border);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border-strong);
   vertical-align: top;
   color: var(--th-text);
+  overflow-wrap: anywhere;
 }
 
 .ppl-table th {
   color: var(--th-text-muted);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.ppl-table th:first-child,
+.ppl-table td:first-child {
+  white-space: nowrap;
+}
+
+.ppl-table tbody tr {
+  cursor: pointer;
 }
 
 .ppl-row--active td {
   background: var(--th-bg-inset);
 }
 
+/* The record id is a real button so a row can be chosen from the keyboard (Tab, then Enter or Space);
+   it reads as text with an underline as the affordance; the selected row also has the inset fill. */
+.ppl-row-btn {
+  min-height: 32px;
+  margin: -6px 0;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--th-text);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.ppl-row-btn[aria-pressed='true'] {
+  text-decoration-thickness: 2px;
+}
+
+.ppl-row-btn:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
 .ppl-sealed-cell {
   color: var(--th-text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
 }
 
-.ppl-decision {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border-strong);
-  font-size: var(--font-size-3xs);
-  color: var(--th-text);
-}
-
-.ppl-decision--allow {
-  border-color: var(--th-status-success-border);
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-}
-
-.ppl-decision--block {
-  border-color: var(--th-status-error-border);
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-}
-
-.ppl-decision--sanitize {
-  border-color: var(--th-status-warning-border);
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-}
-
-.ppl-detail {
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  background: var(--th-bg-card);
-  padding: 16px;
-}
-
-.ppl-detail h2 {
-  margin: 0 0 10px;
-  font-size: var(--font-size-md);
-  color: var(--th-text);
-}
-
-.ppl-meta {
-  margin: 0 0 12px;
-}
-
-.ppl-meta > div {
-  display: flex;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.ppl-meta dt {
-  flex: 0 0 7em;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.ppl-meta dd {
-  margin: 0;
-  color: var(--th-text);
-  font-size: var(--font-size-xs);
-  overflow-wrap: anywhere;
-}
-
+/* Sealed (key entry) and decrypted blocks inside the detail card. */
 .ppl-sealed,
 .ppl-plaintext {
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
+  margin-top: 8px;
   padding: 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
 }
 
@@ -151,54 +115,90 @@
 .ppl-plaintext strong {
   display: block;
   margin-bottom: 6px;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .ppl-plaintext p {
-  margin: 0 0 8px;
-  font-size: var(--font-size-xs);
+  margin: 0 0 10px;
+  font-size: var(--font-size-sm);
 }
 
-.ppl-sealed p {
+.ppl-sealed p.pu-mono {
   margin: 0 0 10px;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   overflow-wrap: anywhere;
 }
 
-.ppl-label {
-  display: block;
-  font-size: var(--font-size-3xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--th-text-muted);
-  margin-bottom: 4px;
-}
-
 .ppl-input {
   width: 100%;
+  min-height: 40px;
+  margin-bottom: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-page);
   color: var(--th-text);
-  font-size: var(--font-size-xs);
-  margin-bottom: 8px;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.ppl-input:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
 }
 
 .ppl-error {
   margin: 0 0 8px;
   color: var(--th-status-error-text);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
-.ppl-btn {
-  padding: 8px 14px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--th-bg-emphasis);
-  color: var(--th-text-on-emphasis);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
+/* The live-check block sits inside the live card. */
+.pu-card--live .plc {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+@media (max-width: 600px) {
+  .ppl-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ppl-table,
+  .ppl-table tbody,
+  .ppl-table tr,
+  .ppl-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .ppl-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .ppl-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .ppl-table td:first-child {
+    white-space: normal;
+  }
+
+  .ppl-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
