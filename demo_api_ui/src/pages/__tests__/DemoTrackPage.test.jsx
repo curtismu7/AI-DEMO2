@@ -83,8 +83,8 @@ describe("DemoTrackPage", () => {
 
   it("renders acts, steps, progress dots and the filled slot from the live run", async () => {
     render(<DemoTrackPage />);
-    expect(await screen.findByText("ACT 1 — THE CUSTOMER AGENT")).toBeInTheDocument();
-    expect(screen.getByText("ACT 2 — SAME RAILS GOVERN THE ADMINS")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "The customer agent" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Same rails govern the admins" })).toBeInTheDocument();
     expect(screen.getByText("Delegated access")).toBeInTheDocument();
     // active step is expanded: buyer story + green verdict stamp visible
     expect(screen.getAllByText(/story/).length).toBeGreaterThan(0);
@@ -227,5 +227,187 @@ describe("DemoTrackPage", () => {
     fireEvent.click(await screen.findByText("Run all 6 attacks"));
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/demo/attack-sim/run", { sim: "s1" }));
     expect(apiClient.post).toHaveBeenCalledWith("/api/demo/attack-sim/run", { sim: "s2" });
+  });
+});
+
+// Ping UI Standard (P2 banner, P7 chips with words, P9 one primary at a time).
+describe("DemoTrackPage — Ping UI Standard", () => {
+  beforeEach(() => { vi.clearAllMocks(); mockApi(); });
+  afterEach(() => window.history.replaceState({}, "", "/"));
+
+  const primaries = (container) => [...container.querySelectorAll(".pu-btn--primary")];
+
+  it("puts a role=note banner first and says live, then archived, then not connected", async () => {
+    const { container } = render(<DemoTrackPage />);
+    const banner = await screen.findByTestId("dtp-banner");
+    expect(banner).toHaveAttribute("role", "note");
+    expect(container.querySelector(".pu-page").firstElementChild).toContainElement(banner);
+    expect(banner).toHaveTextContent(/LIVE RUN/);
+    expect(banner).toHaveTextContent(/refreshes every 5 seconds/);
+    expect(banner).toHaveTextContent(/none of it is sample data/);
+
+    fireEvent.change(screen.getByLabelText("Run"), { target: { value: "run-0" } });
+    await waitFor(() => expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/ARCHIVED RUN/));
+    expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/does not refresh/);
+  });
+
+  it("states that nothing is connected while the first load is pending and after it fails", async () => {
+    apiClient.get.mockImplementation(() => new Promise(() => {}));
+    const { unmount } = render(<DemoTrackPage />);
+    expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/NOT CONNECTED/);
+    unmount();
+    apiClient.get.mockRejectedValue(new Error("boom"));
+    render(<DemoTrackPage />);
+    expect(await screen.findByText(/Demo Track unavailable — boom/)).toBeInTheDocument();
+    expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/NOT CONNECTED/);
+    expect(screen.getByText("Error")).toBeInTheDocument();
+  });
+
+  it("names the gauntlet in the LIVE RUN banner only when the track has the gauntlet step", async () => {
+    const { unmount } = render(<DemoTrackPage />);
+    expect(await screen.findByTestId("dtp-banner")).toHaveTextContent(/the gauntlet sends 2 deliberately flawed tokens/);
+    unmount();
+    window.history.pushState({}, "", "/demo-track?track=support");
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/demo-track?track=support") {
+        return Promise.resolve({ data: { track: { steps: [
+          { stepId: "support-verify", act: 1, title: "Verify the customer", capability: "pi.flow", slots: {}, proved: {} },
+        ] }, run: { activeStepId: "support-verify", slots: {} } } });
+      }
+      return Promise.resolve({ data: { runs: [] } });
+    });
+    render(<DemoTrackPage />);
+    await screen.findByText("Verify the customer");
+    const banner = screen.getByTestId("dtp-banner");
+    expect(banner).toHaveTextContent(/LIVE RUN/);
+    expect(banner).not.toHaveTextContent(/gauntlet/i);
+  });
+
+  it("labels the theme toggle with its action only: no aria-pressed, no emoji glyph", async () => {
+    render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    const btn = screen.getByRole("button", { name: /^(Dark|Light) mode$/ });
+    expect(btn).not.toHaveAttribute("aria-pressed");
+    expect(btn.textContent).toMatch(/^(Dark|Light) mode$/);
+  });
+
+  it("keeps the page and the focused control mounted when a later poll fails, with a role=alert card", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<DemoTrackPage />);
+      await screen.findByText("Delegated access");
+      const btn = screen.getByText("Start new run");
+      btn.focus();
+      apiClient.get.mockRejectedValue(new Error("poll down"));
+      await vi.advanceTimersByTimeAsync(5100);
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/Demo Track unavailable — poll down/);
+      expect(screen.getByText("Start new run")).toBe(btn);
+      expect(document.activeElement).toBe(btn);
+      expect(screen.getByText("Delegated access")).toBeInTheDocument();
+      expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/LAST RUN RECEIVED/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("has exactly one primary: the next unstamped Run in the open step", async () => {
+    const { container } = render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    // green is stamped in the live run, so the red Run is next
+    const row = screen.getByText("red chip").closest(".dtp-run-row");
+    expect(primaries(container)).toHaveLength(1);
+    expect(within(row).getByRole("button", { name: /^Run/ })).toHaveClass("pu-btn--primary");
+    expect(screen.getByText("Start new run")).not.toHaveClass("pu-btn--primary");
+  });
+
+  it("falls back to Start new run when no step is open", async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/demo-track") return Promise.resolve({ data: { track: TRACK, run: { ...ACTIVE_RUN, activeStepId: null } } });
+      if (url === "/api/demo-track/runs") return Promise.resolve({ data: { runs: [] } });
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const { container } = render(<DemoTrackPage />);
+    const head = (await screen.findByText("Delegated access")).closest("button");
+    expect(head).toHaveAttribute("aria-expanded", "false");
+    expect(primaries(container)).toHaveLength(1);
+    expect(screen.getByText("Start new run")).toHaveClass("pu-btn--primary");
+    // opening a step hands the primary to its next Run
+    fireEvent.click(head);
+    await waitFor(() => expect(head).toHaveAttribute("aria-expanded", "true"));
+    expect(primaries(container)).toHaveLength(1);
+    expect(screen.getByText("Start new run")).not.toHaveClass("pu-btn--primary");
+  });
+
+  it("makes Run all 6 attacks the one primary while the gauntlet is open and unfinished", async () => {
+    const { container } = render(<DemoTrackPage />);
+    fireEvent.click(await screen.findByText("Attack gauntlet"));
+    const btn = await screen.findByText("Run all 6 attacks");
+    expect(primaries(container)).toHaveLength(1);
+    expect(btn).toHaveClass("pu-btn--primary");
+    expect(screen.getByText("Start new run")).not.toHaveClass("pu-btn--primary");
+  });
+
+  it("makes Back to the live run the one primary on an archived snapshot, and it returns to live", async () => {
+    const { container } = render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    fireEvent.change(screen.getByLabelText("Run"), { target: { value: "run-0" } });
+    const back = await screen.findByText("Back to the live run");
+    expect(primaries(container)).toHaveLength(1);
+    expect(back).toHaveClass("pu-btn--primary");
+    expect(screen.queryByRole("button", { name: /^Run/ })).not.toBeInTheDocument();
+    fireEvent.click(back);
+    await waitFor(() => expect(screen.getByLabelText("Run")).toHaveValue("live"));
+    expect(screen.getByText("Start new run")).toBeInTheDocument();
+  });
+
+  it("keeps a running button focusable (aria-disabled, never disabled) so focus does not drop", async () => {
+    let finish;
+    apiClient.post.mockImplementation((url) => {
+      if (url === "/api/agent/invoke") return new Promise((res) => { finish = () => res({ data: { reply: "ok", toolsCalled: [] } }); });
+      return Promise.resolve({ data: {} });
+    });
+    render(<DemoTrackPage />);
+    const row = (await screen.findByText("red chip")).closest(".dtp-run-row");
+    const btn = within(row).getByRole("button", { name: /^Run/ });
+    btn.focus();
+    fireEvent.click(btn);
+    await waitFor(() => expect(btn).toHaveAttribute("aria-disabled", "true"));
+    expect(btn).not.toBeDisabled();
+    expect(document.activeElement).toBe(btn);
+    // a second click while busy is ignored
+    fireEvent.click(btn);
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    expect(apiClient.post.mock.calls.filter(([u]) => u === "/api/agent/invoke")).toHaveLength(1);
+    finish();
+    await waitFor(() => expect(btn).not.toHaveAttribute("aria-disabled"));
+    expect(document.activeElement).toBe(btn);
+  });
+
+  it("keeps focus on Start new run through the submit", async () => {
+    render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    const btn = screen.getByText("Start new run");
+    btn.focus();
+    fireEvent.click(btn);
+    await waitFor(() => expect(screen.getByText(/New run started/)).toBeInTheDocument());
+    expect(document.activeElement).toBe(screen.getByText(/New run started/));
+  });
+
+  it("gives every status chip a word", async () => {
+    const { container } = render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    const chips = [...container.querySelectorAll(".pu-chip")];
+    expect(chips.length).toBeGreaterThan(0);
+    chips.forEach((c) => expect(c.textContent.trim().length).toBeGreaterThan(0));
+    expect(screen.getByText("Live")).toBeInTheDocument();
+    expect(screen.getAllByText("Not run").length).toBeGreaterThan(0);
+  });
+
+  it("names which case each Run button runs without changing its visible label", async () => {
+    render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    expect(screen.getByRole("button", { name: "Run again (permit case)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run (deny case)" })).toBeInTheDocument();
   });
 });

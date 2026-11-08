@@ -11,6 +11,9 @@ import "./PrivilegeShelfPage.css";
 // shared primitives (components/pingUi, styles/ping-ui.css): P2 banner first, P3 frame, P4 cards, P7 chips.
 // Skipped on purpose: P5 key-value (no label/value pairs here), P6 inspector and P8 diagram (an index has
 // neither). P9: this page has no buttons, only links, so it has no primary button in any state.
+// "1 feature", "2 features": a count that is a single item must not read as a plural.
+const countOf = (n, noun) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
 const SECTIONS = [
   {
     id: "map",
@@ -20,7 +23,7 @@ const SECTIONS = [
       title: p.title,
       text: p.purpose,
       to: `/privilege-map?page=${p.id}`,
-      meta: `${features.filter((f) => f.page === p.id).length} features`,
+      meta: countOf(features.filter((f) => f.page === p.id).length, "feature"),
     })),
   },
   {
@@ -81,13 +84,16 @@ export default function PrivilegeShelfPage() {
       />
       <PageFrame>
         {SECTIONS.map((s, i) => (
-          <Section key={s.id} id={`pshelf-${s.id}`} kicker={`${i + 1} · ${s.title}`} title={s.title} lede={s.blurb}>
+          <Section key={s.id} id={`pshelf-${s.id}`} kicker={`${i + 1} of ${SECTIONS.length} · ${countOf(s.cards.length, "link")}`} title={s.title} lede={s.blurb}>
             <div className="pu-card-grid" role="list">
-              {s.cards.map((c) => (
+              {s.cards.map((c, n) => {
+                // The "Opens in a new tab" chip is the link's description, so a screen reader hears it with the link name.
+                const noteId = `pshelf-${s.id}-${n}-note`;
+                return (
                 <div key={c.to || c.href} role="listitem" className={`pu-card pshelf-card${c.href ? " pu-card--neutral" : ""}`}>
                   <h3 className="pu-h3">
                     {c.href ? (
-                      <a className="pshelf-link" href={c.href} target="_blank" rel="noopener noreferrer">
+                      <a className="pshelf-link" href={c.href} target="_blank" rel="noopener noreferrer" aria-describedby={noteId}>
                         {c.title} <span aria-hidden="true">&#8599;</span>
                       </a>
                     ) : (
@@ -96,14 +102,15 @@ export default function PrivilegeShelfPage() {
                   </h3>
                   <p className="pu-note">{c.text}</p>
                   {c.isNew || c.meta || c.href ? (
-                    <p className="pshelf-chips">
+                    <p className="pshelf-chips" id={c.href ? noteId : undefined}>
                       {c.isNew ? <StatusChip tone="info">New in the Platform Update</StatusChip> : null}
                       {c.meta ? <StatusChip>{c.meta}</StatusChip> : null}
                       {c.href ? <StatusChip>Opens in a new tab</StatusChip> : null}
                     </p>
                   ) : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </Section>
         ))}

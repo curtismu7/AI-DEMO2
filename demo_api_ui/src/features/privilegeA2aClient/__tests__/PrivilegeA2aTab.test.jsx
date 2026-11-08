@@ -385,12 +385,42 @@ describe('PrivilegeA2aTab', () => {
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Check access');
     await user.click(screen.getByRole('button', { name: 'Send question' }));
 
-    expect(screen.getByRole('button', { name: 'Reviewing…' })).toBeDisabled();
+    // aria-disabled, not disabled: a disabled button would drop keyboard focus to the page body.
+    const busyButton = screen.getByRole('button', { name: 'Reviewing…' });
+    expect(busyButton).toHaveAttribute('aria-disabled', 'true');
+    expect(busyButton).not.toBeDisabled();
+    expect(document.activeElement).toBe(busyButton);
+    // Clicks (and Enter/Space) while the run is in flight are ignored.
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Another one');
+    await user.click(busyButton);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
     resolveFetch(streamResponse([{ event: 'done', data: { sessionId: 'session-1' } }]));
     const input = screen.getByRole('textbox', { name: 'Your question' });
     await waitFor(() => expect(input).not.toBeDisabled());
-    await user.type(input, 'A follow-up question');
-    expect(screen.getByRole('button', { name: 'Send question' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send question' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  test('Send question keeps keyboard focus after it is pressed with the keyboard, and ignores an empty box', async () => {
+    let resolveFetch;
+    global.fetch.mockReturnValue(new Promise(resolve => { resolveFetch = resolve; }));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const send = screen.getByRole('button', { name: 'Send question' });
+    // Empty box: aria-disabled, still focusable, and pressing it sends nothing.
+    expect(send).toHaveAttribute('aria-disabled', 'true');
+    await user.click(send);
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Check access');
+    expect(send).not.toHaveAttribute('aria-disabled');
+    send.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    // The box was cleared and the run is in flight: the button is aria-disabled and still has focus.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reviewing…' }));
+    resolveFetch(streamResponse([{ event: 'done', data: { sessionId: 'session-1' } }]));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send question' })).toBeTruthy());
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Send question' }));
   });
 
   test('cancels the browser stream when the user selects Cancel', async () => {
@@ -515,7 +545,7 @@ describe('compact agent', () => {
     expect(box).toBeEnabled();
     await user.type(box, 'next question');
     expect(box).toHaveValue('next question');
-    expect(screen.getByRole('button', { name: 'Reviewing…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reviewing…' })).toHaveAttribute('aria-disabled', 'true');
 
     await user.click(screen.getByRole('button', { name: 'Reset' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull());
@@ -539,14 +569,14 @@ describe('Ping UI standard', () => {
     const user = userEvent.setup();
     const { container } = render(<PrivilegeA2aTab />);
 
-    // idle: the one primary is Send question, disabled until there is text
+    // idle: the one primary is Send question, aria-disabled until there is text (still focusable)
     expect(primaries(container)).toHaveLength(1);
     expect(primaries(container)[0]).toHaveTextContent('Send question');
-    expect(primaries(container)[0]).toBeDisabled();
+    expect(primaries(container)[0]).toHaveAttribute('aria-disabled', 'true');
 
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
     expect(primaries(container)).toHaveLength(1);
-    expect(primaries(container)[0]).toBeEnabled();
+    expect(primaries(container)[0]).not.toHaveAttribute('aria-disabled');
 
     // running: still one primary (the same control, "Reviewing…"); Cancel is a secondary
     await user.click(screen.getByRole('button', { name: 'Send question' }));

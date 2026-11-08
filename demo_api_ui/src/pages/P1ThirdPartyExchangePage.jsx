@@ -1,8 +1,19 @@
 // /p1-third-party-exchange: PingOne token exchange with third-party signed JWTs as actor tokens. A mock: no PingOne call.
 // A guided walk, one idea per screen: the idea, pick an issuer, set the trust, send it, read the result, compare, what to know.
 // The choices (issuer, switches, token state) are shared across steps. Text size and token decoding are user controls.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+//
+// Layout follows the standalone Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv, P7 chips, P9 buttons.
+// P9 "exactly one primary per view state": the primary is the control in the bar at the bottom. In the walk it is
+// Next, which becomes Start over on the last step (one element, so focus stays on it). In the one-page view there is no
+// walk to advance, so that same element reads "Back to the walk". Every other button is a bordered secondary.
+// The step heading is a plain h2 (not Section) because the walk moves focus to it, which needs a ref and tabIndex.
+// The page function comes before the helper components so the banner is the first thing in the file the pattern check meets.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
+import {
+  PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
+} from '../components/pingUi';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
   ADMIN_FACTS, API_SAMPLES, COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, DIAGRAM_LANES, EVIDENCE, NOT_SHOWN, P1_ISSUER, STEPS,
@@ -12,14 +23,185 @@ import './P1ThirdPartyExchangePage.css';
 
 const SETUP_DOC = 'docs/runbooks/p1-third-party-token-exchange.md';
 
-function Tag({ kind }) {
-  return <span className={`p1x-tag p1x-tag--${kind}`} title={EVIDENCE[kind].note}>{EVIDENCE[kind].label}</span>;
-}
+// Evidence label as a status chip: the word is the label, the tone only adds colour (P7). The note rides as a tooltip.
+const EVIDENCE_TONE = { measured: 'info', guide: 'ok', sample: 'neutral', derived: 'warn', unverified: 'warn' };
 
 const copy = (text) => { try { navigator.clipboard?.writeText(text); } catch { /* clipboard blocked: the text is on screen */ } };
 
+const readPref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch { return d; } };
+const savePref = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* blocked storage: the switch still works for this visit */ } };
+
+const WALK = [
+  { id: 'idea', title: 'The idea', min: 1 },
+  { id: 'issuer', title: 'Pick an issuer', min: 1 },
+  { id: 'trust', title: 'Set the trust', min: 2 },
+  { id: 'send', title: 'Send it', min: 2 },
+  { id: 'result', title: 'Read the result', min: 1 },
+  { id: 'compare', title: 'Compare', min: 2 },
+  { id: 'know', title: 'What to know', min: 2 },
+];
+const FS_STEPS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170];
+const readStep = () => {
+  try { const m = /walk=(\d+)/.exec(window.location.hash); const n = m ? Number(m[1]) : 1; return Math.min(Math.max(n, 1), WALK.length); } catch { return 1; }
+};
+const readAll = () => {
+  try { return /walk=all/.test(window.location.hash); } catch { return false; }
+};
+const readFs = () => {
+  try { const n = Number(localStorage.getItem('p1x-fs')); return FS_STEPS.includes(n) ? n : 100; } catch { return 100; }
+};
+
+export default function P1ThirdPartyExchangePage() {
+  const [step, setStep] = useState(readStep);
+  const [all, setAll] = useState(readAll);
+  const [fs, setFs] = useState(readFs);
+  const [vendorId, setVendorId] = useState('pf-cc');
+  const [state, setState] = useState('valid');
+  const [settings, setSettings] = useState(TRUSTED_ISSUER_DEFAULTS);
+  const [assigned, setAssigned] = useState(true);
+  const [now] = useState(() => Math.floor(Date.now() / 1000));
+  const [decode, setDecode] = useState(() => readPref('p1x-decode', true));
+  const headingRef = useRef(null);
+  const contentsRef = useRef(null);
+  const first = useRef(true);
+  const toggleDecode = (on) => { setDecode(on); savePref('p1x-decode', on); };
+
+  const go = useCallback((n) => {
+    const next = Math.min(Math.max(n, 1), WALK.length);
+    setStep(next);
+    setAll(false);
+    try { window.history.replaceState(null, '', `#walk=${next}`); } catch { /* history unavailable: the walk still works */ }
+  }, []);
+  const toggleAll = () => {
+    const next = !all;
+    setAll(next);
+    try { window.history.replaceState(null, '', next ? '#walk=all' : `#walk=${step}`); } catch { /* history unavailable */ }
+  };
+  const changeFs = (n) => {
+    const next = Math.min(Math.max(n, 80), 170);
+    setFs(next);
+    try { localStorage.setItem('p1x-fs', String(next)); } catch { /* blocked storage: the size still applies for this visit */ }
+  };
+
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    // A step change, or switching between the walk and the one-page view, replaces the control that was pressed:
+    // put focus on the new view's heading so it does not fall back to the top of the document.
+    (all ? contentsRef : headingRef).current?.focus();
+    window.scrollTo?.({ top: 0 });
+  }, [step, all]);
+  useEffect(() => {
+    const onHash = () => { setStep(readStep()); setAll(readAll()); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '')) return;
+      if (e.key === 'ArrowRight') go(step + 1);
+      if (e.key === 'ArrowLeft') go(step - 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [go, step]);
+
+  const vendor = VENDORS.find((v) => v.id === vendorId);
+  const run = useMemo(() => validateExchange({ vendor, state, settings, assigned, now }), [vendor, state, settings, assigned, now]);
+  const subject = useMemo(() => subjectClaims(now), [now]);
+  const mapped = useMemo(() => vendor.mappings.map((m) => ({ m, r: applyMapping(m, run.claims) })), [vendor, run.claims]);
+  const issued = useMemo(() => resultClaims(subject, run.ok ? { claim: Object.assign({}, ...mapped.map(({ r }) => r.claim || {})) } : null, now), [subject, mapped, run.ok, now]);
+  const diagram = useMemo(() => exchangeDiagram(vendor, run), [vendor, run]);
+  const wire = useMemo(() => buildWire({ vendor, run, settings, assigned, now }), [vendor, run, settings, assigned, now]);
+  const set = (k) => (e) => setSettings((s) => ({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const reset = () => { setState('valid'); setSettings(TRUSTED_ISSUER_DEFAULTS); setAssigned(true); };
+  const meta = WALK[step - 1];
+  const exchangeCall = wire.runtime[wire.runtime.length - 1];
+
+  const bodies = stepBodies({
+    vendor, vendorId, setVendorId, run, subject, mapped, issued, diagram, wire, decode, toggleDecode, now,
+    settings, set, assigned, setAssigned, state, setState, reset, exchangeCall,
+  });
+  const body = bodies[meta.id];
+
+  const kicker = `Step ${step} of ${WALK.length} · ${meta.min} ${meta.min === 1 ? 'minute' : 'minutes'}`;
+  return (
+    <PingPage className="p1x-page" data-fs={fs} data-testid="p1-third-party-exchange-page">
+      <SimBanner data-testid="p1x-banner">
+        <strong>Simulated.</strong> Nothing on this page calls PingOne. The token checks run in your browser against rules we modelled, and every token is a mock with a signature that can never verify.
+        The refusal messages and the settings behaviour are real: they were measured live against PingOne on 2026-10-27 and replayed here.
+        The capability is behind a feature flag (Phase 2 of P14C-83104): the guide gives no flag name, so check with Ping that it is on in your environment.
+      </SimBanner>
+      <PageHeader
+        eyebrow="Diagrams · PingOne"
+        title="PingOne token exchange with third-party tokens"
+        summary="PingOne can trust a JWT signed by another issuer and accept it in an RFC 8693 token exchange, then map its claims into the token it issues. Walk through it one idea at a time."
+        back={{ to: '/diagrams', label: 'All diagrams' }}
+      />
+
+      <PageFrame>
+        <div className="p1x-toolbar">
+          {all ? null : <button type="button" className="pu-btn" onClick={toggleAll} data-testid="p1x-all-toggle">See everything on one page</button>}
+          <div className="p1x-fsctl" role="group" aria-label="Text size" data-testid="p1x-fsctl">
+            <button type="button" onClick={() => changeFs(fs - 10)} disabled={fs <= 80} aria-label="Smaller text" data-testid="p1x-fs-down">A−</button>
+            <output aria-live="polite" data-testid="p1x-fs-val">{fs}%</output>
+            <button type="button" onClick={() => changeFs(fs + 10)} disabled={fs >= 170} aria-label="Larger text" data-testid="p1x-fs-up">A+</button>
+            <button type="button" onClick={() => changeFs(100)} disabled={fs === 100} aria-label="Reset text size" data-testid="p1x-fs-reset">Reset</button>
+          </div>
+        </div>
+
+        {all ? (
+          <>
+            <nav className="p1x-contents" aria-label="Contents" data-testid="p1x-contents" ref={contentsRef} tabIndex={-1}>
+              <strong>Everything on one page:</strong>
+              {WALK.map((w, i) => (
+                <button key={w.id} type="button" className="p1x-link" onClick={() => document.getElementById(`p1x-all-${w.id}`)?.scrollIntoView?.({ behavior: 'smooth' })}>{i + 1} · {w.title}</button>
+              ))}
+            </nav>
+            {WALK.map((w, i) => (
+              <div key={w.id} id={`p1x-all-${w.id}`} className="p1x-step--all" data-testid={`p1x-all-${w.id}`}>
+                <Section id={`p1x-all-h-${w.id}`} kicker={`Step ${i + 1} of ${WALK.length}`} title={w.title}>
+                  {bodies[w.id]}
+                </Section>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <nav className="p1x-rail" aria-label="Walk steps" data-testid="p1x-rail">
+              {WALK.map((w, i) => (
+                <button key={w.id} type="button" onClick={() => go(i + 1)} aria-current={i + 1 === step ? 'step' : undefined}
+                  className={i + 1 < step ? 'is-done' : i + 1 === step ? 'is-on' : ''} data-testid={`p1x-rail-${i + 1}`}>
+                  <i aria-hidden="true" /><span>{i + 1} · {w.title}</span>
+                </button>
+              ))}
+            </nav>
+
+            <section className="p1x-step" aria-labelledby="p1x-step-h" data-testid={`p1x-step-${meta.id}`}>
+              <p className="pu-kicker">{kicker}</p>
+              <h2 id="p1x-step-h" ref={headingRef} tabIndex={-1} className="pu-h2">{meta.title}</h2>
+              {body}
+            </section>
+
+          </>
+        )}
+        <div className={`p1x-nav${all ? ' p1x-nav--all' : ''}`} role="group" aria-label={all ? 'Return to the walk' : 'Walk navigation'}>
+          {all ? null : <button type="button" className="pu-btn" onClick={() => go(step - 1)} disabled={step === 1} data-testid="p1x-back">← Back</button>}
+          {all ? null : <span className="p1x-where" data-testid="p1x-where">{meta.title}</span>}
+          <button type="button" className="pu-btn pu-btn--primary" onClick={all ? toggleAll : () => go(step === WALK.length ? 1 : step + 1)} data-testid={all ? 'p1x-all-toggle' : 'p1x-next'}>
+            {all ? 'Back to the walk' : step === WALK.length ? 'Start over' : 'Next →'}
+          </button>
+        </div>
+      </PageFrame>
+    </PingPage>
+  );
+}
+
+function Tag({ kind }) {
+  return <span className="p1x-tag" title={EVIDENCE[kind].note}><StatusChip tone={EVIDENCE_TONE[kind]}>{EVIDENCE[kind].label}</StatusChip></span>;
+}
+
 function CopyBtn({ text, label = 'Copy' }) {
-  return <button type="button" className="p1x-copy" onClick={() => copy(text)}>{label}</button>;
+  return <button type="button" className="pu-btn p1x-copy" onClick={() => copy(text)}>{label}</button>;
 }
 
 /** A raw JWT in full (never truncated), its three parts, and a copy button. */
@@ -34,9 +216,6 @@ function RawToken({ title, token, testId }) {
   );
 }
 
-const readPref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch { return d; } };
-const savePref = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* blocked storage: the switch still works for this visit */ } };
-
 /** Decoded view of every JWT found in a body: header, payload, claims with readable times, expiry badge. */
 function DecodedTokens({ text, where, now }) {
   const found = findJwts(text);
@@ -44,17 +223,17 @@ function DecodedTokens({ text, where, now }) {
   return (
     <div className="p1x-decoded" data-testid="p1x-decoded">
       {found.map((t, i) => {
-        if (!t.ok) return <p key={i} className="p1x-muted">Token {i + 1}: {t.error}. Raw text kept above.</p>;
+        if (!t.ok) return <p key={i} className="pu-note">Token {i + 1}: {t.error}. Raw text kept above.</p>;
         const exp = t.payload.exp;
         const live = typeof exp === 'number' ? exp > now : null;
         return (
           <div key={i} className="p1x-dec">
             <div className="p1x-dec-head">
               <strong>Decoded token {found.length > 1 ? i + 1 : ''}</strong> <span className="p1x-muted">({where})</span>
-              {live === null ? null : <span className={`p1x-tag ${live ? 'p1x-tag--guide' : 'p1x-tag--unverified'}`}>{live ? `valid, expires ${relTime(exp, now)}` : `expired ${relTime(exp, now)}`}</span>}
+              {live === null ? null : <StatusChip tone={live ? 'ok' : 'danger'}>{live ? `valid, expires ${relTime(exp, now)}` : `expired ${relTime(exp, now)}`}</StatusChip>}
               <CopyBtn text={JSON.stringify(t.payload, null, 2)} label="Copy decoded payload" />
             </div>
-            <div className="p1x-grid">
+            <div className="p1x-cols">
               <div><h5>Header</h5><pre className="p1x-pre">{JSON.stringify(t.header, null, 2)}</pre></div>
               <div><h5>Signature</h5><pre className="p1x-pre p1x-wrap">{t.signature || '(none)'}</pre></div>
             </div>
@@ -84,12 +263,12 @@ function WireCall({ c, decode, now, idPrefix = 'p1x-call-', open }) {
   const shrink = decode && hasTokens && !rawOn;
   return (
     <details className="p1x-call" data-testid={`${idPrefix}${c.n}`} open={open ?? c.phase === 'runtime'}>
-      <summary><code>{c.n}</code> {c.label} <span className={c.status < 300 ? 'p1x-ok' : 'p1x-bad'}>{c.status} {c.statusText}</span> <Tag kind={c.evidence} /></summary>
-      <p className="p1x-muted">{c.notes}</p>
+      <summary><code>{c.n}</code> {c.label} <StatusChip tone={c.status < 300 ? 'ok' : 'danger'}>{c.status} {c.statusText}</StatusChip> <Tag kind={c.evidence} /></summary>
+      <p className="pu-note">{c.notes}</p>
       {hasTokens && decode ? (
         <label className="p1x-rawtoggle"><input type="checkbox" checked={rawOn} onChange={(e) => setRawOn(e.target.checked)} data-testid={`${idPrefix}${c.n}-raw`} /> Show the full raw tokens in the text below</label>
       ) : null}
-      <div className="p1x-grid">
+      <div className="p1x-cols">
         <div>
           <h4>Request <CopyBtn text={reqFull} /></h4>
           <pre className="p1x-pre p1x-wrap" data-testid={`${idPrefix}${c.n}-req`}>{shrink ? collapseJwts(reqFull) : reqFull}</pre>
@@ -111,26 +290,6 @@ function Json({ value, testId }) {
   return <pre className="p1x-pre" data-testid={testId}>{JSON.stringify(value, null, 2)}</pre>;
 }
 
-const WALK = [
-  { id: 'idea', title: 'The idea', min: 1 },
-  { id: 'issuer', title: 'Pick an issuer', min: 1 },
-  { id: 'trust', title: 'Set the trust', min: 2 },
-  { id: 'send', title: 'Send it', min: 2 },
-  { id: 'result', title: 'Read the result', min: 1 },
-  { id: 'compare', title: 'Compare', min: 2 },
-  { id: 'know', title: 'What to know', min: 2 },
-];
-const FS_STEPS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170];
-const readStep = () => {
-  try { const m = /walk=(\d+)/.exec(window.location.hash); const n = m ? Number(m[1]) : 1; return Math.min(Math.max(n, 1), WALK.length); } catch { return 1; }
-};
-const readAll = () => {
-  try { return /walk=all/.test(window.location.hash); } catch { return false; }
-};
-const readFs = () => {
-  try { const n = Number(localStorage.getItem('p1x-fs')); return FS_STEPS.includes(n) ? n : 100; } catch { return 100; }
-};
-
 function DecodeSwitch({ decode, onChange }) {
   return (
     <label className="p1x-switch" data-testid="p1x-decode-switch">
@@ -140,78 +299,22 @@ function DecodeSwitch({ decode, onChange }) {
   );
 }
 
-export default function P1ThirdPartyExchangePage() {
-  const [step, setStep] = useState(readStep);
-  const [all, setAll] = useState(readAll);
-  const [fs, setFs] = useState(readFs);
-  const [vendorId, setVendorId] = useState('pf-cc');
-  const [state, setState] = useState('valid');
-  const [settings, setSettings] = useState(TRUSTED_ISSUER_DEFAULTS);
-  const [assigned, setAssigned] = useState(true);
-  const [now] = useState(() => Math.floor(Date.now() / 1000));
-  const [decode, setDecode] = useState(() => readPref('p1x-decode', true));
-  const headingRef = useRef(null);
-  const first = useRef(true);
-  const toggleDecode = (on) => { setDecode(on); savePref('p1x-decode', on); };
-
-  const go = useCallback((n) => {
-    const next = Math.min(Math.max(n, 1), WALK.length);
-    setStep(next);
-    setAll(false);
-    try { window.history.replaceState(null, '', `#walk=${next}`); } catch { /* history unavailable: the walk still works */ }
-  }, []);
-  const toggleAll = () => {
-    const next = !all;
-    setAll(next);
-    try { window.history.replaceState(null, '', next ? '#walk=all' : `#walk=${step}`); } catch { /* history unavailable */ }
-  };
-  const changeFs = (n) => {
-    const next = Math.min(Math.max(n, 80), 170);
-    setFs(next);
-    try { localStorage.setItem('p1x-fs', String(next)); } catch { /* blocked storage: the size still applies for this visit */ }
-  };
-
-  useEffect(() => {
-    if (first.current) { first.current = false; return; }
-    headingRef.current?.focus();
-    window.scrollTo?.({ top: 0 });
-  }, [step]);
-  useEffect(() => {
-    const onHash = () => { setStep(readStep()); setAll(readAll()); };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '')) return;
-      if (e.key === 'ArrowRight') go(step + 1);
-      if (e.key === 'ArrowLeft') go(step - 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [go, step]);
-
-  const vendor = VENDORS.find((v) => v.id === vendorId);
-  const run = useMemo(() => validateExchange({ vendor, state, settings, assigned, now }), [vendor, state, settings, assigned, now]);
-  const subject = useMemo(() => subjectClaims(now), [now]);
-  const mapped = useMemo(() => vendor.mappings.map((m) => ({ m, r: applyMapping(m, run.claims) })), [vendor, run.claims]);
-  const issued = useMemo(() => resultClaims(subject, run.ok ? { claim: Object.assign({}, ...mapped.map(({ r }) => r.claim || {})) } : null, now), [subject, mapped, run.ok, now]);
-  const diagram = useMemo(() => exchangeDiagram(vendor, run), [vendor, run]);
-  const wire = useMemo(() => buildWire({ vendor, run, settings, assigned, now }), [vendor, run, settings, assigned, now]);
-  const set = (k) => (e) => setSettings((s) => ({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
-  const reset = () => { setState('valid'); setSettings(TRUSTED_ISSUER_DEFAULTS); setAssigned(true); };
-  const meta = WALK[step - 1];
-  const exchangeCall = wire.runtime[wire.runtime.length - 1];
-
-  const bodies = {
+function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issued, diagram, wire, decode, toggleDecode, now, settings, set, assigned, setAssigned, state, setState, reset, exchangeCall }) {
+  return {
     idea: (
       <>
-        <p className="p1x-lede">An app has a PingOne token for the user, and a token from somewhere else (PingFederate, Okta, Auth0, Microsoft). PingOne can now check the second one and mix what it says into the token it hands back.</p>
-        <div className="p1x-grid">
-          <div className="p1x-card"><h3>Before</h3><p>Both tokens had to come from <strong>the same PingOne environment</strong>.</p></div>
-          <div className="p1x-card"><h3>Now</h3><p>The second token can come from <strong>any issuer you trust</strong>, as long as it is a signed JWT.</p></div>
-        </div>
-        <h3>Four steps to set it up <Tag kind="guide" /></h3>
+        <p className="pu-lede">An app has a PingOne token for the user, and a token from somewhere else (PingFederate, Okta, Auth0, Microsoft). PingOne can now check the second one and mix what it says into the token it hands back.</p>
+        <CardGrid>
+          <Card tone="neutral" title="Before">
+            <p className="pu-status-line"><StatusChip tone="neutral">Same environment only</StatusChip></p>
+            <p>Both tokens had to come from <strong>the same PingOne environment</strong>.</p>
+          </Card>
+          <Card tone="ok" title="Now">
+            <p className="pu-status-line"><StatusChip tone="ok">Any trusted issuer</StatusChip></p>
+            <p>The second token can come from <strong>any issuer you trust</strong>, as long as it is a signed JWT.</p>
+          </Card>
+        </CardGrid>
+        <h3 className="pu-h3 p1x-h3">Four steps to set it up <Tag kind="guide" /></h3>
         <ol className="p1x-steps" data-testid="p1x-setup-steps">
           {STEPS.map((x) => <li key={x.n}><strong>{x.title}.</strong> {x.body} <code>{x.where}</code></li>)}
         </ol>
@@ -225,35 +328,35 @@ export default function P1ThirdPartyExchangePage() {
     ),
     issuer: (
       <>
-        <p className="p1x-lede">Pick an issuer. Its sample token is used for the rest of the walk.</p>
-        <div role="radiogroup" aria-label="Third-party issuer" className="p1x-chips">
+        <p className="pu-lede">Pick an issuer. Its sample token is used for the rest of the walk.</p>
+        <div role="radiogroup" aria-label="Third-party issuer" className="pu-actions">
           {VENDORS.map((v) => (
             <button key={v.id} type="button" role="radio" aria-checked={v.id === vendorId} data-testid={`p1x-vendor-${v.id}`}
-              className={`p1x-chip${v.id === vendorId ? ' p1x-chip--on' : ''}`} onClick={() => setVendorId(v.id)}>{v.name}</button>
+              className="pu-btn p1x-vendor" onClick={() => setVendorId(v.id)}>{v.id === vendorId ? <span aria-hidden="true">✓ </span> : null}{v.name}</button>
           ))}
         </div>
-        <p className="p1x-muted"><Tag kind={vendor.evidence} /> {vendor.note}</p>
+        <p className="pu-note"><Tag kind={vendor.evidence} /> {vendor.note}</p>
         <DecodeSwitch decode={decode} onChange={toggleDecode} />
-        <div className="p1x-grid">
-          <div className="p1x-card">
-            <h3>Actor token: {vendor.name}</h3>
+        <CardGrid>
+          <Card title={`Actor token: ${vendor.name}`}>
+            <p className="pu-status-line"><StatusChip tone="neutral">Sample</StatusChip> Mock signature, never verifiable.</p>
             <Json value={run.claims} testId="p1x-actor" />
             <RawToken title="Actor token, raw (mock signature, never verifiable)" token={wire.tokens.actor} testId="p1x-raw-actor" />
             {decode ? <DecodedTokens text={wire.tokens.actor} where="actor token" now={now} /> : null}
-          </div>
-          <div className="p1x-card">
-            <h3>Subject token (PingOne, placeholder values)</h3>
+          </Card>
+          <Card tone="neutral" title="Subject token (PingOne, placeholder values)">
+            <p className="pu-status-line"><StatusChip tone="neutral">Placeholder</StatusChip> Not issued by a real tenant.</p>
             <Json value={subject} testId="p1x-subject" />
             <RawToken title="Subject token, raw (mock)" token={wire.tokens.subject} testId="p1x-raw-subject" />
-          </div>
-        </div>
+          </Card>
+        </CardGrid>
       </>
     ),
     trust: (
       <>
-        <p className="p1x-lede">The admin defines a <strong>trusted issuer</strong> and decides what to insist on. Change a switch and watch the request on the right.</p>
-        <div className="p1x-grid">
-          <div>
+        <p className="pu-lede">The admin defines a <strong>trusted issuer</strong> and decides what to insist on. Change a switch and watch the request on the right.</p>
+        <CardGrid>
+          <Card>
             <fieldset className="p1x-fields">
               <legend>Trusted issuer settings <Tag kind="measured" /></legend>
               <label><input type="checkbox" checked={settings.expRequired} onChange={set('expRequired')} data-testid="p1x-exp" /> exp required</label>
@@ -275,20 +378,19 @@ export default function P1ThirdPartyExchangePage() {
               {TOKEN_STATES.map((t) => (
                 <label key={t.id}><input type="radio" name="p1x-state" checked={state === t.id} onChange={() => setState(t.id)} data-testid={`p1x-state-${t.id}`} /> {t.label}</label>
               ))}
-              <button type="button" className="p1x-chip" onClick={reset} data-testid="p1x-reset">Reset</button>
+              <div className="pu-actions"><button type="button" className="pu-btn" onClick={reset} data-testid="p1x-reset">Reset</button></div>
             </fieldset>
-          </div>
-          <div className="p1x-card">
-            <h3>What the admin sends <Tag kind="measured" /></h3>
-            <p className="p1x-muted">{wire.setup[0].method} {wire.setup[0].url}</p>
+          </Card>
+          <Card tone="neutral" title={<>What the admin sends <Tag kind="measured" /></>}>
+            <p className="pu-note pu-mono">{wire.setup[0].method} {wire.setup[0].url}</p>
             <pre className="p1x-pre p1x-wrap" data-testid="p1x-trust-body">{wire.setup[0].requestBody}</pre>
-          </div>
-        </div>
+          </Card>
+        </CardGrid>
       </>
     ),
     send: (
       <>
-        <p className="p1x-lede">One request. The third-party token goes in as the <strong>actor</strong> and must say it is a JWT.</p>
+        <p className="pu-lede">One request. The third-party token goes in as the <strong>actor</strong> and must say it is a JWT.</p>
         <SequenceFlowDiagram
           key={`${vendor.id}-${run.ok}-${run.failed?.id || 'ok'}`}
           source={diagram.source}
@@ -297,55 +399,58 @@ export default function P1ThirdPartyExchangePage() {
           lanes={DIAGRAM_LANES}
           label={`Third-party token exchange: ${vendor.name}`}
         />
-        <h3>Token request <Tag kind="measured" /></h3>
+        <h3 className="pu-h3 p1x-h3">Token request <Tag kind="measured" /></h3>
         <pre className="p1x-pre" data-testid="p1x-request">{requestText()}</pre>
         <DecodeSwitch decode={decode} onChange={toggleDecode} />
         <WireCall key={`ex-${exchangeCall.n}`} c={exchangeCall} decode={decode} now={now} idPrefix="p1x-feat-" open />
         <details className="p1x-wire-details" data-testid="p1x-wire">
           <summary>Show all {wire.all.length} API calls, setup and runtime</summary>
-          <p className="p1x-muted">
+          <p className="pu-note">
             All headers, the exact request and response bodies, with the raw tokens. Values are mock: the client secret is made up on purpose, the JWT signatures and the JWKS key are fake.
             Shapes follow what PingOne returned in the live run. Each call has a curl.
           </p>
-          <h3>Setup: what an admin creates</h3>
+          <h3 className="pu-h3 p1x-h3">Setup: what an admin creates</h3>
           {wire.setup.map((c) => <WireCall key={c.n} c={c} decode={decode} now={now} />)}
-          <h3>Runtime: what the application sends</h3>
+          <h3 className="pu-h3 p1x-h3">Runtime: what the application sends</h3>
           {wire.runtime.map((c) => <WireCall key={c.n} c={c} decode={decode} now={now} />)}
         </details>
       </>
     ),
     result: (
       <>
-        <div className={`p1x-verdict p1x-verdict--${run.ok ? 'ok' : 'bad'}`} role="status" data-testid="p1x-verdict" data-ok={String(run.ok)}>
-          <strong>{run.ok ? 'Exchange succeeds: a token is issued' : `Exchange refused: ${run.failed.label}`}</strong>
-          <span> <Tag kind="measured" /></span>
+        <Card tone={run.ok ? 'ok' : 'danger'} role="status" data-testid="p1x-verdict" data-ok={String(run.ok)}>
+          <p className="pu-status-line">
+            <StatusChip tone={run.ok ? 'ok' : 'danger'}>{run.ok ? 'Succeeds (simulated)' : 'Refused (simulated)'}</StatusChip>
+            <strong>{run.ok ? 'Simulated result: the exchange succeeds and a token is issued' : `Simulated result: the exchange is refused, ${run.failed.label}`}</strong>
+            <Tag kind="measured" />
+          </p>
           {run.ok ? null : <pre className="p1x-pre" data-testid="p1x-error">{`HTTP ${run.error.status}\n${JSON.stringify({ error: run.error.error, error_description: run.error.error_description }, null, 2)}`}</pre>}
-          <p className="p1x-muted">Each refusal text is what PingOne returned for that fault, run on its own. The order PingOne checks things in is not known, so with two faults at once it may name the other one.</p>
-        </div>
-        <div className="p1x-grid">
-          <div className="p1x-card">
-            <h3>What PingOne checked</h3>
-            <table className="p1x-table" data-testid="p1x-checks" aria-label="Checks on the third-party token">
-              <thead><tr><th>Check</th><th>Detail</th><th>Result</th></tr></thead>
-              <tbody>
-                {run.checks.map((c) => (
-                  <tr key={c.id}><td>{c.label}</td><td><code>{c.detail}</code></td><td className={c.ok ? 'p1x-ok' : 'p1x-bad'}>{c.ok ? 'pass' : 'fail'}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="p1x-card">
-            <h3>Attribute mapping on the custom resource</h3>
+          <p className="pu-note">Each refusal text is what PingOne returned for that fault, run on its own. The order PingOne checks things in is not known, so with two faults at once it may name the other one.</p>
+        </Card>
+        <CardGrid>
+          <Card tone="neutral" title="What PingOne checked">
+            <div className="p1x-scroll">
+              <table className="p1x-table" data-testid="p1x-checks" aria-label="Checks on the third-party token">
+                <thead><tr><th>Check</th><th>Detail</th><th>Result</th></tr></thead>
+                <tbody>
+                  {run.checks.map((c) => (
+                    <tr key={c.id}><td>{c.label}</td><td><code>{c.detail}</code></td><td><StatusChip tone={c.ok ? 'ok' : 'danger'}>{c.ok ? 'pass' : 'fail'}</StatusChip></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <Card tone={run.ok ? 'ok' : 'neutral'} title="Attribute mapping on the custom resource">
             <ul className="p1x-maps" data-testid="p1x-maps">
               {mapped.map(({ m, r }) => (
                 <li key={m.id}><Tag kind={m.evidence} /> {m.label}. {m.note}{' '}
                   <strong>{r.present ? 'Source claim present.' : `The token has no ${m.source}, so no claim is added.`}</strong></li>
               ))}
             </ul>
-            <h3>{run.ok ? 'Issued access token' : 'Nothing issued'}</h3>
-            {run.ok ? <Json value={issued} testId="p1x-issued" /> : <p className="p1x-muted">The exchange was refused, so no token is issued.</p>}
-          </div>
-        </div>
+            <h3 className="pu-h3 p1x-h3">{run.ok ? 'Issued access token' : 'Nothing issued'}</h3>
+            {run.ok ? <Json value={issued} testId="p1x-issued" /> : <p className="pu-note">The exchange was refused, so no token is issued.</p>}
+          </Card>
+        </CardGrid>
         {run.ok ? (
           <>
             <DecodeSwitch decode={decode} onChange={toggleDecode} />
@@ -357,105 +462,39 @@ export default function P1ThirdPartyExchangePage() {
     ),
     compare: (
       <>
-        <p className="p1x-lede">The same idea, named differently by each issuer. The calling app id is the one you will map most. <Tag kind="sample" /></p>
-        <p className="p1x-muted">From the comparison sheet. A dash means the sheet says not included or not defined. The sheet lists Okta aud as not found, though Okta&apos;s sample token has aud, so the sample is what the picker uses.</p>
-        <div className="p1x-scroll">
-          <table className="p1x-table" data-testid="p1x-compare">
-            <thead><tr><th>Claim</th>{COMPARE_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-            <tbody>
-              {COMPARE_ROWS.map(([label, ...cells]) => (
-                <tr key={label}><th scope="row">{label}</th>{cells.map((c, i) => <td key={COMPARE_COLUMNS[i]} className={c === null ? 'p1x-none' : undefined}>{c === null ? '–' : <code>{c}</code>}</td>)}</tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <p className="pu-lede">The same idea, named differently by each issuer. The calling app id is the one you will map most. <Tag kind="sample" /></p>
+        <p className="pu-note">From the comparison sheet. A dash means the sheet says not included or not defined. The sheet lists Okta aud as not found, though Okta&apos;s sample token has aud, so the sample is what the picker uses.</p>
+        <Card tone="neutral">
+          <div className="p1x-scroll">
+            <table className="p1x-table" data-testid="p1x-compare">
+              <thead><tr><th>Claim</th>{COMPARE_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+              <tbody>
+                {COMPARE_ROWS.map(([label, ...cells]) => (
+                  <tr key={label}><th scope="row">{label}</th>{cells.map((c, i) => <td key={COMPARE_COLUMNS[i]} className={c === null ? 'p1x-none' : undefined}>{c === null ? '–' : <code>{c}</code>}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </>
     ),
     know: (
       <>
-        <h3>Admin API, permissions and licensing <Tag kind="guide" /></h3>
-        <div className="p1x-grid">
-          <div><h4>POST /trustedIssuers</h4><Json value={API_SAMPLES.trustedIssuer} testId="p1x-api-issuer" /></div>
-          <div><h4>POST /applications/&lt;appId&gt;/trustedIssuerAssignments</h4><Json value={API_SAMPLES.assignment} testId="p1x-api-assignment" /></div>
-        </div>
-        <dl className="p1x-facts">
-          {ADMIN_FACTS.map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd>{v}</dd></React.Fragment>)}
-        </dl>
-        <p className="p1x-muted">Issued tokens in the mock carry iss <code>{P1_ISSUER}</code>, a placeholder.</p>
-        <section className="p1x-card" aria-labelledby="p1x-notshown" data-testid="p1x-notshown">
-          <h3 id="p1x-notshown">What this page does not show <Tag kind="unverified" /></h3>
+        <h3 className="pu-h3 p1x-h3">Admin API, permissions and licensing <Tag kind="guide" /></h3>
+        <CardGrid>
+          <Card tone="neutral" title="POST /trustedIssuers"><Json value={API_SAMPLES.trustedIssuer} testId="p1x-api-issuer" /></Card>
+          <Card tone="neutral" title="POST /applications/<appId>/trustedIssuerAssignments"><Json value={API_SAMPLES.assignment} testId="p1x-api-assignment" /></Card>
+        </CardGrid>
+        <Card tone="neutral">
+          <KvList items={ADMIN_FACTS.map(([label, value]) => ({ label, value }))} />
+        </Card>
+        <p className="pu-note">Issued tokens in the mock carry iss <code>{P1_ISSUER}</code>, a placeholder.</p>
+        <Card tone="warn" role="region" aria-labelledby="p1x-notshown" data-testid="p1x-notshown">
+          <h3 id="p1x-notshown" className="pu-h3">What this page does not show <Tag kind="unverified" /></h3>
           <ul>{NOT_SHOWN.map((t) => <li key={t}>{t}</li>)}</ul>
-        </section>
-        <p className="p1x-muted">Want to try it for real? The standalone p1-third-party-exchange app has Real exchange tabs that send an actual request to your own PingOne. Setup steps: <code>{SETUP_DOC}</code>.</p>
+        </Card>
+        <p className="pu-note">Want to try it for real? The standalone p1-third-party-exchange app has Real exchange tabs that send an actual request to your own PingOne. Setup steps: <code>{SETUP_DOC}</code>.</p>
       </>
     ),
   };
-  const body = bodies[meta.id];
-
-  const kicker = `Step ${step} of ${WALK.length} · ${meta.min} ${meta.min === 1 ? 'minute' : 'minutes'}`;
-  return (
-    <main className="p1x-page" data-fs={fs} data-testid="p1-third-party-exchange-page">
-      <PageHeader
-        eyebrow="Diagrams · PingOne"
-        title="PingOne token exchange with third-party tokens"
-        summary="PingOne can trust a JWT signed by another issuer and accept it in an RFC 8693 token exchange, then map its claims into the token it issues. Walk through it one idea at a time."
-        back={{ to: '/diagrams', label: 'All diagrams' }}
-      />
-
-      <div className="p1x-toolbar">
-        <p className="p1x-banner" role="note" data-testid="p1x-banner">
-          <strong>Simulated.</strong> No PingOne call is made, but the refusal messages and settings behaviour were measured live against PingOne on 2026-10-27.
-          The capability is behind a feature flag (Phase 2 of P14C-83104): the guide gives no flag name, so check with Ping that it is on in your environment.
-        </p>
-        <button type="button" className="p1x-chip" onClick={toggleAll} aria-pressed={all} data-testid="p1x-all-toggle">{all ? 'Back to the walk' : 'See everything on one page'}</button>
-        <div className="p1x-fsctl" role="group" aria-label="Text size" data-testid="p1x-fsctl">
-          <button type="button" onClick={() => changeFs(fs - 10)} disabled={fs <= 80} aria-label="Smaller text" data-testid="p1x-fs-down">A−</button>
-          <output aria-live="polite" data-testid="p1x-fs-val">{fs}%</output>
-          <button type="button" onClick={() => changeFs(fs + 10)} disabled={fs >= 170} aria-label="Larger text" data-testid="p1x-fs-up">A+</button>
-          <button type="button" onClick={() => changeFs(100)} disabled={fs === 100} aria-label="Reset text size" data-testid="p1x-fs-reset">Reset</button>
-        </div>
-      </div>
-
-      {all ? (
-        <>
-          <nav className="p1x-contents" aria-label="Contents" data-testid="p1x-contents">
-            <strong>Everything on one page:</strong>
-            {WALK.map((w, i) => (
-              <button key={w.id} type="button" className="p1x-link" onClick={() => document.getElementById(`p1x-all-${w.id}`)?.scrollIntoView?.({ behavior: 'smooth' })}>{i + 1} · {w.title}</button>
-            ))}
-          </nav>
-          {WALK.map((w, i) => (
-            <section key={w.id} id={`p1x-all-${w.id}`} className="p1x-step p1x-step--all" aria-labelledby={`p1x-all-h-${w.id}`} data-testid={`p1x-all-${w.id}`}>
-              <div className="p1x-kicker">{`Step ${i + 1} of ${WALK.length}`}</div>
-              <h2 id={`p1x-all-h-${w.id}`} className="p1x-step-h">{w.title}</h2>
-              {bodies[w.id]}
-            </section>
-          ))}
-        </>
-      ) : (
-        <>
-      <nav className="p1x-rail" aria-label="Walk steps" data-testid="p1x-rail">
-        {WALK.map((w, i) => (
-          <button key={w.id} type="button" onClick={() => go(i + 1)} aria-current={i + 1 === step ? 'step' : undefined}
-            className={i + 1 < step ? 'is-done' : i + 1 === step ? 'is-on' : ''} data-testid={`p1x-rail-${i + 1}`}>
-            <i aria-hidden="true" /><span>{i + 1} · {w.title}</span>
-          </button>
-        ))}
-      </nav>
-
-      <section className="p1x-step" aria-labelledby="p1x-step-h" data-testid={`p1x-step-${meta.id}`}>
-        <div className="p1x-kicker">{kicker}</div>
-        <h2 id="p1x-step-h" ref={headingRef} tabIndex={-1} className="p1x-step-h">{meta.title}</h2>
-        {body}
-      </section>
-
-      <div className="p1x-nav" role="group" aria-label="Walk navigation">
-        <button type="button" className="p1x-btn" onClick={() => go(step - 1)} disabled={step === 1} data-testid="p1x-back">← Back</button>
-        <span className="p1x-where" data-testid="p1x-where">{meta.title}</span>
-        <button type="button" className="p1x-btn p1x-btn--go" onClick={() => go(step === WALK.length ? 1 : step + 1)} data-testid="p1x-next">{step === WALK.length ? 'Start over' : 'Next →'}</button>
-      </div>
-        </>
-      )}
-    </main>
-  );
 }

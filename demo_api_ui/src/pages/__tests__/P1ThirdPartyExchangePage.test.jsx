@@ -481,3 +481,98 @@ describe('nothing from the original dense page is lost', () => {
     expect(screen.getByTestId('p1-third-party-exchange-page').dataset.fs).toBe('110');
   });
 });
+
+describe('P1ThirdPartyExchangePage: Ping UI Standard', () => {
+  const mountView = (hash) => {
+    try { localStorage.clear(); } catch { /* storage unavailable: fine */ }
+    window.history.replaceState(null, '', hash);
+    return render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+  };
+  const primaries = () => Array.from(document.querySelectorAll('button.pu-btn--primary'));
+
+  it('P2: the simulation banner is the first thing on the page, is a note, and says what is simulated and what is real', () => {
+    mountView('#walk=1');
+    const root = screen.getByTestId('p1-third-party-exchange-page');
+    const first = root.firstElementChild;
+    expect(first.classList.contains('pu-banner-wrap')).toBe(true);
+    const banner = screen.getByTestId('p1x-banner');
+    expect(first.contains(banner)).toBe(true);
+    expect(banner.getAttribute('role')).toBe('note');
+    expect(banner.textContent).toMatch(/Simulated\. Nothing on this page calls PingOne/);
+    expect(banner.textContent).toMatch(/measured live against PingOne on 2026-10-27/);
+  });
+
+  it('P9: exactly one primary button in every view state, and it is the forward control', () => {
+    for (let n = 1; n <= 7; n += 1) {
+      mountView(`#walk=${n}`);
+      expect(primaries(), `step ${n}`).toHaveLength(1);
+      expect(primaries()[0].dataset.testid).toBe('p1x-next');
+      expect(primaries()[0].textContent).toBe(n === 7 ? 'Start over' : 'Next →');
+      cleanup();
+    }
+    mountView('#walk=all');
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe('Back to the walk');
+    expect(primaries()[0].dataset.testid).toBe('p1x-all-toggle');
+  });
+
+  it('P9: the issuer choices, Reset and the toggle are secondaries, and no button keeps the old chip or violet classes', () => {
+    mountView('#walk=2');
+    expect(screen.getByTestId('p1x-vendor-okta').className).toContain('pu-btn');
+    expect(screen.getByTestId('p1x-vendor-okta').className).not.toContain('pu-btn--primary');
+    expect(screen.getByTestId('p1x-all-toggle').className).not.toContain('pu-btn--primary');
+    expect(document.querySelector('.p1x-chip, .p1x-btn, .p1x-btn--go')).toBeNull();
+  });
+
+  it('P7: every status chip carries a word, including the result, the evidence labels and the check results', () => {
+    mountView('#walk=5');
+    const chips = Array.from(document.querySelectorAll('.pu-chip'));
+    expect(chips.length).toBeGreaterThan(5);
+    for (const c of chips) expect(c.textContent.trim().length, c.outerHTML).toBeGreaterThan(0);
+    const verdict = screen.getByTestId('p1x-verdict');
+    expect(verdict.querySelector('.pu-chip').textContent).toBe('Succeeds (simulated)');
+    expect(verdict.className).toContain('pu-card--ok');
+    expect(within(screen.getByTestId('p1x-checks')).getAllByText('pass').length).toBeGreaterThan(0);
+  });
+
+  it('a refusal reads as a simulated result with a danger card and a word', () => {
+    mountView('#walk=3');
+    fireEvent.click(screen.getByTestId('p1x-state-expired'));
+    fireEvent.click(screen.getByTestId('p1x-rail-5'));
+    const verdict = screen.getByTestId('p1x-verdict');
+    expect(verdict.className).toContain('pu-card--danger');
+    expect(verdict.querySelector('.pu-chip').textContent).toBe('Refused (simulated)');
+    expect(verdict.textContent).toMatch(/Simulated result: the exchange is refused/);
+    expect(within(screen.getByTestId('p1x-checks')).getAllByText('fail').length).toBeGreaterThan(0);
+  });
+
+  it('P5: the admin facts are a key-value list', () => {
+    mountView('#walk=7');
+    expect(document.querySelectorAll('dl.pu-kv dt').length).toBeGreaterThan(2);
+  });
+
+  it('focus: pressing a control inside a step leaves focus where it was, and switching views puts focus on the new view', () => {
+    mountView('#walk=3');
+    const reset = screen.getByTestId('p1x-reset');
+    reset.focus();
+    fireEvent.click(reset);
+    expect(document.activeElement).toBe(reset);
+    const skew = screen.getByTestId('p1x-skew');
+    skew.focus();
+    fireEvent.change(skew, { target: { value: '30' } });
+    expect(document.activeElement).toBe(skew);
+
+    fireEvent.click(screen.getByTestId('p1x-all-toggle'));
+    expect(document.activeElement).toBe(screen.getByTestId('p1x-contents'));
+    fireEvent.click(screen.getByTestId('p1x-all-toggle'));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Set the trust' }));
+  });
+
+  it('the last step turns Next into Start over on the same element, so focus stays on it', () => {
+    mountView('#walk=6');
+    const next = screen.getByTestId('p1x-next');
+    fireEvent.click(next);
+    expect(screen.getByTestId('p1x-next')).toBe(next);
+    expect(next.textContent).toBe('Start over');
+  });
+});
