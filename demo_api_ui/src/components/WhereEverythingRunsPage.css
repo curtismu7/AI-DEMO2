@@ -1,0 +1,82 @@
+/* WhereEverythingRunsPage.css - theme tokens only (light + dark follow :root[data-theme]); no purple or pink. */
+.wr-page { display: flex; flex-direction: column; min-height: calc(100vh - 80px); color: var(--th-text); background: var(--th-bg-page); }
+.wr-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 14px clamp(14px, 2vw, 32px) 24px; gap: 10px; }
+
+.wr-banner { padding: 10px 14px; border: 1px solid var(--th-status-warning-border); border-radius: var(--radius-lg); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); font-size: var(--font-size-sm); line-height: 1.5; }
+.wr-banner a { color: inherit; font-weight: 700; text-decoration: underline; }
+
+.wr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.wr-seg { display: inline-flex; border: 1px solid var(--control-border); border-radius: var(--radius-md); overflow: hidden; }
+.wr-seg button { appearance: none; border: 0; padding: 8px 14px; background: var(--th-bg-card); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); font-weight: 700; cursor: pointer; }
+.wr-seg button + button { border-left: 1px solid var(--control-border); }
+.wr-seg button[aria-pressed="true"] { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
+.wr-btn { appearance: none; padding: 8px 14px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); font-weight: 700; cursor: pointer; }
+.wr-seg button:hover:not([aria-pressed="true"]), .wr-btn:hover { background: var(--th-bg-hover); }
+.wr-seg button:focus-visible, .wr-btn:focus-visible, .wr-banner a:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-status-info) 55%, transparent); outline-offset: 2px; }
+
+.wr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-left: auto; font-size: var(--font-size-2xs); color: var(--th-text-body); }
+.wr-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.wr-sw { width: 14px; height: 14px; border-radius: var(--radius-sm); border: 2px solid var(--wr-c); background: color-mix(in srgb, var(--wr-c) 20%, var(--th-bg-card)); }
+.wr-ln { width: 22px; border-top: 2px solid var(--th-text-body); }
+.wr-ln--dashed { border-top-style: dashed; }
+
+.wr-meta { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-body); }
+.wr-notice { margin: 0; padding: 8px 12px; border: 1px solid var(--th-status-info-border); border-left-width: 4px; border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-sm); line-height: 1.5; }
+
+/* Environment tones */
+.wr-tone-local { --wr-c: var(--th-status-success); }
+.wr-tone-k8s0 { --wr-c: var(--th-status-warning); }
+.wr-tone-k8s1 { --wr-c: var(--th-status-info); }
+.wr-tone-saas { --wr-c: var(--control-border); }
+
+/* The canvas fills the rest of the screen: wide and tall. */
+.wr-stage { position: relative; flex: 1; min-height: max(520px, calc(100vh - 330px)); }
+.wr-canvas { position: absolute; inset: 0; border: 1px solid var(--th-border-strong); border-radius: var(--radius-lg); background-color: var(--th-bg-inset); background-image: radial-gradient(var(--th-border-strong) 1.5px, transparent 1.5px); background-size: 18px 18px; overflow: hidden; }
+.wr-canvas .react-flow { --xy-controls-button-background-color-default: var(--th-bg-card); --xy-controls-button-background-color-hover-default: var(--th-bg-hover); --xy-controls-button-color-default: var(--th-text); --xy-controls-button-color-hover-default: var(--th-text); --xy-controls-button-border-color-default: var(--th-border-strong); background: transparent; }
+.wr-canvas .react-flow__attribution { display: none; }
+.wr-canvas .react-flow__edge-path { stroke: var(--th-text-body); stroke-width: 1.8; }
+.wr-edge--configured .react-flow__edge-path { stroke-dasharray: 6 5; }
+.wr-canvas .react-flow__edge-text { fill: var(--th-text); font-size: var(--font-size-2xs); }
+.wr-canvas .react-flow__edge-textbg { fill: var(--th-bg-card); }
+.wr-card .react-flow__handle { opacity: 0; pointer-events: none; min-width: 1px; min-height: 1px; width: 1px; height: 1px; }
+
+.wr-region { width: 100%; height: 100%; position: relative; border-radius: var(--radius-xl); border: 2px solid var(--wr-c); background: color-mix(in srgb, var(--wr-c) 8%, var(--th-bg-card)); }
+.wr-region__label { position: absolute; left: 14px; right: 14px; top: 10px; }
+.wr-region__label b { display: block; font-size: var(--font-size-md); color: var(--th-text); overflow-wrap: anywhere; }
+.wr-region__label span { display: block; font-size: var(--font-size-2xs); color: var(--th-text-body); overflow-wrap: anywhere; }
+
+.wr-card { width: var(--wr-card-w, 400px); padding: 8px 12px; border: 2px solid var(--th-border-strong); border-left: 6px solid var(--wr-c); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
+.wr-card.is-selected { outline: 3px solid var(--wr-c); outline-offset: 2px; }
+.wr-card--off { background: var(--th-bg-inset); }
+.wr-card__title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.wr-card__title b { font-size: var(--font-size-base); line-height: 1.25; overflow-wrap: anywhere; }
+.wr-card__sub { margin-top: 3px; font-size: var(--font-size-2xs); line-height: 1.35; color: var(--th-text-body); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.wr-chip { flex: none; padding: 1px 8px; border: 1px solid var(--th-status-success-border); border-radius: var(--radius-pill); background: var(--th-status-success-bg); color: var(--th-status-success-text); font-size: var(--font-size-2xs); font-weight: 700; white-space: nowrap; }
+.wr-chip--off { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+
+/* Floating detail panel */
+.wr-side { position: absolute; z-index: 5; top: 12px; right: 12px; width: 320px; max-height: calc(100% - 24px); overflow: auto; padding: 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); box-shadow: var(--shadow-lg); }
+.wr-side h2 { margin: 0 0 2px; font-size: var(--font-size-md); overflow-wrap: anywhere; }
+.wr-side .wr-side__gap { margin-top: 14px; }
+.wr-side__sub { margin: 0 0 10px; font-size: var(--font-size-2xs); color: var(--th-text-body); }
+.wr-side__note { margin: 10px 0 0; font-size: var(--font-size-2xs); line-height: 1.45; color: var(--th-text-body); }
+.wr-items, .wr-changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wr-items li { display: grid; gap: 3px; padding-bottom: 8px; border-bottom: 1px solid var(--th-border); }
+.wr-changes li { display: flex; justify-content: space-between; gap: 8px; font-size: var(--font-size-sm); }
+.wr-count { font-weight: 700; }
+.wr-mono { font-family: var(--font-mono); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+.wr-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.wr-tag { padding: 1px 7px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); font-size: var(--font-size-2xs); color: var(--th-text); }
+.wr-tag--up { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.wr-tag--off, .wr-tag--down, .wr-tag--partial { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.wr-tag--plan { border-color: var(--th-status-info-border); background: var(--th-bg-inset); }
+
+@media (max-width: 700px) {
+  .wr-page { min-height: 0; }
+  .wr-legend { margin-left: 0; }
+  .wr-stage { flex: none; min-height: 0; }
+  .wr-canvas { position: relative; inset: auto; height: 70vh; min-height: 420px; }
+  .wr-side { position: static; width: auto; max-height: none; margin-top: 12px; box-shadow: none; }
+  .wr-seg { width: 100%; }
+  .wr-seg button { flex: 1; }
+}
