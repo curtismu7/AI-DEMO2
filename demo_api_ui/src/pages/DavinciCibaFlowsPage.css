@@ -1,0 +1,30 @@
+/* /davinci-ciba-flows: only what the shared Ping UI primitives do not provide.
+   The page is a column of long unbroken identifiers (PINGONE_DAVINCI_*_POLICY_ID,
+   docs/*.json paths), so card titles and notes must break inside the card instead
+   of widening it. Scoped under .dv-ciba with an element/class pair because the
+   PingOne end-user-nano skin sets word-wrap: break-word and beats a single class. */
+
+.dv-ciba .pu-card-grid > .pu-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dv-ciba .pu-card h3.pu-h3,
+.dv-ciba .pu-card p.pu-note,
+.dv-ciba .pu-card dl.pu-kv dd {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Same colours the primitives already use, restated so the wrapped text keeps its
+   token colour in light and dark if a skin rule ever sets one on these elements. */
+.dv-ciba .pu-card h3.pu-h3,
+.dv-ciba .pu-card dl.pu-kv dd {
+  color: var(--th-text);
+}
+
+.dv-ciba .pu-card p.pu-note {
+  color: var(--th-text-body);
+}

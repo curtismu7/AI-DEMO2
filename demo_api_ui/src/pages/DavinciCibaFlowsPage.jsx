@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
 import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList } from '../components/pingUi';
+import './DavinciCibaFlowsPage.css';
 
 /**
  * Explainer: the DaVinci configuration in this demo — CIBA flows, login
@@ -39,7 +40,7 @@ const SECTIONS = [
       {
         name: 'Flow policy on the CIBA app',
         kind: 'Flow policy',
-        what: 'A PingOne Flow Policy ("CIBA Step-Up Policy") is attached to the Demo AI App - CIBA application: show only CIBA flows, Latest Version, weight 100. The CIBA grant on the app is PingFederate/PingOne CIBA with delivery mode POLL; the human sees the approval request on their MFA device.',
+        what: 'A PingOne Flow Policy ("CIBA Step-Up Policy") is attached to the Demo AI App - CIBA application: show only CIBA flows, Latest Version, weight 100. The CIBA grant on the app is PingFederate/PingOne CIBA with delivery mode POLL. In this demo the approval request is a mock phone or email; only in a real DaVinci deployment does the human see it as a request on their own MFA device.',
         facts: [
           { label: 'Policy', value: 'CIBA Step-Up Policy' },
           { label: 'Weight', value: '100' },
