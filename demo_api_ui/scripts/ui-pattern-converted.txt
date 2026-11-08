@@ -8,6 +8,7 @@
 /privilege-demo
 /privilege-intent-triage
 /privilege-prompt-log
+/demo-config
 /privilege-pf-token
 /privilege-shelf
 /privilege-a2a

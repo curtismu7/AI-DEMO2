@@ -1,6 +1,23 @@
+// /demo-config: presenters tailor the sidebar per audience.
+//
+// Layout follows the Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 key-value, P7 chips, P9 buttons.
+// Skipped: P6 inspector and P8 diagram (this page has neither). The group list and its drag/drop stay
+// page-local (DemoConfigPage.css).
+//
+// P9, "exactly one primary per view", by state:
+//   loading          no buttons.
+//   ready / saving   "Save & refresh sidebar" is the only primary: it is the page's one job and the
+//                    only control that writes the sidebar. Reset order, Apply, Delete, Save as new
+//                    config, expand, reorder and section toggles are secondaries.
+//   error            same primary; the error card adds only a secondary Dismiss.
+// Busy controls use aria-disabled, never the disabled attribute, so focus stays on the control that
+// was activated. A group, or a page inside its group, can be reordered by keyboard with its up/down buttons.
+// Moving a page to a different group is drag only; there is no keyboard path for that yet.
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
-import "../styles/appShellPages.css";
+import PageHeader from "./common/PageHeader";
+import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } from "./pingUi";
 import "./DemoConfigPage.css";
 import { NAV_STRUCTURE_CATALOG, applyChildOrder } from "../config/navStructureCatalog";
 import { NAV_PAGE_PATHS } from "../config/navPagePaths";
@@ -138,6 +155,11 @@ export default function DemoConfigPage() {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const childDragRef = useRef(null);
   const [childDropTarget, setChildDropTarget] = useState(null);
+  // Screen-reader text for keyboard reorders (focus stays on the button that moved).
+  const [announce, setAnnounce] = useState("");
+  const messagesRef = useRef(null);
+  const configListRef = useRef(null);
+  const newNameRef = useRef(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -189,12 +211,32 @@ export default function DemoConfigPage() {
 
   const moveGroup = (index, dir) => {
     const next = index + dir;
-    if (next < 0 || next >= groups.length) return;
+    if (busy || next < 0 || next >= groups.length) return;
+    setAnnounce(`Moved ${groups[index].label} ${dir < 0 ? "up" : "down"}: position ${next + 1} of ${groups.length}`);
     setGroups((prev) => {
       const arr = [...prev];
       [arr[index], arr[next]] = [arr[next], arr[index]];
       return arr;
     });
+    setActiveConfigId(null);
+  };
+
+  // Keyboard path for a child drag within its own group.
+  const moveChild = (groupLabel, child, dir) => {
+    if (busy || searchQuery.trim()) return;
+    const group = groups.find((g) => g.label === groupLabel);
+    const from = group?.children?.indexOf(child) ?? -1;
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= group.children.length) return;
+    setAnnounce(`Moved ${child} ${dir < 0 ? "up" : "down"} in ${groupLabel}: position ${to + 1} of ${group.children.length}`);
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.label !== groupLabel) return g;
+        const arr = [...g.children];
+        [arr[from], arr[to]] = [arr[to], arr[from]];
+        return { ...g, children: arr };
+      }),
+    );
     setActiveConfigId(null);
   };
 
@@ -308,9 +350,14 @@ export default function DemoConfigPage() {
     JSON.stringify(currentOrder) ===
       JSON.stringify(NAV_STRUCTURE_CATALOG.map((g) => g.label));
 
-  const resetOrder = () => { setGroups(NAV_STRUCTURE_CATALOG); setActiveConfigId(null); };
+  const resetOrder = () => {
+    if (busy) return;
+    setGroups(NAV_STRUCTURE_CATALOG);
+    setActiveConfigId(null);
+  };
 
   const saveSelection = async () => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -340,7 +387,7 @@ export default function DemoConfigPage() {
 
   const saveAsNewConfig = async () => {
     const name = newConfigName.trim();
-    if (!name) return;
+    if (!name || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -359,6 +406,8 @@ export default function DemoConfigPage() {
       setConfigs((prev) => [...prev, data.config]);
       setNewConfigName("");
       setToast(`"${name}" saved`);
+      // The Save button goes inert once the name is cleared, so keep focus in the form.
+      newNameRef.current?.focus();
     } catch (err) {
       setError(`Failed to save config: ${err.message}`);
     } finally {
@@ -367,6 +416,7 @@ export default function DemoConfigPage() {
   };
 
   const applyConfig = async (config) => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -403,6 +453,7 @@ export default function DemoConfigPage() {
   };
 
   const deleteConfig = async (config) => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -415,12 +466,19 @@ export default function DemoConfigPage() {
       setConfigs((prev) => prev.filter((c) => c.id !== config.id));
       if (activeConfigId === config.id) setActiveConfigId(null);
       setToast(`"${config.name}" deleted`);
+      // The card that held focus is gone: land on the saved-configs list, not the top of the page.
+      configListRef.current?.focus();
     } catch (err) {
       setError(`Failed to delete "${config.name}": ${err.message}`);
     } finally {
       setBusy(false);
     }
   };
+
+  // Groups of the current catalog this config shows. hiddenLabels can name labels that are no longer in
+  // the catalog, so count what is shown rather than subtracting (that went negative).
+  const shownCount = (config) =>
+    NAV_STRUCTURE_CATALOG.filter((g) => !(config.hiddenLabels || []).includes(g.label)).length;
 
   const visibleCount = groups.filter((g) => !hiddenLabels.includes(g.label)).length;
   const filteredGroups = groups.filter((group) => matchesSearch(group, searchQuery));
@@ -435,306 +493,386 @@ export default function DemoConfigPage() {
   const hasSearchResults = groupedSections.some((section) => section.groups.length > 0);
 
   return (
-    <div className="app-page dc-page">
-      <div className="app-page-header">
-        <div className="app-page-header__left">
-          <h1 className="app-page-title">Demo Config</h1>
-          <p className="app-page-subtitle">
-            Use the controls below to customize the sidebar. Checked groups are visible. Drag
-            a group by its dotted handle to reorder it; expand a group and drag a child item to
-            reorder it or move it to another group. Disabled controls are unavailable at an edge.
-          </p>
-        </div>
-        <span className={`dc-flag-pill${flagOn ? " dc-flag-pill--on" : ""}`}>
-          Sidebar Customization: {flagOn ? "ON" : "OFF"}
-        </span>
-      </div>
-
-      {error && (
-        <div className="dc-error" role="alert">
-          <strong>Error:</strong> {error}
-          <button type="button" className="dc-error__dismiss" onClick={() => setError(null)}>
-            ✕
-          </button>
-        </div>
-      )}
-      {toast && <div className="dc-toast">✅ {toast}</div>}
-
-      {loading ? (
-        <div className="dc-loading"><InlineSpinner label="Loading…" /></div>
-      ) : (
-        <div className="dc-layout" style={{ "--dc-rail-w": `${railWidth}px` }}>
-          <section className="dc-panel">
-            <div className="dc-panel__head">
-              <h2>Sidebar groups</h2>
-              <span className="dc-count">
-                {visibleCount} of {groups.length} visible
-              </span>
-            </div>
-
-            <div className="dc-search-wrap">
-              <label className="dc-search-label" htmlFor="demo-config-search">
-                Search groups and pages
-              </label>
-              <div className="dc-search-input-wrap">
-                <span aria-hidden="true">🔍</span>
-                <input
-                  id="demo-config-search"
-                  type="search"
-                  role="searchbox"
-                  aria-label="Search groups and pages"
-                  placeholder="Search by group or page name"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    className="dc-search-clear"
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="dc-group-list">
-              {groupedSections.map((section) => {
-                if (section.groups.length === 0) return null;
-                const isSectionOpen = searchQuery.trim() || !collapsedSections[section.label];
-                return (
-                  <section className="dc-section" key={section.label}>
-                    <button
-                      type="button"
-                      className="dc-section__toggle"
-                      onClick={() =>
-                        setCollapsedSections((prev) => ({
-                          ...prev,
-                          [section.label]: !prev[section.label],
-                        }))
-                      }
-                      aria-expanded={!!isSectionOpen}
-                    >
-                      <span>{section.label}</span>
-                      <span className="dc-section__meta">
-                        {section.groups.length} groups {isSectionOpen ? "▲" : "▼"}
-                      </span>
-                    </button>
-                    {isSectionOpen && (
-                      <div className="dc-section__body">
-                        <div className="dc-page-table-header" role="row">
-                          <span aria-hidden="true" />
-                          <span role="columnheader">Navigation item</span>
-                          <span role="columnheader">Page</span>
-                          <span aria-hidden="true" />
-                          <span aria-hidden="true" />
-                        </div>
-                        {section.groups.map((group) => {
-                          const groupIndex = groups.indexOf(group);
-                          const isHidden = hiddenLabels.includes(group.label);
-                          const isExpanded = !!expandedGroups[group.label] || !!searchQuery.trim();
-                          const query = searchQuery.trim().toLowerCase();
-                          const showAllChildren = !query || group.label.toLowerCase().includes(query);
-                          const visibleChildren = (group.children || [])
-                            .map((child, childIndex) => ({ child, childIndex }))
-                            .filter(({ child }) =>
-                              showAllChildren || child.toLowerCase().includes(query),
-                            );
-                          const isDragTarget =
-                            dragOverIndex === groupIndex ||
-                            (childDropTarget &&
-                              childDropTarget.group === group.label &&
-                              childDropTarget.index === -1);
-                          const groupPath = getGroupPath(group);
-
-                          return (
-                            <div
-                              key={group.label}
-                              className={`dc-group-row${isHidden ? " dc-group-row--hidden" : ""}${isDragTarget ? " dc-group-row--drag-over" : ""}`}
-                              draggable={!searchQuery}
-                              onDragStart={(e) => onDragStart(e, groupIndex)}
-                              onDragOver={(e) => onGroupRowDragOver(e, group, groupIndex)}
-                              onDrop={(e) => onGroupRowDrop(e, group, groupIndex)}
-                              onDragEnd={onDragEnd}
-                            >
-                              <div className="dc-group-row__main">
-                                <span className="dc-drag-handle" aria-hidden="true">⠿</span>
-                                <label className="dc-group-toggle">
-                                  <input
-                                    type="checkbox"
-                                    checked={!isHidden}
-                                    onChange={() => toggleLabel(group.label)}
-                                    disabled={busy}
-                                    aria-label={`Show ${group.label}`}
-                                  />
-                                  <span className="dc-group-label">{group.label}</span>
-                                </label>
-                                {groupPath && (
-                                  <a className="dc-open-link" href={groupPath} aria-label={`Open ${group.label}`}>
-                                    Open page
-                                  </a>
-                                )}
-                                {!groupPath && <span className="dc-page-link-placeholder">—</span>}
-                                {group.children && group.children.length > 0 && (
-                                  <button
-                                    type="button"
-                                    className="dc-expand-btn"
-                                    onClick={() => toggleExpand(group.label)}
-                                    aria-label={isExpanded ? "Collapse" : "Expand"}
-                                  >
-                                    {isExpanded ? "▲" : "▼"}
-                                    <span className="dc-child-count">{group.children.length}</span>
-                                  </button>
-                                )}
-                                <div className="dc-reorder-btns">
-                                  <button
-                                    type="button"
-                                    className="dc-reorder-btn"
-                                    onClick={() => moveGroup(groupIndex, -1)}
-                                    disabled={busy || groupIndex === 0}
-                                    aria-label="Move up"
-                                    title="Move up"
-                                  >↑</button>
-                                  <button
-                                    type="button"
-                                    className="dc-reorder-btn"
-                                    onClick={() => moveGroup(groupIndex, 1)}
-                                    disabled={busy || groupIndex === groups.length - 1}
-                                    aria-label="Move down"
-                                    title="Move down"
-                                  >↓</button>
-                                </div>
-                              </div>
-                              {isExpanded && group.children && (
-                                <ul
-                                  className="dc-child-list"
-                                  onDragOver={(e) => onChildDragOver(e, group.label, group.children.length)}
-                                  onDrop={(e) => onChildDrop(e, group.label, null)}
-                                >
-                                  {visibleChildren.map(({ child, childIndex }) => {
-                                    const childPath = getPagePath(group.label, child);
-                                    return (
-                                      <li
-                                        key={child}
-                                        className={`dc-child-item dc-child-item--draggable${
-                                          childDropTarget &&
-                                          childDropTarget.group === group.label &&
-                                          childDropTarget.index === childIndex
-                                            ? " dc-child-item--drag-over"
-                                            : ""
-                                        }`}
-                                        draggable={!searchQuery}
-                                        onDragStart={(e) => onChildDragStart(e, group.label, child)}
-                                        onDragOver={(e) => onChildDragOver(e, group.label, childIndex)}
-                                        onDrop={(e) => onChildDrop(e, group.label, childIndex)}
-                                        onDragEnd={onChildDragEnd}
-                                      >
-                                        <span className="dc-drag-handle" aria-hidden="true">⠿</span>
-                                        <span className="dc-child-label">{child}</span>
-                                        {childPath && (
-                                          <a className="dc-open-link" href={childPath} aria-label={`Open ${child}`}>
-                                            Open page
-                                          </a>
-                                        )}
-                                        {!childPath && <span className="dc-page-link-placeholder">—</span>}
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
-              {!hasSearchResults && (
-                <div className="dc-no-results">No groups or pages match “{searchQuery}”.</div>
-              )}
-            </div>
-
-            <div className="dc-panel__actions">
-              {!isDefaultOrder && (
+    <PingPage className="dc-page">
+      <SimBanner data-testid="dc-banner">
+        <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. Save &amp; refresh sidebar writes your
+        sidebar choices to this server, for your account only. Applying a saved config also sets the feature flags
+        stored with it, and feature flags apply to everyone using this server.
+      </SimBanner>
+      <PageHeader
+        eyebrow="Admin · Presenter tools"
+        title="Demo Config"
+        summary="Tailor the sidebar for your audience. Checked groups are visible. Drag a group by its dotted handle to reorder it, or use its up and down buttons. Expand a group to reorder its pages, or drag a page into another group."
+      />
+      <PageFrame>
+        <div className="dc-messages" ref={messagesRef} tabIndex={-1}>
+          <div role="status" aria-live="polite">
+            {toast && (
+              <Card tone="ok" data-testid="dc-toast">
+                <p className="pu-status-line dc-message">
+                  <StatusChip tone="ok">Done</StatusChip>
+                  <span>{toast}</span>
+                </p>
+              </Card>
+            )}
+            <span className="dc-sr-only">{announce}</span>
+          </div>
+          {error && (
+            <Card tone="danger" role="alert" data-testid="dc-error">
+              <p className="pu-status-line dc-message">
+                <StatusChip tone="danger">Error</StatusChip>
+                <span>{error}</span>
                 <button
                   type="button"
-                  className="dc-btn-secondary"
-                  onClick={resetOrder}
-                  disabled={busy}
+                  className="pu-btn dc-dismiss"
+                  onClick={() => {
+                    setError(null);
+                    messagesRef.current?.focus();
+                  }}
                 >
-                  Reset order
+                  Dismiss
                 </button>
-              )}
-              <button
-                type="button"
-                className="dc-btn-primary"
-                onClick={saveSelection}
-                disabled={busy}
-              >
-                Save &amp; refresh sidebar
-              </button>
-            </div>
-          </section>
+              </p>
+            </Card>
+          )}
+        </div>
 
-          <div className="divider-drag-handle" aria-label="Resize saved-configs rail" {...railHandleProps} />
-
-          <aside className="dc-configs">
-            <h2>Saved configs</h2>
-            <p className="dc-hint">
-              Named configs bundle a sidebar selection + flag states. Apply one to switch both at once.
-            </p>
-            {configs.map((config) => (
-              <div
-                key={config.id}
-                className={`dc-config-card${activeConfigId === config.id ? " dc-config-card--active" : ""}`}
-              >
-                <div className="dc-config-card__row1">
-                  <span className="dc-config-card__name">{config.name}</span>
-                  {activeConfigId === config.id && <span className="dc-badge">Active</span>}
-                </div>
-                <p className="dc-config-card__meta">
-                  {NAV_STRUCTURE_CATALOG.length - (config.hiddenLabels || []).length} items &middot;{" "}
-                  {Object.keys(config.flagSnapshot || {}).length} flags
+        {loading ? (
+          <div className="dc-loading"><InlineSpinner label="Loading…" /></div>
+        ) : (
+          <div className="dc-layout" style={{ "--dc-rail-w": `${railWidth}px` }}>
+            <Section
+              id="dc-groups-h"
+              kicker="1 · Sidebar groups"
+              title="What the sidebar shows"
+              lede="Choose the groups an audience sees and put them in the order you present them."
+            >
+              <Card>
+                <p className="pu-status-line">
+                  <StatusChip tone={flagOn ? "ok" : "neutral"}>{flagOn ? "On" : "Off"}</StatusChip>
+                  <span>Sidebar customization</span>
+                  <span className="dc-count">
+                    {visibleCount} of {groups.length} visible
+                  </span>
                 </p>
-                <div className="dc-config-card__actions">
-                  <button type="button" onClick={() => applyConfig(config)} disabled={busy}>
-                    Apply
-                  </button>
-                  {!config.isBuiltin && (
-                    <button
-                      type="button"
-                      className="dc-btn-danger"
-                      onClick={() => deleteConfig(config)}
-                      disabled={busy}
-                    >
-                      Delete
-                    </button>
+                {!flagOn && (
+                  <p className="pu-note">
+                    While this flag is off the server returns no hidden groups, so the sidebar shows every
+                    group whatever is unchecked here.
+                  </p>
+                )}
+
+                <div className="dc-search-wrap">
+                  <label className="pu-label" htmlFor="demo-config-search">
+                    Search groups and pages
+                  </label>
+                  <div className="dc-search-input-wrap">
+                    <span aria-hidden="true">🔍</span>
+                    <input
+                      id="demo-config-search"
+                      type="search"
+                      role="searchbox"
+                      aria-label="Search groups and pages"
+                      placeholder="Search by group or page name"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        className="dc-icon-btn"
+                        onClick={() => setSearchQuery("")}
+                        aria-label="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="dc-group-list">
+                  {groupedSections.map((section) => {
+                    if (section.groups.length === 0) return null;
+                    const isSectionOpen = searchQuery.trim() || !collapsedSections[section.label];
+                    return (
+                      <section className="dc-section" key={section.label}>
+                        <button
+                          type="button"
+                          className="dc-section__toggle"
+                          onClick={() =>
+                            setCollapsedSections((prev) => ({
+                              ...prev,
+                              [section.label]: !prev[section.label],
+                            }))
+                          }
+                          aria-expanded={!!isSectionOpen}
+                        >
+                          <span>{section.label}</span>
+                          <span className="dc-section__meta">
+                            {section.groups.length} groups {isSectionOpen ? "▲" : "▼"}
+                          </span>
+                        </button>
+                        {isSectionOpen && (
+                          <div className="dc-section__body">
+                            <div className="dc-page-table-header" role="row">
+                              <span aria-hidden="true" />
+                              <span role="columnheader">Navigation item</span>
+                              <span role="columnheader">Page</span>
+                              <span aria-hidden="true" />
+                              <span aria-hidden="true" />
+                            </div>
+                            {section.groups.map((group) => {
+                              const groupIndex = groups.indexOf(group);
+                              const isHidden = hiddenLabels.includes(group.label);
+                              const isExpanded = !!expandedGroups[group.label] || !!searchQuery.trim();
+                              const query = searchQuery.trim().toLowerCase();
+                              const showAllChildren = !query || group.label.toLowerCase().includes(query);
+                              const visibleChildren = (group.children || [])
+                                .map((child, childIndex) => ({ child, childIndex }))
+                                .filter(({ child }) =>
+                                  showAllChildren || child.toLowerCase().includes(query),
+                                );
+                              const isDragTarget =
+                                dragOverIndex === groupIndex ||
+                                (childDropTarget &&
+                                  childDropTarget.group === group.label &&
+                                  childDropTarget.index === -1);
+                              const groupPath = getGroupPath(group);
+
+                              return (
+                                <div
+                                  key={group.label}
+                                  className={`dc-group-row${isHidden ? " dc-group-row--hidden" : ""}${isDragTarget ? " dc-group-row--drag-over" : ""}`}
+                                  draggable={!searchQuery}
+                                  onDragStart={(e) => onDragStart(e, groupIndex)}
+                                  onDragOver={(e) => onGroupRowDragOver(e, group, groupIndex)}
+                                  onDrop={(e) => onGroupRowDrop(e, group, groupIndex)}
+                                  onDragEnd={onDragEnd}
+                                >
+                                  <div className="dc-group-row__main">
+                                    <span className="dc-drag-handle" aria-hidden="true">⠿</span>
+                                    <label className="dc-group-toggle">
+                                      <input
+                                        type="checkbox"
+                                        checked={!isHidden}
+                                        onChange={() => toggleLabel(group.label)}
+                                        disabled={busy}
+                                        aria-label={`Show ${group.label}`}
+                                      />
+                                      <span className="dc-group-label">{group.label}</span>
+                                    </label>
+                                    {groupPath && (
+                                      <a className="dc-open-link" href={groupPath} aria-label={`Open ${group.label}`}>
+                                        Open page
+                                      </a>
+                                    )}
+                                    {!groupPath && <span className="dc-page-link-placeholder">—</span>}
+                                    {group.children && group.children.length > 0 && (
+                                      <button
+                                        type="button"
+                                        className="dc-icon-btn dc-expand-btn"
+                                        onClick={() => toggleExpand(group.label)}
+                                        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${group.label}`}
+                                        aria-expanded={isExpanded}
+                                      >
+                                        {isExpanded ? "▲" : "▼"}
+                                        <span className="dc-child-count">{group.children.length}</span>
+                                      </button>
+                                    )}
+                                    <div className="dc-reorder-btns">
+                                      <button
+                                        type="button"
+                                        className="dc-icon-btn"
+                                        onClick={() => moveGroup(groupIndex, -1)}
+                                        aria-disabled={busy || groupIndex === 0 ? "true" : undefined}
+                                        aria-label={`Move ${group.label} up`}
+                                        title="Move up"
+                                      >↑</button>
+                                      <button
+                                        type="button"
+                                        className="dc-icon-btn"
+                                        onClick={() => moveGroup(groupIndex, 1)}
+                                        aria-disabled={busy || groupIndex === groups.length - 1 ? "true" : undefined}
+                                        aria-label={`Move ${group.label} down`}
+                                        title="Move down"
+                                      >↓</button>
+                                    </div>
+                                  </div>
+                                  {isExpanded && group.children && (
+                                    <ul
+                                      className="dc-child-list"
+                                      onDragOver={(e) => onChildDragOver(e, group.label, group.children.length)}
+                                      onDrop={(e) => onChildDrop(e, group.label, null)}
+                                    >
+                                      {visibleChildren.map(({ child, childIndex }) => {
+                                        const childPath = getPagePath(group.label, child);
+                                        const childLocked = busy || !!searchQuery.trim();
+                                        return (
+                                          <li
+                                            key={child}
+                                            className={`dc-child-item dc-child-item--draggable${
+                                              childDropTarget &&
+                                              childDropTarget.group === group.label &&
+                                              childDropTarget.index === childIndex
+                                                ? " dc-child-item--drag-over"
+                                                : ""
+                                            }`}
+                                            draggable={!searchQuery}
+                                            onDragStart={(e) => onChildDragStart(e, group.label, child)}
+                                            onDragOver={(e) => onChildDragOver(e, group.label, childIndex)}
+                                            onDrop={(e) => onChildDrop(e, group.label, childIndex)}
+                                            onDragEnd={onChildDragEnd}
+                                          >
+                                            <span className="dc-drag-handle" aria-hidden="true">⠿</span>
+                                            <span className="dc-child-label">{child}</span>
+                                            {childPath && (
+                                              <a className="dc-open-link" href={childPath} aria-label={`Open ${child}`}>
+                                                Open page
+                                              </a>
+                                            )}
+                                            {!childPath && <span className="dc-page-link-placeholder">—</span>}
+                                            <span className="dc-reorder-btns">
+                                              <button
+                                                type="button"
+                                                className="dc-icon-btn"
+                                                onClick={() => moveChild(group.label, child, -1)}
+                                                aria-disabled={childLocked || childIndex === 0 ? "true" : undefined}
+                                                aria-label={`Move ${child} up in ${group.label}`}
+                                                title="Move up"
+                                              >↑</button>
+                                              <button
+                                                type="button"
+                                                className="dc-icon-btn"
+                                                onClick={() => moveChild(group.label, child, 1)}
+                                                aria-disabled={childLocked || childIndex === group.children.length - 1 ? "true" : undefined}
+                                                aria-label={`Move ${child} down in ${group.label}`}
+                                                title="Move down"
+                                              >↓</button>
+                                            </span>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                  {!hasSearchResults && (
+                    <div className="pu-empty pu-note dc-no-results">No groups or pages match “{searchQuery}”.</div>
                   )}
                 </div>
-              </div>
-            ))}
-            <div className="dc-new-config">
-              <input
-                type="text"
-                placeholder="Name this selection…"
-                value={newConfigName}
-                onChange={(e) => setNewConfigName(e.target.value)}
-                disabled={busy}
-              />
-              <button
-                type="button"
-                onClick={saveAsNewConfig}
-                disabled={busy || !newConfigName.trim()}
+
+                <div className="pu-actions dc-panel__actions">
+                  {!isDefaultOrder && (
+                    <button
+                      type="button"
+                      className="pu-btn"
+                      onClick={resetOrder}
+                      aria-disabled={busy ? "true" : undefined}
+                    >
+                      Reset order
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="pu-btn pu-btn--primary"
+                    onClick={saveSelection}
+                    aria-disabled={busy ? "true" : undefined}
+                  >
+                    Save &amp; refresh sidebar
+                  </button>
+                </div>
+              </Card>
+            </Section>
+
+            <div className="divider-drag-handle" aria-label="Resize saved-configs rail" {...railHandleProps} />
+
+            <aside className="dc-configs">
+              <Section
+                id="dc-configs-h"
+                kicker="2 · Saved configs"
+                title="Saved configs"
+                lede="A named config bundles a sidebar selection with flag states. Apply one to switch both at once."
               >
-                Save as new config
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-    </div>
+                <div className="dc-config-list" ref={configListRef} tabIndex={-1} role="group" aria-labelledby="dc-configs-h">
+                  {configs.map((config) => {
+                    const isActive = activeConfigId === config.id;
+                    return (
+                      <Card key={config.id} tone={isActive ? "ok" : "neutral"} data-testid={`dc-config-${config.id}`}>
+                        <div className="dc-config-head">
+                          <h3 className="pu-h3">{config.name}</h3>
+                          {isActive && <StatusChip tone="ok">Active</StatusChip>}
+                        </div>
+                        <KvList
+                          items={[
+                            { label: "Groups shown", value: shownCount(config) },
+                            { label: "Flags", value: Object.keys(config.flagSnapshot || {}).length },
+                          ]}
+                        />
+                        <div className="pu-actions">
+                          <button
+                            type="button"
+                            className="pu-btn"
+                            onClick={() => applyConfig(config)}
+                            aria-disabled={busy ? "true" : undefined}
+                            aria-label={`Apply ${config.name}`}
+                          >
+                            Apply
+                          </button>
+                          {!config.isBuiltin && (
+                            <button
+                              type="button"
+                              className="pu-btn dc-btn-danger"
+                              onClick={() => deleteConfig(config)}
+                              aria-disabled={busy ? "true" : undefined}
+                              aria-label={`Delete ${config.name}`}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+                <Card tone="neutral" title="Save the current selection">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveAsNewConfig();
+                    }}
+                  >
+                    <label className="pu-label" htmlFor="dc-new-config-name">Config name</label>
+                    <input
+                      id="dc-new-config-name"
+                      ref={newNameRef}
+                      type="text"
+                      className="dc-input"
+                      placeholder="Name this selection…"
+                      value={newConfigName}
+                      onChange={(e) => setNewConfigName(e.target.value)}
+                    />
+                    <div className="pu-actions">
+                      <button
+                        type="submit"
+                        className="pu-btn"
+                        aria-disabled={busy || !newConfigName.trim() ? "true" : undefined}
+                      >
+                        Save as new config
+                      </button>
+                    </div>
+                  </form>
+                </Card>
+              </Section>
+            </aside>
+          </div>
+        )}
+      </PageFrame>
+    </PingPage>
   );
 }

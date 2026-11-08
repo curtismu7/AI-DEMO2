@@ -5,7 +5,6 @@ import fs from "node:fs";
 
 import DemoConfigPage from "../components/DemoConfigPage";
 
-vi.mock("../styles/appShellPages.css", () => ({}), { virtual: true });
 vi.mock("../components/DemoConfigPage.css", () => ({}), { virtual: true });
 vi.mock("../config/navStructureCatalog", async (importOriginal) => {
   const actual = await importOriginal();
@@ -104,7 +103,7 @@ describe("DemoConfigPage", () => {
     mockFetch();
     render(<DemoConfigPage />);
     await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
-    screen.getAllByRole("button", { name: "Expand" }).forEach((button) => fireEvent.click(button));
+    screen.getAllByRole("button", { name: /^Expand / }).forEach((button) => fireEvent.click(button));
 
     expect(screen.getAllByRole("columnheader", { name: "Page" })).toHaveLength(3);
     expect(screen.getAllByRole("link", { name: /^Open / })).toHaveLength(6);
@@ -119,14 +118,200 @@ describe("DemoConfigPage", () => {
     expect(screen.getByRole("link", { name: "Open Scope Audit" })).toHaveAttribute("href", "/scope-audit");
   });
 
-  it("keeps demo config surfaces on theme tokens in dark mode", () => {
+  it("keeps demo config surfaces on theme tokens, with no hard-coded colour or sub-10px type", () => {
     const css = fs.readFileSync("src/components/DemoConfigPage.css", "utf8");
+    const noComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-    expect(css).toMatch(
-      /\/\* Theme overrides for the legacy light-first config controls\. \*\/[\s\S]*?background:\s*var\(--th-bg-card\)/,
-    );
-    expect(css).toMatch(/\/\* Theme overrides[\s\S]*?\.dc-reorder-btn[\s\S]*?border-color:\s*var\(--th-border\)/);
+    expect(noComments).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(noComments).not.toMatch(/\brgba?\(/);
+    expect(noComments).not.toMatch(/font-size:\s*\d/);
     expect(css).toMatch(/\.dc-page \.dc-open-link\s*\{[^}]*color:\s*var\(--th-bg-emphasis\)/);
+    expect(css).toMatch(/\.dc-group-row\s*\{[^}]*background:\s*var\(--th-bg-card\)/);
+  });
+
+  it("opens with a role=note banner that says the settings are live, and one primary button", async () => {
+    mockFetch();
+    const { container } = render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Skin Studio")).toBeInTheDocument());
+
+    const banner = screen.getByTestId("dc-banner");
+    expect(banner).toHaveAttribute("role", "note");
+    expect(banner).toHaveTextContent(/nothing on this page is simulated/i);
+    expect(container.querySelector(".dc-page").firstElementChild).toContainElement(banner);
+    expect(container.querySelectorAll(".pu-btn--primary")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Save & refresh sidebar" })).toHaveClass("pu-btn--primary");
+  });
+
+  it("shows the flag as a chip with a word, and each config's group count as a key-value row", async () => {
+    mockFetch();
+    const { container } = render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Full mode")).toBeInTheDocument());
+
+    expect(container.querySelector(".pu-chip")).toHaveTextContent("On");
+    const demo = screen.getByTestId("dc-config-demo-mode");
+    expect(demo).toHaveTextContent("Groups shown");
+    // 3 catalog groups, one hidden by the config.
+    expect(demo.querySelector(".pu-kv dd")).toHaveTextContent("2");
+  });
+
+  it("counts only catalog groups a config shows, never a negative number", async () => {
+    mockFetch({
+      configs: {
+        configs: [
+          { id: "stale", name: "Stale", hiddenLabels: ["Gone 1", "Gone 2", "Gone 3", "Gone 4", "Skin Studio"], flagSnapshot: {} },
+        ],
+      },
+    });
+    render(<DemoConfigPage />);
+    const card = await screen.findByTestId("dc-config-stale");
+    expect(card.querySelector(".pu-kv dd")).toHaveTextContent("2");
+  });
+
+  it("marks the applied config with an Active chip", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Demo mode")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Apply Demo mode" }));
+    const card = screen.getByTestId("dc-config-demo-mode");
+    await waitFor(() => expect(card).toHaveTextContent("Active"));
+    expect(card).toHaveClass("pu-card--ok");
+  });
+
+  it("keeps focus on the control that was activated while a save is in flight", async () => {
+    let release;
+    global.fetch = vi.fn((url, opts) => {
+      const method = (opts && opts.method) || "GET";
+      if (String(url).includes("/api/user/nav-config") && method === "PUT") {
+        return new Promise((resolve) => {
+          release = () => resolve({ ok: true, json: async () => ({}) });
+        });
+      }
+      if (String(url).includes("/api/nav-configs")) return Promise.resolve({ ok: true, json: async () => CONFIGS_RESPONSE });
+      return Promise.resolve({ ok: true, json: async () => PREFS_RESPONSE });
+    });
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Skin Studio")).toBeInTheDocument());
+
+    const save = screen.getByRole("button", { name: "Save & refresh sidebar" });
+    save.focus();
+    fireEvent.click(save);
+    await waitFor(() => expect(save).toHaveAttribute("aria-disabled", "true"));
+    expect(save).not.toBeDisabled();
+    expect(save).toHaveFocus();
+
+    // A second click while busy does not send a second request.
+    fireEvent.click(save);
+    const puts = () => global.fetch.mock.calls.filter((c) => c[1]?.method === "PUT");
+    expect(puts()).toHaveLength(1);
+
+    release();
+    await waitFor(() => expect(save).not.toHaveAttribute("aria-disabled"));
+    expect(save).toHaveFocus();
+    expect(await screen.findByRole("status")).toHaveTextContent(/Saved/);
+  });
+
+  it("moves a group with its up/down buttons, keeps focus, and announces the move", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+
+    const down = screen.getByRole("button", { name: "Move Skin Studio down" });
+    down.focus();
+    fireEvent.click(down);
+    expect(down).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("Moved Skin Studio down: position 2 of 3");
+    // The first group can no longer move up, and says so without losing focus.
+    expect(screen.getByRole("button", { name: "Move Monitoring up" })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("reorders a page inside its group from the keyboard buttons and saves it as childOrder", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Expand Monitoring" }));
+    expect(screen.getByRole("button", { name: "Collapse Monitoring" })).toHaveAttribute("aria-expanded", "true");
+
+    expect(screen.getByRole("button", { name: "Move Audit Trail up in Monitoring" })).toHaveAttribute("aria-disabled", "true");
+    const down = screen.getByRole("button", { name: "Move Audit Trail down in Monitoring" });
+    down.focus();
+    fireEvent.click(down);
+    expect(down).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("Moved Audit Trail down in Monitoring: position 2 of 2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save & refresh sidebar" }));
+    await waitFor(() => {
+      const put = global.fetch.mock.calls.find((c) => c[1]?.method === "PUT");
+      expect(put).toBeTruthy();
+      expect(JSON.parse(put[1].body).childOrder).toEqual({ Monitoring: ["Activity Log", "Audit Trail"] });
+    });
+  });
+
+  it("does not reorder pages while a search filters the list", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+    fireEvent.change(screen.getByRole("searchbox", { name: /search groups and pages/i }), { target: { value: "audit" } });
+
+    const down = screen.getByRole("button", { name: "Move Audit Trail down in Monitoring" });
+    expect(down).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(down);
+    expect(screen.queryByRole("status")).not.toHaveTextContent(/Moved Audit Trail/);
+  });
+
+  it("saves a new config from the name field with Enter and keeps focus in the field", async () => {
+    mockFetch();
+    global.fetch = vi.fn((url, opts) => {
+      const method = (opts && opts.method) || "GET";
+      if (String(url).includes("/api/admin/feature-flags")) return Promise.resolve({ ok: true, json: async () => ({ flags: [] }) });
+      if (String(url).includes("/api/nav-configs") && method === "POST") {
+        return Promise.resolve({ ok: true, json: async () => ({ config: { id: "n1", name: "Exec", hiddenLabels: [], flagSnapshot: {} } }) });
+      }
+      if (String(url).includes("/api/nav-configs")) return Promise.resolve({ ok: true, json: async () => CONFIGS_RESPONSE });
+      return Promise.resolve({ ok: true, json: async () => PREFS_RESPONSE });
+    });
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Full mode")).toBeInTheDocument());
+
+    const input = screen.getByLabelText("Config name");
+    const submit = screen.getByRole("button", { name: "Save as new config" });
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    fireEvent.change(input, { target: { value: "Exec" } });
+    expect(submit).not.toHaveAttribute("aria-disabled");
+    fireEvent.submit(input.closest("form"));
+
+    await screen.findByTestId("dc-config-n1");
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(input).toHaveValue("");
+  });
+
+  it("moves focus to the saved-configs list when the focused config is deleted", async () => {
+    global.fetch = vi.fn((url, opts) => {
+      const method = (opts && opts.method) || "GET";
+      if (method === "DELETE") return Promise.resolve({ ok: true, json: async () => ({}) });
+      if (String(url).includes("/api/nav-configs")) {
+        return Promise.resolve({ ok: true, json: async () => ({ configs: [{ id: "mine", name: "Mine", hiddenLabels: [], flagSnapshot: {} }] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => PREFS_RESPONSE });
+    });
+    render(<DemoConfigPage />);
+    await screen.findByText("Mine");
+
+    const del = screen.getByRole("button", { name: "Delete Mine" });
+    del.focus();
+    fireEvent.click(del);
+    await waitFor(() => expect(screen.queryByText("Mine")).not.toBeInTheDocument());
+    expect(screen.getByRole("group", { name: "Saved configs" })).toHaveFocus();
+  });
+
+  it("dismisses an error and returns focus to the message area", async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "boom" }) }));
+    render(<DemoConfigPage />);
+    const dismiss = await screen.findByRole("button", { name: "Dismiss" });
+    expect(screen.getByRole("alert")).toHaveTextContent("Error");
+    dismiss.focus();
+    fireEvent.click(dismiss);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(document.querySelector(".dc-messages")).toHaveFocus();
   });
 
   it("drags a child item from one group to another and saves it as childOrder", async () => {
@@ -135,7 +320,7 @@ describe("DemoConfigPage", () => {
     await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
 
     // Expand both groups (Monitoring and Authorize have children).
-    const expandButtons = screen.getAllByLabelText("Expand");
+    const expandButtons = screen.getAllByRole("button", { name: /^Expand / });
     expect(expandButtons).toHaveLength(2);
     fireEvent.click(expandButtons[0]);
     fireEvent.click(expandButtons[1]);
@@ -170,7 +355,7 @@ describe("DemoConfigPage", () => {
     render(<DemoConfigPage />);
     await waitFor(() => expect(screen.getByText("Full mode")).toBeInTheDocument());
 
-    const applyButtons = screen.getAllByRole("button", { name: "Apply" });
+    const applyButtons = screen.getAllByRole("button", { name: /^Apply / });
     fireEvent.click(applyButtons[0]);
 
     await waitFor(() => expect(screen.getByText(/Applied.*Full mode/)).toBeInTheDocument());
