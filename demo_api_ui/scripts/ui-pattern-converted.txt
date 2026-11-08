@@ -11,5 +11,6 @@
 /privilege-pf-token
 /privilege-shelf
 /privilege-a2a
+/transaction-consent
 /privilege-for-ai
 /privilege-ai-policies
