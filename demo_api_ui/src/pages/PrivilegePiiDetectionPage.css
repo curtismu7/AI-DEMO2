@@ -1,90 +1,42 @@
-/* Privilege PII detection page. Tokens only; px spacing. */
+/* Privilege PII detection page: only what is specific to this page.
+   The banner, frame, cards, chips, selects and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only
+   (H1), type comes from the --font-size-* scale (H2), no inline styles (H3). */
 
-.pii-page {
-  min-height: 100vh;
-  background: var(--th-bg-page);
-  color: var(--th-text);
-}
-
-.pii-body {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.pii-grid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 24px;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .pii-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.pii-panel {
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  background: var(--th-bg-card);
-  padding: 16px 20px;
-}
-
-.pii-panel h2 {
-  margin: 0 0 8px;
-  font-size: var(--font-size-lg);
-  color: var(--th-text);
-}
-
-.pii-panel h3 {
-  margin: 12px 0 4px;
-  font-size: var(--font-size-sm);
-  color: var(--th-text);
-}
-
-.pii-label {
-  display: block;
-  font-size: var(--font-size-3xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--th-text-muted);
-  margin-bottom: 4px;
-}
-
-.pii-select {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--th-bg-page);
-  color: var(--th-text);
-  font-size: var(--font-size-xs);
-  margin-bottom: 8px;
+.pii-gap {
+  margin-top: 12px;
 }
 
 .pii-textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-page);
   color: var(--th-text);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-family: var(--font-mono);
   resize: vertical;
   margin-bottom: 8px;
 }
 
+.pii-textarea:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+/* The scanned prompt with each detection marked; colour is paired with the outcome via the table chip. */
 .pii-highlight {
   padding: 12px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
   background: var(--th-bg-page);
-  font-size: var(--font-size-xs);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
   line-height: 1.7;
-  margin-bottom: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
 }
 
 .pii-mark {
@@ -110,72 +62,46 @@
   border-bottom: 2px solid var(--th-status-info);
 }
 
-.pii-findings {
+/* Findings table: scrolls inside its own wrapper, stacks as labelled rows at phone width. */
+.pii-table-wrap {
+  overflow-x: auto;
+}
+
+.pii-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-xs);
-  margin-bottom: 12px;
+  font-size: var(--font-size-sm);
 }
 
-.pii-findings th,
-.pii-findings td {
+.pii-table th,
+.pii-table td {
   text-align: left;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--th-border);
+  border-bottom: 1px solid var(--th-border-strong);
   color: var(--th-text);
+  vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
-.pii-findings th {
+.pii-table th {
   color: var(--th-text-muted);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.pii-findings code {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-3xs);
-}
-
-.pii-outcome {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--th-border-strong);
-  font-size: var(--font-size-3xs);
-  color: var(--th-text);
-}
-
-.pii-outcome--block {
-  border-color: var(--th-status-error-border);
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-}
-
-.pii-outcome--alert {
-  border-color: var(--th-status-warning-border);
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-}
-
-.pii-outcome--sanitize {
-  border-color: var(--th-status-info-border);
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-}
-
-.pii-muted {
-  color: var(--th-text-muted);
+.pii-table code {
   font-size: var(--font-size-xs);
-  margin: 6px 0;
 }
 
-.pii-kind {
+/* Kind checklist. Scoped under the page because a global label rule otherwise wins on display. */
+.pii-page .pii-kind {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 3px 0;
-  font-size: var(--font-size-xs);
+  padding: 4px 0;
+  font-size: var(--font-size-sm);
   color: var(--th-text);
   cursor: pointer;
 }
@@ -183,5 +109,50 @@
 .pii-kind-meta {
   margin-left: auto;
   color: var(--th-text-muted);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
+}
+
+/* The live-check block sits inside the live card. */
+.pu-card--live .plc {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+@media (max-width: 600px) {
+  .pii-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .pii-table,
+  .pii-table tbody,
+  .pii-table tr,
+  .pii-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .pii-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .pii-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .pii-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
