@@ -10,21 +10,24 @@
 // (keyboard focus stays on it when a step completes and the next one starts). Everything else is a bordered
 // secondary. While the consent dialog is open the dialog holds the one primary and this button drops to secondary.
 //   step 1, admin, nothing created      -> Create in PingOne
-//   step 1, admin, created, no consent  -> Switch to customer (the claim code is handed over in that persona)
+//   step 1, admin, created, no consent  -> Hand claim code to customer (switches persona; the rail keeps its own
+//                                          "Switch to customer" button)
 //   step 1, customer, no agent claimed  -> Claim agent
 //   step 1, customer, agent not active  -> Review scoped consent
 //   step 1, consent active (either)     -> Continue to step 2
-//   step 2                              -> Call list_orders as agent
+//   step 2, not called                  -> Call list_orders as agent
+//   step 2, called                      -> Continue to step 3
 //   step 3, not started                 -> Checkout $600 headphones
 //   step 3, approval pending            -> Open approval page (new tab)
+//   step 3, approved                    -> Continue to step 4
 //   step 4, access still live           -> Revoke agent access
 //   step 4, revoked                     -> Start over
 //
 // A button that cannot act (busy, missing input) takes aria-disabled and ignores the click, so keyboard focus stays
-// where it is.
-
-// A button that cannot act (busy, missing input) takes aria-disabled and ignores the click, so keyboard focus stays
-// where it is. When a step completes and the step it was on unmounts, focus moves to the new step's heading.
+// where it is. Steps 2 and 3 do not jump ahead when they finish: the result stays on the step that produced it and
+// the primary becomes "Continue to step 3 / 4". Results are kept per step, so one step never shows another's output.
+// The primary ignores auto-repeat Enter, and the one that leaves the page (hand over to the customer) ignores a
+// press for a moment after it appears, so a held or doubled Enter on "Create in PingOne" cannot chain into it.
 
 import React from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
@@ -38,7 +41,7 @@ import {
   PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
 } from "../components/pingUi";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
-import { notifyError, notifySuccess } from "../utils/appToast";
+import { notifyError, notifyInfo, notifySuccess } from "../utils/appToast";
 import { startRoleSwitch } from "../utils/roleSwitch";
 import { useThemeOptional } from "../context/ThemeContext";
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
@@ -80,7 +83,7 @@ function resultChip(result) {
 // Where the approval chip stands: nothing started, the in-process simulated engine, or the PingOne engine.
 function approvalChip(ciba) {
   if (!ciba) return { tone: "neutral", word: "Mock phone or email" };
-  if (ciba.engine === "simulated") return { tone: "warn", word: "Simulated approval" };
+  if (ciba.engine === "simulated") return { tone: "warn", word: "Mock approval" };
   return { tone: "info", word: "PingOne approval" };
 }
 
@@ -115,11 +118,17 @@ export default function DelegatedCommercePage({ user }) {
   const [scopes, setScopes] = React.useState(["read", "write"]);
   const [consentOpen, setConsentOpen] = React.useState(false);
   const [evidence, setEvidence] = React.useState({});
-  const [result, setResult] = React.useState("");
+  // Results are kept per step index so one step never shows another step's output.
+  const [results, setResults] = React.useState({});
+  const setStepResult = React.useCallback((step, value) => {
+    setResults((current) => ({ ...current, [step]: value }));
+  }, []);
   const [ciba, setCiba] = React.useState(null);
   const pollTimerRef = React.useRef(null);
   const primaryRef = React.useRef(null);
   const consentWasOpen = React.useRef(false);
+  const consentFirstFieldRef = React.useRef(null);
+  const handoverReadyAt = React.useRef(0);
 
   React.useEffect(() => {
     setSurfaceHostEl(agentHostEl);
@@ -143,10 +152,13 @@ export default function DelegatedCommercePage({ user }) {
 
   React.useEffect(() => () => window.clearTimeout(pollTimerRef.current), []);
 
-  // The consent dialog closed and focus fell to the body: hand it back to the page's primary button.
+  // The consent dialog opened: DraggableModal is shared and does not move focus, so it would stay on the page button
+  // behind the dialog. Put it on the first scope checkbox. When the dialog closes and focus falls to the body, hand it
+  // back to the page's primary button.
   React.useEffect(() => {
     if (consentOpen) {
       consentWasOpen.current = true;
+      consentFirstFieldRef.current?.focus();
       return;
     }
     if (!consentWasOpen.current) return;
@@ -155,9 +167,10 @@ export default function DelegatedCommercePage({ user }) {
     if ((!focused || focused === document.body) && primaryRef.current) primaryRef.current.focus();
   }, [consentOpen]);
 
-  const markComplete = React.useCallback((step) => {
+  // `advance: false` marks the step done but stays on it, so its result is seen where it was produced.
+  const markComplete = React.useCallback((step, { advance = true } = {}) => {
     setCompleted((current) => [...new Set([...current, step])]);
-    setActiveStep((current) => Math.min(3, Math.max(current, step + 1)));
+    if (advance) setActiveStep((current) => Math.min(3, Math.max(current, step + 1)));
   }, []);
 
   const registerAgent = async () => {
@@ -217,21 +230,21 @@ export default function DelegatedCommercePage({ user }) {
 
   const callOrders = async () => {
     setBusy("orders");
-    setResult("");
+    setStepResult(1, "");
     try {
       const response = await callMcpTool("list_orders", {}, { vertical: "retail" });
       if (response.result?.error) {
         throw new Error(response.result.error_description || response.result.message || response.result.error);
       }
       const parsed = parseToolResult(response.result);
-      setResult(JSON.stringify(parsed, null, 2));
+      setStepResult(1, JSON.stringify(parsed, null, 2));
       const exchanged = response.tokenEvents?.find((event) =>
         ["two-ex-final-token", "mcp-access-token"].includes(event.id),
       );
       setEvidence((current) => ({ ...current, exchange: exchanged || { status: "completed" } }));
-      markComplete(1);
+      markComplete(1, { advance: false });
     } catch (err) {
-      setResult(err.message || "Protected MCP call failed.");
+      setStepResult(1, err.message || "Protected MCP call failed.");
       notifyError(err.message || "Protected MCP call failed.");
     } finally {
       setBusy("");
@@ -266,8 +279,8 @@ export default function DelegatedCommercePage({ user }) {
         if (response.data.status === "approved") {
           const retry = await postCheckout();
           if (!retry.ok) throw new Error(retry.message || retry.error || "Checkout retry failed.");
-          setResult("Checkout completed after human approval.");
-          markComplete(2);
+          setStepResult(2, "Checkout completed after human approval.");
+          markComplete(2, { advance: false });
           setBusy("");
           return;
         }
@@ -277,11 +290,11 @@ export default function DelegatedCommercePage({ user }) {
         notifyError(err.response?.data?.message || err.message || "Approval polling failed.");
       }
     }, intervalMs);
-  }, [markComplete, postCheckout]);
+  }, [markComplete, postCheckout, setStepResult]);
 
   const checkout = async () => {
     setBusy("checkout");
-    setResult("");
+    setStepResult(2, "");
     const initial = await postCheckout();
     const gated = initial.status === 428 || [
       "mcp_step_up_required",
@@ -291,7 +304,7 @@ export default function DelegatedCommercePage({ user }) {
     ].includes(initial.error);
     if (!gated) {
       if (initial.ok) {
-        setResult("Checkout completed without a human gate; verify the active policy threshold.");
+        setStepResult(2, "Checkout completed without a human gate; verify the active policy threshold.");
       } else {
         notifyError(initial.message || initial.error || "Checkout failed.");
       }
@@ -345,7 +358,7 @@ export default function DelegatedCommercePage({ user }) {
         ...current,
         revocation: { auditId: response.data.auditId, retry },
       }));
-      setResult(retry);
+      setStepResult(3, retry);
       setRegistration(response.data.registration);
       if (denied) {
         markComplete(3);
@@ -388,7 +401,12 @@ export default function DelegatedCommercePage({ user }) {
       if (isAdmin && !registration) return registerAgent();
       if (!isAdmin && !registration) return claimAgent();
       if (!isAdmin && registration?.status !== "active") return setConsentOpen(true);
-      return undefined;
+      // Nothing left to run in this step: say so and point at what comes next, instead of doing nothing.
+      return notifyInfo(
+        consentActive
+          ? "Step 1 is done. Use Continue to step 2."
+          : "The agent is created. Hand the claim code to the customer to finish step 1.",
+      );
     }
     if (activeStep === 1) return callOrders();
     if (activeStep === 2) return checkout();
@@ -399,7 +417,7 @@ export default function DelegatedCommercePage({ user }) {
     window.sessionStorage.removeItem(CLAIM_CODE_KEY);
     setActiveStep(0);
     setCompleted([]);
-    setResult("");
+    setResults({});
     setCiba(null);
     setEvidence({});
   };
@@ -415,21 +433,28 @@ export default function DelegatedCommercePage({ user }) {
 
   const switchPersona = () => startRoleSwitch(isAdmin ? "customer" : "admin", "/delegated-commerce");
 
+  const HANDOVER_SETTLE_MS = 800;
+
   // The one primary button for this view state (see the table at the top of the file). `off` = cannot act now.
   const primary = (() => {
     if (activeStep === 0) {
       if (consentActive) return { label: "Continue to step 2", run: () => setActiveStep(1) };
       if (isAdmin) {
         return registration
-          ? { label: "Switch to customer", run: switchPersona }
+          ? { label: "Hand claim code to customer", run: switchPersona, settle: true }
           : { label: "Create in PingOne", run: registerAgent, off: busy === "register" };
       }
       return registration
         ? { label: "Review scoped consent", run: () => setConsentOpen(true) }
         : { label: "Claim agent", run: claimAgent, off: !claimCode || busy === "claim" };
     }
-    if (activeStep === 1) return { label: "Call list_orders as agent", run: callOrders, off: !!busy };
+    if (activeStep === 1) {
+      return completed.includes(1)
+        ? { label: "Continue to step 3", run: () => setActiveStep(2) }
+        : { label: "Call list_orders as agent", run: callOrders, off: !!busy };
+    }
     if (activeStep === 2) {
+      if (completed.includes(2)) return { label: "Continue to step 4", run: () => setActiveStep(3) };
       if (approvalPending) return { label: "Open approval page (new tab)", run: openApproval };
       return {
         label: busy === "checkout" ? "Starting checkout..." : "Checkout $600 headphones",
@@ -442,6 +467,22 @@ export default function DelegatedCommercePage({ user }) {
       : { label: "Revoke agent access", run: revoke, off: !!busy };
   })();
 
+  // A primary that leaves the page ignores presses for a moment after it first appears, and every primary ignores the
+  // auto-repeat of a held Enter, so Create in PingOne followed by a held or doubled Enter cannot chain into it.
+  const primaryLabelRef = React.useRef(primary.label);
+  if (primaryLabelRef.current !== primary.label) {
+    primaryLabelRef.current = primary.label;
+    handoverReadyAt.current = primary.settle ? Date.now() + HANDOVER_SETTLE_MS : 0;
+  }
+  const primaryAction = () => {
+    if (primary.settle && Date.now() < handoverReadyAt.current) return;
+    primary.run();
+  };
+  const primaryProps = primary.off
+    ? { "aria-disabled": "true" }
+    : { onClick: primaryAction };
+
+  const result = results[activeStep] || "";
   const approval = approvalChip(ciba);
   const stepChip = result ? resultChip(result) : null;
   // Step 3 card edge: grey until an approval is requested, then amber for the simulated engine, blue for PingOne.
@@ -483,8 +524,8 @@ export default function DelegatedCommercePage({ user }) {
   ];
 
   return (
-    <PingPage className="dc-page">
-      <SimBanner data-testid="dc-banner">
+    <PingPage className="dcom-page">
+      <SimBanner data-testid="dcom-banner">
         <strong>MIXED: LIVE CALLS, MOCK APPROVAL</strong> — Creating the agent, the protected list_orders call and
         revocation are real calls from this page to the demo server, against the PingOne environment it is
         configured for; whatever the server answers is shown as the result. The approval in step 3 is out-of-band by
@@ -515,11 +556,11 @@ export default function DelegatedCommercePage({ user }) {
       />
       <PageFrame>
         <Section
-          id="dc-truth"
+          id="dcom-truth"
           kicker="1 · What is real"
           title="Building blocks, a demo pattern and the approval mode"
         >
-          <Card tone="neutral" className="dc-truth" data-testid="dc-truth">
+          <Card tone="neutral" className="dcom-truth" data-testid="dcom-truth">
             <KvList
               items={[
                 {
@@ -555,32 +596,32 @@ export default function DelegatedCommercePage({ user }) {
         </Section>
 
         <Section
-          id="dc-run"
+          id="dcom-run"
           kicker="2 · Run the lifecycle"
           title="Four steps, one proof trail"
           lede="Work through the steps in order. Each step has one main action; the proof rail records the evidence as you go."
         >
-          <div className="dc-layout-wrap">
+          <div className="dcom-layout-wrap">
             <div
-              className="dc-layout"
-              style={{ "--dcp-seq-w": `${seqWidth}px`, "--dcp-proof-w": `${proofWidth}px` }}
+              className="dcom-layout"
+              style={{ "--dcom-seq-w": `${seqWidth}px`, "--dcom-proof-w": `${proofWidth}px` }}
             >
-              <Card tone="neutral" className="dc-sequence">
-                <div className="dc-card-head">
+              <Card tone="neutral" className="dcom-sequence">
+                <div className="dcom-card-head">
                   <h3 className="pu-h3">Guided sequence</h3>
                   <StatusChip tone="info">{completed.length} of 4</StatusChip>
                 </div>
-                <ol className="dc-steps">
+                <ol className="dcom-steps">
                   {STEPS.map((step, index) => (
                     <li key={step.title}>
                       <button
                         type="button"
-                        className={`dc-step ${activeStep === index ? "dc-step--active" : ""}`}
+                        className={`dcom-step ${activeStep === index ? "dcom-step--active" : ""}`}
                         aria-current={activeStep === index ? "step" : undefined}
                         onClick={() => setActiveStep(index)}
                       >
-                        <span className="dc-step-number" aria-hidden="true">{completed.includes(index) ? "✓" : index + 1}</span>
-                        <span className="dc-step-text">
+                        <span className="dcom-step-number" aria-hidden="true">{completed.includes(index) ? "✓" : index + 1}</span>
+                        <span className="dcom-step-text">
                           <strong>{step.title}</strong>
                           <small>{step.detail}</small>
                           {completed.includes(index) && <StatusChip tone="ok">Done</StatusChip>}
@@ -589,7 +630,7 @@ export default function DelegatedCommercePage({ user }) {
                     </li>
                   ))}
                 </ol>
-                <div className="dc-persona">
+                <div className="dcom-persona">
                   <strong>Current persona: {isAdmin ? "Administrator" : "Customer"}</strong>
                   <button
                     type="button"
@@ -603,8 +644,8 @@ export default function DelegatedCommercePage({ user }) {
 
               <div className="divider-drag-handle" aria-label="Resize sequence rail" {...seqHandleProps} />
 
-              <Card tone={workspaceTone} className="dc-workspace" data-testid="dc-workspace">
-                <div className="dc-card-head" aria-live="polite">
+              <Card tone={workspaceTone} className="dcom-workspace" data-testid="dcom-workspace">
+                <div className="dcom-card-head" aria-live="polite">
                   <h3 className="pu-h3">Step {activeStep + 1} workspace</h3>
                   <StatusChip tone={completed.includes(activeStep) ? "ok" : "neutral"}>
                     {completed.includes(activeStep) ? "Complete" : "Ready"}
@@ -612,27 +653,27 @@ export default function DelegatedCommercePage({ user }) {
                 </div>
 
                 {activeStep === 0 && (
-                  <div className="dc-workspace-body">
-                    <div className="dc-title-row">
+                  <div className="dcom-workspace-body">
+                    <div className="dcom-title-row">
                       <div>
-                        <h4 className="dc-step-title">Create and authorize a new shopping agent</h4>
+                        <h4 className="dcom-step-title">Create and authorize a new shopping agent</h4>
                         <p>The client secret remains server-side.</p>
                       </div>
-                      <div className="dc-chips">
+                      <div className="dcom-chips">
                         <StatusChip tone="ok">GA building blocks</StatusChip>
                         <StatusChip tone="info">Live</StatusChip>
                       </div>
                     </div>
                     <p className="pu-note pu-empty"><strong>Availability note:</strong> This creates a standard PingOne OAuth/OIDC application representing an agent. A dedicated AI-agent registry is presented as a demo pattern.</p>
                     {isAdmin ? (
-                      <div className="dc-subcard">
-                        <h5 className="dc-sub-title">1A. Register the agent application</h5>
-                        <label className="dc-field">
+                      <div className="dcom-subcard">
+                        <h5 className="dcom-sub-title">1A. Register the agent application</h5>
+                        <label className="dcom-field">
                           <span className="pu-label">Agent display name</span>
                           <input value="AF Personal Shopping Agent" readOnly />
                         </label>
                         {registration && (
-                          <div className="dc-outcome">
+                          <div className="dcom-outcome">
                             <p className="pu-status-line"><StatusChip tone="ok">Created</StatusChip><strong>Agent application created and verified</strong></p>
                             <KvList
                               items={[
@@ -645,21 +686,21 @@ export default function DelegatedCommercePage({ user }) {
                         )}
                       </div>
                     ) : (
-                      <div className="dc-subcard">
-                        <h5 className="dc-sub-title">1B. Claim and authorize the agent</h5>
+                      <div className="dcom-subcard">
+                        <h5 className="dcom-sub-title">1B. Claim and authorize the agent</h5>
                         {!registration && (
                           <>
-                            <p className="dc-claim-code-help">
+                            <p className="dcom-claim-code-help">
                               The administrator receives this one-time code after completing 1A. Ask them to create the agent and share the displayed code before claiming it.
                             </p>
-                            <label className="dc-field">
+                            <label className="dcom-field">
                               <span className="pu-label">One-time agent claim code</span>
                               <input value={claimCode} onChange={(event) => setClaimCode(event.target.value)} />
                             </label>
                           </>
                         )}
                         {consentActive && (
-                          <div className="dc-outcome">
+                          <div className="dcom-outcome">
                             <p className="pu-status-line"><StatusChip tone="ok">Active</StatusChip><strong>Scoped consent active</strong></p>
                             <p className="pu-note">{registration.scopes.join(", ")}</p>
                           </div>
@@ -670,29 +711,29 @@ export default function DelegatedCommercePage({ user }) {
                 )}
 
                 {activeStep === 1 && (
-                  <div className="dc-workspace-body">
-                    <div className="dc-title-row">
+                  <div className="dcom-workspace-body">
+                    <div className="dcom-title-row">
                       <div>
-                        <h4 className="dc-step-title">Call a protected MCP tool</h4>
+                        <h4 className="dcom-step-title">Call a protected MCP tool</h4>
                         <p>Run list_orders through RFC 8693 and PingOne Authorize.</p>
                       </div>
-                      <div className="dc-chips"><StatusChip tone="info">Live</StatusChip></div>
+                      <div className="dcom-chips"><StatusChip tone="info">Live</StatusChip></div>
                     </div>
-                    {result && <pre className="dc-result">{result}</pre>}
+                    {result && <pre className="dcom-result">{result}</pre>}
                   </div>
                 )}
 
                 {activeStep === 2 && (
-                  <div className="dc-workspace-body">
-                    <div className="dc-title-row">
+                  <div className="dcom-workspace-body">
+                    <div className="dcom-title-row">
                       <div>
-                        <h4 className="dc-step-title">Require human approval</h4>
+                        <h4 className="dcom-step-title">Require human approval</h4>
                         <p>A $600 checkout crosses the configured policy threshold. The approver answers by mock phone or email, never a real phone push.</p>
                       </div>
-                      <div className="dc-chips"><StatusChip tone={approval.tone}>{approval.word}</StatusChip></div>
+                      <div className="dcom-chips"><StatusChip tone={approval.tone}>{approval.word}</StatusChip></div>
                     </div>
                     {ciba && (
-                      <div className="dc-outcome">
+                      <div className="dcom-outcome">
                         <p className="pu-status-line">
                           <StatusChip tone={ciba.status === "approved" ? "ok" : "warn"}>{ciba.status === "approved" ? "Approved" : "Pending"}</StatusChip>
                           <strong>Approval {ciba.status}</strong>
@@ -706,7 +747,7 @@ export default function DelegatedCommercePage({ user }) {
                       </div>
                     )}
                     {result && (
-                      <p className="pu-status-line dc-status">
+                      <p className="pu-status-line dcom-status">
                         {stepChip && <StatusChip tone={stepChip.tone}>{stepChip.word}</StatusChip>}
                         <span>{result}</span>
                       </p>
@@ -715,31 +756,32 @@ export default function DelegatedCommercePage({ user }) {
                 )}
 
                 {activeStep === 3 && (
-                  <div className="dc-workspace-body">
-                    <div className="dc-title-row">
+                  <div className="dcom-workspace-body">
+                    <div className="dcom-title-row">
                       <div>
-                        <h4 className="dc-step-title">Revoke delegated access</h4>
+                        <h4 className="dcom-step-title">Revoke delegated access</h4>
                         <p>The customer ends consent, then the page retries list_orders.</p>
                       </div>
-                      <div className="dc-chips"><StatusChip tone="info">Live</StatusChip></div>
+                      <div className="dcom-chips"><StatusChip tone="info">Live</StatusChip></div>
                     </div>
                     {result && (
-                      <p className="pu-status-line dc-status">
+                      <p className="pu-status-line dcom-status">
                         {stepChip && <StatusChip tone={stepChip.tone}>{stepChip.word}</StatusChip>}
                         <span>{result}</span>
                       </p>
                     )}
-                    {evidence.revocation?.auditId && <a className="dc-link" href={`/audit?agentId=${registration.applicationId}`}>View audit evidence</a>}
+                    {evidence.revocation?.auditId && <a className="dcom-link" href={`/audit?agentId=${registration.applicationId}`}>View audit evidence</a>}
                   </div>
                 )}
 
-                <div className="pu-actions dc-actionbar">
+                <div className="pu-actions dcom-actionbar">
                   <button
                     className={consentOpen ? "pu-btn" : "pu-btn pu-btn--primary"}
                     type="button"
-                    data-testid="dc-primary"
+                    data-testid="dcom-primary"
                     ref={primaryRef}
-                    {...act(!!primary.off, primary.run)}
+                    onKeyDown={(event) => { if (event.repeat && event.key === "Enter") event.preventDefault(); }}
+                    {...primaryProps}
                   >
                     {primary.label}
                   </button>
@@ -748,19 +790,19 @@ export default function DelegatedCommercePage({ user }) {
 
               <div className="divider-drag-handle" aria-label="Resize proof rail" {...proofHandleProps} />
 
-              <aside className="dc-proof" aria-label="Agent and proof">
-                <Card tone="neutral" className="dc-agent-card">
-                  <div className="dc-card-head">
+              <aside className="dcom-proof" aria-label="Agent and proof">
+                <Card tone="neutral" className="dcom-agent-card">
+                  <div className="dcom-card-head">
                     <h3 className="pu-h3">Agent + proof</h3>
                     <StatusChip tone="neutral">Docked</StatusChip>
                   </div>
-                  <div className="dc-agent-host" ref={agentHostRef} />
+                  <div className="dcom-agent-host" ref={agentHostRef} />
                 </Card>
-                <Card tone="neutral" className="dc-proof-card" title="Token and policy chain">
-                  <ol className="dc-proof-list">
+                <Card tone="neutral" className="dcom-proof-card" title="Token and policy chain">
+                  <ol className="dcom-proof-list">
                     {proofItems.map((item) => (
-                      <li key={item.key} className={item.done ? "dc-proof-item dc-proof-item--active" : "dc-proof-item"}>
-                        <span className="dc-proof-head">
+                      <li key={item.key} className={item.done ? "dcom-proof-item dcom-proof-item--active" : "dcom-proof-item"}>
+                        <span className="dcom-proof-head">
                           <strong>{item.label}</strong>
                           <StatusChip tone={item.done ? "ok" : "neutral"}>{item.done ? "Captured" : "Waiting"}</StatusChip>
                         </span>
@@ -769,19 +811,19 @@ export default function DelegatedCommercePage({ user }) {
                     ))}
                   </ol>
                 </Card>
-                <Card tone="neutral" className="dc-trace"><TokenChainTraceRail /></Card>
+                <Card tone="neutral" className="dcom-trace"><TokenChainTraceRail /></Card>
               </aside>
             </div>
           </div>
         </Section>
 
         <Section
-          id="dc-diagram"
+          id="dcom-diagram"
           kicker="3 · How it fits together"
           title="Who talks to whom"
         >
           <EmbeddedFlowDiagram
-            testId="dc-lifecycle-diagram"
+            testId="dcom-lifecycle-diagram"
             title="Delegated-agent lifecycle, end to end"
             ariaLabel="Delegated-agent lifecycle diagram"
             diagramLabel="Register, consent, protected call, approval and revoke for a delegated shopping agent"
@@ -799,12 +841,13 @@ export default function DelegatedCommercePage({ user }) {
         onClose={() => setConsentOpen(false)}
         onConfirm={authorizeAgent}
         busy={busy === "consent"}
+        firstFieldRef={consentFirstFieldRef}
       />
     </PingPage>
   );
 }
 
-function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }) {
+function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy, firstFieldRef }) {
   const toggle = (scope) => {
     onScopesChange(
       scopes.includes(scope)
@@ -821,13 +864,13 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
       defaultWidth={560}
       defaultHeight={500}
       footer={
-        <div className="dc-modal-actions">
-          <button className="dc-modal-btn" type="button" onClick={onClose}>
+        <div className="dcom-modal-actions">
+          <button className="dcom-modal-btn" type="button" onClick={onClose}>
             Cancel
           </button>
           {/* The dialog is outside .pu-page, so it carries its own copy of the fixed Ping Red primary. */}
           <button
-            className="dc-modal-btn dc-modal-btn--confirm"
+            className="dcom-modal-btn dcom-modal-btn--confirm"
             type="button"
             {...act(busy || scopes.length === 0, onConfirm)}
           >
@@ -838,19 +881,20 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
     >
       {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
       <div className="dm-scroll">
-      <p className="dc-modal-copy">
+      <p className="dcom-modal-copy">
         This agent can act only within the permissions selected below. Sensitive
         purchases still require human approval.
       </p>
-      <label className="dc-scope">
+      <label className="dcom-scope">
         <input
           type="checkbox"
+          ref={firstFieldRef}
           checked={scopes.includes("read")}
           onChange={() => toggle("read")}
         />
         <span><strong>Read my orders</strong><small>Allows list_orders using the read scope.</small></span>
       </label>
-      <label className="dc-scope">
+      <label className="dcom-scope">
         <input
           type="checkbox"
           checked={scopes.includes("write")}

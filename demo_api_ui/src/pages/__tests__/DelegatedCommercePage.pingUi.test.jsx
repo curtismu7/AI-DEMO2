@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DelegatedCommercePage from "../DelegatedCommercePage";
 
@@ -8,15 +8,18 @@ vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn(), post: vi.f
 vi.mock("../../services/demoAgentService", () => ({ callMcpTool: vi.fn() }));
 vi.mock("../../components/TokenChainTraceRail", () => ({ default: () => <div data-testid="trace-rail" /> }));
 vi.mock("../../components/DraggableModal", () => ({
-  default: ({ isOpen, title, children, footer }) => (isOpen ? <section aria-label={title}>{children}{footer}</section> : null),
+  default: ({ isOpen, title, children, footer }) => (isOpen ? <section role="dialog" aria-label={title}>{children}{footer}</section> : null),
 }));
 vi.mock("../../context/AgentUiModeContext", () => ({ useAgentUiMode: () => ({ setSurfaceHostEl: vi.fn() }) }));
-vi.mock("../../utils/appToast", () => ({ notifyError: vi.fn(), notifySuccess: vi.fn() }));
+vi.mock("../../utils/appToast", () => ({ notifyError: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn() }));
 vi.mock("../../utils/roleSwitch", () => ({ startRoleSwitch: vi.fn() }));
 
 import apiClient from "../../services/apiClient";
 import { callMcpTool } from "../../services/demoAgentService";
 import { startRoleSwitch } from "../../utils/roleSwitch";
+import { notifyInfo } from "../../utils/appToast";
+import fs from "node:fs";
+import path from "node:path";
 
 const ACTIVE = { id: "reg-1", applicationId: "agent-1", status: "active", scopes: ["read", "write"] };
 
@@ -45,7 +48,7 @@ function mockServer({ registration = null } = {}) {
 }
 
 const primaries = () => document.querySelectorAll("button.pu-btn--primary");
-const primary = () => screen.getByTestId("dc-primary");
+const primary = () => screen.getByTestId("dcom-primary");
 const goToStep = (name) => fireEvent.click(screen.getByRole("button", { name: new RegExp(name) }));
 
 beforeEach(() => {
@@ -57,10 +60,10 @@ beforeEach(() => {
 describe("DelegatedCommercePage on the Ping UI primitives", () => {
   it("opens with a role=note banner, before the title band, that names what is real and the mock approval", () => {
     render(<DelegatedCommercePage user={{ role: "admin" }} />);
-    const page = document.querySelector(".dc-page");
+    const page = document.querySelector(".dcom-page");
     expect(page.classList.contains("pu-page")).toBe(true);
     expect(page.firstElementChild.classList.contains("pu-banner-wrap")).toBe(true);
-    const banner = screen.getByTestId("dc-banner");
+    const banner = screen.getByTestId("dcom-banner");
     expect(banner).toHaveAttribute("role", "note");
     expect(banner.textContent).toMatch(/mock phone or email/i);
     expect(banner.textContent).toMatch(/nothing is ever pushed to a real phone/i);
@@ -70,11 +73,11 @@ describe("DelegatedCommercePage on the Ping UI primitives", () => {
   it("renders cards, a key-value list and word-bearing chips", () => {
     render(<DelegatedCommercePage user={{ role: "admin" }} />);
     expect(document.querySelectorAll(".pu-card").length).toBeGreaterThanOrEqual(5);
-    expect(screen.getByTestId("dc-truth").querySelector("dl.pu-kv")).toBeTruthy();
+    expect(screen.getByTestId("dcom-truth").querySelector("dl.pu-kv")).toBeTruthy();
     const chips = [...document.querySelectorAll(".pu-chip")];
     expect(chips.length).toBeGreaterThan(5);
     chips.forEach((chip) => expect(chip.textContent.trim().length).toBeGreaterThan(0));
-    expect(within(screen.getByTestId("dc-truth")).getByText("Mock phone or email")).toBeInTheDocument();
+    expect(within(screen.getByTestId("dcom-truth")).getByText("Mock phone or email")).toBeInTheDocument();
   });
 
   it("says the approval is by mock phone or email on step 3, never a real phone push", () => {
@@ -84,17 +87,110 @@ describe("DelegatedCommercePage on the Ping UI primitives", () => {
     expect(document.body.textContent).not.toMatch(/\bSMS\b/);
   });
 
-  it("keeps exactly one primary: Create in PingOne, then Switch to customer once the agent exists", async () => {
+  it("keeps exactly one primary: Create in PingOne, then Hand claim code to customer once the agent exists", async () => {
     render(<DelegatedCommercePage user={{ role: "admin" }} />);
     expect(primaries()).toHaveLength(1);
     expect(primary()).toHaveTextContent("Create in PingOne");
     primary().focus();
     fireEvent.click(primary());
-    await waitFor(() => expect(primary()).toHaveTextContent("Switch to customer"));
+    await waitFor(() => expect(primary()).toHaveTextContent("Hand claim code to customer"));
     expect(primaries()).toHaveLength(1);
     expect(document.activeElement).toBe(primary());
+    await new Promise((resolve) => setTimeout(resolve, 900)); // past the settle window
     fireEvent.click(primary());
     expect(startRoleSwitch).toHaveBeenCalledWith("customer", "/delegated-commerce");
+  });
+
+  it("gives the admin hand-over and the rail persona switch different names, and a quick second Enter does not chain into the switch", async () => {
+    render(<DelegatedCommercePage user={{ role: "admin" }} />);
+    expect(screen.getAllByRole("button", { name: "Switch to customer" })).toHaveLength(1);
+    primary().focus();
+    fireEvent.click(primary()); // Enter on Create in PingOne
+    await waitFor(() => expect(primary()).toHaveTextContent("Hand claim code to customer"));
+    // after create the page has two different buttons, with two different accessible names
+    expect(screen.getAllByRole("button", { name: "Switch to customer" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Hand claim code to customer" })).toHaveLength(1);
+    // the second Enter lands right after the button changed meaning: ignored
+    fireEvent.click(primary());
+    expect(startRoleSwitch).not.toHaveBeenCalled();
+  });
+
+  it("ignores the auto-repeat of a held Enter on the primary", () => {
+    render(<DelegatedCommercePage user={{ role: "admin" }} />);
+    const held = createEvent.keyDown(primary(), { key: "Enter", repeat: true });
+    fireEvent(primary(), held);
+    expect(held.defaultPrevented).toBe(true);
+    const first = createEvent.keyDown(primary(), { key: "Enter" });
+    fireEvent(primary(), first);
+    expect(first.defaultPrevented).toBe(false);
+  });
+
+  it("gives feedback instead of nothing when Run current step has nothing to run", async () => {
+    render(<DelegatedCommercePage user={{ role: "admin" }} />);
+    fireEvent.click(primary());
+    await waitFor(() => expect(primary()).toHaveTextContent("Hand claim code to customer"));
+    fireEvent.click(screen.getByRole("button", { name: "Run current step" }));
+    expect(notifyInfo).toHaveBeenCalledWith(expect.stringMatching(/claim code to the customer/i));
+  });
+
+  it("moves focus into the consent dialog when it opens, and back to the page button when it closes", async () => {
+    mockServer({ registration: { ...ACTIVE, status: "claimed", scopes: [] } });
+    render(<DelegatedCommercePage user={{ role: "customer" }} />);
+    await waitFor(() => expect(primary()).toHaveTextContent("Review scoped consent"));
+    primary().focus();
+    fireEvent.click(primary());
+    const dialog = await screen.findByRole("dialog", { name: "Authorize AF Personal Shopping Agent" });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    expect(document.activeElement).toBe(within(dialog).getByRole("checkbox", { name: /Read my orders/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(document.activeElement).toBe(primary()));
+  });
+
+  it("words the approval chip Mock approval when the engine is the mock one", async () => {
+    mockServer({ registration: ACTIVE });
+    callMcpTool.mockResolvedValue({ result: { error: "mcp_hitl_required" } });
+    render(<DelegatedCommercePage user={{ role: "customer" }} />);
+    await waitFor(() => expect(primary()).toHaveTextContent("Continue to step 2"));
+    goToStep("Human approval");
+    fireEvent.click(primary());
+    await waitFor(() => expect(primary()).toHaveTextContent("Open approval page (new tab)"));
+    expect(screen.queryByText("PingOne approval")).toBeNull();
+    expect(screen.getAllByText("Mock approval").length).toBeGreaterThan(0);
+  });
+
+  it("shows list_orders output on step 2 where it was produced, and never on step 3 or 4", async () => {
+    mockServer({ registration: ACTIVE });
+    callMcpTool.mockResolvedValue({ result: { content: [{ text: JSON.stringify({ orders: [{ id: "o-77" }] }) }] } });
+    render(<DelegatedCommercePage user={{ role: "customer" }} />);
+    await waitFor(() => expect(primary()).toHaveTextContent("Continue to step 2"));
+    fireEvent.click(primary());
+    fireEvent.click(primary()); // list_orders
+    await waitFor(() => expect(primary()).toHaveTextContent("Continue to step 3"));
+    expect(screen.getByText("Step 2 workspace")).toBeInTheDocument();
+    expect(document.querySelector(".dcom-result").textContent).toMatch(/o-77/);
+    fireEvent.click(primary());
+    expect(screen.getByText("Step 3 workspace")).toBeInTheDocument();
+    expect(primary()).toHaveTextContent("Checkout $600 headphones");
+    expect(document.body.textContent).not.toMatch(/o-77/);
+    expect(document.querySelector(".dcom-status")).toBeNull();
+    goToStep("Self-service revoke");
+    expect(screen.getByText("Step 4 workspace")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/o-77/);
+    expect(document.querySelector(".dcom-status")).toBeNull();
+    goToStep("Protected MCP call");
+    expect(document.querySelector(".dcom-result").textContent).toMatch(/o-77/);
+  });
+
+  it("keeps its class names off the Demo Config page (dcom-, never dc-page / dc-layout)", () => {
+    const css = fs.readFileSync(path.resolve(__dirname, "../DelegatedCommercePage.css"), "utf8");
+    const jsx = fs.readFileSync(path.resolve(__dirname, "../DelegatedCommercePage.jsx"), "utf8");
+    expect(css).not.toMatch(/\.dc-/);
+    expect(css).not.toMatch(/--dcp-/);
+    expect(jsx).not.toMatch(/className="dc-|className=\{`dc-/);
+    expect(jsx).not.toMatch(/"dc-page"|"dc-layout"/);
+    render(<DelegatedCommercePage user={{ role: "admin" }} />);
+    expect(document.querySelector(".dc-page, .dc-layout")).toBeNull();
+    expect(document.querySelector(".dcom-page .dcom-layout")).not.toBeNull();
   });
 
   it("uses aria-disabled, not disabled, so a blocked primary keeps keyboard focus", () => {
@@ -119,7 +215,7 @@ describe("DelegatedCommercePage on the Ping UI primitives", () => {
     fireEvent.click(primary());
     await screen.findByLabelText("Authorize AF Personal Shopping Agent");
     expect(primaries()).toHaveLength(0);
-    expect(document.querySelectorAll(".dc-modal-btn--confirm")).toHaveLength(1);
+    expect(document.querySelectorAll(".dcom-modal-btn--confirm")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Authorize selected scopes" }));
     await waitFor(() => expect(primary()).toHaveTextContent("Call list_orders as agent"));
     expect(primaries()).toHaveLength(1);
@@ -159,14 +255,16 @@ describe("DelegatedCommercePage on the Ping UI primitives", () => {
 
     fireEvent.click(button); // Continue to step 2
     fireEvent.click(primary()); // Call list_orders
-    await waitFor(() => expect(primary()).toHaveTextContent("Checkout $600 headphones"));
+    await waitFor(() => expect(primary()).toHaveTextContent("Continue to step 3"));
     expect(screen.getByText("2 of 4")).toBeInTheDocument();
+    fireEvent.click(primary()); // Continue to step 3
+    expect(primary()).toHaveTextContent("Checkout $600 headphones");
 
     fireEvent.click(primary()); // Checkout: gated -> CIBA initiate -> pending
     await waitFor(() => expect(primary()).toHaveTextContent("Open approval page (new tab)"));
     expect(checkoutCalls).toBe(1);
     expect(screen.getByText("Pending")).toBeInTheDocument();
-    expect(screen.getAllByText("Simulated approval")).toHaveLength(2); // the truth card and the step chip
+    expect(screen.getAllByText("Mock approval")).toHaveLength(2); // the truth card and the step chip
     expect(primaries()).toHaveLength(1);
     expect(primary()).not.toHaveAttribute("aria-disabled");
     fireEvent.click(primary());
@@ -177,11 +275,15 @@ describe("DelegatedCommercePage on the Ping UI primitives", () => {
     expect(document.activeElement).toBe(button);
 
     // the approval lands (the poll answers approved after a second), checkout is retried and step 4 opens
-    await waitFor(() => expect(primary()).toHaveTextContent("Revoke agent access"), { timeout: 4000 });
+    await waitFor(() => expect(primary()).toHaveTextContent("Continue to step 4"), { timeout: 4000 });
     expect(checkoutCalls).toBe(2);
     expect(screen.getByText("3 of 4")).toBeInTheDocument();
+    expect(screen.getByText("Checkout completed after human approval.")).toBeInTheDocument(); // seen on step 3
     expect(primary()).toBe(button);
     expect(document.activeElement).toBe(button);
+    fireEvent.click(primary()); // Continue to step 4
+    expect(primary()).toHaveTextContent("Revoke agent access");
+    expect(screen.queryByText("Checkout completed after human approval.")).toBeNull(); // not carried onto step 4
     fireEvent.click(primary());
     await waitFor(() => expect(primary()).toHaveTextContent("Start over"));
     expect(screen.getByText("Denied")).toBeInTheDocument();

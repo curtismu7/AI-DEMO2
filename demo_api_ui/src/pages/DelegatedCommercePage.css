@@ -5,28 +5,28 @@
 
 /* The three-column workspace is laid out against its own width (a container), not the viewport: the app shell's
    side nav takes part of the viewport. The columns shrink to a two-column then a one-column layout. */
-.dc-page .dc-layout-wrap {
+.dcom-page .dcom-layout-wrap {
   container-type: inline-size;
   margin-top: 12px;
 }
 
-.dc-page .dc-layout {
+.dcom-page .dcom-layout {
   display: grid;
-  grid-template-columns: var(--dcp-seq-w, 250px) 6px minmax(300px, 1fr) 6px var(--dcp-proof-w, 350px);
+  grid-template-columns: var(--dcom-seq-w, 250px) 6px minmax(300px, 1fr) 6px var(--dcom-proof-w, 350px);
   gap: 5px;
   align-items: start;
 }
 
-.dc-page .dc-layout > .divider-drag-handle {
+.dcom-page .dcom-layout > .divider-drag-handle {
   align-self: stretch;
 }
 
-.dc-page .dc-layout > .pu-card,
-.dc-page .dc-proof > .pu-card {
+.dcom-page .dcom-layout > .pu-card,
+.dcom-page .dcom-proof > .pu-card {
   margin: 0;
 }
 
-.dc-page .dc-card-head {
+.dcom-page .dcom-card-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -36,18 +36,18 @@
   border-bottom: 1px solid var(--th-border);
 }
 
-.dc-page .dc-card-head .pu-h3 {
+.dcom-page .dcom-card-head .pu-h3 {
   margin: 0;
 }
 
 /* Guided sequence: four selectable steps. Each row is a real button, the current one marked by aria-current. */
-.dc-page .dc-steps {
+.dcom-page .dcom-steps {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.dc-page .dc-step {
+.dcom-page .dcom-step {
   display: flex;
   width: 100%;
   margin: 0 0 8px;
@@ -62,21 +62,21 @@
   cursor: pointer;
 }
 
-.dc-page .dc-step:hover {
+.dcom-page .dcom-step:hover {
   border-color: var(--control-border);
 }
 
-.dc-page .dc-step--active {
+.dcom-page .dcom-step--active {
   background: var(--th-bg-inset);
   border-color: var(--th-status-info);
 }
 
-.dc-page .dc-step:focus-visible {
+.dcom-page .dcom-step:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
 
-.dc-page .dc-step-number {
+.dcom-page .dcom-step-number {
   display: grid;
   flex: 0 0 28px;
   width: 28px;
@@ -90,7 +90,7 @@
   font-weight: var(--font-weight-bold);
 }
 
-.dc-page .dc-step-text {
+.dcom-page .dcom-step-text {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -98,74 +98,74 @@
   gap: 4px;
 }
 
-.dc-page .dc-step-text small {
+.dcom-page .dcom-step-text small {
   color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   line-height: 1.35;
 }
 
-.dc-page .dc-persona {
+.dcom-page .dcom-persona {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--th-border);
 }
 
-.dc-page .dc-persona strong {
+.dcom-page .dcom-persona strong {
   display: block;
   margin-bottom: 8px;
 }
 
 /* Workspace */
-.dc-page .dc-workspace {
+.dcom-page .dcom-workspace {
   min-width: 0;
 }
 
-.dc-page .dc-title-row {
+.dcom-page .dcom-title-row {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
 }
 
-.dc-page .dc-title-row p {
+.dcom-page .dcom-title-row p {
   margin: 0 0 12px;
   color: var(--th-text-body);
 }
 
-.dc-page .dc-chips {
+.dcom-page .dcom-chips {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
 }
 
-.dc-page .dc-step-title {
+.dcom-page .dcom-step-title {
   margin: 0 0 6px;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--th-text);
 }
 
-.dc-page .dc-sub-title {
+.dcom-page .dcom-sub-title {
   margin: 0 0 10px;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   color: var(--th-text);
 }
 
-.dc-page .dc-subcard {
+.dcom-page .dcom-subcard {
   margin-top: 14px;
   padding: 14px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
 }
 
-.dc-page .dc-field {
+.dcom-page .dcom-field {
   display: block;
   margin-bottom: 12px;
 }
 
-.dc-page .dc-field input {
+.dcom-page .dcom-field input {
   display: block;
   box-sizing: border-box;
   width: 100%;
@@ -179,18 +179,18 @@
   font-size: var(--font-size-sm);
 }
 
-.dc-page .dc-field input:focus-visible {
+.dcom-page .dcom-field input:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
 
-.dc-page .dc-claim-code-help {
+.dcom-page .dcom-claim-code-help {
   margin: 0 0 12px;
   color: var(--th-text);
   line-height: 1.45;
 }
 
-.dc-page .dc-outcome {
+.dcom-page .dcom-outcome {
   margin-top: 14px;
   padding: 12px;
   border-left: 4px solid var(--th-status-success);
@@ -200,12 +200,12 @@
   overflow-wrap: anywhere;
 }
 
-.dc-page .dc-outcome .pu-status-line,
-.dc-page .dc-outcome .pu-note {
+.dcom-page .dcom-outcome .pu-status-line,
+.dcom-page .dcom-outcome .pu-note {
   margin: 0 0 6px;
 }
 
-.dc-page .dc-result {
+.dcom-page .dcom-result {
   max-height: 330px;
   margin-top: 14px;
   padding: 12px;
@@ -218,18 +218,18 @@
   font-size: var(--font-size-xs);
 }
 
-.dc-page .dc-status {
+.dcom-page .dcom-status {
   margin-top: 14px;
   font-weight: var(--font-weight-semibold);
 }
 
-.dc-page .dc-actionbar {
+.dcom-page .dcom-actionbar {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--th-border);
 }
 
-.dc-page .dc-link {
+.dcom-page .dcom-link {
   display: inline-block;
   margin-top: 12px;
   color: var(--th-status-info-text);
@@ -237,7 +237,7 @@
 }
 
 /* Proof rail */
-.dc-page .dc-proof {
+.dcom-page .dcom-proof {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -246,33 +246,33 @@
   min-width: 0;
 }
 
-.dc-page .dc-agent-card,
-.dc-page .dc-trace {
+.dcom-page .dcom-agent-card,
+.dcom-page .dcom-trace {
   overflow: hidden;
 }
 
-.dc-page .dc-agent-host {
+.dcom-page .dcom-agent-host {
   min-height: 210px;
 }
 
-.dc-page .dc-trace {
+.dcom-page .dcom-trace {
   padding: 0;
 }
 
-.dc-page .dc-proof-list {
+.dcom-page .dcom-proof-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.dc-page .dc-proof-item {
+.dcom-page .dcom-proof-item {
   position: relative;
   margin-left: 7px;
   padding: 0 0 14px 18px;
   border-left: 2px solid var(--th-border);
 }
 
-.dc-page .dc-proof-item::before {
+.dcom-page .dcom-proof-item::before {
   content: "";
   position: absolute;
   top: 4px;
@@ -283,11 +283,11 @@
   background: var(--th-border-strong);
 }
 
-.dc-page .dc-proof-item--active::before {
+.dcom-page .dcom-proof-item--active::before {
   background: var(--th-status-success);
 }
 
-.dc-page .dc-proof-head {
+.dcom-page .dcom-proof-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -295,7 +295,7 @@
   gap: 6px;
 }
 
-.dc-page .dc-proof-item small {
+.dcom-page .dcom-proof-item small {
   display: block;
   margin-top: 3px;
   color: var(--th-text-muted);
@@ -304,13 +304,13 @@
 }
 
 /* Consent dialog (rendered outside .pu-page, so its two buttons carry the fixed Ping Red tokens themselves). */
-.dc-modal-copy {
+.dcom-modal-copy {
   color: var(--th-text);
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
 }
 
-.dc-scope {
+.dcom-scope {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -321,28 +321,28 @@
   color: var(--th-text);
 }
 
-.dc-scope input {
+.dcom-scope input {
   margin-top: 4px;
 }
 
-.dc-scope strong,
-.dc-scope small {
+.dcom-scope strong,
+.dcom-scope small {
   display: block;
 }
 
-.dc-scope small {
+.dcom-scope small {
   margin-top: 5px;
   color: var(--th-text-muted);
 }
 
-.dc-modal-actions {
+.dcom-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   width: 100%;
 }
 
-.dc-modal-btn {
+.dcom-modal-btn {
   min-height: 40px;
   padding: 8px 16px;
   border: 1px solid var(--control-border);
@@ -355,62 +355,62 @@
   cursor: pointer;
 }
 
-.dc-modal-btn:focus-visible {
+.dcom-modal-btn:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
 
-button.dc-modal-btn.dc-modal-btn--confirm {
+button.dcom-modal-btn.dcom-modal-btn--confirm {
   background-color: var(--btn-accent);
   background-image: var(--btn-accent-gradient);
   border-color: var(--btn-accent-edge);
   color: var(--btn-accent-text);
 }
 
-button.dc-modal-btn.dc-modal-btn--confirm:hover:not([aria-disabled="true"]) {
+button.dcom-modal-btn.dcom-modal-btn--confirm:hover:not([aria-disabled="true"]) {
   background-image: var(--btn-accent-gradient-hover);
 }
 
-button.dc-modal-btn.dc-modal-btn--confirm[aria-disabled="true"] {
+button.dcom-modal-btn.dcom-modal-btn--confirm[aria-disabled="true"] {
   opacity: 0.88;
   cursor: not-allowed;
 }
 
 @container (max-width: 1000px) {
-  .dc-page .dc-layout {
+  .dcom-page .dcom-layout {
     grid-template-columns: 230px minmax(0, 1fr);
   }
 
-  .dc-page .dc-layout > .divider-drag-handle {
+  .dcom-page .dcom-layout > .divider-drag-handle {
     display: none;
   }
 
-  .dc-page .dc-proof {
+  .dcom-page .dcom-proof {
     grid-column: 1 / -1;
     position: static;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dc-page .dc-trace {
+  .dcom-page .dcom-trace {
     grid-column: 1 / -1;
   }
 }
 
 @container (max-width: 700px) {
-  .dc-page .dc-layout {
+  .dcom-page .dcom-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .dc-page .dc-proof {
+  .dcom-page .dcom-proof {
     display: flex;
   }
 
-  .dc-page .dc-title-row {
+  .dcom-page .dcom-title-row {
     flex-direction: column;
   }
 
-  .dc-page .dc-chips {
+  .dcom-page .dcom-chips {
     justify-content: flex-start;
   }
 }
