@@ -8,6 +8,7 @@
 /privilege-coding-agents
 /demo-summary
 /privilege-pii-detection
+/agent-lifecycle
 /privilege-demo
 /ungoverned-agent
 /privilege-intent-triage
