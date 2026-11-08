@@ -108,4 +108,71 @@ describe("PrivilegeGatewayTopologyPage diagram data", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /PingOne AS → Ingress/ })[0]);
     expect(screen.getByTestId("pgt-agentless-diagram-reel-detail").textContent).toContain("MOCK, teaching values only");
   });
+
+  it("Ping UI: the mode banner is the first thing on the page and says what is real and what is drawn", () => {
+    render(<PrivilegeGatewayTopologyPage />);
+    const page = screen.getByTestId("pgt-page");
+    expect(page.firstElementChild.className).toContain("pu-banner-wrap");
+    const banner = screen.getByTestId("pgt-banner");
+    expect(banner.getAttribute("role")).toBe("note");
+    expect(banner.textContent).toMatch(/Drawings, not telemetry/);
+    expect(banner.textContent).toMatch(/Real:/);
+    expect(banner.textContent).toMatch(/Simulate/);
+  });
+
+  it("Ping UI: exactly one primary button on every tab, and it is the setup guide link", () => {
+    render(<PrivilegeGatewayTopologyPage />);
+    for (const tab of TABS) {
+      fireEvent.click(screen.getAllByRole("button").find((b) => b.textContent === tab.label));
+      const primaries = document.querySelectorAll(".pu-btn--primary");
+      expect(primaries.length, `${tab.id} primaries`).toBe(1);
+      expect(primaries[0].tagName).toBe("A");
+      expect(primaries[0].getAttribute("href")).toContain("atlassian.net");
+      expect(primaries[0].getAttribute("aria-label")).toMatch(/opens in a new tab/);
+    }
+  });
+
+  it("Ping UI: the tab pickers are secondary toggle buttons and the pressed one follows the selection", () => {
+    render(<PrivilegeGatewayTopologyPage />);
+    const pick = (label) => screen.getAllByRole("button").find((b) => b.textContent === label);
+    expect(pick("Live LB topology").getAttribute("aria-pressed")).toBe("true");
+    expect(pick("Agentless").getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(pick("Agentless"));
+    expect(pick("Agentless").getAttribute("aria-pressed")).toBe("true");
+    expect(pick("Live LB topology").getAttribute("aria-pressed")).toBe("false");
+    for (const tab of TABS) expect(pick(tab.label).className).not.toContain("primary");
+  });
+
+  it("archived variants carry an Archived chip and a link to the current content; the live tabs do not", () => {
+    render(<PrivilegeGatewayTopologyPage />);
+    const pick = (label) => screen.getAllByRole("button").find((b) => b.textContent === label);
+    expect(screen.queryByTestId("pgt-archived")).toBeNull();
+    for (const label of ["Agent-based", "Agentless"]) {
+      fireEvent.click(pick(label));
+      const card = screen.getByTestId("pgt-archived");
+      expect(card.textContent).toContain("Archived");
+      expect(card.querySelector("a").getAttribute("href")).toBe("/privilege-first-gateway");
+    }
+    fireEvent.click(pick("Agent-to-agent"));
+    expect(screen.queryByTestId("pgt-archived")).toBeNull();
+  });
+
+  it("the about card names the drawing as an illustration with a status word, box and arrow counts per tab", () => {
+    render(<PrivilegeGatewayTopologyPage />);
+    for (const tab of TABS) {
+      fireEvent.click(screen.getAllByRole("button").find((b) => b.textContent === tab.label));
+      const text = screen.getByText("About this drawing").closest(".pu-card").textContent;
+      expect(text, tab.id).toContain("Illustration");
+      expect(text, tab.id).toContain(tab.status);
+      expect(text, tab.id).toContain(String(tab.nodes.length));
+      expect(text, tab.id).toContain(String(tab.edges.length));
+    }
+  });
+
+  it("diagram groups use page tokens, never a hex colour, and every legend swatch has a class", () => {
+    for (const tab of TABS) for (const g of Object.values(tab.groups)) expect(g.bg).toMatch(/^var\(--pgt-(ping|app|infra)\)$/);
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(document.querySelectorAll(".pgt-legend .pgt-swatch--ping, .pgt-legend .pgt-swatch--app, .pgt-legend .pgt-swatch--infra").length).toBe(document.querySelectorAll(".pgt-swatch").length);
+    expect(document.querySelectorAll("[style*='#']").length).toBe(0);
+  });
 });
