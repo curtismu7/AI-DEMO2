@@ -4,6 +4,7 @@
 /privilege-saas-access
 /privilege-map
 /privilege-coding-agents
+/demo-summary
 /privilege-pii-detection
 /privilege-demo
 /privilege-intent-triage
