@@ -1,0 +1,4 @@
+# Routes held to the Ping UI Standard by scripts/check-ui-patterns.mjs: a DRIFT on any of them fails CI.
+# Every other routed page is reported but advisory. Add a route in the SAME PR that converts the page.
+# One route path per line, exactly as in src/App.js.
+/privilege-saas-access
