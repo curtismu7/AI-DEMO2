@@ -78,3 +78,16 @@
   max-width: 100%;
   flex-wrap: wrap;
 }
+
+/* Live region for Send: in flight, then the result. Read by screen readers, not shown. */
+.p1az-page .p1az-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

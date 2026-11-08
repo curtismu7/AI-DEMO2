@@ -208,3 +208,67 @@ describe('PingOneAuthorizeConsoleClean host hooks (Ping UI page)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).not.toHaveAttribute('aria-disabled'));
   });
 });
+
+describe('PingOneAuthorizeConsoleClean honesty and announcements', () => {
+  const MOCK_DECISION = { data: { decision: 'DENY', engine: 'simulated', decisionId: 'm1', pingoneResponse: { decision: 'DENY', statements: [] } } };
+
+  it('after a Mock Send the Diagram BFF node no longer says it calls PingOne; a Real call keeps the original text', async () => {
+    bffAxios.post.mockResolvedValue(MOCK_DECISION);
+    const { unmount } = render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText(/Mock decision: DENY/);
+    fireEvent.click(screen.getByRole('tab', { name: /Diagram/ }));
+    expect(await screen.findByText('and answers itself')).toBeInTheDocument();
+    expect(screen.getByText('PingOne is not called')).toBeInTheDocument();
+    expect(screen.queryByText('and calls PingOne')).toBeNull();
+    unmount();
+    bffAxios.post.mockResolvedValue(DECISION);
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText(/PingOne Authorize decision: PERMIT/);
+    fireEvent.click(screen.getByRole('tab', { name: /Diagram/ }));
+    expect(await screen.findByText('and calls PingOne')).toBeInTheDocument();
+    expect(screen.queryByText('and answers itself')).toBeNull();
+  });
+
+  it('a polite live region announces in flight, then the result, and never calls a Mock verdict PingOne\'s', async () => {
+    let resolve;
+    bffAxios.post.mockReturnValue(new Promise((r) => { resolve = r; }));
+    render(<Harness />);
+    const live = screen.getByTestId('p1az-status');
+    expect(live).toHaveAttribute('role', 'status');
+    expect(live).toHaveAttribute('aria-live', 'polite');
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(live).toHaveTextContent('Sending the decision request');
+    resolve(MOCK_DECISION);
+    await waitFor(() => expect(live).toHaveTextContent('Mock decision: DENY. Simulated by the built-in policy; PingOne was not called.'));
+  });
+
+  it('the Real P1AZ hero chip does not read as healthy when no endpoint is configured', () => {
+    render(<Harness endpointId="" endpoints={[]} defaultMode="live" />);
+    expect(screen.getByText('No endpoint', { selector: '.insp-chip' })).toBeInTheDocument();
+    expect(screen.queryByText('Real P1AZ', { selector: '.insp-chip' })).toBeNull();
+  });
+
+  it('a failed call is announced with its error', async () => {
+    bffAxios.post.mockRejectedValue(new Error('network down'));
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(screen.getByTestId('p1az-status')).toHaveTextContent('The decision request failed: network down'));
+  });
+
+  it('Real P1AZ with no endpoint: Send stays focusable, explains why, and announces the reason on press', () => {
+    render(<Harness endpointId="" endpoints={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+    const send = screen.getByRole('button', { name: 'Send' });
+    send.focus();
+    expect(send).toHaveAttribute('aria-disabled', 'true');
+    expect(send).not.toBeDisabled();
+    expect(screen.getByText(/no PingOne Authorize decision endpoint is configured/)).toHaveAttribute('id', send.getAttribute('aria-describedby'));
+    fireEvent.click(send);
+    expect(document.activeElement).toBe(send);
+    expect(bffAxios.post).not.toHaveBeenCalled();
+    expect(screen.getByTestId('p1az-status')).toHaveTextContent(/Send is unavailable in Real P1AZ/);
+  });
+});

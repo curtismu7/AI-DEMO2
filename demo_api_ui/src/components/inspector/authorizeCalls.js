@@ -96,6 +96,7 @@ export function authorizeCallFromResult({ result, error, parameters, preset, ela
     kind: `Decision · ${preset}${mock ? ' · mock' : ''}`,
     title: titleFor(preset, parameters),
     src: 'you',
+    mock,
     ms: elapsedMs ?? null,
     status,
     chips,

@@ -42,7 +42,7 @@ const TAB_NOTE = {
   scopes: ['neutral', 'Reference', 'Scope Audit and Scope Reference read scope data through the backend\'s admin API. Neither sends a decision request.'],
 };
 
-function ModeBanner({ tab, signedOut, loading, engine, loadFailed }) {
+function ModeBanner({ tab, signedOut, loading, engine, loadFailed, noEndpoint }) {
   let chip; let text;
   if (tab !== 'console') {
     const [tone, word, body] = TAB_NOTE[tab];
@@ -56,7 +56,10 @@ function ModeBanner({ tab, signedOut, loading, engine, loadFailed }) {
     text = 'Reading the PingOne Authorize configuration. The inspector opens in Mock.';
   } else if (engine === 'live' && loadFailed) {
     chip = <StatusChip tone="warn">Real P1AZ unavailable</StatusChip>;
-    text = 'The PingOne Authorize configuration could not be read, so a Send to Real P1AZ will fail. Switch to Mock to keep going.';
+    text = 'The PingOne Authorize configuration could not be read, so Send is unavailable in Real P1AZ and nothing is sent to PingOne. Switch to Mock to keep going.';
+  } else if (engine === 'live' && noEndpoint) {
+    chip = <StatusChip tone="warn">No endpoint configured</StatusChip>;
+    text = 'No PingOne Authorize decision endpoint is configured here, so Send is unavailable in Real P1AZ and nothing is sent to PingOne. Add the worker credentials and an endpoint, or switch to Mock to keep going.';
   } else if (engine === 'live') {
     chip = <StatusChip tone="info">Real P1AZ</StatusChip>;
     text = 'Each Send goes to the PingOne Authorize decision endpoint you pick, and the verdict is PingOne\'s. Calls made in Mock stay in the list, marked Mock.';
@@ -215,7 +218,7 @@ export default function PingOneAuthorizePage() {
 
   return (
     <PingPage className="p1az-page">
-      <ModeBanner tab={tab} signedOut={needsLogin} loading={loading} engine={engine} loadFailed={!!error} />
+      <ModeBanner tab={tab} signedOut={needsLogin} loading={loading} engine={engine} loadFailed={!!error} noEndpoint={!error && endpoints.length === 0} />
 
       {tab !== 'console' && (
         <div className="p1az-body">

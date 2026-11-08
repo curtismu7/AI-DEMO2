@@ -214,6 +214,48 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
       expect(screen.getByTestId('p1az-banner')).toHaveTextContent('Real P1AZ unavailable');
     });
 
+    test('Real P1AZ with no endpoint configured says so in the banner and the button, never a silent Send', async () => {
+      bffAxios.get.mockImplementation((url) => {
+        if (url === '/api/authorize/pingone-live-policy') {
+          return Promise.resolve({ data: { endpoints: [], workerConfigured: false, note: 'worker credentials not configured' } });
+        }
+        return Promise.resolve({ data: { policies: [], decisions: [] } });
+      });
+      render(<PingOneAuthorizePage />);
+      await screen.findByRole('heading', { name: 'Authorize Inspector' });
+      fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+      const banner = screen.getByTestId('p1az-banner');
+      expect(banner).toHaveTextContent('No endpoint configured');
+      expect(banner).toHaveTextContent(/Send is unavailable in Real P1AZ/);
+      expect(banner).not.toHaveTextContent(/Each Send goes to the PingOne Authorize decision endpoint you pick/);
+      const send = screen.getByRole('button', { name: 'Send' });
+      expect(send).toHaveAttribute('aria-disabled', 'true');
+      expect(send).not.toBeDisabled();
+      const reason = document.getElementById(send.getAttribute('aria-describedby'));
+      expect(reason).toHaveTextContent(/no PingOne Authorize decision endpoint is configured/);
+      fireEvent.click(send);
+      expect(bffAxios.post).not.toHaveBeenCalled();
+      expect(screen.getByTestId('p1az-status')).toHaveTextContent(/Send is unavailable in Real P1AZ/);
+      fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
+      expect(screen.getByRole('button', { name: 'Send' })).not.toHaveAttribute('aria-disabled');
+      expect(screen.getByTestId('p1az-banner')).not.toHaveTextContent('No endpoint configured');
+    });
+
+    test('Real P1AZ with the configuration unreadable says Send is unavailable, not that a Send will fail', async () => {
+      bffAxios.get.mockImplementation((url) => (url === '/api/authorize/pingone-live-policy'
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve({ data: { policies: [], decisions: [] } })));
+      render(<PingOneAuthorizePage />);
+      await screen.findByRole('heading', { name: 'Authorize Inspector' });
+      fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+      const banner = screen.getByTestId('p1az-banner');
+      expect(banner).toHaveTextContent(/Send is unavailable in Real P1AZ/);
+      expect(banner).toHaveTextContent(/nothing is sent to PingOne/);
+      expect(banner).not.toHaveTextContent(/will fail/);
+      const send = screen.getByRole('button', { name: 'Send' });
+      expect(document.getElementById(send.getAttribute('aria-describedby'))).toHaveTextContent(/could not be read/);
+    });
+
     test('signed out: a Signed out banner and no inspector', async () => {
       bffAxios.get.mockImplementation(() => Promise.reject({ response: { status: 401 }, message: 'no' }));
       render(<PingOneAuthorizePage />);
