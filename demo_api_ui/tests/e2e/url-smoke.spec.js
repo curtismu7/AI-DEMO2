@@ -266,7 +266,9 @@ const ADMIN_ROUTES = [
   { path: '/authz-test', allowRedirectTo: ['/pingone-authorize', '/admin', '/login'] },
   '/mcp-tools',
   '/mcp-traffic',
-  '/api-traffic',
+  // '/api-traffic' is not listed: vite.config.js proxies the PREFIX '/api' to the API server, so in the dev server a
+  // full-page load of /api-traffic is answered by the proxy (502 proxy_error) and never reaches the router. Production
+  // (nginx `location /api/`) serves it. See DEV_PROXY_SWALLOWED below.
   '/dev-tools',
   '/error-audit',
   '/token-compliance',
@@ -285,8 +287,9 @@ const ADMIN_ROUTES = [
   '/mcp-gateway',
   '/agent-gateway-inspector',
   { path: '/pinggateway-inspector', allowRedirectTo: ['/agent-gateway-inspector'] },
-  { path: '/pinggateway-test', allowRedirectTo: ['/agent-gateway-inspector'] },
-  '/mcp-inspector',
+  { path: '/pinggateway-test', allowRedirectTo: ['/agent-gateway-capabilities'] },
+  // Both redirects below are the current App.js behaviour (they were /mcp-inspector and /agent-gateway-inspector in June).
+  { path: '/mcp-inspector', allowRedirectTo: ['/pingone-mcp-inspector'] },
   '/resource-server',
   '/resource-server-cc',
   // Monitoring sub-routes
@@ -299,6 +302,13 @@ const ADMIN_ROUTES = [
   '/architecture/token-flow',
   '/architecture/flow',
 ];
+
+/**
+ * Routes whose path starts with a vite.config.js dev-proxy prefix ('/api'), so the dev server never serves the SPA for
+ * them. Asserted to still be swallowed, so the day vite.config.js is fixed this test goes red and the route moves into
+ * ADMIN_ROUTES. (Product fix, not made here: proxy '^/api/' instead of '/api'.)
+ */
+const DEV_PROXY_SWALLOWED = ['/api-traffic'];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -342,6 +352,17 @@ test.describe('URL smoke — admin routes', () => {
   }
 });
 
+test.describe('URL smoke — routes the vite dev proxy swallows', () => {
+  for (const routePath of DEV_PROXY_SWALLOWED) {
+    test(`${routePath} is answered by the dev proxy, not the app (known; see DEV_PROXY_SWALLOWED)`, async ({ page, baseURL }) => {
+      test.skip(!/^https?:\/\/(127\.0\.0\.1|localhost)/.test(baseURL || ''), 'only the vite dev server proxies by prefix');
+      await mockAdminAuth(page);
+      const res = await page.goto(routePath, { waitUntil: 'domcontentloaded' });
+      expect(res && res.status(), `${routePath} reached the SPA: remove it from DEV_PROXY_SWALLOWED and add it to ADMIN_ROUTES`).toBeGreaterThanOrEqual(500);
+    });
+  }
+});
+
 test.describe('URL smoke — every converted (Ping UI Standard) route', () => {
   test.beforeEach(async ({ page }) => {
     await mockAdminAuth(page);
@@ -357,52 +378,34 @@ test.describe('URL smoke — every converted (Ping UI Standard) route', () => {
       page.on('pageerror', (e) => errors.push(e.message));
       await smokeCheck(page, route, { allowRedirectTo: [] });
       // The Ping UI Standard root and its simulation banner (P2) are what the static check cannot prove at runtime.
-      await expect(page.locator('.pu-page').first(), `${route} has no .pu-page root`).toBeVisible();
-      await expect(page.locator('.pu-page [role="note"]').first(), `${route} has no banner inside the page`).toBeVisible();
+      // The route chunk is lazy: on a loaded machine the TopNav text can land well before the page does.
+      await expect(page.locator('.pu-page').first(), `${route} has no .pu-page root`).toBeVisible({ timeout: 45000 });
+      await expect(page.locator('.pu-page [role="note"]').first(), `${route} has no banner inside the page`).toBeVisible({ timeout: 15000 });
       expect(errors, `${route} threw an uncaught error`).toEqual([]);
     });
   }
 });
 
-/** Wait for the React app to redirect away from `startPath`. */
-async function waitForRedirectFrom(page, startPath) {
-  try {
-    await page.waitForFunction(
-      (sp) => {
-        const root = document.getElementById('root');
-        if (!root || root.children.length === 0) return false;
-        return new URL(window.location.href).pathname !== sp;
-      },
-      startPath,
-      { timeout: 10000 },
-    );
-  } catch (_) {
-    // If no redirect fired, we fall through; the assertion below will report.
+test.describe('URL smoke — unknown routes show the Not Found page (no crash / blank)', () => {
+  // App.js ends both the signed-in shell and the guest shell with <Route path="*" element={<NotFoundPage />}/>, so an
+  // unknown path stays on its URL and says "Page not found". (The June expectation was a redirect to /admin or
+  // /dashboard, which the router no longer does.)
+  for (const [name, mock] of [
+    ['admin', mockAdminAuth],
+    ['customer', mockCustomerAuth],
+  ]) {
+    test(`unknown route as ${name} shows Page not found`, async ({ page }) => {
+      await mock(page);
+      await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible({ timeout: 45000 });
+      expect(new URL(page.url()).pathname).toBe('/this-does-not-exist');
+    });
   }
-}
-
-test.describe('URL smoke — unknown routes redirect (no 404 / blank)', () => {
-  test('unknown route as admin redirects to /admin', async ({ page }) => {
-    await mockAdminAuth(page);
-    await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
-    await waitForRedirectFrom(page, '/this-does-not-exist');
-    const path = new URL(page.url()).pathname;
-    expect(['/admin', '/dashboard'], `Unknown route went to ${path}`).toContain(path);
-  });
-
-  test('unknown route as customer redirects to /dashboard', async ({ page }) => {
-    await mockCustomerAuth(page);
-    await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
-    await waitForRedirectFrom(page, '/this-does-not-exist');
-    const path = new URL(page.url()).pathname;
-    expect(['/dashboard', '/admin'], `Unknown route went to ${path}`).toContain(path);
-  });
 
   test('unknown route unauthenticated does not crash', async ({ page }) => {
     await mockNoAuth(page);
     await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
-    // Unauthenticated catch-all renders TopNav without redirecting — no crash
-    // is the important guarantee; the URL may stay or redirect.
+    // The guest catch-all may show Not Found or send the visitor to sign in; no crash is the guarantee.
     try {
       await page.waitForFunction(
         () => {
