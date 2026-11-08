@@ -1,13 +1,31 @@
-// TokenSecurityTester.jsx
-// Dark IDE three-column layout (Mock B) - Educational component for token
-// validation demonstration. Shows how MCP server rejects invalid tokens with
-// educational error messages.
-import React, { useState } from 'react';
+// TokenSecurityTester.jsx — /token-security (McpGatewayConfig also imports it for a tab, but that host is no longer routed).
+//
+// A lesson: five deliberately broken tokens and the rejection each one earns. Honesty: this
+// page is SIMULATED end to end. The BFF (routes/testTokenScenarios.js) mints a throw-away JWT
+// with a hard-coded demo secret and returns a pre-written rejection per scenario; nothing is
+// sent to an MCP server, a gateway or PingOne, and no validator runs. The only real call is the
+// POST to this machine's BFF, which refuses it in production unless FF_TEST_TOKEN_SCENARIOS is set.
+//
+// Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md):
+// P2 banner first, P3 frame, P4 cards, P5 kv, P6 inspector (the shared InspectorShell), P7 chips,
+// P9 buttons. Primitives: components/pingUi, styles/ping-ui.css, docs/ping-ui-primitives.md.
+// The standalone shell bar is not added (the app has its own).
+//
+// Primary button per view state (exactly one, always Execute):
+//   no scenario picked  Execute, aria-disabled, reason shown ("Pick a scenario first")
+//   scenario picked     Execute
+//   running             Execute, aria-disabled, "Executing..." (focus stays on it)
+//   result or error     Execute again (re-run); Clear stays a secondary
+import React, { useRef, useState } from 'react';
 import apiClient from '../services/apiClient';
 import JsonHighlight from './shared/JsonHighlight';
 import InspectorShell from './shared/InspectorShell';
 import InspectorListItem from './shared/InspectorListItem';
 import InspectorTabs from './shared/InspectorTabs';
+import PageHeader from './common/PageHeader';
+import {
+  PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList,
+} from './pingUi';
 import './TokenSecurityTester.css';
 
 const SCENARIOS = [
@@ -38,15 +56,28 @@ const SCENARIOS = [
   }
 ];
 
+const OUTPUT_TABS = [
+  { key: 'result', label: 'Result' },
+  { key: 'teaching', label: 'Teaching' },
+  { key: 'token', label: 'Token Details' },
+  { key: 'raw', label: 'Request/Response' },
+];
+
 export default function TokenSecurityTester() {
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [outputTab, setOutputTab] = useState('result');
+  // Bumped on every run, pick and clear: a reply that arrives after the person moved on belongs to
+  // a scenario that is no longer shown, so it is dropped instead of leaking into the next one.
+  const runRef = useRef(0);
+
+  const blocked = !selectedScenario || loading;
 
   const handleExecute = async () => {
-    if (!selectedScenario) return;
+    if (blocked) return;
+    const runId = ++runRef.current;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -55,9 +86,11 @@ export default function TokenSecurityTester() {
       const response = await apiClient.post(
         `/api/test/token-validation/scenario/${selectedScenario.id}`
       );
+      if (runId !== runRef.current) return;
       setResult(response.data);
       setOutputTab('result');
     } catch (err) {
+      if (runId !== runRef.current) return;
       console.error('[TokenSecurityTester] Error:', err);
       setError(
         err.response?.data?.message ||
@@ -66,11 +99,13 @@ export default function TokenSecurityTester() {
         'Failed to run test scenario'
       );
     } finally {
-      setLoading(false);
+      if (runId === runRef.current) setLoading(false);
     }
   };
 
   const handleClear = () => {
+    runRef.current += 1;
+    setLoading(false);
     setResult(null);
     setError(null);
     setSelectedScenario(null);
@@ -78,13 +113,64 @@ export default function TokenSecurityTester() {
   };
 
   const selectScenario = (scenario) => {
+    runRef.current += 1;
+    setLoading(false);
     setSelectedScenario(scenario);
     setResult(null);
     setError(null);
     setOutputTab('result');
   };
 
-  const left = (
+  return (
+    <PingPage className="tst-page">
+      <SimBanner data-testid="tst-banner">
+        <strong>SIMULATED LESSON</strong> — the BFF mints a throw-away test token (demo secret, not by PingOne)
+        and replies with a pre-written rejection per scenario. No MCP server or gateway is called and no real
+        validator runs.
+      </SimBanner>
+      <PageHeader
+        eyebrow="Ping products · Utilities"
+        title="Token Security Tester"
+        summary="Five tokens that break one rule each, and the rejection a resource server gives for each rule."
+      />
+      <PageFrame>
+        <Section
+          id="tst-run"
+          kicker="1 · Break a token on purpose"
+          title="Pick a failure, run it, read why it was refused"
+        >
+          <InspectorShell
+            title="Token validation scenarios"
+            statusText={`Simulated lesson — ${SCENARIOS.length} scenarios`}
+            fullHeight={false}
+            left={<ScenarioList selectedId={selectedScenario?.id} onSelect={selectScenario} />}
+            middle={
+              <ScenarioForm
+                scenario={selectedScenario}
+                loading={loading}
+                blocked={blocked}
+                error={error}
+                onExecute={handleExecute}
+                onClear={handleClear}
+              />
+            }
+            right={
+              <ScenarioOutput
+                scenario={selectedScenario}
+                result={result}
+                activeTab={outputTab}
+                onTab={setOutputTab}
+              />
+            }
+          />
+        </Section>
+      </PageFrame>
+    </PingPage>
+  );
+}
+
+function ScenarioList({ selectedId, onSelect }) {
+  return (
     <>
       <div className="inspector-shell-tree-header">
         <span>Scenarios ({SCENARIOS.length})</span>
@@ -95,191 +181,178 @@ export default function TokenSecurityTester() {
           <InspectorListItem
             key={scenario.id}
             label={scenario.name}
-            active={selectedScenario?.id === scenario.id}
+            active={selectedId === scenario.id}
             dot="sensitive"
-            onClick={() => selectScenario(scenario)}
+            onClick={() => onSelect(scenario)}
           />
         ))}
       </div>
     </>
   );
+}
 
-  const middle = selectedScenario ? (
+function ScenarioForm({ scenario, loading, blocked, error, onExecute, onClear }) {
+  let hint = 'Mints a test token and asks the BFF for the rejection it earns.';
+  if (!scenario) hint = 'Pick a scenario first: Execute is not available yet.';
+  else if (loading) hint = 'Asking the BFF...';
+
+  return (
     <>
       <div className="inspector-shell-form-header">
-        <div className="inspector-shell-form-header__name">{selectedScenario.name}</div>
-        <div className="inspector-shell-form-header__desc">{selectedScenario.description}</div>
-      </div>
-      <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-        <button
-          className="inspector-shell-btn-call"
-          onClick={handleExecute}
-          disabled={loading}
-        >
-          {loading ? 'Executing...' : 'Execute'}
-        </button>
-        <button className="inspector-shell-btn-clear" onClick={handleClear}>Clear</button>
-      </div>
-      <div className="inspector-shell-form-body">
-                <div className="tst-demo-notice">
-                  <span className="tst-demo-notice__icon">&#x26A0;</span>
-                  <span className="tst-demo-notice__text">
-                    <strong>Demonstration Feature</strong> &mdash; This is an educational
-                    demonstration. It is disabled in production.
-                  </span>
-                </div>
-
-        <div className="tst-scenario-info">
-          <div className="inspector-shell-field">
-            <label>Scenario ID <span className="type">string</span></label>
-            <input type="text" value={selectedScenario.id} readOnly />
-          </div>
-          <div className="inspector-shell-field">
-            <label>API Endpoint <span className="type">POST</span></label>
-            <input
-              type="text"
-              value={`/api/test/token-validation/scenario/${selectedScenario.id}`}
-              readOnly
-            />
-          </div>
+        <div className="inspector-shell-form-header__name">
+          {scenario ? scenario.name : 'No scenario picked'}
         </div>
-
-        <details className="tst-about-scenarios">
-          <summary>About These Scenarios</summary>
-          <div className="tst-about-scenarios__body">
-            <p>
-              These test scenarios demonstrate how the MCP server validates tokens and
-              rejects requests that violate security controls. Each scenario intentionally
-              violates a different rule:
-            </p>
-            <ul>
-              <li><strong>Wrong Scope:</strong> Token lacks required OAuth scopes.</li>
-              <li><strong>Wrong Audience:</strong> Token issued for a different service.</li>
-              <li><strong>Missing Act:</strong> Token lacks RFC 8693 delegation proof.</li>
-              <li><strong>Agent Token on User Endpoint:</strong> Agent token used on user-level API.</li>
-              <li><strong>Expired Token:</strong> Token past expiration time.</li>
-            </ul>
-          </div>
-        </details>
+        <div className="inspector-shell-form-header__desc">
+          {scenario ? scenario.description : 'Choose one of the five failures from the list.'}
+        </div>
       </div>
-      <div className="inspector-shell-form-actions">
+      <div className="inspector-shell-form-actions inspector-shell-form-actions--top tst-actions">
         <button
-          className="inspector-shell-btn-call"
-          onClick={handleExecute}
-          disabled={loading}
+          type="button"
+          className="pu-btn pu-btn--primary"
+          onClick={onExecute}
+          aria-disabled={blocked ? 'true' : undefined}
+          aria-describedby="tst-exec-hint"
+          data-testid="tst-execute"
         >
           {loading ? 'Executing...' : 'Execute'}
         </button>
-        <button className="inspector-shell-btn-clear" onClick={handleClear}>Clear</button>
-        {error && <span className="inspector-shell-form-error">{error}</span>}
+        <button
+          type="button"
+          className="pu-btn"
+          onClick={onClear}
+          data-testid="tst-clear"
+        >
+          Clear
+        </button>
+        <p id="tst-exec-hint" className="tst-hint" role="status">{hint}</p>
       </div>
-    </>
-  ) : (
-    <div className="inspector-shell-form-empty">
-      Select a scenario from the tree to inspect and execute it.
-    </div>
-  );
+      {error && (
+        <p className="pu-status-line tst-error" role="alert" data-testid="tst-error">
+          <StatusChip tone="danger">Failed</StatusChip>
+          <span>{error}</span>
+        </p>
+      )}
+      {scenario ? (
+        <div className="inspector-shell-form-body">
+          <KvList
+            items={[
+              { label: 'Scenario ID', value: scenario.id, mono: true },
+              {
+                label: 'API endpoint',
+                value: `POST /api/test/token-validation/scenario/${scenario.id}`,
+                mono: true,
+              },
+            ]}
+          />
 
-  const right = (
+          <details className="tst-about">
+            <summary>About These Scenarios</summary>
+            <div className="tst-about__body">
+              <p>
+                These scenarios show the checks an MCP server applies to a token and the
+                rejection that follows. Each one intentionally violates a different rule:
+              </p>
+              <ul>
+                <li><strong>Wrong Scope:</strong> Token lacks required OAuth scopes.</li>
+                <li><strong>Wrong Audience:</strong> Token issued for a different service.</li>
+                <li><strong>Missing Act:</strong> Token lacks RFC 8693 delegation proof.</li>
+                <li><strong>Agent Token on User Endpoint:</strong> Agent token used on user-level API.</li>
+                <li><strong>Expired Token:</strong> Token past expiration time.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      ) : (
+        <div className="inspector-shell-form-empty">
+          Select a scenario from the list to inspect and execute it.
+        </div>
+      )}
+    </>
+  );
+}
+
+function ScenarioOutput({ scenario, result, activeTab, onTab }) {
+  return (
     <>
-      <InspectorTabs
-        tabs={[
-          { key: 'result', label: 'Result' },
-          { key: 'teaching', label: 'Teaching' },
-          { key: 'token', label: 'Token Details' },
-          { key: 'raw', label: 'Request/Response' },
-        ]}
-        activeKey={outputTab}
-        onChange={setOutputTab}
-      />
+      <InspectorTabs tabs={OUTPUT_TABS} activeKey={activeTab} onChange={onTab} />
 
       {result ? (
         <>
           <div className="inspector-shell-output-body">
-                {outputTab === 'result' && (
-                  <div className="tst-result-panel">
-                    <div className="tst-result-row">
-                      <span className="tst-result-label">Error Code</span>
-                      <span className="tst-result-value tst-result-value--error">
-                        {result.error_code}
-                      </span>
-                    </div>
-                    <div className="tst-result-row">
-                      <span className="tst-result-label">HTTP Status</span>
-                      <span className="tst-result-value tst-result-value--status">
-                        {result.http_status}
-                      </span>
-                    </div>
-                    <div className="tst-result-row">
-                      <span className="tst-result-label">Scenario</span>
-                      <span className="tst-result-value">
-                        {result.scenario_name || result.scenario}
-                      </span>
-                    </div>
-                    <div className="tst-result-row">
-                      <span className="tst-result-label">Description</span>
-                      <span className="tst-result-value">
-                        {result.error_description}
-                      </span>
-                    </div>
-                  </div>
-                )}
+            {activeTab === 'result' && (
+              <Card
+                tone="danger"
+                title={result.scenario_name || result.scenario}
+                data-testid="tst-result"
+                role="status"
+              >
+                <p className="pu-status-line">
+                  <StatusChip tone="danger">Rejected</StatusChip>
+                  <span>Simulated: the reply is pre-written, no server judged this token.</span>
+                </p>
+                <KvList
+                  items={[
+                    { label: 'Error code', value: result.error_code, mono: true },
+                    { label: 'HTTP status', value: result.http_status, mono: true },
+                    { label: 'Scenario', value: result.scenario_name || result.scenario },
+                    { label: 'Description', value: result.error_description },
+                  ]}
+                />
+              </Card>
+            )}
 
-                {outputTab === 'teaching' && (
-                  <div className="tst-teaching-panel">
-                    <div className="tst-teaching-header">What This Teaches</div>
-                    <div className="tst-teaching-message">
-                      {result.teaching_message}
-                    </div>
-                  </div>
-                )}
+            {activeTab === 'teaching' && (
+              <Card tone="neutral" title="What This Teaches">
+                <p className="pu-note tst-teaching">{result.teaching_message}</p>
+              </Card>
+            )}
 
-                {outputTab === 'token' && (
-                  <pre className="inspector-shell-output-code">
-                    <JsonHighlight
-                      value={result.token_details || { message: 'No token details available' }}
-                      deep
-                    />
-                  </pre>
-                )}
+            {activeTab === 'token' && (
+              <Card tone="neutral" title="Claims of the test token">
+                <p className="pu-note">
+                  Minted by this machine's BFF with a demo secret for the lesson. PingOne did not issue it.
+                </p>
+                <pre className="inspector-shell-output-code">
+                  <JsonHighlight
+                    value={result.token_details || { message: 'No token details available' }}
+                    deep
+                  />
+                </pre>
+              </Card>
+            )}
 
-                {outputTab === 'raw' && (
-                  <pre className="inspector-shell-output-code">
-                    <JsonHighlight
-                      value={{
-                        request: result.request || null,
-                        response: result.response || null
-                      }}
-                      deep
-                    />
-                  </pre>
-                )}
-              </div>
+            {activeTab === 'raw' && (
+              <Card tone="neutral" title="Request and response as the BFF wrote them">
+                <p className="pu-note">
+                  Nothing was sent to the endpoint named here: the BFF built both sides of the exchange.
+                </p>
+                <pre className="inspector-shell-output-code">
+                  <JsonHighlight
+                    value={{
+                      request: result.request || null,
+                      response: result.response || null
+                    }}
+                    deep
+                  />
+                </pre>
+              </Card>
+            )}
+          </div>
 
           <div className="inspector-shell-output-footer">
             <span><strong>Status:</strong> {result.http_status || 'Error'}</span>
-            <span><strong>Scenario:</strong> {result.scenario_name || selectedScenario?.name}</span>
+            <span><strong>Scenario:</strong> {result.scenario_name || scenario?.name}</span>
             <span><strong>Type:</strong> Token Validation</span>
           </div>
         </>
       ) : (
         <div className="inspector-shell-output-empty">
-          {selectedScenario
+          {scenario
             ? 'Click Execute to run the scenario and see the result here.'
             : 'Select a scenario and execute it to see results.'}
         </div>
       )}
     </>
-  );
-
-  return (
-    <InspectorShell
-      title="Token Security Tester"
-      statusText={`Educational demonstration — ${SCENARIOS.length} scenarios`}
-      actions={<span className="tst-topbar-badge">Demo Only</span>}
-      left={left}
-      middle={middle}
-      right={right}
-    />
   );
 }

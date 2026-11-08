@@ -1,180 +1,141 @@
-/**
- * TokenSecurityTester.css
- * Light-themed overrides for the Token Security Tester (Mock B layout).
- * Base styles come from PingOneMcpInspector.css (p1mcp-* classes).
- */
+/* Token Security Tester: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md); the three-column inspector is the shared
+   InspectorShell (P6). Surfaces, lines and ink are --th-* only (H1), type comes from the
+   --font-size-* scale (H2), no inline styles (H3). Everything is scoped under .tst-page. */
 
-/* (error-dot rule removed — scenario rows now use InspectorListItem dot="sensitive") */
-
-/* Tree item text truncation */
-.tst-tree-item-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Cards sit inside the inspector columns, which carry no padding of their own. */
+.tst-page .inspector-shell-output-body > .pu-card {
+  margin: 12px;
 }
 
-/* Top bar badge */
-.tst-topbar-badge {
-  background: #f59e0b;
-  color: #1e1e2e;
+/* The action row: Execute, Clear and the reason line wrap at phone width. */
+.tst-page .tst-actions {
+  flex-wrap: wrap;
+}
+
+.tst-page .tst-hint {
+  flex: 1 1 12rem;
+  min-width: 0;
+  margin: 0;
   font-size: var(--font-size-xs);
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--th-text-body);
 }
 
-/* Demo notice in form */
-.tst-demo-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  margin-bottom: 16px;
-  font-size: var(--font-size-2xs);
-  color: #92400e;
+/* A failed call, shown under the action row (role="alert"). */
+.tst-page .tst-error {
+  margin: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--th-border);
 }
 
-.tst-demo-notice__icon {
-  flex-shrink: 0;
-  font-size: var(--font-size-body);
-}
-
-.tst-demo-notice__text {
-  line-height: 1.4;
-}
-
-.tst-demo-notice__text strong {
-  color: #78350f;
-}
-
-/* Scenario info fields */
-.tst-scenario-info {
-  margin-bottom: 12px;
-}
-
-/* About These Scenarios collapsible */
-.tst-about-scenarios {
+/* About These Scenarios: native <details>, so it opens from the keyboard. */
+.tst-page .tst-about {
   margin-top: 12px;
-  border: 1px solid #e0e2e4;
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
-.tst-about-scenarios > summary {
+.tst-page .tst-about > summary {
   padding: 8px 12px;
-  background: #eff0f1;
-  color: #051727;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  user-select: none;
-  transition: background 0.15s;
 }
 
-.tst-about-scenarios > summary:hover {
-  background: #e0e2e4;
-  color: #263746;
+.tst-page .tst-about > summary:hover {
+  background: var(--th-bg-hover);
 }
 
-.tst-about-scenarios__body {
+.tst-page .tst-about__body {
   padding: 12px;
-  background: #ffffff;
-  font-size: var(--font-size-2xs);
-  color: #051727;
-  line-height: 1.6;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-body);
+  line-height: var(--line-height-normal);
 }
 
-.tst-about-scenarios__body p {
-  margin: 0 0 8px 0;
+.tst-page .tst-about__body p {
+  margin: 0 0 8px;
 }
 
-.tst-about-scenarios__body ul {
+.tst-page .tst-about__body ul {
   margin: 4px 0;
   padding-left: 16px;
 }
 
-.tst-about-scenarios__body li {
+.tst-page .tst-about__body li {
   margin-bottom: 4px;
 }
 
-.tst-about-scenarios__body strong {
-  color: #263746;
+.tst-page .tst-about__body strong {
+  color: var(--th-text);
 }
 
-/* Result panel in output column */
-.tst-result-panel {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.tst-result-row {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.tst-result-label {
-  min-width: 110px;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  color: #5c646b;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.tst-result-value {
-  font-size: var(--font-size-sm);
-  color: #263746;
-  line-height: 1.4;
-}
-
-.tst-result-value--error {
-  background: #fee2e2;
-  color: #d20e0f;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-}
-
-.tst-result-value--status {
-  background: #fef3c7;
-  color: #92400e;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-}
-
-/* Teaching panel */
-.tst-teaching-panel {
-  padding: 16px;
-}
-
-.tst-teaching-header {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: #12538d;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e0e2e4;
-}
-
-.tst-teaching-message {
+/* The teaching text reads as prose, not as a caption. */
+.tst-page .tst-teaching {
+  margin: 0;
   font-size: var(--font-size-body);
-  color: #263746;
   line-height: 1.7;
-  background: #fcfcfc;
-  border-left: 3px solid #12538d;
-  padding: 12px 16px;
-  border-radius: 0 4px 4px 0;
+  color: var(--th-text);
+}
+
+/* The end-user-nano skin sets word-wrap on code and lists with a selector that beats a single class,
+   so the wrapping rules are scoped under the page's own class. A long unbroken value (an error code,
+   an endpoint, a claim) wraps inside its card instead of pushing the page wider than the phone. */
+.pu-page.tst-page .pu-kv dd,
+.pu-page.tst-page .pu-card,
+.pu-page.tst-page .tst-error span,
+.pu-page.tst-page .inspector-shell-output-code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pu-page.tst-page .inspector-shell-form-header__desc,
+.pu-page.tst-page .inspector-shell-form-header__name {
+  overflow-wrap: anywhere;
+}
+
+/* At phone width the inspector top bar (title, Hide tools, status text, theme toggle) wraps
+   instead of pushing the theme toggle past the viewport. */
+.tst-page .inspector-shell-topbar {
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.tst-page .inspector-shell-topbar__status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* In the 1100px frame the output column is narrow: let the four tabs wrap instead of clipping the last one. */
+.tst-page .inspector-shell-output-tabs {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+/* The shared JSON viewer ships a light-only palette (its dark one needs a jh-dark wrapper that the
+   theme switch never adds): keys were 2.0:1 and numbers 2.75:1 on the dark card. Here its colours
+   come from the status text tokens, which flip with the theme. Page-scoped; JsonHighlight.css is
+   a shared file and stays as it is. */
+.pu-page.tst-page .jh-key {
+  color: var(--th-status-info-text);
+}
+
+.pu-page.tst-page .jh-string {
+  color: var(--th-status-success-text);
+}
+
+.pu-page.tst-page .jh-number {
+  color: var(--th-status-warning-text);
+}
+
+.pu-page.tst-page .jh-keyword,
+.pu-page.tst-page .jh-critical,
+.pu-page.tst-page .jh-focus {
+  color: var(--th-status-error-text);
 }
