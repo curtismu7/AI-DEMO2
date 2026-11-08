@@ -1,3 +1,21 @@
+// /personal-agent and /personal-agent/full (bare), plus the embedded scenario runner the Workload Agents and Digital
+// Worker pages mount with a `scenario` prop.
+//
+// Layout follows the standalone Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md). Applied: P2 banner first (what is simulated, what is real), P5 kv (embedded action and
+// prompt), P7 chips with a word (pop-out stub, embedded run state), P9 buttons, H3 no inline style.
+// Skipped: P3 frame and P4 cards. The studio is a full-width workbench (chat beside the gates, reel and Token Chain,
+// with a cockpit grid), not a 1100px document, and its numbered stacked sections already label the pipeline; the title
+// band is the studio toolbar, so there is no PageHeader (it would push the reel below the fold on a 720px window).
+//
+// P9 "exactly one primary per view" is read per view state, and every button goes through PuButton (`lead`):
+//   Agent tab, Claude/ChatGPT/Gemini/Terminal/Privilege/Dot skin -> no primary on the page. Send lives inside the
+//                    simulated client (AgentClientSkin keeps that client's own look), not in the page chrome.
+//   Agent tab, Computer Use skin -> "Run scripted session".
+//   Add to ChatGPT / Claude and Delegation proof tabs -> the embedded flow (or the sign-in prompt) owns its primary.
+//   Embedded scenario: "Run ... action"; once a step-up is needed, "Verify with MFA and run again" takes over;
+//                    catalog load failed -> "Retry loading".
+// A busy Run stays focusable (aria-disabled), so keyboard focus is not thrown to the page when it starts.
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
@@ -26,11 +44,11 @@ import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import GateChips from '../components/GateChips';
 import TokenCards, { hasTokenCards } from '../components/TokenCards';
+import { PingPage, SimBanner, StatusChip, KvList } from '../components/pingUi';
 import './PersonalAgentStudioPage.css';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Persona Agent (Dot)' };
-const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#d20e0f', dot: '#2bb3a3' };
 
 // Scripted CUA session (coverage plan row: present a computer-use agent without
 // driving a real browser). Each step is a labeled observe/act pair that rides the
@@ -88,11 +106,21 @@ export function extractActClaim(events) {
   return { sub: claims.sub || '…', act: claims.act, scope: claims.scope || '', acr: claims.acr || '' };
 }
 
-// Layout state → CSS
+// Layout state: which panels show. The widths live in the stylesheet (.pas-agent--full|split|popped).
 const LAYOUT_STYLES = {
-  full:   { agentFlex: '1',    railWidth: '0',     railVisible: false, placeholderVisible: false },
-  split:  { agentFlex: '0 0 55%', railWidth: '45%', railVisible: true,  placeholderVisible: false },
-  popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
+  full:   { railVisible: false, placeholderVisible: false },
+  split:  { railVisible: true,  placeholderVisible: false },
+  popped: { railVisible: true,  placeholderVisible: true },
+};
+
+// The embedded status line (scenario mode): the word on the chip, and its tone, per run state.
+const RUN_CHIPS = {
+  idle: { tone: 'neutral', word: 'Ready' },
+  running: { tone: 'info', word: 'Running' },
+  complete: { tone: 'ok', word: 'Done' },
+  error: { tone: 'danger', word: 'Failed' },
+  'step-up': { tone: 'warn', word: 'MFA needed' },
+  approval: { tone: 'warn', word: 'Approval needed' },
 };
 
 export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, reelEmptyState = undefined, bare = false }) {
@@ -393,7 +421,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     <div className="workload-agents__run">
       {catalogLoadError === routeContextKey ? <>
         <p role="alert">The catalog action could not be loaded. Retry {routeId} for {vertical}, or choose another scenario or vertical.</p>
-        <button type="button" onClick={() => setCatalogLoadAttempt((attempt) => attempt + 1)}>Retry loading {routeId}</button>
+        <PuButton lead onClick={() => setCatalogLoadAttempt((attempt) => attempt + 1)}>Retry loading {routeId}</PuButton>
       </> : <p><InlineSpinner label={`Loading ${routeId} action for ${vertical}…`} /></p>}
     </div>
   );
@@ -416,12 +444,18 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <p>{workloadScenario.id === 'UC38'
         ? 'Customer MFA is checked before this protected write. The registered workload agent acts only after step-up succeeds.'
         : 'This customer-data read keeps the signed-in customer as sub and the registered workload agent as act.'}</p>
-      <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
-      <button type="button" disabled={runState.status === 'running'} onClick={() => runWithConsent(workloadScenario)}>{workloadScenario.id === 'UC38' ? `Run ${protectedActionLabel(workloadScenario)}` : `Run ${workloadScenario.id} action`}</button>
-      <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
-      <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      <KvList items={[
+        { label: 'Action', value: workloadScenario.primaryTool, mono: true },
+        { label: 'Prompt', value: workloadScenario.runPrompt },
+      ]} />
+      <PuButton lead={runState.status !== 'step-up'} busy={runState.status === 'running'} onClick={() => runWithConsent(workloadScenario)}>{workloadScenario.id === 'UC38' ? `Run ${protectedActionLabel(workloadScenario)}` : `Run ${workloadScenario.id} action`}</PuButton>
+      <PuButton onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</PuButton>
+      <div className="pu-status-line">
+        <StatusChip tone={(RUN_CHIPS[runState.status] || RUN_CHIPS.idle).tone}>{(RUN_CHIPS[runState.status] || RUN_CHIPS.idle).word}</StatusChip>
+        <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      </div>
       {runState.status === 'step-up' && (
-        <button type="button" onClick={startStepUp}>Verify with MFA and run again</button>
+        <PuButton lead onClick={startStepUp}>Verify with MFA and run again</PuButton>
       )}
       <ConfirmModal
         isOpen={runState.status === 'approval' && runState.prompt === true}
@@ -449,120 +483,114 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   );
 
   return (
-    // A fixed-height shell (same rule as the IDE sheet, .cur-ide): chat flexes, the reel stays under it.
-    // height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
-    // Bare (/personal-agent/full) has no app chrome to subtract.
-    <>
+    // P2 banner first, then the studio. The studio is a full-width workbench (chat beside gates, reel and
+    // Token Chain), so it keeps its own shell instead of the 1100px frame; see the header comment.
+    <PingPage className={`pas-page${bare ? ' pas-page--bare' : ''}`}>
+    <SimBanner data-testid="studio-banner">
+      <strong>SIMULATED CLIENTS, REAL GOVERNANCE</strong> — the Claude, ChatGPT, Gemini, Terminal and Computer Use
+      windows are look-alikes, and the Add to ChatGPT / Claude tab uses a connector sandbox: no vendor product is
+      connected. Your messages go to this machine's BFF and the demo's own agent, so the gates and tokens below come
+      from your signed-in session. The gate Replay is an animation.
+    </SimBanner>
+    {/* A fixed-height shell (same rule as the IDE sheet, .cur-ide): chat flexes, the reel stays under it.
+        height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
+        Bare (/personal-agent/full) has no app chrome to subtract. */}
     <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : stacked ? ' pas-shell--stacked' : ''}${bare ? ' pas-shell--bare' : ''}`}>
       {/* Page header */}
-      <div className="pas-c-header" style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '6px 20px', minHeight: 52, flexWrap: 'wrap', rowGap: 6, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
+      <div className="pas-c-header">
+        <h1 className="pas-title">Digital Assistant</h1>
 
         {/* View tabs */}
-        <div role="tablist" style={{ display: 'flex', gap: 4 }}>
+        <div role="tablist" className="pas-tabs">
           {[['agent', 'Agent'], ['connector', 'Add to ChatGPT / Claude'], ['obo', 'Delegation proof (OBO)']].map(([id, label]) => (
-            <button
+            <PuButton
               key={id}
-              type="button"
               role="tab"
               aria-selected={view === id}
+              className="pas-compact"
               onClick={() => setView(id)}
-              style={{ padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${view === id ? 'var(--accent, #4f8ef7)' : 'transparent'}`, background: view === id ? 'rgba(79,142,247,0.15)' : 'transparent', fontSize: 12, fontWeight: 600, color: view === id ? 'var(--th-text)' : 'var(--th-text-muted)' }}
             >
               {label}
-            </button>
+            </PuButton>
           ))}
         </div>
 
         {/* Skin tabs */}
-        {view === 'agent' && <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+        {view === 'agent' && <div className="pas-skins">
           {SKINS.map((s) => (
-            <button
+            <PuButton
               key={s}
+              aria-pressed={activeSkin === s}
+              className="pas-compact pas-pill"
               onClick={() => setActiveSkin(s)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-border)'}`, background: activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-bg-card)', fontSize: 12, fontWeight: 600, color: activeSkin === s ? 'var(--pas-pill-on-fg, #ffffff)' : 'var(--th-text)' }}
             >
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: SKIN_DOT_COLORS[s], display: 'inline-block' }} />
+              <span className={`pas-dot pas-dot--${s}`} aria-hidden="true" />
               {SKIN_LABELS[s]}
-            </button>
+            </PuButton>
           ))}
         </div>}
 
         {/* Actions */}
-        {view === 'agent' && <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
+        {view === 'agent' && <div className="pas-header-actions">
           <span className="pas-vertical" title="The vertical the agent works in: its tools, policies and sample prompts">
             <span className="pas-vertical__label">Vertical</span>
             <VerticalSwitcher variant="nav" />
           </span>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
           <div className="pas-layout-switch" role="group" aria-label="Page layout">
-            <button type="button" aria-pressed={layoutMode === 'stacked'} onClick={() => chooseLayout('stacked')}>Stacked</button>
-            <button type="button" aria-pressed={layoutMode === 'cockpit'} onClick={() => chooseLayout('cockpit')}>Cockpit</button>
+            <PuButton className="pas-compact" aria-pressed={layoutMode === 'stacked'} onClick={() => chooseLayout('stacked')}>Stacked</PuButton>
+            <PuButton className="pas-compact" aria-pressed={layoutMode === 'cockpit'} onClick={() => chooseLayout('cockpit')}>Cockpit</PuButton>
           </div>
-          {!cockpit && <button
-            onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'split' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'split' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
-          >
+          {!cockpit && <PuButton className="pas-compact" aria-pressed={layoutState === 'split'} onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}>
             Split
-          </button>}
-          <button
-            onClick={handlePopOut}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'popped' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'popped' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
-          >
+          </PuButton>}
+          <PuButton className={`pas-compact${layoutState === 'popped' ? ' pas-on' : ''}`} onClick={handlePopOut}>
             🪟 Pop Out
-          </button>
-          <button
+          </PuButton>
+          <PuButton
+            className="pas-compact"
             onClick={() => setTheme((t) => t === 'dark' ? 'light' : 'dark')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: '1px solid var(--border, #2e3347)', background: 'transparent', color: 'var(--th-text-muted)', fontSize: 12, cursor: 'pointer' }}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
+          </PuButton>
         </div>}
       </div>
 
       {view === 'connector' ? (
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div className="pas-c-view">
           {user ? <ConnectorFlow /> : <SignInPrompt message="The connector flow runs on your signed-in session." />}
         </div>
       ) : view === 'obo' ? (
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div className="pas-c-view">
           {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
         </div>
       ) : (<>
       {/* Content area */}
-      <div className="pas-c-chat" style={{ display: 'flex', overflow: 'hidden' }}>
+      <div className="pas-c-chat">
         {/* Agent panel */}
-        <div style={{ flex: layout.agentFlex, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div className={`pas-agent pas-agent--${layoutState}`}>
           {layout.placeholderVisible ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40, borderRight: '1px dashed var(--border, #2e3347)' }}>
-              <div style={{ fontSize: 40 }}>👤</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--th-text)', textAlign: 'center' }}>Agent active in external window</div>
-              <div style={{ fontSize: 12, color: 'var(--th-text-muted)', textAlign: 'center', maxWidth: 280, lineHeight: 1.6 }}>
+            <div className="pas-popped">
+              <div className="pas-popped__icon" aria-hidden="true">👤</div>
+              <div className="pas-popped__title">Agent active in external window</div>
+              <div className="pas-popped__text">
                 The agent is running independently — just like a real user's AI client. Security gates on the right fire for every message it sends.
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#22c55e' }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', animation: 'blink 1.5s infinite' }} />
-                Live — receiving token events
-                <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}`}</style>
-              </div>
+              <StatusChip tone="info">Listening for token events</StatusChip>
             </div>
           ) : (
             activeSkin === 'cua' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border, #2e3347)' }}>
-                  <button
-                    type="button"
-                    onClick={runCuaScript}
-                    style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d20e0f', background: 'rgba(210, 14, 15,0.14)', color: 'var(--th-text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                  >
+              <div className="pas-skin">
+                <div className="pas-cua-bar">
+                  <PuButton lead onClick={runCuaScript}>
                     Run scripted session
-                  </button>
-                  <span style={{ fontSize: 11, color: 'var(--th-text-muted)' }}>
+                  </PuButton>
+                  <span className="pu-note pas-cua-bar__note">
                     Simulated — a real CUA drives a browser; this walks the same actions through the demo's governed agent path, so the token chain on the rail is the real one.
                   </span>
                 </div>
-                <div style={{ flex: 1, minHeight: 0 }}>
+                <div className="pas-skin__body">
                   <AgentClientSkin
                     skin={activeSkin}
                     theme={theme}
@@ -574,9 +602,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+              <div className="pas-skin pas-skin--fill">
                 {activeSkin === 'dot' && <DotPersonaStrip theme={theme} mode={agentMode} />}
-                <div style={{ flex: 1, minHeight: 0 }}>
+                <div className="pas-skin__body">
                   <AgentClientSkin
                     skin={activeSkin}
                     theme={theme}
@@ -609,10 +637,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           agent test shows the RFC 8693 delegation path it exercised. */}
       {cockpit && <GateChips className="pas-c-gates" gates={replayGates || gates} />}
       {view === 'agent' && (
-        <details className="pas-c-flow" style={{ flexShrink: 0, borderTop: '1px solid var(--th-border)' }}>
-          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>Expand for Diagram</summary>
-          <p style={{ margin: '0 0 8px', fontSize: 12 }}><Link to="/personal-agent-flow">Open the diagram on its own page</Link></p>
-          <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
+        <details className="pas-c-flow">
+          <summary>Expand for Diagram</summary>
+          <p className="pu-note pas-flow-link"><Link to="/personal-agent-flow">Open the diagram on its own page</Link></p>
+          <div className="pas-flow-scroll">
             <SequenceFlowDiagram
               source={PERSONAL_AGENT_SEQUENCE_SOURCE}
               details={PERSONAL_AGENT_SEQUENCE_DETAILS}
@@ -626,7 +654,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {/* Stacked: the reel on top, the long token-chain detail under it at full width. An inline
           maxHeight:'45%' used to cap this, but a % can't resolve in this column, so the block grew
           to ~670px and the fixed-height page clipped it. The class's vh cap does the job. */}
-      <div className="tcfs-float-host tcfs-float-host--stacked pas-c-reel" style={{ minHeight: 120 }}>
+      <div className="tcfs-float-host tcfs-float-host--stacked pas-c-reel">
         <TokenChainFilmstrip emptyState={hasTokenCards(events) ? <TokenCards events={events} variant={cockpit ? 'rows' : 'cards'} /> : undefined} />
       </div>
       </>)}
@@ -636,6 +664,23 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     {/* The client cards sit BELOW the fixed-height shell (the page scrolls to them): inside it they took ~500px of the
         column and were clipped, squeezing the reel. */}
     {view === 'agent' && !cockpit && <div className="pas-c-cards"><PersonalAgentClientCards /></div>}
-    </>
+    </PingPage>
+  );
+}
+
+// Every button on the page goes through here, so the one-primary rule has one place to read (`lead`).
+// A busy button stays focusable (aria-disabled, not disabled) so keyboard focus is not thrown to the page
+// when a Run starts; the click is ignored while busy.
+function PuButton({ lead = false, busy = false, onClick, className = '', children, ...rest }) {
+  return (
+    <button
+      type="button"
+      className={`${lead ? 'pu-btn pu-btn--primary' : 'pu-btn'} ${className}`.trim()}
+      aria-disabled={busy ? 'true' : undefined}
+      onClick={busy ? undefined : onClick}
+      {...rest}
+    >
+      {children}
+    </button>
   );
 }

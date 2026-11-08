@@ -18,6 +18,8 @@
 /privilege-pf-token
 /p1-third-party-exchange
 /privilege-shelf
+/personal-agent
+/personal-agent/full
 /ai-products/core
 /ai-products/gateway
 /ai-products/authorize
