@@ -181,6 +181,7 @@ export default function PrivilegeCodingAgentsPage() {
             statusOn
             statusText="documented-behaviour walkthrough — with a live gateway check below"
             fullHeight={false}
+            titleLevel={2}
             left={left}
             middle={middle}
             right={right}

@@ -35,3 +35,12 @@
 .draw-btn:disabled { opacity: 0.4; cursor: default; }
 .draw-pencil--on { background: #c0291c; }
 @media print { .draw-bar { display: none; } }
+
+/* Keyboard focus: a white ring drawn inside each control, on the bar's dark ground (>= 12:1). */
+.draw-btn:focus-visible,
+.draw-pencil:focus-visible,
+.draw-swatch:focus-visible,
+.draw-w:focus-visible {
+  outline: 2px solid var(--th-text-invert);
+  outline-offset: -3px;
+}

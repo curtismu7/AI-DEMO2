@@ -298,7 +298,7 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
   return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
+function Inner({ source, label, step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -407,7 +407,7 @@ function Inner({ source, step, active, details, driver, payloads, stepDetails, r
   );
   return (
     <>
-      {!external && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />}
+      {!external && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} label={label ? `${label} controls` : undefined} />}
       {reelStepper && (
         <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
       )}
@@ -453,7 +453,7 @@ export default function SequenceFlowDiagram({ source, label = "Sequence diagram"
   return (
     <div className={`sfx${lanes ? " sfx--lanes" : ""}`} role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} stepDetails={stepDetails} reelSync={reelSync} lanes={lanes} issues={issues} />
+        <Inner source={source} label={label} step={step} active={active} details={details} driver={driver} payloads={payloads} stepDetails={stepDetails} reelSync={reelSync} lanes={lanes} issues={issues} />
       </ReactFlowProvider>
     </div>
   );
