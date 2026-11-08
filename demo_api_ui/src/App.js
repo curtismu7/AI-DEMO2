@@ -20,6 +20,7 @@ import { ActorTokenEducation } from "./components/ActorTokenEducation";
 const AdminErrorAuditLog = lazyWithRetry(() => import("./components/AdminErrorAuditLog"));
 import AdminSideNav from "./components/AdminSideNav";
 import DrawOverlay from "./components/DrawOverlay";
+import SkipLink from "./components/SkipLink";
 import PageGuide from "./components/PageGuide";
 import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
 const AdminTokenComplianceAudit = lazyWithRetry(() => import("./components/AdminTokenComplianceAudit"));
@@ -783,6 +784,7 @@ function AppWithAuth() {
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
             >
+              <SkipLink />
               <OfflineBanner />
               <ToastContainer
                 position="bottom-left"
@@ -796,7 +798,6 @@ function AppWithAuth() {
               <PiFlowSignInModal />
               <PingFederateDownModal />
               <PingFederateRequiredModal />
-              <DrawOverlay />
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}
@@ -1196,9 +1197,9 @@ function AppWithAuth() {
                   path="/ping-products/verify-recognize"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingOneVerifyRecognizePage />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1206,9 +1207,9 @@ function AppWithAuth() {
                   path="/ai-products/core"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="core" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1216,9 +1217,9 @@ function AppWithAuth() {
                   path="/ai-products/gateway"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="gateway" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1226,9 +1227,9 @@ function AppWithAuth() {
                   path="/ai-products/authorize"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="authorize" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1236,9 +1237,9 @@ function AppWithAuth() {
                   path="/ai-products/protect"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="protect" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1246,9 +1247,9 @@ function AppWithAuth() {
                   path="/ai-products/privilege-llm"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="privilegeLlm" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1256,9 +1257,9 @@ function AppWithAuth() {
                   path="/ai-products/privilege-a2a"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="privilegeA2a" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -1266,9 +1267,9 @@ function AppWithAuth() {
                   path="/ai-products/privilege-mcp"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <main className="ai-product-main">
+                      <div className="ai-product-main">
                         <PingAiProductPage product="privilegeMcp" />
-                      </main>
+                      </div>
                     </AppShell>
                   }
                 />
@@ -2935,6 +2936,8 @@ function AppWithAuth() {
               <SpinnerHost />
               {/* Global overlay — off on no-chrome routes (embedded reel). */}
               {isApiTrafficOnlyPage ? null : <DemoScriptLauncher user={user} />}
+              {/* Last in the DOM so the pencil is the last tab stop, not the first (it is position: fixed). */}
+              <DrawOverlay />
             </div>
           </ActivityNarrativeProvider>
           </ProofOfEnforcementProvider>

@@ -18,6 +18,7 @@ export default function InspectorTabs({ tabs, activeKey, onChange }) {
               ? 'inspector-shell-output-tab inspector-shell-output-tab--active'
               : 'inspector-shell-output-tab'
           }
+          aria-pressed={tab.key === activeKey}
           onClick={() => onChange(tab.key)}
         >
           {tab.label}
