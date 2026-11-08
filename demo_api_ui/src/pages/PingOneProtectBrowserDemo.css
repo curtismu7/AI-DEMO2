@@ -163,21 +163,22 @@
   min-height: 44px;
   margin-top: 0.25rem;
   padding: 0.65rem 1rem;
-  color: #fff;
-  background: #12538d;
-  border: 1px solid #12538d;
+  color: var(--btn-accent-text);
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--radius-pill);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
-.p1p-auth__run-chip:hover:not(:disabled) {
-  color: #fff;
-  background: #0e548d;
+.p1p-auth__run-chip:hover:not([aria-disabled="true"]) {
+  color: var(--btn-accent-text);
+  background-image: var(--btn-accent-gradient-hover);
 }
 
-.p1p-auth__run-chip:disabled {
+.p1p-auth__run-chip[aria-disabled="true"] {
   cursor: wait;
   opacity: 0.75;
 }
