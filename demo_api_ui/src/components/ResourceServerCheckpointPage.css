@@ -58,6 +58,16 @@
   text-align: left;
   overflow-wrap: anywhere;
 }
+/* The scenario buttons are a selector (secondary, never primary): the chosen one is marked by aria-pressed, a check
+   mark and a heavier edge with a 3px bar, never by colour alone (same treatment as Privilege Map's PickButton). */
+.rsc-page .rsc-sc[aria-pressed='true'] {
+  border-color: var(--btn-accent);
+  background: var(--th-bg-inset);
+  box-shadow: inset 0 -3px 0 var(--btn-accent);
+}
+.rsc-page .rsc-sc[aria-pressed='true'] > .rsc-sc-check {
+  font-weight: var(--font-weight-bold);
+}
 .rsc-page .rsc-sc small {
   display: block;
   margin-top: 2px;
@@ -204,4 +214,9 @@
 /* The app body leaves line-height at "normal", which reads cramped in a card. */
 .rsc-page .pu-card {
   line-height: var(--line-height-normal);
+}
+
+/* The one primary: a link to the companion diagram, after the last section. */
+.rsc-page .rsc-diagram-link {
+  margin: 24px 0 0;
 }

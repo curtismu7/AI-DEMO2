@@ -11,11 +11,21 @@
 // P9 buttons. Skipped: P6 (not an inspector) and P8 (the flow strip is a text path, not a
 // diagram). The standalone shell bar is not added (the app has its own).
 //
-// P9, one primary per view state: the scenario buttons are a pick-one group, and the
-// SELECTED scenario is the one primary (the other three are secondaries), so there is
-// exactly one in every state (balance, transfer, sensitive, redact). The theme toggle is a
+// P9, one primary per view state: the scenario buttons are a pick-one SELECTOR, so they are
+// secondaries (aria-pressed, a check mark and a heavier edge on the chosen one, as Privilege
+// Map's PickButton does), never a call to action. Nothing on the page submits or runs anything,
+// so the one primary is the only real action: the link that opens the companion diagram. It is
+// the same in every state (balance, transfer, sensitive, redact). The theme toggle is a
 // secondary in the title band.
+//
+// Honesty: every outcome is a recorded sample, never a live run. The verdict and the key-value
+// rows say "would" / "sample", the chip says "Simulated", and the payload panes are titled "Sample".
+//
+// The divider between the list and the stage is mouse-only (shared hook, no keyboard handler), so
+// it is hidden from assistive tech instead of announcing a separator it cannot operate.
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { diagramLinkProps } from "../utils/diagramLinks";
 import useDividerDrag from "../hooks/useDividerDrag";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./ResourceServerCheckpointPage.css";
@@ -37,8 +47,8 @@ const SCENARIOS = {
     button: "Check balance",
     buttonSub: "get_account_balance · scope read",
     verdict: "permit",
-    title: "Request allowed through to banking data",
-    sub: "Audience + scope satisfied; no custom policy objects.",
+    title: "Would be allowed through to banking data",
+    sub: "In this sample the audience and scope are satisfied; no custom policy objects.",
     steps: { inbound: "on", decision: "ok", handler: "ok", outbound: "on", reply: "ok" },
     request: `{
   "source_ip": "172.19.0.7",
@@ -69,8 +79,8 @@ const SCENARIOS = {
     button: "Transfer $8,500",
     buttonSub: "transfer_funds · over agent ceiling",
     verdict: "deny",
-    title: "Blocked: agent transfer ceiling is $5,000",
-    sub: "Custom policy read amount 8500 from the request body. Handler never ran.",
+    title: "Would be blocked: agent transfer ceiling is $5,000",
+    sub: "A custom policy would read amount 8500 from the request body. The banking handler would never run.",
     steps: { inbound: "on", decision: "on", handler: "dead", outbound: "dead", reply: "on" },
     request: `{
   "source_ip": "172.19.0.7",
@@ -105,8 +115,8 @@ const SCENARIOS = {
     button: "Sensitive details",
     buttonSub: "missing scope sensitive:read",
     verdict: "deny",
-    title: "Blocked: token lacks scope sensitive:read",
-    sub: "Built-in scope rule on the operation — no custom policy needed.",
+    title: "Would be blocked: token lacks scope sensitive:read",
+    sub: "A built-in scope rule on the operation would deny it — no custom policy needed.",
     steps: { inbound: "on", decision: "on", handler: "dead", outbound: "dead", reply: "on" },
     request: `{
   "source_ip": "172.19.0.7",
@@ -138,8 +148,8 @@ const SCENARIOS = {
     button: "List transactions",
     buttonSub: "permitted, response redacted",
     verdict: "permit",
-    title: "Allowed — then the response was rewritten by policy",
-    sub: "Outbound leg masked account numbers before the reply left the server.",
+    title: "Would be allowed — then the response rewritten by policy",
+    sub: "The outbound leg would mask account numbers before the reply left the server.",
     steps: { inbound: "on", decision: "ok", handler: "ok", outbound: "on", reply: "ok" },
     request: `// inbound leg permitted (as in Check balance) — this is the OUTBOUND leg
 {
@@ -205,7 +215,9 @@ const TEACH = [
   },
 ];
 
-const RAN = (v) => (v === "ok" ? "Ran" : "Never ran");
+// Sample wording: a recorded sample never reads as a live result.
+const HANDLER = (v) => (v === "ok" ? "Would run" : "Would not run");
+const OUTBOUND = (v) => (v === "on" ? "Would run" : "Would not be reached");
 
 export default function ResourceServerCheckpointPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
@@ -221,10 +233,8 @@ export default function ResourceServerCheckpointPage() {
   return (
     <PingPage className="rsc-page">
       <SimBanner data-testid="rsc-banner">
-        <strong>SIMULATED — SAMPLE PAYLOADS</strong> — nothing on this page is sent anywhere. The request, decision and reply
-        panes are fixed samples written to match the sideband contract in <code className="rsc-code">demo_authz_server/routes/sideband.js</code>;
-        PingOne Authorize, the resource server and the banking data are not called, and the account, balance and transfer
-        values are made up. What is real is the contract shape the samples follow.
+        <strong>SIMULATED — SAMPLE PAYLOADS.</strong> Nothing on this page is sent anywhere: no real service is called and
+        every value is made up. Only the contract shape is real.
       </SimBanner>
       <PageHeader
         className="rsc-hero"
@@ -242,7 +252,7 @@ export default function ResourceServerCheckpointPage() {
             title="Switch this page between light and dark"
             aria-pressed={darkMode}
           >
-            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+            <span aria-hidden="true">{darkMode ? "☀️ " : "🌙 "}</span>Dark mode
           </button>
         }
       />
@@ -272,18 +282,19 @@ export default function ResourceServerCheckpointPage() {
                   <button
                     key={key}
                     type="button"
-                    className={active === key ? "pu-btn pu-btn--primary rsc-sc" : "pu-btn rsc-sc"}
+                    className="pu-btn rsc-sc"
                     aria-pressed={active === key}
                     data-testid={`rsc-scenario-${key}`}
                     onClick={() => setActive(key)}
                   >
+                    {active === key ? <span className="rsc-sc-check" aria-hidden="true">&#10003; </span> : null}
                     {sc.button}
                     <small>{sc.buttonSub}</small>
                   </button>
                 ))}
               </div>
 
-              <div className="divider-drag-handle" aria-label="Resize scenario list" {...scenarioHandleProps} />
+              <div className="divider-drag-handle" {...scenarioHandleProps} role="presentation" aria-orientation={undefined} aria-hidden="true" />
 
               <div className="rsc-stage">
                 <ol className="rsc-flowstrip" aria-label="Path of the sample request">
@@ -293,7 +304,7 @@ export default function ResourceServerCheckpointPage() {
                       <li key={step.id} className={`rsc-pill${state ? ` rsc-pill--${state}` : ""}`}>
                         {i > 0 ? <span className="rsc-pill-sep" aria-hidden="true">›</span> : null}
                         <span className="rsc-pill-label">{step.label}</span>
-                        {state === "dead" ? <span className="rsc-sr"> (not reached)</span> : null}
+                        {state === "dead" ? <span className="rsc-sr"> (not reached in this sample)</span> : null}
                       </li>
                     );
                   })}
@@ -310,8 +321,8 @@ export default function ResourceServerCheckpointPage() {
                 <KvList
                   items={[
                     { label: "Agent tool call", value: `${s.button} — ${s.buttonSub}` },
-                    { label: "Banking handler", value: RAN(s.steps.handler) },
-                    { label: "Outbound redaction leg", value: s.steps.outbound === "on" ? "Ran" : "Not reached" },
+                    { label: "Banking handler (sample)", value: HANDLER(s.steps.handler) },
+                    { label: "Outbound redaction leg (sample)", value: OUTBOUND(s.steps.outbound) },
                   ]}
                 />
 
@@ -370,10 +381,15 @@ export default function ResourceServerCheckpointPage() {
           </Card>
         </Section>
 
+        <p className="pu-actions rsc-diagram-link">
+          <Link className="pu-btn pu-btn--primary" to="/resource-server-placement" {...diagramLinkProps("/resource-server-placement")}>
+            Open the companion diagram in a new tab <span aria-hidden="true">&#8599;</span>
+          </Link>
+        </p>
         <p className="pu-note rsc-footer">
-          Companion diagram: Diagrams → Resource Server Placement (MM). Payloads follow the
-          sideband contract pinned by demo_authz_server/routes/sideband.js — permit = no
-          "response" field, string response_code, single-key header objects.
+          Companion diagram: Diagrams → Resource Server Placement (MM). The sample payloads are fixed
+          text written to match the sideband contract pinned by <code className="rsc-code">demo_authz_server/routes/sideband.js</code> —
+          permit = no "response" field, string response_code, single-key header objects.
         </p>
       </PageFrame>
     </PingPage>
