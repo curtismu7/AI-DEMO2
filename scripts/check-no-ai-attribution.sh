@@ -15,9 +15,12 @@ tree_count=$(printf '%s' "$tree" | grep -c . || true)
 echo "tracked files with an AI-attribution credit: $tree_count"
 if [ "$tree_count" != "0" ]; then printf '%s\n' "$tree" | sed 's/^/  /'; status=1; fi
 
+self_coauthor='^[C]o-authored-by:[^<]*<([0-9]+\+)?curtismu7@users\.noreply\.github\.com>[[:space:]]*$'
 bad=0
 for h in $(git log --all --since="$rule_date" --format=%H 2>/dev/null); do
-  if git log -1 --format=%B "$h" | grep -qiE "$pat"; then bad=$((bad+1)); echo "  commit ${h:0:7}"; fi
+  # A Co-authored-by naming the owner's own GitHub noreply address is not an AI credit: GitHub's squash merge adds one when a
+  # commit's author name differs from the profile name. Any other Co-Authored-By (e.g. an AI) still fails.
+  if git log -1 --format=%B "$h" | grep -viE "$self_coauthor" | grep -qiE "$pat"; then bad=$((bad+1)); echo "  commit ${h:0:7}"; fi
 done
 echo "commits since $rule_date with an AI-attribution credit: $bad"
 [ "$bad" != "0" ] && status=1
