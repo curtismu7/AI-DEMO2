@@ -21,6 +21,7 @@
 /privilege-shelf
 /ai-products/core
 /ai-products/gateway
+/gateway-claims
 /ai-products/authorize
 /ai-products/protect
 /owasp
