@@ -79,8 +79,8 @@ export default function PrivilegeSaasAccessPage() {
       <SimBanner data-testid="psa-banner">
         <strong>SIMULATED WALKTHROUGH</strong> — the request, approval, grant and expiry stages on this page
         are a deterministic simulation. Nothing is granted on GitHub, GitLab, Salesforce, Snowflake,
-        Databricks or Google Workspace. The one real call is the ledger check at the bottom: it goes through
-        this machine's BFF to the Privilege AI Gateway.
+        Databricks or Google Workspace. The one live call is the gateway check at the bottom: it goes through
+        this machine's BFF to the Privilege AI Gateway, but the tool it calls is a fictional sample, not a real entitlement ledger.
       </SimBanner>
       <PageHeader
         eyebrow="Ping products · Privilege · Platform Update Nov 2026 (new)"
@@ -151,26 +151,28 @@ export default function PrivilegeSaasAccessPage() {
               </div>
             </Card>
 
-            <Card title="Receipt" tone={receipt ? 'ok' : 'neutral'}>
+            <Card title="Receipt" tone="neutral">
               {receipt ? (
                 <div data-testid="psa-receipt">
-                  <p className="pu-status-line"><StatusChip tone="ok">Issued</StatusChip> Grant {receipt.ref}</p>
+                  <p className="pu-status-line"><StatusChip tone="info">Sample receipt</StatusChip> Sample grant {receipt.ref}</p>
                   <KvList
                     items={[
-                      { label: 'Grant ref', value: receipt.ref, mono: true },
+                      { label: 'Sample grant ref', value: receipt.ref, mono: true },
                       { label: 'Grant', value: receipt.grant },
                       { label: 'Platform', value: receipt.platform },
-                      { label: 'Expires', value: receipt.expires, mono: true },
+                      { label: 'Would expire', value: receipt.expires, mono: true },
                     ]}
                   />
                   <p className="pu-note">
-                    The reaper removes the grant when the window closes, even if the workflow that made it is long finished.
+                    Sample receipt: nothing was granted and no grant exists, so there is nothing to remove. In the
+                    product, the reaper removes a grant when its window closes, even if the workflow that made it
+                    is long finished.
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="pu-status-line"><StatusChip tone="neutral">Not issued</StatusChip></p>
-                  <p className="pu-note pu-empty">Advance the request to the grant stage to see the receipt this cycle would issue.</p>
+                  <p className="pu-status-line"><StatusChip tone="neutral">No sample yet</StatusChip></p>
+                  <p className="pu-note pu-empty">Advance the request to the grant stage to see the sample receipt this cycle would produce.</p>
                 </div>
               )}
             </Card>
@@ -224,13 +226,13 @@ export default function PrivilegeSaasAccessPage() {
           </Card>
         </Section>
 
-        <Section id="psa-live" kicker="4 · Live check" title="Read the entitlement ledger for real">
+        <Section id="psa-live" kicker="4 · Live check" title="Call a tool through the gateway (sample data)">
           <Card tone="live">
-            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> Not simulated: the verdict below comes from the gateway.</p>
+            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> The allow or deny decision below comes from the gateway. The tool behind it is a fictional sample, so any record it returns is made-up data.</p>
             <PrivilegeLiveCheck
               tool="get_access_grants"
               args={{ resource: 'payments-api' }}
-              label="Read the live entitlement ledger through Privilege"
+              label="Call a sample tool through the gateway"
               buttonClassName="pu-btn"
               statusChip
             />

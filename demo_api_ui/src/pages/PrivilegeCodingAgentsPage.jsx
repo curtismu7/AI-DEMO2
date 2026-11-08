@@ -9,7 +9,7 @@
 // walkthrough of the documented model — the same gateway, policies and
 // detection as LLM and MCP traffic, evaluated at the agent. The one real call
 // is the live entitlement check in section 2, which goes through this
-// machine's BFF to the Privilege AI Gateway.
+// machine's BFF to the Privilege AI Gateway (a fictional sample tool).
 //
 // Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/
 // STANDALONE-UI-PATTERNS.md): P2 banner first, P3 frame, P4 cards, P5 kv,
@@ -51,7 +51,7 @@ function evaluationJson(scenario) {
         : null,
       decision: scenario.decision,
       reason: scenario.reason,
-      audit: { identity: 'from machine certificate', device: 'recorded', gatewayReachable: true },
+      audit: { identity: 'from machine certificate', device: 'recorded' },
     },
     null,
     2,
@@ -113,15 +113,15 @@ export default function PrivilegeCodingAgentsPage() {
           <span className="pca-field-label">Modelled evaluation</span>
           {scenario.detection ? (
             <p className="pu-status-line" data-testid="pca-detection">
-              <StatusChip tone="danger">Rule fired</StatusChip>
+              <StatusChip tone="info">Modelled: rule fired</StatusChip>
               <span>
                 <strong>{scenario.detection.category}</strong> — {scenario.detection.rule}: {scenario.detection.detail}
               </span>
             </p>
           ) : (
             <p className="pu-status-line" data-testid="pca-detection">
-              <StatusChip tone="ok">No rule fired</StatusChip>
-              <span>The evaluation still ran, under the developer's identity from the machine certificate.</span>
+              <StatusChip tone="info">Modelled: no rule fired</StatusChip>
+              <span>In the documented model the evaluation still runs, under the developer's identity from the machine certificate. Nothing was evaluated here.</span>
             </p>
           )}
         </div>
@@ -138,7 +138,7 @@ export default function PrivilegeCodingAgentsPage() {
       <InspectorTabs
         tabs={[
           { key: 'decision', label: 'Decision' },
-          { key: 'wire', label: 'What the hook returns' },
+          { key: 'wire', label: 'Modelled response' },
         ]}
         activeKey={activeTab}
         onChange={setActiveTab}
@@ -148,9 +148,15 @@ export default function PrivilegeCodingAgentsPage() {
           <DecisionCard scenario={scenario} agent={agent} decision={decision} />
         )}
         {activeTab === 'wire' && (
-          <pre className="inspector-shell-output-code pca-wire-pre" data-testid="pca-wire">
-            <JsonHighlight value={evaluationJson(scenario)} />
-          </pre>
+          <>
+            <p className="pu-note" data-testid="pca-wire-note">
+              Modelled response: what the documented hook returns for this scenario. It was not produced by a
+              gateway call, and no reachability was checked.
+            </p>
+            <pre className="inspector-shell-output-code pca-wire-pre" data-testid="pca-wire">
+              <JsonHighlight value={evaluationJson(scenario)} />
+            </pre>
+          </>
         )}
       </div>
     </>
@@ -161,8 +167,8 @@ export default function PrivilegeCodingAgentsPage() {
       <SimBanner data-testid="pca-banner">
         <strong>SIMULATED WALKTHROUGH</strong> — the hook events, payloads and allow / ask / deny decisions on
         this page are a deterministic walkthrough of the documented model. No coding agent hook is installed
-        or evaluated on this machine. The one real call is the entitlement check at the bottom: it goes
-        through this machine's BFF to the Privilege AI Gateway.
+        or evaluated on this machine. The one live call is the gateway check at the bottom: it goes
+        through this machine's BFF to the Privilege AI Gateway, but the tool it calls is a fictional sample.
       </SimBanner>
       <PageHeader
         eyebrow="Ping products · Privilege · Platform Update Nov 2026 (new)"
@@ -187,16 +193,16 @@ export default function PrivilegeCodingAgentsPage() {
           />
         </Section>
 
-        <Section id="pca-live" kicker="2 · Live check" title="Read the entitlement ledger for real">
+        <Section id="pca-live" kicker="2 · Live check" title="Call a tool through the gateway (sample data)">
           <Card tone="live">
             <p className="pu-status-line">
               <StatusChip tone="info">Live call</StatusChip>
-              Not simulated: the verdict below comes from the gateway.
+              The allow or deny decision below comes from the gateway. The tool behind it is a fictional sample, so any record it returns is made-up data.
             </p>
             <PrivilegeLiveCheck
               tool="get_access_grants"
               args={{ user: 'alice', resource: 'payments-api' }}
-              label="See this agent's entitlements through live Privilege"
+              label="Call a sample tool through the gateway"
               buttonClassName="pu-btn pu-btn--primary"
               statusChip
             />
