@@ -161,7 +161,7 @@ export default function GovernanceTimelinePage() {
         >
           <CardGrid>
             <Card title="Event log" data-testid="gt-source">
-              <p className="pu-status-line">
+              <p className="pu-status-line" role="status" data-testid="gt-status">
                 <StatusChip tone={status.tone}>{status.word}</StatusChip>
                 {status.text}
               </p>
@@ -211,7 +211,7 @@ export default function GovernanceTimelinePage() {
               {loading && events.length === 0 && (
                 <p className="pu-note pu-empty governance-timeline-page__empty"><InlineSpinner /> <span>Loading governance evidence…</span></p>
               )}
-              {!loading && filteredEvents.length === 0 && (
+              {filteredEvents.length === 0 && !(loading && events.length === 0) && (
                 <p className="pu-note pu-empty governance-timeline-page__empty">
                   {failed && events.length === 0 ? 'The evidence could not be loaded. Use Refresh evidence to try again.' : 'No evidence is available for this lane yet.'}
                 </p>

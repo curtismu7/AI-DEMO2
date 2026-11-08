@@ -166,4 +166,56 @@ describe('GovernanceTimelinePage', () => {
     await screen.findByText(/last successful read/);
     expect(screen.getByText('Kept row')).toBeInTheDocument();
   });
+
+  it('keeps the empty-lane message in the timeline card while a refresh is in flight', async () => {
+    let release;
+    const first = { ok: true, json: async () => ({ events: [{ id: 'one', timestamp: '2026-09-21T12:00:00.000Z', category: 'agent', message: 'Identity row' }] }) };
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(first)
+      .mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve(first); }));
+    render(<GovernanceTimelinePage />);
+    await screen.findByText('Identity row');
+    fireEvent.click(screen.getByRole('button', { name: 'Privilege' }));
+    const card = screen.getByTestId('gt-timeline');
+    expect(card).toHaveTextContent('No evidence is available for this lane yet.');
+    fireEvent.click(screen.getByTestId('gt-refresh'));
+    expect(screen.getByTestId('gt-refresh')).toHaveAttribute('aria-disabled', 'true');
+    // Refresh in flight, lane empty: the card must not go blank.
+    expect(card).toHaveTextContent('No evidence is available for this lane yet.');
+    release();
+    await waitFor(() => expect(screen.getByTestId('gt-refresh')).not.toHaveAttribute('aria-disabled'));
+    expect(card).toHaveTextContent('No evidence is available for this lane yet.');
+  });
+
+  it('shows the spinner, not the empty message, on the first load', () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() => new Promise(() => {}));
+    render(<GovernanceTimelinePage />);
+    const card = screen.getByTestId('gt-timeline');
+    expect(card).toHaveTextContent('Loading governance evidence');
+    expect(card).not.toHaveTextContent('No evidence is available');
+  });
+
+  it('announces a failed refresh through the status line live region', async () => {
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ events: [{ id: 'one', timestamp: '2026-09-21T12:00:00.000Z', category: 'agent', message: 'Kept row' }] }) })
+      .mockRejectedValueOnce(new Error('network'));
+    render(<GovernanceTimelinePage />);
+    await screen.findByText('Kept row');
+    const status = screen.getByTestId('gt-status');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status).toHaveTextContent('Loaded');
+    fireEvent.click(screen.getByTestId('gt-refresh'));
+    await waitFor(() => expect(status).toHaveTextContent('Unavailable'));
+    // Same element, so assistive tech sees the text change inside one live region.
+    expect(screen.getByTestId('gt-status')).toBe(status);
+    expect(status).toHaveTextContent(/last successful read/);
+  });
+
+  it('keeps the lane filters a labelled role=group of aria-pressed buttons', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ events: [] }) });
+    render(<GovernanceTimelinePage />);
+    await screen.findByText('No evidence is available for this lane yet.');
+    const group = screen.getByRole('group', { name: 'Governance timeline lanes' });
+    expect(within(group).getAllByRole('button')).toHaveLength(5);
+  });
 });

@@ -85,11 +85,18 @@
   background: var(--th-border-strong);
 }
 
-/* Decorative: the lane chip carries the word. */
+/* Decorative: the lane chip carries the word. Each marker uses a token that clears 3:1 against the card
+   in both themes (the status "text" steps flip with the theme; the solid --th-status-info and
+   --th-status-warning do not). */
 .governance-timeline-event__marker--identity { background: var(--th-status-info); }
-.governance-timeline-event__marker--authorization { background: var(--th-status-success); }
-.governance-timeline-event__marker--privilege { background: var(--th-status-warning); }
+:root[data-theme='dark'] .governance-timeline-event__marker--identity { background: var(--th-status-info-text); }
+.governance-timeline-event__marker--authorization { background: var(--th-status-success-text); }
+.governance-timeline-event__marker--privilege { background: var(--th-status-warning-text); }
 .governance-timeline-event__marker--governance { background: var(--th-text-muted); }
+
+.governance-timeline-event__content {
+  min-width: 0;
+}
 
 .governance-timeline-event__meta {
   display: flex;
@@ -114,6 +121,9 @@
 
 .governance-timeline-event__use-case {
   display: inline-block;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   border: 1px solid var(--th-status-info-border);
   border-radius: var(--radius-sm);
   padding: 2px 8px;
