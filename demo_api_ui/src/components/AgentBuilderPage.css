@@ -111,13 +111,25 @@
 }
 
 .ab-resource-name {
+  min-width: 0;
   font-weight: var(--font-weight-bold);
   color: var(--th-text);
+  overflow-wrap: anywhere;
 }
 
 .ab-aud {
+  min-width: 0;
+  max-width: 100%;
   font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
+}
+
+/* Every code / value box wraps an unbroken value (a long audience, scope or id) instead of clipping it.
+   The end-user-nano sheet sets `word-wrap: break-word` on `.end-user-nano code` (0,1,1), which beats a single
+   class and, unlike `anywhere`, does not shrink the box's min-content, so the flex row grew to the text width. */
+.pu-page.ab-page code,
+.pu-page.ab-page .ab-agent-meta,
+.pu-page.ab-page .ab-confirm span {
   overflow-wrap: anywhere;
 }
 

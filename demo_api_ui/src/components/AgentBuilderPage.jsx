@@ -34,7 +34,8 @@ import { useThemeOptional } from '../context/ThemeContext';
 import './AgentBuilderPage.css';
 import InlineSpinner from './shared/InlineSpinner';
 
-// After an action removes the control that had focus, put focus on the thing that replaced it.
+// After an action removes the control that had focus, put focus on the thing that replaced it. Those targets
+// (#ab-agent-card, #ab-mine) are role=region with a label, so the focus move is announced by name.
 const focusSoon = (id) => setTimeout(() => { document.getElementById(id)?.focus(); }, 0);
 
 /**
@@ -294,6 +295,8 @@ export default function AgentBuilderPage() {
               title="Your AI Agent"
               tone={agent ? 'ok' : undefined}
               id="ab-agent-card"
+              role="region"
+              aria-label="Your AI Agent"
               tabIndex={-1}
               className="ab-focus-target"
               data-testid="ab-agent-card"
@@ -469,6 +472,8 @@ export default function AgentBuilderPage() {
             title="Your resources"
             tone="neutral"
             id="ab-mine"
+            role="region"
+            aria-label="Your resources"
             tabIndex={-1}
             className="ab-focus-target"
             data-testid="ab-my-resources"
