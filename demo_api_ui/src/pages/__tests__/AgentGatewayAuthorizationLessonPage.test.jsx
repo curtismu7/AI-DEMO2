@@ -80,6 +80,7 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
       expect(banner).toHaveTextContent(/nothing in them is evaluated/i);
       expect(banner).toHaveTextContent(/needs a signed-in session/i);
       expect(banner).toHaveTextContent(/shows no outcome/i);
+      expect(banner.textContent.length).toBeLessThan(420);
     });
 
     it("has exactly one primary button, Run live request, and it is never a link", () => {
@@ -121,7 +122,7 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
     });
 
     it("shows the decision the live response carries, labelled live", async () => {
-      callMcpTool.mockResolvedValue({ result: { mcpAuthorizeEvaluation: { decision: "DENY" } } });
+      callMcpTool.mockResolvedValue({ result: { mcpAuthorizeEvaluation: { decision: "DENY", engine: "pingone" } } });
       renderPage();
       fireEvent.click(screen.getByRole("button", { name: /read account balance/i }));
       fireEvent.click(screen.getByRole("button", { name: /run live request/i }));
@@ -165,7 +166,7 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
     it("reads the decision from the authorize-decision event the live path returns", async () => {
       callMcpTool.mockResolvedValue({
         result: { balance: 1250 },
-        tokenEvents: [{ id: "authorize-decision", authorizeDecision: "STEP-UP", authorizeEngine: "pingone" }],
+        tokenEvents: [{ id: "authorize-decision", authorizeDecision: "STEP-UP", authorizeEngine: "pingone", authorizeDecisionId: "d-1" }],
       });
       renderPage();
       fireEvent.click(screen.getByRole("button", { name: /transfer \$500/i }));
@@ -178,7 +179,7 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
 
     it("shows a policy denial that throws as a decision, with the engine that made it", async () => {
       callMcpTool.mockRejectedValue(Object.assign(new Error("Denied by policy"), {
-        tokenEvents: [{ id: "authorize-decision", authorizeDecision: "DENY", authorizeEngine: "simulated" }],
+        tokenEvents: [{ id: "authorize-decision", authorizeDecision: "DENY", authorizeEngine: "simulated", authorizePath: "sim/path" }],
       }));
       renderPage();
       fireEvent.click(screen.getByRole("button", { name: /blocked payee/i }));
@@ -196,7 +197,7 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
       fireEvent.click(screen.getByRole("button", { name: /read account balance/i }));
       fireEvent.click(screen.getByRole("button", { name: /run live request/i }));
       const result = screen.getByTestId("agal-result");
-      await waitFor(() => expect(result).toHaveTextContent(/no decision field/i));
+      await waitFor(() => expect(result).toHaveTextContent(/no decision from the engine/i));
       expect(result).not.toHaveTextContent("PERMIT");
     });
 
@@ -229,6 +230,111 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
       expect(callMcpTool).toHaveBeenCalledTimes(1);
       finish({ result: { decision: "PERMIT" } });
       await waitFor(() => expect(screen.getByTestId("agal-result")).toHaveTextContent("PERMIT"));
+    });
+
+    async function runWith(mock, scenarioName = /read account balance/i) {
+      if (mock === "pending") callMcpTool.mockReturnValue(new Promise(() => {}));
+      else if (mock) callMcpTool.mockResolvedValue(mock);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: scenarioName }));
+      fireEvent.click(screen.getByRole("button", { name: /run live request/i }));
+      return screen.getByTestId("agal-result");
+    }
+
+    it("does not turn the app's event defaults into a decision (a skipped gate has no decision)", async () => {
+      // The app builds this event with PERMIT and simulated when the server's evaluation had no decision; it carries
+      // no path, decision id, request or response.
+      const result = await runWith({
+        result: { balance: 1250 },
+        tokenEvents: [{ id: "authorize-decision", authorizeDecision: "PERMIT", authorizeEngine: "simulated", authorizePath: null, authorizeDecisionId: null, authorizeRequest: null, authorizeResponse: null }],
+      });
+      await waitFor(() => expect(result).toHaveTextContent(/no decision from the engine/i));
+      expect(result).not.toHaveTextContent("PERMIT");
+      expect(result).not.toHaveTextContent(/simulated decision/i);
+    });
+
+    it("does not read a skipped evaluation (no decision) as a decision", async () => {
+      const result = await runWith({ result: { mcpAuthorizeEvaluation: { ran: false, skipped: true, skipReason: "gateway_authoritative" } } });
+      await waitFor(() => expect(result).toHaveTextContent(/no decision from the engine/i));
+      expect(result).not.toHaveTextContent("PERMIT");
+    });
+
+    it("prefers the raw evaluation over the event", async () => {
+      const result = await runWith({
+        result: { mcpAuthorizeEvaluation: { decision: "DENY", engine: "pingone" } },
+        tokenEvents: [{ id: "authorize-decision", authorizeDecision: "PERMIT", authorizeEngine: "simulated", authorizePath: "p" }],
+      });
+      await waitFor(() => expect(result).toHaveTextContent("DENY"));
+      expect(result).toHaveTextContent(/live decision/i);
+      expect(result).not.toHaveTextContent("PERMIT");
+    });
+
+    it("does not call a decision with no reported engine live, and does not colour it", async () => {
+      const result = await runWith({ result: { decision: "PERMIT" } });
+      await waitFor(() => expect(result).toHaveTextContent("PERMIT"));
+      expect(result).not.toHaveTextContent(/live decision/i);
+      expect(result).toHaveTextContent(/engine not reported/i);
+      expect(result.querySelector(".pu-chip--ok")).toBeNull();
+      expect(result.querySelector(".pu-card--ok")).toBeNull();
+    });
+
+    it("colours a decision only when PingOne Authorize reported it", async () => {
+      const result = await runWith({ result: { mcpAuthorizeEvaluation: { decision: "PERMIT", engine: "pingone" } } });
+      await waitFor(() => expect(result.querySelector(".pu-chip--ok")).not.toBeNull());
+      expect(result.querySelector(".pu-card--ok")).not.toBeNull();
+    });
+
+    it("names an engine that is neither pingone nor simulated as reported", async () => {
+      const result = await runWith({ result: { mcpAuthorizeEvaluation: { decision: "DENY", engine: "gateway-backstop" } } });
+      await waitFor(() => expect(result).toHaveTextContent(/gateway-backstop/));
+      expect(result).not.toHaveTextContent(/simulated/i);
+      expect(result).not.toHaveTextContent(/live decision/i);
+      expect(result.querySelector(".pu-chip--danger")).toBeNull();
+    });
+
+    it("never gives a card a tone ping-ui.css does not define", async () => {
+      const result = await runWith({ result: { mcpAuthorizeEvaluation: { decision: "WEIRD", engine: "pingone" } } });
+      await waitFor(() => expect(result).toHaveTextContent("WEIRD"));
+      expect(result.querySelector(".pu-card--info")).toBeNull();
+    });
+
+    it("announces a running request in the status region that already exists", async () => {
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /transfer \$500/i }));
+      const result = screen.getByTestId("agal-result");
+      expect(result).toHaveAttribute("role", "status");
+      callMcpTool.mockReturnValue(new Promise(() => {}));
+      fireEvent.click(screen.getByRole("button", { name: /run live request/i }));
+      expect(screen.getByTestId("agal-result")).toBe(result);
+      expect(result).toHaveTextContent(/running/i);
+      expect(result).not.toHaveTextContent(/expected, not evaluated/i);
+    });
+
+    it("keeps a result with the request it was sent for: no switching requests while one runs", async () => {
+      let finish;
+      callMcpTool.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /read account balance/i }));
+      fireEvent.click(screen.getByRole("button", { name: /run live request/i }));
+      const other = screen.getByRole("button", { name: /transfer \$500/i });
+      expect(other).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(other);
+      expect(screen.getByRole("button", { name: /read account balance/i })).toHaveAttribute("aria-pressed", "true");
+      expect(other).toHaveAttribute("aria-pressed", "false");
+      finish({ result: { mcpAuthorizeEvaluation: { decision: "PERMIT", engine: "pingone" } } });
+      await waitFor(() => expect(screen.getByTestId("agal-result")).toHaveTextContent("PERMIT"));
+      expect(other).not.toHaveAttribute("aria-disabled");
+    });
+
+    it("clears an old error when another request is chosen", async () => {
+      callMcpTool.mockRejectedValue(new Error("Sign in required"));
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /transfer \$500/i }));
+      fireEvent.click(screen.getByRole("button", { name: /run live request/i }));
+      await waitFor(() => expect(screen.getByTestId("agal-result")).toHaveTextContent(/sign in required/i));
+      fireEvent.click(screen.getByRole("button", { name: /blocked payee/i }));
+      expect(screen.getByTestId("agal-result")).not.toHaveTextContent(/sign in required/i);
+      expect(screen.getByTestId("agal-result")).toHaveTextContent(/expected, not evaluated/i);
     });
 
     it("labels the payload as an example and makes the scrolling box keyboard reachable", () => {

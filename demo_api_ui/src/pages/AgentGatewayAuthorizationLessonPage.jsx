@@ -3,9 +3,12 @@
 // Honesty: the text, the flow diagram and the "expected" outcome next to each request are written into this page and
 // never evaluated. Only "Run live request" is live: it sends the chosen request through this app's BFF
 // (services/demoAgentService callMcpTool) and shows the decision that call reports. The decision and the engine that
-// made it come from the authorize-decision token event (also carried by a thrown denial or step-up) or the result;
-// an engine is named only when the response says which ("pingone", else the app's simulated one). No decision, or a
-// failure, shows no outcome and substitutes none.
+// made it come from the evaluation the result carries, else the authorize-decision token event (also carried by a thrown
+// denial or step-up). The app builds that event with defaults (decision PERMIT, engine simulated) when the server's
+// evaluation was a skip with no decision, so the event is trusted only when it also carries something copied from a
+// real evaluation (path, decision id, request or response). An engine is named exactly as the response reports it:
+// "pingone" is the live one, any "simulated*" name is simulated, any other name (gateway-backstop, ...) is shown as
+// reported and never called live or simulated. No decision, or a failure, shows no outcome and substitutes none.
 //
 // Layout follows the standalone Ping UI Standard on the shared primitives (components/pingUi,
 // docs/ping-ui-primitives.md): P2 banner first, P4 cards, P5 key-value, P7 chips, P9 buttons. The shared lesson shell
@@ -178,14 +181,44 @@ const POLICY_INPUTS = [
   { label: "Obligation", value: "step-up, consent, logging, or a final deny" },
 ];
 
-// The decision a live response carries, shown as a chip tone. Only a string decision is shown; anything else is
-// treated as "no decision field" rather than rendered.
+// Chip/card tone for a decision. Only used for a decision PingOne Authorize reported; any other engine stays neutral,
+// because the colour would otherwise vouch for a check that was not PingOne's.
 const decisionTone = (decision) => {
   if (/^permit/i.test(decision)) return "ok";
   if (/deny/i.test(decision)) return "danger";
-  if (/step/i.test(decision)) return "warn";
-  return "info";
+  if (/step|indeterminate/i.test(decision)) return "warn";
+  return "neutral";
 };
+
+// An authorize-decision event counts as evidence only when it carries a field the app copies from the server's
+// evaluation. The app's own defaults leave all four empty (see header).
+const eventHasEvidence = (e) => Boolean(e && (e.authorizePath || e.authorizeDecisionId || e.authorizeRequest || e.authorizeResponse));
+
+// What the response says about who decided: { decision, engine } with each a string or null.
+function readDecision(liveResult, liveEvents) {
+  const evaluation = liveResult?.mcpAuthorizeEvaluation || liveResult?.authorizeEvaluation || null;
+  if (evaluation && typeof evaluation.decision === "string") {
+    return { decision: evaluation.decision, engine: typeof evaluation.engine === "string" ? evaluation.engine : null };
+  }
+  const event = liveEvents.find((e) => e?.id === "authorize-decision" && eventHasEvidence(e));
+  if (event && typeof event.authorizeDecision === "string") {
+    return { decision: event.authorizeDecision, engine: typeof event.authorizeEngine === "string" ? event.authorizeEngine : null };
+  }
+  return { decision: typeof liveResult?.decision === "string" ? liveResult.decision : null, engine: null };
+}
+
+// How the reported engine is worded. Only "pingone" is called live; "simulated*" is simulated; any other name is
+// shown as reported; no name says so.
+function describeEngine(engine) {
+  if (engine === "pingone") return { word: "Live decision", source: "Returned by PingOne Authorize.", pingone: true };
+  if (engine && /simulated/i.test(engine)) {
+    return { word: "Simulated decision", source: "Returned by the app’s simulated policy engine, not PingOne Authorize.", pingone: false };
+  }
+  if (engine) {
+    return { word: `Decision (${engine})`, source: `Returned by the “${engine}” engine, not PingOne Authorize.`, pingone: false };
+  }
+  return { word: "Decision, engine not reported", source: "The response did not say which engine decided, so it is not shown as live.", pingone: false };
+}
 
 export default function AgentGatewayAuthorizationLessonPage() {
   const [selectedNode, setSelectedNode] = useState("gateway");
@@ -199,6 +232,8 @@ export default function AgentGatewayAuthorizationLessonPage() {
   const node = FLOW_NODES.find((item) => item.id === selectedNode) || FLOW_NODES[1];
 
   const runScenario = (id) => {
+    // A result must belong to the request it was sent for: no switching while one is in flight.
+    if (liveBusy) return;
     setScenarioId(id);
     setRan(true);
     setLiveResult(null);
@@ -231,37 +266,24 @@ export default function AgentGatewayAuthorizationLessonPage() {
     }
   };
 
-  // The decision the live path reports: the app's authorize-decision event (also set on a denial or step-up that
-  // throws), else the evaluation the result carries. The engine is named only when one of them says which.
-  const authorizeEvent = liveEvents.find((e) => e?.id === "authorize-decision") || null;
-  const evaluation = liveResult?.mcpAuthorizeEvaluation || liveResult?.authorizeEvaluation || null;
-  const rawDecision = authorizeEvent?.authorizeDecision || evaluation?.decision || liveResult?.decision || null;
-  const liveDecision = typeof rawDecision === "string" ? rawDecision : null;
-  const rawEngine = authorizeEvent?.authorizeEngine || evaluation?.engine || null;
-  const engine = typeof rawEngine === "string" ? rawEngine : null;
-  const simulated = Boolean(engine) && engine !== "pingone";
-  const liveWord = simulated ? "Simulated decision" : "Live decision";
-  const liveSource = engine === "pingone"
-    ? "Returned by PingOne Authorize."
-    : simulated
-      ? "Returned by the app’s simulated policy engine, not PingOne Authorize."
-      : "The response did not say which engine decided.";
+  // The decision the live path reports and the engine that made it (see readDecision).
+  const { decision: liveDecision, engine } = readDecision(liveResult, liveEvents);
+  const { word: liveWord, source: liveSource, pingone } = describeEngine(engine);
+  const liveTone = pingone && liveDecision ? decisionTone(liveDecision) : "neutral";
   const runUnavailable = !ran || liveBusy;
   const runHint = !ran
     ? "Choose a request first: this button stays inactive until you do."
     : liveBusy
-      ? "Running the request. The result appears above."
+      ? "Running the request. The result appears above, and choosing another request waits until it finishes."
       : "Sends the chosen request to this app’s BFF. It needs a signed-in session.";
 
   return (
     <PingPage className="agal-page">
       <SimBanner data-testid="agal-banner">
-        <strong>LESSON WITH ONE LIVE ACTION</strong> — the text and the flow diagram are teaching material; nothing in
-        them is evaluated. In Try it, a chosen request shows the outcome the lesson expects (written into this page,
-        not evaluated). Run live request sends it through this app’s BFF for the signed-in user and shows the decision
-        the response carries; it needs a signed-in session. A failed or decision-less response shows no outcome. Which
-        service decides (PingOne Authorize or the app’s simulated engine) depends on this server’s configuration; the
-        result names the engine only when the response reports it.
+        <strong>LESSON WITH ONE LIVE ACTION</strong> — the text, the diagram and the expected outcomes are teaching
+        material; nothing in them is evaluated. Only Run live request is live: it needs a signed-in session, shows
+        the decision the response carries (a failed or decision-less response shows no outcome), and names the
+        engine only when the response does.
       </SimBanner>
       <LessonLayout
         pageClassName="agal-lesson-page"
@@ -344,7 +366,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
               <p className="pu-note">The chip is the outcome the lesson expects for that request. It is not evaluated until you run it live.</p>
               <div className="agal-scenarios">
                 {SCENARIOS.map((item) => (
-                  <button key={item.id} type="button" className="pu-btn agal-scenario" aria-pressed={ran && scenarioId === item.id} onClick={() => runScenario(item.id)}>
+                  <button key={item.id} type="button" className="pu-btn agal-scenario" aria-pressed={ran && scenarioId === item.id} aria-disabled={liveBusy ? "true" : undefined} onClick={() => runScenario(item.id)}>
                     <span>{item.label}</span><StatusChip>{item.outcome}</StatusChip>
                   </button>
                 ))}
@@ -352,10 +374,15 @@ export default function AgentGatewayAuthorizationLessonPage() {
               <div className="agal-result-region" role="status" data-testid="agal-result">
                 {!ran ? (
                   <p className="pu-note pu-empty agal-ready">Select a scenario to walk through its decision.</p>
+                ) : liveBusy ? (
+                  <Card tone="live" className="agal-result">
+                    <p className="pu-status-line"><StatusChip tone="info">Running</StatusChip></p>
+                    <p className="pu-note">Sending the request through this app’s BFF. The decision it reports appears here.</p>
+                  </Card>
                 ) : liveDecision ? (
-                  <Card tone={simulated ? "neutral" : decisionTone(liveDecision)} className="agal-result">
+                  <Card tone={liveTone} className="agal-result">
                     <p className="pu-status-line">
-                      <StatusChip tone={simulated ? "neutral" : decisionTone(liveDecision)}>{liveWord}</StatusChip>
+                      <StatusChip tone={liveTone}>{liveWord}</StatusChip>
                       <strong>{liveDecision}</strong>
                     </p>
                     <p className="pu-note">{liveSource}</p>
@@ -369,7 +396,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
                 ) : liveResult ? (
                   <Card tone="live" className="agal-result">
                     <p className="pu-status-line"><StatusChip tone="info">Live response</StatusChip></p>
-                    <p className="pu-note">The response carried no decision field, so no outcome is shown.</p>
+                    <p className="pu-note">The response carried no decision from the engine, so no outcome is shown.</p>
                   </Card>
                 ) : (
                   <Card tone="neutral" className="agal-result">
