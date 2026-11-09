@@ -170,6 +170,11 @@ export default function LiveUseCaseWorkbenchPage() {
   const [glanceRecent, setGlanceRecent] = useState('—');
   const { verdict } = useProofOfEnforcement();
   const [authorizeSeen, setAuthorizeSeen] = useState(null);
+  // A reload (the vertical provider names the vertical a moment after first paint) keeps the cards that are
+  // already on screen: unmounting them would drop keyboard focus to <body> mid-press. Their Run buttons are
+  // aria-disabled until the new list lands.
+  const refreshing = loading && useCases.length > 0;
+  const showCards = !error && (!loading || refreshing);
   const selectedUc = useCases.find((u) => u.id === selectedId) || null;
   // The global trace store (and the verdict derived from it) isn't scoped to
   // a selection — switching to a DIFFERENT card must not keep showing the
@@ -191,9 +196,18 @@ export default function LiveUseCaseWorkbenchPage() {
   // run starts. Emphasis is visual only — DOM focus is never moved.
   const railFocus = !running && Boolean(verdictForSelection?.state);
   const verdictMatched = verdictForSelection?.state === 'verified' || verdictForSelection?.state === 'denied-as-expected';
-  const announcement = railFocus
-    ? `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`
-    : '';
+  // One polite live region, mounted from the first render so each change below is announced. It carries the
+  // progress the card chip and the button label show silently (Running, request returned) and the settled
+  // verdict. A failure is not repeated here: the drawer's role="alert" already carries its message.
+  const runTitle = useCases.find((u) => u.id === runState?.id)?.title || runState?.id;
+  let announcement = '';
+  if (railFocus) {
+    announcement = `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`;
+  } else if (running) {
+    announcement = `Running ${runTitle}.`;
+  } else if (runState?.state === 'done') {
+    announcement = `${runTitle}: run request returned.`;
+  }
 
   // Bring the authorize decision into view and pulse it — the rail is the proof,
   // so the eye should land on the step that decided the outcome. Purely additive:
@@ -538,6 +552,7 @@ export default function LiveUseCaseWorkbenchPage() {
         selectedId={selectedId}
         runState={runState}
         isPrimary={isPrimary}
+        refreshing={refreshing}
         onSelect={setSelectedId}
         onRun={handleRunSelected}
       />
@@ -547,11 +562,10 @@ export default function LiveUseCaseWorkbenchPage() {
   return (
     <PingPage className="luw">
       <SimBanner data-testid="luw-banner">
-        <strong>LIVE WORKBENCH</strong> — Run a card to send its prompt to the agent, fire an attack sim or open a
-        learning page. What happened is read from the agent&apos;s reply and the token chain rail, which labels the
-        source of each run; this page does not decide it. An attack sim sends a deliberately deficient token, so a
-        deny is the expected, passing result. The account figures under the stage are samples this page keeps
-        itself, never read from an account.
+        <strong>Workbench</strong> — Run a card to send its prompt to the agent, fire an attack sim or open a
+        learning page. The agent&apos;s toolbar sets its engine, and the rail labels each run&apos;s source. A run
+        shows Failed when its request errors; the Verdict strip compares the observed decision with the expected one.
+        Account figures are samples this page keeps itself, never read from an account.
       </SimBanner>
       <div className="luw-topbar">
         <h1 className="luw-topbar__title">Use Cases</h1>
@@ -603,14 +617,14 @@ export default function LiveUseCaseWorkbenchPage() {
           {runState?.state === 'error' && (
             <p className="luw-drawer__empty pu-note pu-empty" role="alert">{runState.msg}</p>
           )}
-          <div className="luw-drawer__scroll">
+          <div className="luw-drawer__scroll" aria-busy={refreshing || undefined}>
             {loading && <p className="luw-drawer__empty pu-note"><InlineSpinner label="Loading…" /></p>}
             {error && <p className="luw-drawer__empty pu-note pu-empty" role="alert">{error}</p>}
             {!loading && !error && primaryDemo.length === 0 && advancedDemo.length === 0 && groupedOther.length === 0 && coupaNiqDemo.length === 0 && (
               <p className="luw-drawer__empty pu-note pu-empty" role="status">No use cases match “{query}”.</p>
             )}
 
-            {!loading && !error && securityDemo.length > 0 && (
+            {showCards && securityDemo.length > 0 && (
               <details className="luw-track luw-track--security" open>
                 <summary>
                   15-Min Security Demo
@@ -620,9 +634,9 @@ export default function LiveUseCaseWorkbenchPage() {
               </details>
             )}
 
-            {!loading && !error && primaryDemo.map((uc, i) => renderCard(uc, i + 1))}
+            {showCards && primaryDemo.map((uc, i) => renderCard(uc, i + 1))}
 
-            {!loading && !error && advancedDemo.length > 0 && (
+            {showCards && advancedDemo.length > 0 && (
               <details className="luw-track luw-track--more">
                 <summary>
                   More demos
@@ -632,7 +646,7 @@ export default function LiveUseCaseWorkbenchPage() {
               </details>
             )}
 
-            {!loading && !error && groupedOther.map(({ track, items }) => (
+            {showCards && groupedOther.map(({ track, items }) => (
               <details key={track} className={`luw-track luw-track--${track}`} open={track === 'attacks'}>
                 <summary>
                   {TRACK_LABELS[track]}
@@ -642,7 +656,7 @@ export default function LiveUseCaseWorkbenchPage() {
               </details>
             ))}
 
-            {!loading && !error && coupaNiqDemo.length > 0 && (
+            {showCards && coupaNiqDemo.length > 0 && (
               <details className="luw-track luw-track--gap-closure" open>
                 <summary>
                   Identity for AI — Coupa/NIQ gap closure
@@ -680,7 +694,7 @@ export default function LiveUseCaseWorkbenchPage() {
                 token-chain evidence for ONE selected use case; this compares the
                 declared vs actual CONTROL across all of them at once. */}
             <PolicyConformancePanel vertical={vertical} />
-            <p className="luw-sr-only" aria-live="polite">{announcement}</p>
+            <p className="luw-sr-only" role="status" aria-live="polite">{announcement}</p>
             <div
               className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}
               ref={runLayoutRef}
@@ -752,7 +766,7 @@ export default function LiveUseCaseWorkbenchPage() {
  * status chip, and the Run button (the primary when `isPrimary`, which the parent decides so exactly one
  * shows per view).
  */
-function UseCaseCard({ uc, stepNumber, withScriptDetail, selectedId, runState, isPrimary, onSelect, onRun }) {
+function UseCaseCard({ uc, stepNumber, withScriptDetail, selectedId, runState, isPrimary, refreshing, onSelect, onRun }) {
   const isRunnableAttack = uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim);
   const isLink = uc.trigger?.type === 'link' && !!uc.trigger.path;
   const canRun = isRunnable(uc);
@@ -830,10 +844,10 @@ function UseCaseCard({ uc, stepNumber, withScriptDetail, selectedId, runState, i
         <button
           type="button"
           className={`luw-card__run pu-btn${isPrimary ? ' pu-btn--primary' : ''}`}
-          aria-disabled={running || undefined}
+          aria-disabled={running || refreshing || undefined}
           onClick={(e) => {
             e.stopPropagation();
-            if (running) return; // aria-disabled keeps keyboard focus here; the click is ignored
+            if (running || refreshing) return; // aria-disabled keeps keyboard focus here; the click is ignored
             onSelect(uc.id);
             onRun(uc);
           }}

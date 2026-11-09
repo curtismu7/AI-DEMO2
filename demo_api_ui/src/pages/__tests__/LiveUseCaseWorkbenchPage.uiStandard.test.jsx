@@ -15,7 +15,8 @@ vi.mock('../../services/apiClient', () => ({
     post: vi.fn(() => Promise.resolve({ data: {} })),
   },
 }));
-vi.mock('../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: 'banking' }) }));
+const vertical = vi.hoisted(() => ({ id: 'banking' }));
+vi.mock('../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: vertical.id }) }));
 vi.mock('../../components/VerticalSwitcher', () => ({ default: () => <div data-testid="vertical-switcher" /> }));
 vi.mock('../../components/TokenChainTraceRail', () => ({ default: () => <div data-testid="trace-rail" /> }));
 vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({
@@ -59,6 +60,7 @@ async function renderLoaded(catalog = CATALOG) {
 }
 
 beforeEach(() => {
+  vertical.id = 'banking';
   localStorage.clear();
   apiClient.get.mockReset();
   apiClient.post.mockReset();
@@ -78,6 +80,21 @@ describe('/use-cases/live: P2 banner', () => {
     expect(banner).toHaveTextContent(/never read from an account/i);
   });
 
+  it('does not claim a mode or an engine it cannot know, and does not say the page decides nothing', async () => {
+    await renderLoaded();
+    const text = screen.getByTestId('luw-banner').textContent;
+    // The page cannot see the agent's engine (Heuristics or an LLM), so no "live" claim and no engine named.
+    expect(text).not.toMatch(/\blive workbench\b/i);
+    expect(text).not.toMatch(/\b(llama|anthropic|helix|heuristic)/i);
+    // It does classify: a run is Failed when the request errors, and the Verdict strip compares expected with observed.
+    expect(text).not.toMatch(/does not decide/i);
+    expect(text).toMatch(/Failed/);
+    expect(text).toMatch(/Verdict/);
+    // Points at where the engine and the source of each run are actually shown.
+    expect(text).toMatch(/agent'?s? (own )?(toolbar|mode)/i);
+    expect(text).toMatch(/rail/i);
+  });
+
   it('does not name a source it cannot know (the track label and banner never hardcode PingOne)', async () => {
     const { container } = await renderLoaded([
       ...CATALOG,
@@ -93,7 +110,7 @@ describe('/use-cases/live: P9 one primary per view state', () => {
     apiClient.get.mockReturnValue(new Promise(() => {}));
     const { container } = render(<LiveUseCaseWorkbenchPage />);
     expect(primaries(container)).toHaveLength(0);
-    expect(screen.getByRole('status')).toHaveTextContent(/loading/i);
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
   });
 
   it('has no primary and an alert when the catalog fails to load', async () => {
@@ -249,6 +266,88 @@ describe('/use-cases/live: simulated content never reads as real', () => {
     expect(chips).toHaveLength(2);
     chips.forEach((c) => expect(c).toHaveTextContent('Sample'));
     expect(within(glance).getByText('$4,820.00')).toBeInTheDocument();
+  });
+});
+
+describe('/use-cases/live: run progress is announced', () => {
+  const liveRegion = (c) => c.querySelector('.luw-sr-only');
+
+  it('has a polite status region before anything runs, and it is the same node throughout a run', async () => {
+    let finish;
+    apiClient.post.mockImplementation((url) => {
+      if (url === '/api/use-cases/demo/run') return new Promise((r) => { finish = r; });
+      return Promise.resolve({ data: {} });
+    });
+    const { container } = await renderLoaded();
+    const region = liveRegion(container);
+    expect(region).toHaveAttribute('role', 'status');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region).toHaveTextContent('');
+
+    fireEvent.click(primaries(container)[0]);
+    await waitFor(() => expect(region).toHaveTextContent('Running Public catalog.'));
+    expect(liveRegion(container)).toBe(region);
+
+    await act(async () => { finish({ data: { useCaseId: 'public-catalog', triggerText: 'x' } }); });
+    await waitFor(() => expect(region).toHaveTextContent('Public catalog: run request returned.'));
+    expect(liveRegion(container)).toBe(region);
+  });
+
+  it('does not repeat the failure in the status region: the drawer alert already carries the message', async () => {
+    apiClient.post.mockRejectedValue(new Error('launch failed'));
+    const { container } = await renderLoaded();
+    fireEvent.click(primaries(container)[0]);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('launch failed'));
+    expect(liveRegion(container)).toHaveTextContent('');
+  });
+});
+
+describe('/use-cases/live: a catalog refetch keeps the cards and the focused button', () => {
+  it('keeps the same card nodes, the focus and the primary while the list reloads for a new vertical', async () => {
+    vertical.id = null; // the vertical provider hydrates after first paint: null, then the real id
+    const { container, rerender } = await renderLoaded();
+    const run = primaries(container)[0];
+    const card = run.closest('.luw-card');
+    run.focus();
+    expect(document.activeElement).toBe(run);
+
+    let resolveSecond;
+    apiClient.get.mockImplementation(() => new Promise((r) => { resolveSecond = r; }));
+    vertical.id = 'banking';
+    rerender(<LiveUseCaseWorkbenchPage />);
+
+    // Reloading: the cards stay mounted (same nodes), focus stays, and the Run buttons are aria-disabled, not removed.
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2));
+    expect(run.isConnected).toBe(true);
+    expect(run.closest('.luw-card')).toBe(card);
+    expect(document.activeElement).toBe(run);
+    expect(run).toHaveAttribute('aria-disabled', 'true');
+    expect(container.querySelector('.luw-drawer__scroll')).toHaveAttribute('aria-busy', 'true');
+
+    await act(async () => { resolveSecond({ data: { useCases: CATALOG } }); });
+    await waitFor(() => expect(run).not.toHaveAttribute('aria-disabled'));
+    expect(run.isConnected).toBe(true);
+    expect(document.activeElement).toBe(run);
+    expect(container.querySelector('.luw-drawer__scroll')).not.toHaveAttribute('aria-busy');
+  });
+
+  it('ignores a Run press while the list is reloading', async () => {
+    vertical.id = null;
+    const { container, rerender } = await renderLoaded();
+    apiClient.get.mockImplementation(() => new Promise(() => {}));
+    vertical.id = 'banking';
+    rerender(<LiveUseCaseWorkbenchPage />);
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2));
+    const before = apiClient.post.mock.calls.length;
+    fireEvent.click(primaries(container)[0]);
+    expect(apiClient.post.mock.calls.length).toBe(before);
+  });
+
+  it('shows the loading spinner and no cards on the very first load (nothing to keep)', () => {
+    apiClient.get.mockReturnValue(new Promise(() => {}));
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-card')).toBeNull();
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
   });
 });
 
