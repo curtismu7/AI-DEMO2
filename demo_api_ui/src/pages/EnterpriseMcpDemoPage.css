@@ -1,207 +1,98 @@
-/* EnterpriseMcpDemoPage — presenter surface for MCP Enterprise-Managed Auth.
-   Uses the real --th-* semantic set (src/index.css). Previously referenced a
-   fictional token family (th-surface, th-surface-2, th-primary-border,
-   th-primary-bg, th-warn-border, th-warn-bg, th-warn-text, th-accent-border,
-   th-accent-bg, th-accent-text) — none of them defined anywhere, so every
-   var() always fell through to its light literal fallback in both themes
-   (same fictional-token drift found elsewhere this session). */
-
-.emd-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem 3rem;
-  color: var(--th-text);
-}
-
-.emd-armed-banner {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--th-status-warning-border);
-  border-left: 4px solid var(--th-status-warning-border);
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.emd-header {
-  position: relative;
-}
-
-.emd-theme-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.emd-theme-toggle:hover {
-  color: var(--th-text);
-  background: var(--th-bg-hover);
-}
-
-.emd-header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.5rem;
-  line-height: 1.25;
-}
-
-.emd-sub {
-  margin: 0 0 1.25rem;
-  max-width: 72ch;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--th-text-muted);
-}
-
-.emd-card {
-  color: var(--th-text);
-  margin-bottom: 1.25rem;
-  padding: 1rem 1.1rem;
-  border-radius: 10px;
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-card);
-}
-
-.emd-card h2 {
-  margin: 0 0 0.6rem;
-  font-size: 1.05rem;
-}
+/* EnterpriseMcpDemoPage: only what is specific to this page. The banner, frame, cards, key-value lists,
+   chips and buttons are the shared Ping UI primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md).
+   Surfaces, lines and ink are --th-* only (H1), type comes from the --font-size-* scale (H2), no inline
+   styles (H3). The page prefix is emd-; the call player (.ijc) and path bar (.idjag-path) are shared with
+   /pingfederate-id-jag, so everything that touches them is scoped under .emd-page. */
 
 .emd-steps {
   margin: 0;
   padding-left: 1.25rem;
-  font-size: 0.9rem;
   line-height: 1.7;
 }
 
 .emd-steps li { margin-bottom: 0.2rem; }
 
-.emd-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.9rem;
+/* The PingOne end-user-nano skin sets word-wrap: break-word on code, and its rules beat a single class:
+   scoped under the page class so a long unbroken value wraps instead of widening the page. */
+.pu-page.emd-page code,
+.pu-page.emd-page .pu-kv dd,
+.pu-page.emd-page .emd-prerequisite__text {
+  overflow-wrap: anywhere;
 }
 
-.emd-link {
-  color: var(--th-status-info-text);
-  padding: 0.4rem 0.7rem;
-  font-size: 0.82rem;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  border: 1px solid var(--th-status-info-border);
-  background: var(--th-status-info-bg);
-}
+.emd-prerequisite__text { margin: 0; }
 
-.emd-link:hover { filter: brightness(0.97); }
-
-.emd-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  align-items: center;
-}
-
-.emd-btn {
-  color: var(--th-text);
-  padding: 0.55rem 0.95rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-  border-radius: var(--btn-radius);
-  cursor: pointer;
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-inset);
-}
-
-.emd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.emd-btn:not(:disabled):hover { filter: brightness(0.97); }
-
-.emd-btn--primary {
-  color: #fff;
-  border-color: var(--signin-accent, #12538d);
-  background: var(--signin-accent, #12538d);
-}
-
-.emd-btn--reset {
-  color: var(--th-status-warning-text);
-  border-color: var(--th-status-warning-border);
-  background: transparent;
-}
-
-.emd-status {
-  margin: 0.75rem 0 0;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-.emd-prerequisite {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--th-status-warning-border);
-  border-radius: 7px;
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-  font-size: var(--font-size-sm);
-}
-
-.emd-prerequisite a { color: var(--th-status-warning-text); text-decoration: underline; }
-
-.emd-note {
-  margin: 0.75rem 0 0;
-  max-width: 78ch;
-  font-size: 0.82rem;
-  line-height: 1.6;
-  color: var(--th-text-muted);
-}
-
-.emd-note code {
-  color: var(--th-code-text);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  background: var(--th-code-bg);
-}
-
-/* The filmstrip manages its own internal scrolling; keep the card from
-   forcing horizontal page scroll on narrow viewports. */
-.emd-card--film { overflow-x: auto; }
-
-@media (max-width: 640px) {
-  .emd-actions { flex-direction: column; align-items: stretch; }
-  .emd-btn { width: 100%; }
-  .emd-theme-toggle {
-    position: static;
-    display: inline-block;
-    margin-bottom: 0.75rem;
-  }
-}
-
-/* The admin sign-in inside the PF-required notice — styled like the old link. */
+/* The admin sign-in inside the recovery notice reads as a link, in the notice's own ink. */
 .idjag-admin-signin {
   background: none;
   border: none;
   padding: 0;
-  color: var(--th-status-info-text, #4f7df3);
+  color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-decoration: underline;
   cursor: pointer;
+}
+
+.idjag-admin-signin:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The filmstrip manages its own internal scrolling; keep the card from forcing horizontal page scroll. */
+.emd-film { overflow-x: auto; }
+
+/* P9 for the shared call player. Its base rules fill the pressed view toggle and Simulate in red, which would be
+   a second primary next to "Run live ID-JAG demo" (and a red that is not the fixed button accent). Here they are
+   bordered secondaries; the pressed toggle is marked by weight plus a 3px bar in the fixed accent, not by fill. */
+.emd-page .ijc button {
+  border-color: var(--control-border);
+}
+
+.emd-page .ijc .ijc-toggle button[aria-pressed='true'] {
+  border-color: var(--btn-accent);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  box-shadow: inset 0 -3px 0 var(--btn-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.emd-page .ijc .ijc-play {
+  border-color: var(--control-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.emd-page .ijc button:hover:not(:disabled) {
+  border-color: var(--btn-accent);
+}
+
+.emd-page .ijc button:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The same for the learning-path bar: the current stop and "Next" were red fills. */
+.emd-page .idjag-path .idjag-path__stops .is-current a {
+  border-color: var(--btn-accent);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  box-shadow: inset 0 -3px 0 var(--btn-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.emd-page .idjag-path .idjag-path__btn--next {
+  border-color: var(--control-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ping-ui.css gives every `.pu-card li` min-width: 0 and overflow-wrap: anywhere (so a long word in a card list
+   wraps). The movie reel is a flex row of <li> frames inside a card, and that rule let them shrink to ~48px and
+   overlap. Frames keep their own width and the reel scrolls sideways, as it does outside a card. */
+.pu-page.emd-page .ijc-reel > li {
+  flex: 0 0 auto;
+  min-width: auto;
 }
