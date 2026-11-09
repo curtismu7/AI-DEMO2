@@ -16,8 +16,10 @@ vi.mock('../context/ThemeContext', () => ({
 
 vi.mock('../components/SignInPrompt', () => ({ default: () => <div data-testid="signin-strip" /> }));
 
+const chainDetail = vi.hoisted(() => ({ value: { present: false } }));
+
 vi.mock('../utils/a2aChainDetail', () => ({
-  buildA2aChainDetail: () => ({ present: false }),
+  buildA2aChainDetail: () => chainDetail.value,
 }));
 
 vi.mock('../data/a2aRecordedRun', () => ({
@@ -244,12 +246,14 @@ describe('A2A protocol learning page: Ping UI Standard', () => {
   beforeEach(() => {
     localStorage.removeItem(A2A_SECTION_FOLD_STORAGE_NAME);
     teachingPanes.value = [];
+    chainDetail.value = { present: false };
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     teachingPanes.value = [];
+    chainDetail.value = { present: false };
   });
 
   it('puts the note banner first inside the Ping UI page, and says the run is recorded', () => {
@@ -358,7 +362,10 @@ describe('A2A protocol learning page: Ping UI Standard', () => {
     await waitFor(() => expect(screen.getByTestId('signin-strip')).toBeInTheDocument());
     expect(button).toHaveFocus();
     // Signed out: the page says so inline and stays on the recorded run (no redirect, no result swap).
-    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('Recorded run');
+    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('Sign-in needed');
+    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent(/still show the recorded run/);
+    expect(screen.getByTestId('a2l-run-status')).toHaveAttribute('role', 'status');
+    expect(screen.getByTestId('a2l-banner')).toHaveTextContent('RECORDED RUN');
     expect(document.querySelectorAll('button.pu-btn--primary')).toHaveLength(1);
   });
 
@@ -398,6 +405,122 @@ describe('A2A protocol learning page: Ping UI Standard', () => {
       expect(chip.textContent.trim().length).toBeGreaterThan(0);
       expect(chip.className).not.toContain('pu-chip--ok');
     });
+  });
+
+  it('the banner follows the Agent Card check: failed fetch is not described as a real request that worked', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('a2l-card-status')).toHaveTextContent('Unavailable'));
+    const banner = screen.getByTestId('a2l-banner');
+    expect(banner).toHaveTextContent(/did not come back as JSON/);
+    expect(banner).not.toHaveTextContent(/came back as JSON\./);
+    expect(banner).not.toHaveTextContent(/when the page loads/);
+  });
+
+  it('the banner says the Agent Card request came back as JSON only after it did', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => (
+      String(url).includes('agent-card.json') ? json(200, { name: 'M' }) : Promise.reject(new Error('offline'))
+    )));
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('a2l-banner')).toHaveTextContent(/and it came back as JSON/));
+  });
+
+  it('the banner reads the agent hop from the run: in-process, over HTTP, or not reported', async () => {
+    const liveRun = () => vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url) === '/api/a2a/init') return json(200, {});
+      if (String(url) === '/api/a2a/message') return json(200, { tokenEvents: [{ id: 'user-token' }] });
+      return Promise.reject(new Error('offline'));
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+
+    chainDetail.value = { present: true, protocol: { mode: 'in-process' }, hops: [] };
+    const first = renderPage();
+    expect(screen.getByTestId('a2l-banner')).toHaveTextContent(/In the recorded run the hop between the two agents ran in-process/);
+    first.unmount();
+
+    liveRun();
+    chainDetail.value = { present: true, protocol: { mode: 'http' }, hops: [] };
+    const second = renderPage();
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-banner')).toHaveTextContent('LIVE RUN'));
+    expect(screen.getByTestId('a2l-banner')).toHaveTextContent(/In this run the hop between the two agents went over HTTP/);
+    expect(screen.getByTestId('a2l-banner')).not.toHaveTextContent(/in-process, so no HTTP/);
+    second.unmount();
+
+    liveRun();
+    chainDetail.value = { present: true, protocol: null, hops: [] };
+    renderPage();
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-banner')).toHaveTextContent('LIVE RUN'));
+    expect(screen.getByTestId('a2l-banner')).toHaveTextContent(/did not report which happened/);
+  });
+
+  it.each([
+    [{ metadata: { framework: 'llama.cpp' }, agentHeader: '[A2A ORCHESTRATOR - LLM (llama.cpp)]' }, /llama\.cpp decided the delegation/],
+    [{ metadata: { framework: 'heuristic' }, agentHeader: '[A2A ORCHESTRATOR - Heuristics]' }, /keyword heuristic decided, with no model call/],
+    [{ metadata: { framework: 'heuristic' }, agentHeader: '[A2A ORCHESTRATOR - Heuristic Fallback]' }, /llama\.cpp call failed and the BFF fell back/],
+    [undefined, /did not say which engine decided/],
+  ])('a live run names the engine the BFF reported (%#), not the mode that was asked for', async (decision, expected) => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url) === '/api/a2a/init') return json(200, {});
+      if (String(url) === '/api/a2a/message') {
+        return json(200, { tokenEvents: [{ id: 'user-token' }], delegationDecision: decision });
+      }
+      return Promise.reject(new Error('offline'));
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage(); // default mode is llm: a fallback must still be called a fallback
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('Live run'));
+    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent(expected);
+  });
+
+  it('a run failure is explained, sits in a live region that exists before it fills, and does not leak into another mode', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url) === '/api/a2a/init') return json(200, {});
+      if (String(url) === '/api/a2a/message') return json(502, { error: 'proxy_error' });
+      return Promise.reject(new Error('offline'));
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+    const region = screen.getByTestId('a2l-run-error');
+    expect(region).toHaveAttribute('role', 'alert');
+    expect(region).toBeEmptyDOMElement();
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(region).toHaveTextContent('Run failed'));
+    expect(screen.getByTestId('a2l-run-error')).toBe(region); // same node: it was not mounted with its content
+    expect(region).toHaveTextContent(/answered HTTP 502 and returned no token chain: proxy_error/);
+    await user.click(screen.getByRole('radio', { name: 'Heuristics' }));
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it('a non-JSON body and a network error each get a sentence, not a parser or fetch message alone', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url) === '/api/a2a/init') return json(200, {});
+      if (String(url) === '/api/a2a/message') return { ok: false, status: 502, headers: { get: () => 'text/plain' }, json: async () => { throw new SyntaxError('Unexpected token'); } };
+      return Promise.reject(new Error('offline'));
+    }));
+    const first = renderPage();
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-run-error')).toHaveTextContent(/HTTP 502 with a body that was not JSON/));
+    expect(screen.getByTestId('a2l-run-error')).not.toHaveTextContent('Unexpected token');
+    first.unmount();
+
+    vi.stubGlobal('fetch', vi.fn(async (url) => (
+      String(url) === '/api/a2a/init' ? json(200, {}) : Promise.reject(new Error('Failed to fetch'))
+    )));
+    renderPage();
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-run-error')).toHaveTextContent(/request did not complete \(Failed to fetch\)/));
+  });
+
+  it('scopes every rule in the page sheet: no selector can match another page', () => {
+    const rules = pageCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@media[^{]*\{/g, '');
+    const selectors = [...rules.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(',').map((x) => x.trim())).filter(Boolean);
+    expect(selectors.length).toBeGreaterThan(10);
+    // Every selector carries a page-unique a2l- class (or the page root), so nothing here restyles another page.
+    const unscoped = selectors.filter((sel) => !/a2l-/.test(sel));
+    expect(unscoped).toEqual([]);
   });
 
   it('keeps no inline colour, no violet and no vertical token in the page sheet', () => {

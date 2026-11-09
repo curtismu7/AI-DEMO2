@@ -154,6 +154,29 @@ function paneCaption(pane, recorded) {
     : 'An HTTP exchange made by the BFF during this run. Your browser did not send it.';
 }
 
+// Which engine decided a live run, read from what the BFF returned (delegationDecision.metadata.framework and
+// agentHeader), never from the mode the page asked for: the BFF falls back from llama.cpp to the keyword
+// heuristic when the model call fails.
+function engineSentence(run) {
+  const decision = run?.delegationDecision;
+  const framework = decision?.metadata?.framework;
+  if (framework === 'llama.cpp') return 'llama.cpp decided the delegation.';
+  if (framework === 'heuristic') {
+    return /fallback/i.test(decision?.agentHeader || '')
+      ? 'The keyword heuristic decided, because the llama.cpp call failed and the BFF fell back to it.'
+      : 'The keyword heuristic decided, with no model call.';
+  }
+  return 'The response did not say which engine decided.';
+}
+
+// Whether the agent-to-agent hop crossed HTTP, from the protocol event the run carries.
+function wireSentence(protocolMode, isReplay) {
+  const which = isReplay ? 'the recorded run' : 'this run';
+  if (protocolMode === 'http') return `In ${which} the hop between the two agents went over HTTP.`;
+  if (protocolMode) return `In ${which} the hop between the two agents ran in-process, so no HTTP crossed between them.`;
+  return 'The hop between the two agents runs in-process unless A2A_PROTOCOL_HTTP=1; this run did not report which happened.';
+}
+
 // The page owns which sections are folded (and remembers it); FoldSection reads it.
 const SectionFoldContext = createContext(null);
 
@@ -214,6 +237,9 @@ export default function A2AProtocolLearningPage() {
   const [agentMode, setAgentMode] = usePageAgentMode('a2a-protocol-learning');
   const [needsAuth, setNeedsAuth] = useState(false);
   const [runError, setRunError] = useState(null);
+
+  // A failure belongs to the vertical and mode it was sent with; do not carry it over to a different choice.
+  useEffect(() => { setRunError(null); }, [vertical, agentMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,16 +317,21 @@ export default function A2AProtocolLearningPage() {
         body: JSON.stringify({ message: A2A_RECORDED_RUN.message, vertical, mode: agentMode }),
       });
       if (res.status === 401) { setNeedsAuth(true); return; }
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch {
+        setRunError(`The BFF answered HTTP ${res.status} with a body that was not JSON, so there is no run to show.`);
+        return;
+      }
       // The failure paths still return tokenEvents — render what we got rather
       // than blanking, a partial chain is the most instructive thing there is.
       setRun(data);
       setRunVertical(vertical);
       if (!data?.tokenEvents?.length) {
-        setRunError(data?.delegationDecision?.reason || data?.error || 'No token events returned');
+        const reason = data?.delegationDecision?.reason || data?.error || 'no token events came back';
+        setRunError(`The BFF answered HTTP ${res.status} and returned no token chain: ${reason}.`);
       }
     } catch (err) {
-      setRunError(err.message);
+      setRunError(`The request did not complete (${err.message}), so the BFF may not be reachable from here.`);
     } finally {
       setRunning(false);
     }
@@ -341,11 +372,29 @@ export default function A2AProtocolLearningPage() {
     cardStatus = { tone: 'warn', word: 'Unavailable', text: `The live fetch failed (${cardError}) and there is no recorded card for this vertical.` };
   }
 
-  const runChip = running
-    ? { tone: 'neutral', word: 'Running', text: 'Waiting for the BFF to answer.' }
-    : isReplay
-      ? { tone: 'neutral', word: 'Recorded run', text: `Sections 5 and 6 show a run ${recordedLine}. It is not your run.` }
-      : { tone: 'info', word: 'Live run', text: `Sections 5 and 6 show the run this app's BFF returned just now for ${runVertical || vertical}.` };
+  let runChip;
+  if (running) {
+    runChip = { tone: 'neutral', word: 'Running', text: 'Waiting for the BFF to answer.' };
+  } else if (needsAuth) {
+    runChip = {
+      tone: 'warn',
+      word: 'Sign-in needed',
+      text: `The BFF answered 401: running the delegation needs a signed-in session. Sections 5 and 6 still show ${isReplay ? `the recorded run ${recordedLine}` : 'your earlier live run'}.`,
+    };
+  } else if (isReplay) {
+    runChip = { tone: 'neutral', word: 'Recorded run', text: `Sections 5 and 6 show a run ${recordedLine}. It is not your run.` };
+  } else {
+    runChip = {
+      tone: 'info',
+      word: 'Live run',
+      text: `Sections 5 and 6 show the run this app's BFF returned for ${runVertical || vertical}. ${engineSentence(run)}`,
+    };
+  }
+
+  let cardSentence;
+  if (cardLive) cardSentence = 'Section 2 is a real HTTP request your browser made to this app’s BFF, and it came back as JSON.';
+  else if (cardPending) cardSentence = 'Section 2 is asking this app’s BFF for the Agent Card now.';
+  else cardSentence = `Section 2 tried a real HTTP request to this app’s BFF and it did not come back as JSON, so it shows ${card ? 'the recorded card' : 'no card'}.`;
 
   let probeStatus = null;
   if (probe?.pending) probeStatus = { tone: 'neutral', word: 'Sending', text: 'Posting a JSON-RPC call with no Authorization header.' };
@@ -360,13 +409,13 @@ export default function A2AProtocolLearningPage() {
     <SectionFoldContext.Provider value={foldValue}>
       <PingPage className="a2l-page">
         <SimBanner data-testid="a2l-banner">
-          <strong>{isReplay ? 'RECORDED RUN' : 'LIVE RUN'}</strong> — Section 2 is a real HTTP request your browser
-          makes to this app&apos;s BFF when the page loads, and the button in section 3 sends another. Sections 4 to 6 show{' '}
+          <strong>{isReplay ? 'RECORDED RUN' : 'LIVE RUN'}</strong> — {cardSentence} The button in section 3 sends a real
+          request too. Sections 4 to 6 show{' '}
           {isReplay
             ? `a run ${recordedLine}`
-            : 'the run this app’s BFF returned for you just now'}
-          . The hop between the two agents runs in-process unless <code>A2A_PROTOCOL_HTTP=1</code>, request panes are
-          reconstructed summaries, and raw tokens never reach the browser. Section 7 lists what this page is not.
+            : `the run this app’s BFF returned for ${runVertical || vertical}`}
+          . {wireSentence(detail.protocol?.mode, isReplay)} Request panes are reconstructed summaries, and raw tokens
+          never reach the browser. Section 7 lists what this page is not.
         </SimBanner>
         <PageHeader
           eyebrow="Learn · Agents"
@@ -575,12 +624,14 @@ export default function A2AProtocolLearningPage() {
                   message="Running the delegation mints real PingOne tokens, so it needs a signed-in session. The recorded run below shows the same flow."
                 />
               )}
-              {runError && (
-                <p className="pu-status-line" role="alert">
-                  <StatusChip tone="danger">Run failed</StatusChip>
-                  {runError}
-                </p>
-              )}
+              <div role="alert" data-testid="a2l-run-error">
+                {runError && (
+                  <p className="pu-status-line">
+                    <StatusChip tone="danger">Run failed</StatusChip>
+                    {runError}
+                  </p>
+                )}
+              </div>
             </Card>
             {detail.present && (
               <A2AFlowVisualizer

@@ -18,7 +18,7 @@
 }
 .a2l-controls__field { flex: 1 1 260px; min-width: 0; }
 .a2l-foldbar { margin-top: 0; }
-.pu-actions + [role='status'] { margin-top: 8px; }
+.pu-page.a2l-page .pu-actions + [role='status'] { margin-top: 8px; }
 
 /* Folding sections. Each is a native <details>: collapse needs no script and is keyboard- and
  * screen-reader-operable. The chevron is a rotated border, not a glyph.
