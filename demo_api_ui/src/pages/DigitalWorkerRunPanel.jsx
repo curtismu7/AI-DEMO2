@@ -41,7 +41,11 @@ const runChip = (run) => RUN_CHIPS[run?.status] || { tone: "neutral", word: run?
 // Every control that is busy takes aria-disabled, not disabled, so keyboard focus stays where it is; the handler
 // ignores the press. When a decision removes the buttons that held focus, focus moves to the "Latest run" region.
 
-export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = false }) {
+// The one sentence for a server-side disarm. The 403 says only "feature_disabled": the page cannot tell an elapsed
+// arming window from someone else switching it off, so it says "may have" and names what to do next.
+const DISARMED_NOTICE = "The server says the worker is no longer armed. The one-hour arming window may have run out, or someone switched it off. Arm it again to fire.";
+
+export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = false, onNeedsSignIn }) {
   const [enabled, setEnabled] = useState(null); // null = not yet known
   const [armExpiresInMs, setArmExpiresInMs] = useState(null);
   const [job, setJob] = useState("balance-sweep");
@@ -50,11 +54,23 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [needsSignIn, setNeedsSignIn] = useState(false); // the wall answered 401 to the flag read
+  const [checkedAt, setCheckedAt] = useState(null); // when the page last read the flag from the server
   const resultRef = useRef(null);
+  const armRef = useRef(null);
+  const panelRef = useRef(null);
   const [focusResult, setFocusResult] = useState(0);
   useEffect(() => {
     if (focusResult) resultRef.current?.focus();
   }, [focusResult]);
+  // A server-side disarm unmounts the Fire button that held focus. Land on the Arm switch (named, the control that
+  // fixes it) unless focus has already been moved somewhere else on purpose.
+  const [focusArm, setFocusArm] = useState(0);
+  useEffect(() => {
+    if (!focusArm) return;
+    const active = document.activeElement;
+    if (!active || active === document.body || panelRef.current?.contains(active)) armRef.current?.focus();
+  }, [focusArm]);
+  useEffect(() => { if (needsSignIn) onNeedsSignIn?.(true); }, [needsSignIn, onNeedsSignIn]);
 
   const loadRuns = useCallback(async () => {
     try {
@@ -73,6 +89,7 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
         if (cancelled) return;
         const on = Boolean(res.data?.enabled);
         setEnabled(on);
+        setCheckedAt(new Date());
         if (on) loadRuns();
       })
       .catch((err) => {
@@ -85,6 +102,35 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
     return () => { cancelled = true; };
   }, [loadRuns]);
 
+  function applyDisarmed() {
+    notifyError("Worker no longer armed");
+    setNotice(DISARMED_NOTICE);
+    setEnabled(false);
+    setArmExpiresInMs(null);
+    setRuns([]);
+    setLatestRun(null);
+    setFocusArm((n) => n + 1);
+  }
+
+  // The arm window is one hour on the server. The green Armed chip is only true as of the last read, so when the
+  // window the server reported has passed, read the flag again instead of leaving a stale "Armed".
+  useEffect(() => {
+    if (!enabled || !armExpiresInMs) return undefined;
+    const id = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(FLAG_URL);
+        setCheckedAt(new Date());
+        if (res.data?.enabled) setArmExpiresInMs(null); // still armed (re-armed elsewhere); the window is no longer known
+        else applyDisarmed();
+      } catch {
+        setArmExpiresInMs(null); // could not check: the chip's "as of" time stays the last real read
+      }
+    }, armExpiresInMs + 1000);
+    return () => clearTimeout(id);
+    // applyDisarmed only calls setters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, armExpiresInMs]);
+
   async function toggleArm() {
     if (busy) return;
     const next = !enabled;
@@ -93,6 +139,8 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
       const res = await apiClient.post(FLAG_URL, { enabled: next });
       const on = Boolean(res.data?.enabled);
       setEnabled(on);
+      setCheckedAt(new Date());
+      setNotice(null);
       setArmExpiresInMs(res.data?.armExpiresInMs ?? null);
       notifySuccess(on ? "Digital worker armed" : "Digital worker disarmed");
       if (on) loadRuns();
@@ -118,26 +166,15 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
         replayUnattendedRun(run);
         await loadRuns();
       } else {
-        // Server refused because the arm window elapsed or the mandate was
-        // revoked: report it as what it is and drop back to the armed-off UI.
-        notifyError("Worker auto-disarmed");
-        setNotice("The worker auto-disarmed — its arming window elapsed or its mandate was revoked.");
-        setEnabled(false);
-        setArmExpiresInMs(null);
-        setRuns([]);
-        setLatestRun(null);
+        // Server refused (no run came back): drop back to the armed-off UI and say so.
+        applyDisarmed();
       }
     } catch (err) {
       // A null run comes back as 403 feature_disabled: a real disarm mid-session
       // (arm TTL elapsed, another viewer disarmed, agent revoked) lands here,
       // so fall back to the same armed-off UI as the { run: null } branch.
       if (err?.response?.status === 403) {
-        notifyError("Worker auto-disarmed");
-        setNotice("The worker auto-disarmed — its arming window elapsed or its mandate was revoked.");
-        setEnabled(false);
-        setArmExpiresInMs(null);
-        setRuns([]);
-        setLatestRun(null);
+        applyDisarmed();
       } else {
         notifyError("Could not start a run");
       }
@@ -216,18 +253,19 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
   const chip = runChip(latestRun);
 
   return (
-    <section className="dw-run" aria-labelledby="dw-run-h">
+    <section ref={panelRef} className="dw-run" aria-labelledby="dw-run-h">
       <h3 id="dw-run-h" className="pu-h3">Unattended: the worker starts itself</h3>
 
       {needsSignIn ? <DigitalWorkerSignIn what="arm the worker" /> : (
         <div className="dw-run__arm">
           <p className="pu-status-line">
             <StatusChip tone={enabled ? "ok" : "neutral"}>{enabled ? "Armed" : "Not armed"}</StatusChip>
-            <span>{enabled ? "The server reports the worker as armed." : "The worker is not armed, so it cannot run."}</span>
+            <span>{enabled ? `The server reported the worker as armed${checkedAt ? ` at ${checkedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}.` : "The worker is not armed, so it cannot run."}</span>
           </p>
           <label className="dw-run__arm-row">
             <input
               type="checkbox"
+              ref={armRef}
               role="switch"
               aria-label="Arm the worker"
               checked={Boolean(enabled)}
@@ -239,7 +277,8 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
           {enabled && armExpiresInMs ? (
             <p className="pu-note dw-run__ttl">auto-disarms in {Math.round(armExpiresInMs / 60000)} min</p>
           ) : null}
-          {notice ? <p className="pu-note dw-run__notice" role="status">{notice}</p> : null}
+          {/* Mounted before it has text, so the notice is announced when it appears. */}
+          <p className="pu-note dw-run__notice" role="status">{notice}</p>
         </div>
       )}
 
@@ -257,9 +296,14 @@ export default function DigitalWorkerRunPanel({ onAskConsent, consentOpen = fals
             </button>
           </div>
 
+          {/* The live region is mounted with the panel and only its text changes, so a new result is announced without
+              moving focus off Fire. The visible line inside the Latest run region below is the same words, not a second announcement. */}
+          <p className="dw-run__announce" role="status">
+            {latestRun ? `${chip.word}: ${latestRun.job} — ${parked ? "held until a human decides" : describeRun(latestRun)}` : ""}
+          </p>
           {latestRun ? (
             <div ref={resultRef} tabIndex={-1} role="region" aria-label="Latest run" className="dw-run__latest" data-testid="dw-latest-run">
-              <p className="pu-status-line" role="status">
+              <p className="pu-status-line">
                 <StatusChip tone={chip.tone}>{chip.word}</StatusChip>
                 <span>{latestRun.job} — {parked ? "held until a human decides" : describeRun(latestRun)}</span>
               </p>

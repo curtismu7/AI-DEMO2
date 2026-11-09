@@ -104,6 +104,49 @@ describe("DigitalWorkerPage Ping UI Standard", () => {
     await screen.findByTestId("studio");
   });
 
+  it("the banner states what the page has seen: it says nothing has run when the server answers 401, and names the simulated client window", async () => {
+    renderPage();
+    const state = screen.getByTestId("dw-banner-state");
+    expect(state.getAttribute("role")).toBe("status"); // mounted with the page, so a later change is announced
+    await screen.findByTestId("studio");
+    const banner = screen.getByTestId("dw-banner");
+    expect(banner).toHaveTextContent(/simulated look-alike client/i);
+    expect(banner).not.toHaveTextContent(/nothing has run/i);
+    expect(banner).not.toHaveTextContent(/with your session, and the gates and token events they show/i);
+  });
+
+  it("signed out (401 on the use case): the banner no longer claims a session or returned gates", async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.startsWith("/api/autonomous-runs/flag")) return Promise.resolve({ data: { enabled: false } });
+      return Promise.reject(Object.assign(new Error("Unauthorized"), { response: { status: 401 } }));
+    });
+    renderPage();
+    const state = screen.getByTestId("dw-banner-state");
+    await waitFor(() => expect(state).toHaveTextContent(/answered 401/i));
+    expect(state).toHaveTextContent(/nothing has run/i);
+    expect(state).not.toHaveTextContent(/what that server returned/i);
+    expect(state.isConnected).toBe(true);
+  });
+
+  it("the banner follows the tab: the unattended wording speaks of Fire, not of the client window", async () => {
+    renderPage();
+    await screen.findByTestId("studio");
+    fireEvent.click(screen.getByRole("tab", { name: /Unattended/ }));
+    const state = screen.getByTestId("dw-banner-state");
+    expect(state).toHaveTextContent(/Fire calls this app's own server/);
+    expect(state).not.toHaveTextContent(/client window/i);
+  });
+
+  it("signed out only on the unattended flag read (401): the banner says so too", async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.startsWith("/api/autonomous-runs/flag")) return Promise.reject(Object.assign(new Error("Unauthorized"), { response: { status: 401 } }));
+      if (url === "/api/verticals/list") return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { useCase: UC38 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("dw-banner-state")).toHaveTextContent(/answered 401/i));
+  });
+
   it("labels the diagram as a drawing with a chip that carries a word, and the toolbar buttons are secondaries", async () => {
     renderPage();
     const diagram = screen.getByRole("region", { name: "How it works" });
@@ -169,7 +212,7 @@ describe("DigitalWorkerPage run sections", () => {
 
   it("says it is loading until the governed run arrives", async () => {
     renderPage();
-    expect(screen.getByRole("status")).toHaveTextContent("Loading the governed run…");
+    expect(screen.getAllByRole("status").some((el) => el.textContent.includes("Loading the governed run…"))).toBe(true);
     await screen.findByTestId("studio");
     expect(screen.queryByText("Loading the governed run…")).toBeNull();
   });

@@ -4,7 +4,7 @@
 // real tokenChainTraceStore, so the assertion "renders replayed steps" checks the
 // real replayUnattendedRun behaviour without dragging in the full reel component
 // (its own behaviour is covered by TokenChainFilmstrip.test.jsx).
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import DigitalWorkerRunPanel from '../DigitalWorkerRunPanel';
 
@@ -126,7 +126,7 @@ describe('DigitalWorkerRunPanel', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
 
-    expect(await screen.findByText(/worker auto-disarmed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no longer armed/i)).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: /arm/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /fire/i })).not.toBeInTheDocument();
   });
@@ -158,7 +158,7 @@ describe('DigitalWorkerRunPanel', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
 
-    expect(await screen.findByText(/worker auto-disarmed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no longer armed/i)).toBeInTheDocument();
     const armSwitch = screen.getByRole('switch', { name: /arm/i });
     expect(armSwitch).toBeInTheDocument();
     expect(armSwitch).not.toBeChecked();
@@ -346,5 +346,124 @@ describe('DigitalWorkerRunPanel on the Ping UI Standard', () => {
     render(<DigitalWorkerRunPanel />);
     fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
     expect(await screen.findByRole('region', { name: 'Latest run' })).toHaveTextContent(word);
+  });
+
+  describe('skeptic fixes (PR 3523)', () => {
+    const forbidden = () => Object.assign(new Error('Forbidden'), { response: { status: 403, data: { error: 'feature_disabled' } } });
+
+    it('a 403 on Fire moves focus to the Arm switch instead of dropping it to the page body', async () => {
+      mockFlag(true);
+      apiClient.post.mockRejectedValueOnce(forbidden());
+      render(<DigitalWorkerRunPanel />);
+      const fire = await screen.findByRole('button', { name: /fire without a human turn/i });
+      fire.focus();
+      fireEvent.click(fire);
+      const sw = await screen.findByRole('switch', { name: 'Arm the worker' });
+      await waitFor(() => expect(document.activeElement).toBe(sw));
+    });
+
+    it('a { run: null } answer to Fire also lands focus on the Arm switch', async () => {
+      mockFlag(true);
+      apiClient.post.mockResolvedValueOnce({ data: { run: null } });
+      render(<DigitalWorkerRunPanel />);
+      const fire = await screen.findByRole('button', { name: /fire without a human turn/i });
+      fire.focus();
+      fireEvent.click(fire);
+      const sw = await screen.findByRole('switch', { name: 'Arm the worker' });
+      await waitFor(() => expect(document.activeElement).toBe(sw));
+    });
+
+    it('does not steal focus when the visitor has already moved it elsewhere', async () => {
+      mockFlag(true);
+      let reject;
+      apiClient.post.mockReturnValueOnce(new Promise((_, r) => { reject = r; }));
+      render(<><button type="button">elsewhere</button><DigitalWorkerRunPanel /></>);
+      fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
+      const other = screen.getByRole('button', { name: 'elsewhere' });
+      other.focus();
+      reject(forbidden());
+      await screen.findByRole('switch', { name: 'Arm the worker' });
+      expect(document.activeElement).toBe(other);
+    });
+
+    it('the disarm notice does not claim a cause it cannot know, and sits in a status region that existed before the text', async () => {
+      mockFlag(true);
+      apiClient.post.mockRejectedValueOnce(forbidden());
+      render(<DigitalWorkerRunPanel />);
+      await screen.findByRole('button', { name: /fire without a human turn/i });
+      const before = screen.getAllByRole('status').find((el) => el.classList.contains('dw-run__notice'));
+      expect(before).toBeTruthy();
+      expect(before).toHaveTextContent('');
+      fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
+      await waitFor(() => expect(before).toHaveTextContent(/no longer armed/i));
+      expect(before.isConnected).toBe(true);
+      expect(before).toHaveTextContent(/may have run out/i);
+      expect(before).not.toHaveTextContent(/mandate was revoked/i);
+    });
+
+    it('arming again clears the stale disarm notice', async () => {
+      mockFlag(true);
+      apiClient.post.mockRejectedValueOnce(forbidden());
+      render(<DigitalWorkerRunPanel />);
+      fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
+      const notice = await screen.findByText(/no longer armed/i);
+      apiClient.post.mockResolvedValueOnce({ data: { enabled: true, armExpiresInMs: 3600000 } });
+      fireEvent.click(screen.getByRole('switch', { name: 'Arm the worker' }));
+      await screen.findByText(/auto-disarms in 60 min/);
+      expect(notice).toHaveTextContent('');
+    });
+
+    it('the latest-run result is announced through a live region that was mounted before the run', async () => {
+      mockFlag(true);
+      apiClient.post.mockResolvedValueOnce({ data: { run: COMPLETED_RUN } });
+      render(<DigitalWorkerRunPanel />);
+      const fire = await screen.findByRole('button', { name: /fire without a human turn/i });
+      const live = screen.getAllByRole('status').find((el) => el.classList.contains('dw-run__announce'));
+      expect(live).toBeTruthy();
+      expect(live).toHaveTextContent('');
+      fire.focus();
+      fireEvent.click(fire);
+      await waitFor(() => expect(live).toHaveTextContent(/Completed: balance-sweep/));
+      expect(live.isConnected).toBe(true);
+      expect(document.activeElement).toBe(fire); // announcing does not move focus off Fire
+      // the visible line inside the region is not a second live region
+      expect(within(screen.getByRole('region', { name: 'Latest run' })).queryByRole('status')).toBeNull();
+    });
+
+    describe('stale Armed chip', () => {
+      afterEach(() => { vi.useRealTimers(); });
+
+      it('re-reads the flag when the arm window has passed and drops the green chip if the server says not armed', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        mockFlag(false);
+        apiClient.post.mockResolvedValueOnce({ data: { enabled: true, armExpiresInMs: 60000 } });
+        render(<DigitalWorkerRunPanel />);
+        fireEvent.click(await screen.findByRole('switch', { name: 'Arm the worker' }));
+        await screen.findByText('Armed');
+        const flagReads = () => apiClient.get.mock.calls.filter(([u]) => u === FLAG_URL).length;
+        const before = flagReads();
+        await vi.advanceTimersByTimeAsync(30000);
+        expect(flagReads()).toBe(before); // not yet
+        await vi.advanceTimersByTimeAsync(31500);
+        await waitFor(() => expect(flagReads()).toBe(before + 1));
+        expect(await screen.findByText('Not armed')).toBeInTheDocument();
+        expect(screen.queryByText('Armed')).not.toBeInTheDocument();
+        expect(screen.getByText(/no longer armed/i)).toBeInTheDocument();
+      });
+
+      it('the Armed line says when the server was last asked', async () => {
+        mockFlag(true);
+        render(<DigitalWorkerRunPanel />);
+        expect(await screen.findByText(/The server reported the worker as armed at \d{1,2}:\d{2}/)).toBeInTheDocument();
+      });
+    });
+
+    it('tells the page when the unattended flag read answered 401', async () => {
+      apiClient.get.mockRejectedValue(Object.assign(new Error('Unauthorized'), { response: { status: 401 } }));
+      const onNeedsSignIn = vi.fn();
+      render(<DigitalWorkerRunPanel onNeedsSignIn={onNeedsSignIn} />);
+      await screen.findByText(/sign in to arm the worker/i);
+      expect(onNeedsSignIn).toHaveBeenCalledWith(true);
+    });
   });
 });

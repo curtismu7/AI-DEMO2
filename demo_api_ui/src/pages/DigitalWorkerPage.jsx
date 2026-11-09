@@ -90,6 +90,8 @@ export default function DigitalWorkerPage() {
   const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
   const [error, setError] = useState("");
   const [needsSignIn, setNeedsSignIn] = useState(false); // the wall answered 401: not an error, an invitation
+  const [panelNeedsSignIn, setPanelNeedsSignIn] = useState(false); // the unattended panel's flag read answered 401
+  const signedOut = needsSignIn || panelNeedsSignIn;
 
   // One consent phone for the page, shared by the attended Run button and the unattended panel (the server
   // keeps a single pending mock request per session).
@@ -149,9 +151,17 @@ export default function DigitalWorkerPage() {
   return (
     <PingPage className="dw-page">
       <SimBanner data-testid="dw-banner">
-        <strong>SERVER RUNS, MOCK PHONE, DRAWN DIAGRAM</strong> — both runs call this app&apos;s own server with your
-        session, and the gates and token events they show are what that server returned. The approval
-        phone is a mock: it never sends a real push or text. The diagram at the bottom is a drawing: Simulate only
+        <strong>SERVER RUNS, MOCK PHONE, DRAWN DIAGRAM</strong> —{" "}
+        {/* The one sentence that depends on what the page has actually seen. It is a live region from first render, so a
+            401 arriving later or a tab switch is announced. */}
+        <span role="status" data-testid="dw-banner-state">
+          {signedOut
+            ? "the server answered 401, so you are not signed in and nothing has run from this page yet. Sign in first; after that, runs call this app's own server with your session."
+            : mode === "unattended"
+              ? "Fire calls this app's own server, and the worker's gates and token events are what that server returned for that run."
+              : "Run calls this app's own server with your session, and the gates and token events are what that server returned for that run. Open client window opens a simulated look-alike client, not a real one."}
+        </span>{" "}
+        The approval phone is a mock: it never sends a real push or text. The diagram at the bottom is a drawing: Simulate only
         animates it, nothing on it is called, and your edits stay in this browser.
       </SimBanner>
       <PageHeader
@@ -201,7 +211,7 @@ export default function DigitalWorkerPage() {
             </div>
 
             <div role="tabpanel" id="dw-pane-unattended" aria-labelledby="dw-tab-unattended" hidden={mode !== "unattended"} className="dw-agent__pane">
-              <DigitalWorkerRunPanel onAskConsent={askConsent} consentOpen={consentOpen} />
+              <DigitalWorkerRunPanel onAskConsent={askConsent} consentOpen={consentOpen} onNeedsSignIn={setPanelNeedsSignIn} />
             </div>
           </Card>
         </Section>
