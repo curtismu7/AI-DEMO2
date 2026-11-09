@@ -62,7 +62,48 @@ describe('SessionLabPage', () => {
     serve({ cl: new Error('boom') });
     render(<SessionLabPage />);
     await screen.findByText('Partly read');
-    expect(within(await screen.findByTestId('session-lab-claims')).getAllByText('not in these tokens').length).toBeGreaterThan(0);
+    expect(within(await screen.findByTestId('session-lab-claims')).getAllByText('not read (the request failed)').length).toBeGreaterThan(0);
+  });
+
+  it('a partial read does not claim both requests were read (banner, status, claim values)', async () => {
+    serve({ cl: new Error('boom') });
+    render(<SessionLabPage />);
+    await screen.findByText('Partly read');
+    const banner = screen.getByTestId('session-lab-banner');
+    expect(banner).toHaveTextContent(/partly real and simulated/i);
+    expect(banner).toHaveTextContent(/token-claims request failed/i);
+    expect(banner).not.toHaveTextContent(/and the claims in the tokens it holds/i);
+    expect(screen.getByTestId('session-lab-real-status')).toHaveTextContent(/token-claims request failed/i);
+    const claimsCard = await screen.findByTestId('session-lab-claims');
+    expect(within(claimsCard).getAllByText('not read (the request failed)').length).toBe(5);
+    expect(within(claimsCard).queryByText('not in these tokens')).not.toBeInTheDocument();
+  });
+
+  it('a 401 from the status request is signed out, not "the request failed"', async () => {
+    serve({ st: Object.assign(new Error('401'), { response: { status: 401 } }) });
+    render(<SessionLabPage />);
+    await screen.findByText('Not signed in');
+    expect(screen.getByTestId('session-lab-banner')).toHaveTextContent(/not signed in/i);
+    expect(screen.getByTestId('session-lab-banner')).not.toHaveTextContent(/request failed/i);
+    expect(screen.getByTestId('session-lab-real-status')).not.toHaveTextContent(/request failed/i);
+  });
+
+  it('does not put a fixed cookie string in a live card; it is documented in the neutral note', async () => {
+    render(<SessionLabPage />);
+    const bff = await screen.findByTestId('session-lab-bff');
+    expect(within(bff).queryByText(/connect\.sid/)).not.toBeInTheDocument();
+    expect(bff).not.toHaveTextContent(/from the server config/i);
+    expect(screen.getByTestId('session-lab-cookie-note')).toHaveTextContent(/connect\.sid.*documented server setting, not read from your session/i);
+  });
+
+  it('an idle-expired session shows the warn chip, keeps Check as the only primary, and Check says why it fails', async () => {
+    const { container } = render(<SessionLabPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Report pwd, idle 5 min' }));
+    fireEvent.click(screen.getByRole('button', { name: '+1 hour' }));
+    expect(within(screen.getByTestId('session-lab-record')).getByText('Idle timeout passed')).toHaveClass('pu-chip');
+    expect(primaries(container)).toEqual(['Check']);
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+    expect(within(screen.getByTestId('session-lab-result')).getByText('FAIL')).toHaveClass('pu-chip');
   });
 
   it('keeps a 100-character unbroken value inside its card (wrapping is CSS: the value stays one text node)', async () => {

@@ -27,7 +27,7 @@ export default function SessionLabPage() {
   return (
     <PingPage className="session-lab-page">
       <SimBanner data-testid="session-lab-banner">
-        <strong>{REAL_LEAD[real.phase]}</strong> — {REAL_HEAD[real.phase]} The section &quot;Change a session&quot; is simulated: a pretend
+        <strong>{REAL_LEAD[bannerKey(real)]}</strong> — {REAL_HEAD[bannerKey(real)]} The section &quot;Change a session&quot; is simulated: a pretend
         session and clock in this browser tab, and nothing there calls PingOne. The PingOne session cookie sits on PingOne&apos;s host, so this page cannot read it.
       </SimBanner>
       <PageHeader
@@ -65,6 +65,9 @@ const MIN = (ms) => {
 const WHEN = (sec) => (sec ? new Date(sec * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "-");
 const text = (v) => (v == null || v === "" ? "-" : String(v));
 
+// A 401 from the status request means "no session", not "the request failed".
+const isUnauthorised = (r) => r?.reason?.response?.status === 401;
+
 // What the real section knows: loading, unavailable (status request failed), signedOut, or read.
 function useRealSession() {
   const [state, setState] = useState({ phase: "loading" });
@@ -75,7 +78,8 @@ function useRealSession() {
         if (!live) return;
         const status = st.status === "fulfilled" ? st.value.data : null;
         const claims = cl.status === "fulfilled" ? cl.value.data : null;
-        if (!status) setState({ phase: "unavailable" });
+        if (isUnauthorised(st)) setState({ phase: "signedOut" });
+        else if (!status) setState({ phase: "unavailable" });
         else if (!status.authenticated) setState({ phase: "signedOut" });
         else setState({ phase: "read", status, claims, partial: [st, cl].some((r) => r.status === "rejected") });
       });
@@ -84,9 +88,13 @@ function useRealSession() {
   return state;
 }
 
+// The banner wording comes from what was actually read; a partial read is its own case.
+const bannerKey = (real) => (real.phase === "read" && real.partial ? "partial" : real.phase);
+
 const REAL_LEAD = {
   loading: "READING YOUR SESSION",
   read: "REAL AND SIMULATED",
+  partial: "PARTLY REAL AND SIMULATED",
   unavailable: "NO REAL SESSION READ",
   signedOut: "NO REAL SESSION READ",
 };
@@ -94,6 +102,7 @@ const REAL_LEAD = {
 const REAL_HEAD = {
   loading: "Reading your session from this app's BFF now.",
   read: "The first section is real: your BFF session and the claims in the tokens it holds, read just now and read-only.",
+  partial: "The first section is partly real: your BFF session was read just now, but the token-claims request failed, so the sign-on facts are missing.",
   unavailable: "The first section could not read your session (the status request failed), so it shows nothing real.",
   signedOut: "You are not signed in, so the first section has no session to show. This page needs a signed-in session.",
 };
@@ -105,7 +114,7 @@ function RealSession({ real }) {
   if (phase === "loading") { chip = ["neutral", "Reading"]; line = "Reading your session from the BFF."; }
   else if (phase === "unavailable") { chip = ["danger", "Unavailable"]; line = "Could not read your session (the status request failed)."; }
   else if (phase === "signedOut") { chip = ["warn", "Not signed in"]; line = "There is no session to show. Sign in, then reopen this page."; }
-  else if (partial) { chip = ["warn", "Partly read"]; line = "One of the two requests failed, so some facts may be missing."; }
+  else if (partial) { chip = ["warn", "Partly read"]; line = "The token-claims request failed, so the sign-on facts are missing. The session facts were read from the BFF just now."; }
   else { chip = ["ok", "Read"]; line = "Read from the BFF just now. Nothing here is simulated."; }
 
   let cards = null;
@@ -120,7 +129,8 @@ function RealSession({ real }) {
     };
     const show = (k, fmt = (v) => v) => {
       const { v, from } = pick(k);
-      return v == null ? (claims?.authenticated === false ? "no tokens held for this session" : "not in these tokens") : `${fmt(v)} (${from})`;
+      if (!claims) return "not read (the request failed)";
+      return v == null ? (claims.authenticated === false ? "no tokens held for this session" : "not in these tokens") : `${fmt(v)} (${from})`;
     };
     cards = (
       <CardGrid>
@@ -131,7 +141,6 @@ function RealSession({ real }) {
             { label: "session type", value: text(status.sessionType) },
             { label: "access token expires", value: MIN(status.expiresAt) },
             { label: "refresh token held", value: status.hasRefreshToken ? "yes" : "no" },
-            { label: "cookie", value: "connect.sid: HttpOnly, 24 h, sameSite lax locally and none in production (from the server config)" },
           ]} />
         </Card>
         <Card title="Sign-on facts in your tokens" tone="live" data-testid="session-lab-claims">
@@ -158,7 +167,8 @@ function RealSession({ real }) {
       <Card tone="neutral" title="Why not the PingOne cookie?" data-testid="session-lab-cookie-note">
         <p className="pu-note">
           The identity provider&apos;s own session cookie (PingOne or PingFederate, whichever you signed in with) is set on that provider&apos;s host. A page on this app cannot read it, so the facts in the first section come from
-          this app&apos;s own session and the tokens it holds. <code>amr</code> and <code>sid</code> only appear when the provider puts them in the tokens, and whether PingOne sets <code>auth_time</code> and <code>amr</code> the
+          this app&apos;s own session and the tokens it holds. For reference, this app&apos;s own cookie <code>connect.sid</code> is HttpOnly, lasts 24 h, and is sameSite lax locally and none in production; that is
+          a documented server setting, not read from your session. <code>amr</code> and <code>sid</code> only appear when the provider puts them in the tokens, and whether PingOne sets <code>auth_time</code> and <code>amr</code> the
           same way on a single sign-on through an existing session is UNVERIFIED.
         </p>
       </Card>
