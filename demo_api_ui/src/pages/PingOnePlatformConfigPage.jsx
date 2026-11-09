@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList } from '../components/pingUi';
 import './PingOnePlatformConfigPage.css';
 
 /**
@@ -10,6 +11,18 @@ import './PingOnePlatformConfigPage.css';
  * (provisionEnvironment) and demo_api_server/.env.example. Scope-topology.json
  * is the source of truth for scopes/resources; the older matrix docs are
  * historical snapshots.
+ *
+ * Layout follows the Ping UI Standard on the shared primitives (components/pingUi,
+ * docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv, P7 chips, P9 button.
+ * Skipped: P6 (not an inspector), P8 (no diagram). The standalone shell bar is not added (the
+ * app has its own).
+ *
+ * Honesty: this is a static lesson. It never calls PingOne, so no chip says "configured" or
+ * "present". The chip says where the claim comes from (the provisioning code), or that the
+ * object is flag-gated or not provisioned at all, as the text of that row already says.
+ *
+ * P9, one primary per view state: "PingOne setup" (a link in the header) is the only action and
+ * so the only primary. The page has a single state (static text), so there is nothing to choose.
  */
 
 const RESOURCES = [
@@ -32,27 +45,29 @@ const APPS = [
   { name: 'Demo AI App - MCP Server Client', type: 'WEB_APP (deliberately not WORKER)', use: 'The MCP server process\u2019s client identity; introspects gateway tokens. A WORKER type would silently lose resource grants and fail every introspection with active:false.' },
   { name: 'Demo AI App - Agent Actor', type: 'WORKER', use: 'Agent service internal auth (client_credentials).' },
   { name: 'Demo AI App - {Vertical} Specialist Agent ×10', type: 'WEB_APP', use: 'A2A specialists (Agent 2); each granted only its derived narrow scope.' },
-  { name: 'Demo AI App - CIBA (+ CIBA SMS)', type: 'OIDC Web App, CIBA grant only, basic auth', use: 'Real CIBA banking approvals. Each delivery channel (email/SMS) is its own app with its own DaVinci flow policy; fails closed when unset.' },
+  { status: 'Set up in console', name: 'Demo AI App - CIBA (+ CIBA SMS)', type: 'OIDC Web App, CIBA grant only, basic auth', use: 'Real CIBA banking approvals. Each delivery channel (email/SMS) is its own app with its own DaVinci flow policy; fails closed when unset.' },
   { name: 'PingOne MCP Server', type: 'WORKER, PKCE', use: 'Dev tooling: AI assistants → hosted PingOne MCP. MUST be WORKER — a native-app token only carries self-service p1 scopes and the hosted MCP denies admin tools.' },
   { name: 'Claude Code - Banking Gateway', type: 'NATIVE_APP, PKCE', use: 'Claude Code → the local MCP Gateway over MCP OAuth.' },
   { name: 'Hosted-access app', type: 'OIDC web', use: 'SE hosted front-door registration client; the groups claim is wired onto it.' },
-  { name: 'Autonomous agents (Fraud Watch, Balance Sweep)', type: 'WEB_APP', use: 'Created by npm run pingone:provision-autonomous-agents --apply.' },
+  { status: 'Opt-in script', name: 'Autonomous agents (Fraud Watch, Balance Sweep)', type: 'WEB_APP', use: 'Created by npm run pingone:provision-autonomous-agents --apply.' },
 ];
 
 const USERS_GROUPS = [
   { name: 'demoUser / demoAdmin / demoDelegate', what: 'Three seeded users (population default, permissive "Demo Password Policy"). demoDelegate carries the isDelegate custom attribute; demoUser and demoAdmin also get Management-API role assignments so interactive logins are not denied "no role assignments".' },
   { name: 'Custom schema: isDelegate, mayAct, delegatedTo, a2aTenantId, agentRestrictions, bankingPrincipalUserId', what: 'The token claims (may_act, delegated_to, is_delegate, a2a_tenant_id, act) read these via ${user.…} resource-attribute mappings — ${…} evaluates; #{…} would be emitted verbatim.' },
-  { name: 'Vertical groups (UC9 + UC21)', what: 'AI_Demo_Privileged (privileged-tool access), AI_Demo_Delegates, and per-vertical tier groups (e.g. Banking_PremiumTier → PrivateBanking, $50,000 cap; default Standard, $2,000 cap, restricted tools). demoUser is in the privileged + tier groups; demoDelegate deliberately is not. Live membership lookup wins over the manifest; enforcement gated by ff_authorize_group_policy.' },
+  { status: 'From vertical manifests', name: 'Vertical groups (UC9 + UC21)', what: 'AI_Demo_Privileged (privileged-tool access), AI_Demo_Delegates, and per-vertical tier groups (e.g. Banking_PremiumTier → PrivateBanking, $50,000 cap; default Standard, $2,000 cap, restricted tools). demoUser is in the privileged + tier groups; demoDelegate deliberately is not. Live membership lookup wins over the manifest; enforcement gated by ff_authorize_group_policy.' },
   { name: 'Hosted-access groups', what: 'Hosted Registration Complete / Pending (+ optional approver group), with a groups claim on the hosted-access app.' },
-  { name: 'Admin role — NOT groups', what: 'The 4-signal admin resolver uses an allowlist, population id, custom claim, and role-claim resolver — role is re-earned from IdP signals each login, never read from a store. Groups matter for UC9/UC21 tool policy only.' },
+  { status: 'Resolver, not an object', name: 'Admin role — NOT groups', what: 'The 4-signal admin resolver uses an allowlist, population id, custom claim, and role-claim resolver — role is re-earned from IdP signals each login, never read from a store. Groups matter for UC9/UC21 tool policy only.' },
 ];
 
 const DV_PROTECT = [
-  { name: 'DaVinci CIBA flow policies', what: 'Each CIBA app (email / SMS) carries a DaVinci flow policy in its Policies tab. Widget and Orchestration SDK login policies are exported as PINGONE_DAVINCI_LOGIN_POLICY_ID_V1 / PINGONE_DAVINCI_SDK_POLICY_ID.' },
-  { name: 'DaVinci orchestration showcase (flag off by default)', what: 'Transaction step-up decided by a DaVinci flow: PingOne SSO → Protect risk score → branch → MFA + fraud-queue alert → Authorize → webhook back to the BFF. Fails closed to the hand-coded MFA flow on any DaVinci error.' },
-  { name: 'PingOne Protect', what: 'No Protect objects are provisioned — risk policies live in the tenant console. The demo consumes POST /environments/{envId}/riskEvaluations (targetResourceId required) inside the orchestration chain and the step-up/consent paths.' },
-  { name: 'PingOne Verify / MFA / Recognize', what: 'Verify: flag-off identity proofing against a policy id, only server-read SUCCESS records completion. MFA: policy id + Multi_factor acr drives the device picker (SMS/email/passkey; passkeys need the ping-devops.com RP id). Recognize: external SDK tenant via api key.' },
+  { status: 'Set up in console', name: 'DaVinci CIBA flow policies', what: 'Each CIBA app (email / SMS) carries a DaVinci flow policy in its Policies tab. Widget and Orchestration SDK login policies are exported as PINGONE_DAVINCI_LOGIN_POLICY_ID_V1 / PINGONE_DAVINCI_SDK_POLICY_ID.' },
+  { status: 'Flag off by default', name: 'DaVinci orchestration showcase (flag off by default)', what: 'Transaction step-up decided by a DaVinci flow: PingOne SSO → Protect risk score → branch → MFA + fraud-queue alert → Authorize → webhook back to the BFF. Fails closed to the hand-coded MFA flow on any DaVinci error.' },
+  { status: 'Not provisioned', name: 'PingOne Protect', what: 'No Protect objects are provisioned — risk policies live in the tenant console. The demo consumes POST /environments/{envId}/riskEvaluations (targetResourceId required) inside the orchestration chain and the step-up/consent paths.' },
+  { status: 'Flag-gated or external', name: 'PingOne Verify / MFA / Recognize', what: 'Verify: flag-off identity proofing against a policy id, only server-read SUCCESS records completion. MFA: policy id + Multi_factor acr drives the device picker (SMS/email/passkey; passkeys need the ping-devops.com RP id). Recognize: external SDK tenant via api key.' },
 ];
+
+const FROM_CODE = 'From provisioning code';
 
 const SECTIONS = [
   { id: 'resources', title: 'Resource servers (audiences)', intro: 'One resource per audience, so every exchange hop mints a token that is only valid at its intended destination.', rows: RESOURCES, key: 'aud', keyLabel: 'Audience' },
@@ -61,49 +76,80 @@ const SECTIONS = [
   { id: 'davinci-protect', title: 'DaVinci, Protect, Verify', intro: '', rows: DV_PROTECT, key: null },
 ];
 
+// Kept outside the JSX: the pattern check reads a tag's attributes as text, so a link written inside the
+// PageHeader `actions` prop would be counted as a second primary.
+const setupLink = (
+  <Link className="pu-btn pu-btn--primary p1platform__setup" to="/pingone-setup">
+    PingOne setup
+  </Link>
+);
+
 export default function PingOnePlatformConfigPage() {
   return (
-    <main className="p1platform" data-testid="pingone-platform-config">
+    <PingPage className="p1platform" data-testid="pingone-platform-config">
+      <SimBanner data-testid="p1platform-banner">
+        <strong>STATIC LESSON, NOT A LIVE CHECK</strong> — this page is written from{' '}
+        <code>pingoneProvisionService.js</code>, <code>.env.example</code> and the CIBA setup notes. It never calls PingOne, so it
+        cannot show what exists in the PingOne environment you are signed in to, and it needs no sign-in.
+      </SimBanner>
+
       <PageHeader
         eyebrow="PingOne · what we configured"
         title="PingOne platform config"
-        summary="The PingOne SaaS objects this demo provisions: resource servers, OAuth apps, scopes, users, groups, and the DaVinci/Protect wiring. Everything is created by bootstrapPingOne (npm run rebuild-pingone wipes and re-runs it); scope-topology.json is the source of truth for scopes and resources."
-        actions={
-          <Link className="p1platform__secondary" to="/pingone-setup">
-            PingOne setup
-          </Link>
-        }
+        summary="The PingOne SaaS objects this demo provisions: resource servers, OAuth apps, scopes, users, groups, and the DaVinci/Protect wiring. Most of it is created by bootstrapPingOne (npm run rebuild-pingone wipes and re-runs it); the chip on each card says where that object comes from. scope-topology.json is the source of truth for scopes and resources."
+        actions={setupLink}
       />
 
-      {SECTIONS.map((s) => (
-        <section key={s.id} className="p1platform__section" aria-labelledby={`p1platform-${s.id}`}>
-          <h2 id={`p1platform-${s.id}`}>{s.title}</h2>
-          {s.intro ? <p className="p1platform__intro">{s.intro}</p> : null}
-          <ul className="p1platform__rows">
-            {s.rows.map((r) => (
-              <li key={r.name} className="p1platform__row">
-                <h3>{r.name}</h3>
-                {s.key ? <p className="p1platform__meta">{s.keyLabel}: <code>{r[s.key]}</code></p> : null}
-                <p>{r.what}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <PageFrame>
+        {SECTIONS.map((s, index) => (
+          <Section
+            key={s.id}
+            id={`p1platform-${s.id}`}
+            kicker={`Group ${index + 1} of ${SECTIONS.length}`}
+            title={s.title}
+            lede={s.intro || undefined}
+          >
+            <ul className="pu-card-grid p1platform__rows" role="list">
+              {s.rows.map((r) => (
+                <li key={r.name}>
+                  <Card title={r.name}>
+                    <p className="pu-status-line">
+                      <StatusChip tone="neutral">{r.status || FROM_CODE}</StatusChip>
+                    </p>
+                    {s.key ? (
+                      <KvList items={[{ label: s.keyLabel, value: <code>{r[s.key]}</code>, mono: true }]} />
+                    ) : null}
+                    <p className="p1platform__what">{r.what}</p>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ))}
 
-      <section className="p1platform__section p1platform__caveats">
-        <h2>Caveats</h2>
-        <ul>
-          <li>
-            docs/PINGONE_RESOURCES_AND_SCOPES_MATRIX.md and PINGONE_APP_CONFIG.md predate
-            scope-topology.json — their scope vocabulary is historical; cite scope-topology.json.
-          </li>
-          <li>
-            The token claims (may_act, act, delegated_to, …) are wired per RESOURCE, not per app —
-            app-level tokenCustomization endpoints do not exist in PingOne.
-          </li>
-        </ul>
-      </section>
-    </main>
+        <Section id="p1platform-caveats" kicker="Limits" title="Caveats">
+          <CardGrid>
+            <Card tone="warn" title="Older docs use an older scope vocabulary">
+              <p className="pu-status-line">
+                <StatusChip tone="warn">Historical</StatusChip>
+              </p>
+              <p className="p1platform__what">
+                docs/PINGONE_RESOURCES_AND_SCOPES_MATRIX.md and PINGONE_APP_CONFIG.md predate
+                scope-topology.json — their scope vocabulary is historical; cite scope-topology.json.
+              </p>
+            </Card>
+            <Card tone="neutral" title="Claims are wired per resource, not per app">
+              <p className="pu-status-line">
+                <StatusChip tone="neutral">Per resource</StatusChip>
+              </p>
+              <p className="p1platform__what">
+                The token claims (may_act, act, delegated_to, …) are wired per RESOURCE, not per app —
+                app-level tokenCustomization endpoints do not exist in PingOne.
+              </p>
+            </Card>
+          </CardGrid>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
 }
