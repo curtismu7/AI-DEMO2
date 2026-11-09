@@ -77,7 +77,7 @@ function buildCards(env, items) {
     const up = ws.filter((x) => x.state === "up").length;
     const counted = ws.filter((x) => x.state !== "na").length;
     let chip = null;
-    if (counted) chip = c.off ? `${ws.length} ${env.kind === "k8s" ? "at 0" : "stopped"}` : c.key === "~deploy" ? `${ws.length} to deploy` : up === ws.length ? `${ws.length} running` : `${up} of ${ws.length} up`;
+    if (counted) chip = c.off ? `${ws.length} ${env.kind === "k8s" ? "at 0" : "stopped"}` : c.key === "~deploy" ? `${ws.length} to deploy` : c.key.startsWith("~moved:") ? `${ws.length} moved` : up === ws.length ? `${ws.length} running` : `${up} of ${ws.length} up`;
     return { id, envId: env.id, title: c.title, subtitle: clip(ws.map((x) => x.name).join(", "), 90), chip, off: c.off, note: c.note, count: ws.length, workloads: ws };
   });
   return { cards, placement };

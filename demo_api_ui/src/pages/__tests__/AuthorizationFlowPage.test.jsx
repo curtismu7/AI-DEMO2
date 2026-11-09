@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import AuthorizationFlowPage from "../AuthorizationFlowPage";
@@ -6,6 +8,11 @@ import { detailFor } from "../authorizationFlowDetails";
 
 const LANES = lanesFor(DEFAULT_VERTICAL);
 const MOMENTS = momentsFor(DEFAULT_VERTICAL);
+
+// What the page asks the diagram to do, and whether the canvas is too narrow to show the whole drawing (the real hook
+// needs ResizeObserver and layout, which jsdom does not have).
+const flow = vi.hoisted(() => ({ fitView: vi.fn(), pannable: false }));
+vi.mock("../../hooks/useFitOnResize", () => ({ useFitOnResize: () => flow.pannable, REFIT_EVENT: "diagram:refit" }));
 
 vi.mock("@xyflow/react", async () => {
   const React = await import("react");
@@ -19,12 +26,19 @@ vi.mock("@xyflow/react", async () => {
     ConnectionMode: { Loose: "loose" },
     MarkerType: { ArrowClosed: "arrowclosed" },
     useNodesState: (init) => [init, () => {}, () => {}],
-    useReactFlow: () => ({ fitView: () => {} }),
+    useReactFlow: () => ({ fitView: flow.fitView }),
   };
 });
 
 // The page keeps the chosen vertical in the URL; start every test on a clean one.
-beforeEach(() => window.history.replaceState(null, "", "/"));
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+  flow.fitView.mockClear();
+  flow.pannable = false;
+});
+
+const moments = () => within(screen.getByRole("group", { name: "Moment" })).getAllByRole("button");
+const moment = (name) => within(screen.getByRole("group", { name: "Moment" })).getByRole("button", { name });
 
 describe("authorization flow data", () => {
   it("has six moments per vertical, each arrow joining two real lanes within the slot count", () => {
@@ -81,10 +95,12 @@ describe("authorization flow data", () => {
 describe("AuthorizationFlowPage", () => {
   it("shows six moments, starts with no arrows, and says it is scripted", () => {
     render(<AuthorizationFlowPage />);
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    expect(moments()).toHaveLength(6);
     expect(screen.getByTestId("flow").dataset.nodes).toBe(String(LANES.length));
     expect(screen.getByTestId("flow").dataset.edges).toBe("0");
-    expect(screen.getByText(/scripted walkthrough/)).toBeTruthy();
+    expect(screen.getByTestId("af-banner").getAttribute("role")).toBe("note");
+    expect(screen.getByTestId("af-banner").textContent).toMatch(/scripted walkthrough/);
+    expect(screen.getByTestId("af-banner").textContent).toMatch(/no check runs/);
   });
 
   it("reveals one arrow per step and fills the conversation and outcome as it walks", () => {
@@ -103,7 +119,7 @@ describe("AuthorizationFlowPage", () => {
   it("switching moment clears the walkthrough", () => {
     render(<AuthorizationFlowPage />);
     fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Simulate"));
-    fireEvent.click(screen.getByRole("tab", { name: /Pay \$60/ }));
+    fireEvent.click(moment(/Pay \$60/));
     expect(screen.getByTestId("flow").dataset.edges).toBe("0");
     expect(screen.getByText(/stops confirmation before the CIBA phone push/)).toBeTruthy();
   });
@@ -115,9 +131,12 @@ describe("AuthorizationFlowPage theme", () => {
     const { container } = render(<AuthorizationFlowPage />);
     const canvas = () => container.querySelector(".af-canvas");
     expect(canvas().dataset.afTheme).toBe("light");
-    fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
+    const toggle = screen.getByRole("button", { name: "Dark diagram" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
     expect(canvas().dataset.afTheme).toBe("dark");
-    fireEvent.click(screen.getByRole("button", { name: "Light mode" }));
+    expect(screen.getByRole("button", { name: "Dark diagram" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Dark diagram" }));
     expect(canvas().dataset.afTheme).toBe("light");
   });
 
@@ -135,12 +154,12 @@ describe("AuthorizationFlowPage vertical selector", () => {
     render(<AuthorizationFlowPage />);
     const select = screen.getByLabelText("Vertical");
     expect(select.querySelectorAll("option")).toHaveLength(VERTICAL_OPTIONS.length);
-    expect(screen.getByRole("tab", { name: /Read balance/ })).toBeTruthy();
+    expect(moment(/Read balance/)).toBeTruthy();
     fireEvent.change(select, { target: { value: "airlines" } });
-    expect(screen.getByRole("tab", { name: /Read reservations/ })).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: /Read balance/ })).toBeNull();
+    expect(moment(/Read reservations/)).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Moment" })).queryByRole("button", { name: /Read balance/ })).toBeNull();
     expect(screen.getByText(/the airline decides/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: /Pay \$25/ }));
+    fireEvent.click(moment(/Pay \$25/));
     fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Simulate"));
     expect(screen.getByText("Pay a $25 change fee")).toBeTruthy();
   });
@@ -195,7 +214,7 @@ describe("step detail", () => {
   it("the page starts with an idle detail panel, then follows the step", () => {
     render(<AuthorizationFlowPage />);
     expect(screen.getByRole("heading", { name: "Press Simulate, or pick a step" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: /Read balance/ }));
+    fireEvent.click(moment(/Read balance/));
     fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Simulate"));
     fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Pause"));
     expect(screen.getByLabelText("Step detail").textContent).toContain("Step 1 of 13");
@@ -203,19 +222,21 @@ describe("step detail", () => {
 
   it("jumps to a step from the list and lights the right token", () => {
     render(<AuthorizationFlowPage />);
-    fireEvent.click(screen.getByRole("tab", { name: /Read balance/ }));
+    fireEvent.click(moment(/Read balance/));
     const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
     fireEvent.click(steps[4]); // Delegated token: sub, act
     const detail = screen.getByLabelText("Step detail");
     expect(detail.textContent).toContain("Step 5 of 13");
     expect(detail.textContent).toContain("Delegated token");
-    expect(detail.querySelector(".afd__tok--live").textContent).toContain("Delegated token");
+    const inUse = within(detail).getByText("In use at this step");
+    expect(inUse.closest("dd").previousElementSibling.textContent).toContain("Delegated token");
+    expect(within(detail).getAllByText("In use at this step")).toHaveLength(1);
     expect(detail.querySelectorAll(".afd__claims tbody tr").length).toBeGreaterThan(3);
   });
 
   it("marks a refusal as refused and lists a failed check mark style", () => {
     render(<AuthorizationFlowPage />);
-    fireEvent.click(screen.getByRole("tab", { name: /Pay \$60/ }));
+    fireEvent.click(moment(/Pay \$60/));
     const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
     fireEvent.click(steps[6]); // DENY
     expect(screen.getByLabelText("Step detail").textContent).toContain("Refused");
@@ -228,7 +249,192 @@ describe("step detail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Detail on the side" }));
     expect(container.querySelector(".af-grid--side")).toBeTruthy();
     expect(container.querySelector(".af-grid--side > .afd")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Detail below" }));
+    expect(screen.getByRole("button", { name: "Detail on the side" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Detail on the side" }));
     expect(container.querySelector(".af-grid--side")).toBeNull();
+  });
+});
+
+describe("AuthorizationFlowPage on the Ping UI Standard", () => {
+  it("puts the banner first, inside the page root, before the title band", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    const root = container.querySelector(".pu-page.af-page");
+    expect(root).toBeTruthy();
+    const first = root.firstElementChild;
+    expect(first.querySelector("[role='note']")).toBe(screen.getByTestId("af-banner"));
+    expect(root.querySelector("h1")).toBeTruthy();
+    expect(first.compareDocumentPosition(root.querySelector("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("names the chosen vertical's business in the banner, and follows a change of vertical", () => {
+    render(<AuthorizationFlowPage />);
+    expect(screen.getByTestId("af-banner").textContent).toContain(profileFor(DEFAULT_VERTICAL).org);
+    fireEvent.change(screen.getByLabelText("Vertical"), { target: { value: "healthcare" } });
+    expect(screen.getByTestId("af-banner").textContent).toContain("CareConnect");
+  });
+
+  it("has exactly one primary button in every state: idle, running, paused, jumped to a step, done", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    const primaries = () => container.querySelectorAll(".pu-btn--primary");
+    const bar = () => within(screen.getByTestId("af-step-bar"));
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe("Simulate this moment");
+    fireEvent.click(primaries()[0]);
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe("Restart this moment");
+    fireEvent.click(bar().getByText("Pause"));
+    expect(primaries()).toHaveLength(1);
+    fireEvent.click(within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button")[3]);
+    expect(primaries()).toHaveLength(1);
+    fireEvent.click(bar().getByText("Stop"));
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe("Simulate this moment");
+    // no other button wears a primary look: the shared step bar stays secondary
+    expect(container.querySelectorAll("[class*='primary']")).toHaveLength(1);
+  });
+
+  it("keeps keyboard focus on the primary after it is pressed", () => {
+    render(<AuthorizationFlowPage />);
+    const go = screen.getByTestId("af-simulate");
+    go.focus();
+    fireEvent.click(go);
+    expect(document.activeElement).toBe(screen.getByTestId("af-simulate"));
+    expect(screen.getByTestId("af-simulate").textContent).toBe("Restart this moment");
+  });
+
+  it("restarts the walkthrough from the first message", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByTestId("af-simulate"));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Pause"));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText(/Next/));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText(/Next/));
+    expect(screen.getByTestId("flow").dataset.edges).toBe("3");
+    fireEvent.click(screen.getByTestId("af-simulate"));
+    expect(screen.getByTestId("flow").dataset.edges).toBe("1");
+  });
+
+  it("offers the moments as a named group of toggle buttons, not half a tab widget", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    expect(container.querySelector("[role='tablist'], [role='tab']")).toBeNull();
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    const group = screen.getByRole("group", { name: "Moment" });
+    expect(group.getAttribute("aria-labelledby")).toBe("af-moments-l");
+    expect(moments().filter((t) => t.getAttribute("aria-pressed") === "true")).toHaveLength(1);
+    expect(container.querySelector("[aria-selected]")).toBeNull();
+    fireEvent.click(moments()[3]);
+    expect(moments()[3].getAttribute("aria-pressed")).toBe("true");
+    expect(moments().filter((t) => t.getAttribute("aria-pressed") === "true")).toHaveLength(1);
+    for (const name of ["Detail on the side", "Dark diagram"]) {
+      expect(screen.getByRole("button", { name }).getAttribute("aria-pressed")).toBe("false");
+    }
+  });
+
+  it("gives every chip a word, and never calls a scripted outcome a real result", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(moment(/Pay \$60/));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    fireEvent.click(steps[6]);
+    const chips = [...container.querySelectorAll(".pu-chip")];
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip.textContent.trim().length, chip.outerHTML).toBeGreaterThan(0);
+      expect(chip.className).toContain("pu-chip--neutral");
+    }
+    expect(screen.getByLabelText("Step detail").textContent).toContain("Refused (scripted)");
+    for (let i = 7; i < steps.length; i += 1) fireEvent.click(steps[i]);
+    expect(screen.getByRole("status").textContent).toContain("Refused (scripted)");
+  });
+
+  it("labels the conversation speakers in text, and the step list marks the current step and refusals", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(moment(/Pay \$60/));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    fireEvent.click(steps[2]);
+    expect(container.querySelector(".af-bubble--user").getAttribute("data-who")).toBe("You");
+    expect(steps[2].getAttribute("aria-current")).toBe("step");
+    expect(steps.filter((s) => s.getAttribute("aria-current")).length).toBe(1);
+    expect(steps.some((s) => /· refusal/.test(s.textContent))).toBe(true);
+  });
+
+  it("names every claim cell for the stacked phone layout and lets a long code block scroll by keyboard", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(moment(/Read balance/));
+    fireEvent.click(within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button")[4]);
+    const cells = [...container.querySelectorAll(".afd__claims tbody td")];
+    expect(cells.length).toBeGreaterThan(9);
+    expect(cells.every((c) => ["Claim", "Value", "What it means"].includes(c.getAttribute("data-label")))).toBe(true);
+    const pre = container.querySelector(".afd-code pre");
+    expect(pre.getAttribute("tabindex")).toBe("0");
+    expect(pre.getAttribute("aria-label")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^Copy (request|response)$/ }).length).toBeGreaterThan(0);
+  });
+
+  it("has no inline colour or hex literal in the page markup", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    for (const el of container.querySelectorAll("[style]")) {
+      expect(el.getAttribute("style"), el.outerHTML.slice(0, 80)).not.toMatch(/#[0-9a-f]{3,8}\b|rgb|hsl|color|background/i);
+    }
+  });
+});
+
+
+describe("AuthorizationFlowPage review fixes", () => {
+  const bar = () => within(screen.getByTestId("af-step-bar"));
+
+  it("puts focus back on the primary when Reset disables itself", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(bar().getByText("Simulate"));
+    const reset = bar().getByRole("button", { name: "Reset" });
+    reset.focus();
+    expect(document.activeElement).toBe(reset);
+    fireEvent.click(reset);
+    expect(reset.disabled).toBe(true);
+    expect(document.activeElement).toBe(screen.getByTestId("af-simulate"));
+  });
+
+  it("leaves focus where the bar itself put it (Simulate to Pause), and where the user was elsewhere", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(bar().getByText("Simulate"));
+    expect(document.activeElement).not.toBe(screen.getByTestId("af-simulate"));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    steps[2].focus();
+    fireEvent.click(steps[2]);
+    expect(document.activeElement).toBe(steps[2]);
+  });
+
+  it("does not state the scripted story as fact in the header or the detail heading", () => {
+    render(<AuthorizationFlowPage />);
+    const summary = screen.getByRole("heading", { level: 1 }).parentElement.textContent;
+    expect(summary).toMatch(/In this scripted telling, PingOne signs the customer in/);
+    expect(screen.getByRole("heading", { level: 2, name: "What happens at this step (scripted)" })).toBeTruthy();
+    expect(screen.queryByText(/really happening/i)).toBeNull();
+  });
+
+  it("says when the drawing is panned, and follows the message's two lanes while it walks", () => {
+    flow.pannable = true;
+    const { container } = render(<AuthorizationFlowPage />);
+    expect(container.querySelector(".af-canvas").dataset.pannable).toBe("true");
+    expect(screen.getByText("Drag to pan, use + and − to zoom")).toBeTruthy();
+    expect(flow.fitView).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("af-simulate"));
+    const first = MOMENTS[0].steps[0];
+    expect(flow.fitView).toHaveBeenCalledWith(expect.objectContaining({ nodes: [{ id: first.from }, { id: first.to }], minZoom: 0.8 }));
+  });
+
+  it("shows no pan hint and does not chase the steps when the whole drawing fits", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByTestId("af-simulate"));
+    expect(container.querySelector(".af-canvas").dataset.pannable).toBeUndefined();
+    expect(container.querySelector(".af-pan-hint")).toBeNull();
+    expect(flow.fitView).not.toHaveBeenCalled();
+  });
+
+  it("sizes the walk-it grid from the page width (cqw), because vw ignores the app's page zoom", () => {
+    const css = readFileSync(join(__dirname, "..", "AuthorizationFlowPage.css"), "utf8");
+    expect(css).toMatch(/\.pu-page\.af-page\s*\{\s*container-type:\s*inline-size/);
+    const grid = css.match(/\.af-grid\s*\{[^}]*\}/)[0];
+    expect(grid).toContain("100cqw");
+    expect(grid).not.toMatch(/\bvw\b/);
+    expect(grid).toMatch(/width:\s*var\(--af-grid-w\)/);
   });
 });
