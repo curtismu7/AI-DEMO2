@@ -1,0 +1,22 @@
+{
+  "_comment": "Authoritative facts the booking rules judge. Single source of truth: demo_mcp_resource_server (getFare) reads this file, and PingGateway reads the synced copy ping-gateway/config/airline-booking-policy-data.json (node scripts/sync-airline-booking-data.js). Fares are catalogue prices by flight number; the caller never sets the price that is judged. MEMBER TIER IS NOT IN THIS FILE: PingOne Authorize reads it from the PingOne user's custom attribute airlineMemberTier (Trust Framework attribute MemberTier); the gateway sends only the token subject (UserId). premiumTiers is the explicit, documented set of airlineMemberTier values that count as premium for the airline rule 'only premium members can book over $750'; it feeds the policy generator and the mock engines, and anything else (another tier, an empty value, a user without the attribute) is NOT premium. ASSUMPTION FOR THE OWNER TO CONFIRM: premium = Premier Gold (the demo user holds Premier Gold); Premier Silver is the standard example. members maps a token sub to its own record; agentSpendLimitUsd is the USER's preference for tickets bought by an AI agent (default 500, defaultMember). Synthetic data.",
+  "currency": "USD",
+  "flights": {
+    "UA328": 210,
+    "UA1147": 389,
+    "UA502": 346,
+    "UA814": 478,
+    "SH101": 180,
+    "SH102": 320,
+    "SH103": 480,
+    "SH104": 500,
+    "SH105": 500.01,
+    "SH106": 620,
+    "SH107": 940,
+    "SH108": 750,
+    "SH109": 750.01
+  },
+  "premiumTiers": ["Premier Gold"],
+  "defaultMember": { "agentSpendLimitUsd": 500 },
+  "members": {}
+}

@@ -25,9 +25,10 @@ test.beforeEach(async ({ page }) => {
 
 test('shows the real-session facts and says the PingOne cookie is unreadable', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Session Lab' })).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole('cell', { name: 'pwd, mfa' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'sid-abc' })).toBeVisible();
-  await expect(page.locator('.session-lab__note').getByText('cannot read it', { exact: false })).toBeVisible();
+  await expect(page.getByText('pwd, mfa (ID token)')).toBeVisible();
+  await expect(page.getByText('sid-abc (ID token)')).toBeVisible();
+  await expect(page.getByTestId('session-lab-cookie-note').getByText('cannot read it', { exact: false })).toBeVisible();
+  await expect(page.getByTestId('session-lab-banner')).toHaveAttribute('role', 'note');
 });
 
 test('diagram has Simulate and Reset', async ({ page }) => {
@@ -38,18 +39,18 @@ test('diagram has Simulate and Reset', async ({ page }) => {
 });
 
 test('simulated lab: per-method times, sticky SSO, expiry', async ({ page }) => {
-  await expect(page.getByText('Simulated.', { exact: false })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('session-lab-sim')).toContainText('Nothing here calls PingOne', { timeout: 15000 });
   await page.getByRole('button', { name: 'Sign in with password' }).click();
-  await expect(page.getByRole('rowheader', { name: 'last sign-on · pwd' })).toBeVisible();
+  await expect(page.getByTestId('session-lab-record').getByText('last sign-on · pwd')).toBeVisible();
   await page.getByRole('button', { name: '+9 hours' }).click();
   await page.getByRole('button', { name: 'Check', exact: true }).click();
-  await expect(page.getByTestId('session-lab-result')).toContainText('FAIL: last sign-on older than 480 min');
+  await expect(page.getByTestId('session-lab-result')).toContainText('FAIL last sign-on older than 480 min');
   await page.getByRole('button', { name: 'Report mfa, no challenge' }).click();
   await page.getByLabel('Method').selectOption('mfa');
   await page.getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page.getByTestId('session-lab-result')).toContainText('PASS');
   await page.getByRole('button', { name: 'Delete session' }).click();
-  await expect(page.getByRole('cell', { name: 'no session' })).toBeVisible();
+  await expect(page.getByTestId('session-lab-record')).toContainText('No session');
 });
 
 test('no horizontal scroll at 375px', async ({ page }) => {

@@ -56,6 +56,16 @@
 
 const { decide, params, workerToken } = require('./verifyA2aDelegationPolicy');
 
+// Airline booking rules: the member tier is the PingOne USER's custom attribute airlineMemberTier,
+// read by Authorize (MemberTier is keyed on UserId, the token sub). A probe cannot send a tier, so
+// the row picks WHICH USER asks. PARITY_PREMIUM_USER_ID: a user whose airlineMemberTier is a premium
+// tier (default: the probe subject, which is the demo user holding Premier Gold - UNVERIFIED).
+// PARITY_STANDARD_USER_ID: a user with a non-premium tier, e.g. the demo user flipped with
+// scripts/set-airline-member-tier.js. Unset = the rows that need it are SKIPPED, not failed.
+const PREMIUM_USER = process.env.PARITY_PREMIUM_USER_ID || params({ tool: 'book_airline_flight', depth: 1, vertical: 'airlines' }).UserId;
+const STANDARD_USER = process.env.PARITY_STANDARD_USER_ID || '';
+const asUser = (sub) => ({ UserId: sub, ClientId: sub });
+
 /**
  * One authored deny-rule per row. `deny` must describe a request the AUTHORED
  * policy denies — if the live endpoint PERMITs it, that rule is not imported.
@@ -213,6 +223,35 @@ const RULES = [
     },
     permit: {},
   },
+  {
+    // Airline booking RULE A (owner: the user): no tickets bought by an AI agent over the user's
+    // AgentSpendLimit (500). depth 1 puts an agent in ActClientId; a $620 fare is over the limit
+    // and the asking user is premium (PREMIUM_USER), so ONLY rule A fires. Every attribute is sent on both sides
+    // (INDETERMINATE trap, header of this file). The permit control is $480: under the limit.
+    // UNVERIFIED until the rules are imported (docs/airline-booking-rules-import.md).
+    code: 'mcp-airline-agent-spend-limit',
+    label: 'airline booking — agent over the user limit (A)',
+    mockRule: 'Rule 3-airline (agent spend limit)',
+    deny: {
+      tool: 'book_airline_flight', vertical: 'airlines', depth: 1,
+      extra: { Amount: 620, TransactionAmount: '620', AgentSpendLimit: 500, ...asUser(PREMIUM_USER) },
+    },
+    permit: { Amount: 480, TransactionAmount: '480' },
+  },
+  {
+    // Airline booking RULE B (owner: the airline): only premium members can book over $750.
+    // The user's limit is raised to 2000 so rule A cannot fire and ONLY rule B denies the $940
+    // fare for a non-premium user (STANDARD_USER). The permit control is the same booking by PREMIUM_USER.
+    code: 'mcp-airline-premium-only',
+    requiresEnv: 'PARITY_STANDARD_USER_ID',
+    label: 'airline booking — over 750, not premium (B)',
+    mockRule: 'Rule 3-airline (premium only)',
+    deny: {
+      tool: 'book_airline_flight', vertical: 'airlines', depth: 1,
+      extra: { Amount: 940, TransactionAmount: '940', AgentSpendLimit: 2000, ...asUser(STANDARD_USER) },
+    },
+    permit: asUser(PREMIUM_USER),
+  },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -237,6 +276,10 @@ async function main() {
 
   const rows = [];
   for (const rule of RULES) {
+    if (rule.requiresEnv && !process.env[rule.requiresEnv]) {
+      console.log(`  skipped ${rule.label.padEnd(44)} (set ${rule.requiresEnv} to a user with a non-premium airlineMemberTier)`);
+      continue;
+    }
     await sleep(1400);
     const p = { ...params({ tool: rule.deny.tool, depth: rule.deny.depth, vertical: rule.deny.vertical }), ...(rule.deny.extra || {}) };
     const r = await decide(token, p);
