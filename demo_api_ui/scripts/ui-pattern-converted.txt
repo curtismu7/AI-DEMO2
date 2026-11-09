@@ -25,6 +25,7 @@
 /privilege-demo
 /agent-builder
 /ungoverned-agent
+/oauth-academy
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
