@@ -1,0 +1,56 @@
+/* AIC token exchange page: only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1),
+   type comes from the --font-size-* scale (H2), no inline styles (H3). Every rule sits under .pu-page.aic-page. */
+
+/* "Sign in at AIC" is a link (it leaves the app for AIC), so it is an <a>, not a <button>. The shared primary rule is
+   button-only, so when sign-in is the next step this class gives the anchor the same fixed Ping Red primary: the
+   --btn-accent* tokens, never a vertical colour. Every link state is named because PingOne's end-user-nano skin
+   styles a:link / a:visited / a:hover. */
+.pu-page.aic-page a.pu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pu-page.aic-page a.pu-btn.aic-page__next,
+.pu-page.aic-page a.pu-btn.aic-page__next:link,
+.pu-page.aic-page a.pu-btn.aic-page__next:visited {
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+}
+
+.pu-page.aic-page a.pu-btn.aic-page__next:hover {
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+}
+
+/* The proof under a step: bullets, then the protocol trace the BFF recorded. */
+.pu-page.aic-page .aic-page__proof {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--th-border);
+}
+
+.pu-page.aic-page .aic-page__points {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+
+/* The end-user-nano skin sets word-wrap: break-word on code and lists and beats single-class rules, so a long unbroken
+   value in a trace (a URL, a token) ran past the card on a phone. Page-local fix for the shared ProtocolTrace. */
+.pu-page.aic-page .ptrace,
+.pu-page.aic-page .ptrace__step,
+.pu-page.aic-page .ptrace__block {
+  min-width: 0;
+}
+
+.pu-page.aic-page .ptrace__code,
+.pu-page.aic-page .ptrace__line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
