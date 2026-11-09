@@ -28,6 +28,8 @@
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
+/demo/enterprise-mcp
+/pingfederate-id-jag/demo
 /pingfederate-config
 /privilege-prompt-log
 /governance-timeline
