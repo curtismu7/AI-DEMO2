@@ -4,6 +4,7 @@
 /privilege-saas-access
 /client-registration
 /pingone-authorize
+/scope-audit
 /delegation-chain-value
 /token-security
 /session-lab
