@@ -1,85 +1,213 @@
-.gpb-page { max-width: 1180px; margin: 0 auto; padding: 32px clamp(18px, 4vw, 48px) 56px; color: var(--th-text); }
-.gpb-head { max-width: 760px; margin-bottom: 26px; position: relative; }
-.gpb-theme-toggle { position: absolute; top: 0; right: 0; padding: 6px 14px; border-radius: var(--radius-md); border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text); font-size: .82rem; font-weight: 600; cursor: pointer; }
-.gpb-theme-toggle:hover { color: var(--th-text); background: var(--th-bg-hover); }
-.gpb-head h1 { margin: 0 0 10px; font-size: clamp(1.7rem, 3vw, 2.4rem); line-height: 1.15; }
-.gpb-control { margin-bottom: 30px; }
-.gpb-board-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
-.gpb-board-head h2 { margin: 0; font-size: 1.3rem; }
-.gpb-board-subject { font-size: .82rem; color: var(--th-text-muted, #5c646b); font-style: italic; }
-.gpb-tally { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.gpb-pill { padding: 4px 11px; border-radius: var(--radius-pill); border: 1px solid; font-size: .78rem; font-weight: 750; }
-.gpb-pill--permit, .gpb-decision--permit { background: color-mix(in srgb, #21a366 14%, var(--th-bg-card)); border-color: #21a366; color: #187443; }
-.gpb-pill--deny, .gpb-decision--deny { background: color-mix(in srgb, #d92d20 12%, var(--th-bg-card)); border-color: #d92d20; color: #a32219; }
-.gpb-pill--unknown, .gpb-decision--unknown, .gpb-decision--indeterminate { background: color-mix(in srgb, #c77b00 14%, var(--th-bg-card)); border-color: #c77b00; color: #875300; }
-/* The inks above are tuned for the light tint; on the dark card they measured 2.5 to 3.2:1. */
-:root[data-theme="dark"] .gpb-pill--permit, :root[data-theme="dark"] .gpb-decision--permit { color: #86efac; }
-:root[data-theme="dark"] .gpb-pill--deny, :root[data-theme="dark"] .gpb-decision--deny { color: #fca5a5; }
-:root[data-theme="dark"] .gpb-pill--unknown, :root[data-theme="dark"] .gpb-decision--unknown, :root[data-theme="dark"] .gpb-decision--indeterminate { color: #fcd34d; }
-.gpb-refresh { appearance: none; padding: 8px 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font: inherit; font-weight: 700; cursor: pointer; }
-.gpb-refresh:hover:not(:disabled) { border-color: var(--th-status-info); color: var(--th-status-info); }
-.gpb-refresh:disabled { opacity: .65; cursor: wait; }
-.gpb-refresh:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-status-info) 35%, transparent); outline-offset: 2px; }
-.gpb-table-wrap { overflow-x: auto; border: 1px solid var(--th-border); border-radius: 10px; background: var(--th-bg-card); box-shadow: 0 4px 18px rgb(15 23 42 / 8%); }
-.gpb-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-.gpb-table th, .gpb-table td { padding: 12px 14px; border-bottom: 1px solid var(--th-border); text-align: left; white-space: nowrap; }
-.gpb-table thead th { background: var(--th-bg-inset); color: var(--th-text); font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; }
-.gpb-table tbody tr:hover { background: color-mix(in srgb, var(--th-status-info) 5%, var(--th-bg-card)); }
-.gpb-table tbody tr:last-child th, .gpb-table tbody tr:last-child td { border-bottom: 0; }
-.gpb-table tbody th { font-weight: 700; }
-.gpb-tool, .gpb-codes { font-size: .82rem; }
-.gpb-decision { display: inline-block; padding: 3px 9px; border-radius: var(--radius-pill); border: 1px solid; font-size: .74rem; font-weight: 800; letter-spacing: .04em; }
-.gpb-loading { display: flex; align-items: center; gap: 10px; color: var(--th-text-muted); }
-.gpb-error { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border: 1px solid #d92d20; border-radius: var(--radius-lg); background: color-mix(in srgb, #d92d20 10%, var(--th-bg-card)); margin-bottom: 14px; }
-.gpb-error-title { font-weight: 800; }
-.gpb-error-detail { color: var(--th-text-muted); font-size: .85rem; }
-.gpb-note { margin: 14px 0 0; padding: 12px 14px; border: 1px solid #c77b00; border-radius: var(--radius-lg); background: color-mix(in srgb, #c77b00 10%, var(--th-bg-card)); color: var(--th-text); font-size: .86rem; line-height: 1.5; }
-@media (max-width: 700px) { .gpb-page { padding-inline: 14px; } .gpb-table th, .gpb-table td { padding: 10px; } .gpb-theme-toggle { position: static; display: inline-block; margin-bottom: 12px; } }
+/* /group-policy — only what the shared Ping UI primitives (styles/ping-ui.css) do not cover: the check controls row,
+   the vertical's access story, the decision table (scrolls in its own wrapper, stacks as labelled rows at phone
+   width) and the restyle of GroupMembershipToggle's own buttons as P9 secondaries. Every rule sits under .gpb-page. */
 
-/* ── Run a group check ─────────────────────────────────────────────────────
-   Single-check counterpart of the board: any demo user, one vertical, one
-   live authorize decision. Visually a sibling of the board sections. */
-.gpb-check {
-  margin-top: 18px;
-  padding: 16px 18px;
-  border: 1px solid var(--th-border, #d8dee6);
-  border-radius: var(--radius-xl);
-  background: var(--th-bg-card, #fff);
+.gpb-page .gpb-check-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
 }
-.gpb-check h2 { margin: 0 0 4px; font-size: 1.1rem; }
-.gpb-check-sub { margin: 0 0 12px; font-size: .85rem; color: var(--th-text-muted, #5a6572); }
-.gpb-check-controls { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
-.gpb-check-controls label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; font-weight: 700; }
-.gpb-check-controls select {
-  padding: 6px 10px; border-radius: var(--radius-lg); border: 1px solid var(--th-border, #d8dee6);
-  background: var(--th-bg, #fff); color: inherit; font-size: .85rem;
+
+.gpb-page .gpb-check-controls label {
+  display: block;
+  min-width: 0;
 }
-.gpb-check-run {
-  padding: 7px 16px; border-radius: var(--radius-lg); border: none; cursor: pointer;
-  font-weight: 700; font-size: .85rem;
-  background: var(--ping-red, #b3232a); color: #fff;
+
+.gpb-page .gpb-check-who {
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+  overflow-wrap: anywhere;
 }
-.gpb-check-run:disabled { opacity: .6; cursor: default; }
-.gpb-check-result {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px;
-  padding-top: 12px; border-top: 1px solid var(--th-border, #e3e8ee);
+
+.gpb-page .gpb-result-live {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-.gpb-check-who { font-weight: 700; font-size: .9rem; }
-.gpb-check-group { font-size: .85rem; }
-.gpb-check-toggle {
-  padding: 6px 14px; border-radius: var(--radius-lg); border: 1px solid; cursor: pointer;
-  font-weight: 700; font-size: .82rem; background: transparent;
+
+.gpb-page .gpb-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
 }
-.gpb-check-toggle--add { border-color: #21a366; color: #187443; }
-.gpb-check-toggle--remove { border-color: #b3232a; color: #b3232a; }
-.gpb-check-toggle:disabled { opacity: .6; cursor: default; }
-.gpb-check-note { font-size: .82rem; color: var(--th-text-muted, #5a6572); }
-.gpb-check-story {
-  display: flex; flex-direction: column; gap: 4px;
-  margin-top: 8px; padding: 10px 14px;
-  border-left: 3px solid var(--ping-red, #b3232a);
-  background: color-mix(in srgb, var(--ping-red, #b3232a) 4%, transparent);
-  border-radius: 0 8px 8px 0;
+
+.gpb-page .gpb-error-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-.gpb-check-story-label { font-weight: 750; font-size: .82rem; }
-.gpb-check-story-text { font-size: .85rem; color: var(--th-text-muted, #5a6572); }
+
+/* The vertical's own story: what the tier is called in this business and why this user is in or out. */
+.gpb-page .gpb-check-story {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--th-status-info);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
+.gpb-page .gpb-check-story-label {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.gpb-page .gpb-check-story-text {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+/* Decision table. The wrapper scrolls on wide content, so it is focusable (see the JSX) and gets the page ring. */
+.gpb-page .gpb-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.gpb-page .gpb-table-wrap:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+.gpb-page .gpb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.gpb-page .gpb-table th,
+.gpb-page .gpb-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--th-border-strong);
+  color: var(--th-text);
+  text-align: left;
+  vertical-align: top;
+  /* break-word, not anywhere: the column keeps its word-length minimum and the wrapper scrolls, so "Vertical" and
+     "DENY" are never cut mid-word. A 100-character value breaks once it overflows (stacked rows at phone width). */
+  overflow-wrap: break-word;
+}
+
+.gpb-page .gpb-table .pu-chip {
+  white-space: nowrap;
+}
+
+.gpb-page .gpb-table thead th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gpb-page .gpb-table tbody th {
+  font-weight: var(--font-weight-bold);
+}
+
+.gpb-page .gpb-table tbody tr:last-child th,
+.gpb-page .gpb-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* The PingOne end-user-nano skin breaks words in code and lists; keep the table's own wrapping rule on top. */
+.gpb-page .gpb-table code,
+.gpb-page .gpb-result-live code {
+  overflow-wrap: anywhere;
+}
+
+.gpb-page section > .pu-card + .pu-card {
+  margin-top: 14px;
+}
+
+@media (max-width: 600px) {
+  .gpb-page .gpb-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .gpb-page .gpb-table,
+  .gpb-page .gpb-table tbody,
+  .gpb-page .gpb-table tr,
+  .gpb-page .gpb-table th,
+  .gpb-page .gpb-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .gpb-page .gpb-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .gpb-page .gpb-table th,
+  .gpb-page .gpb-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .gpb-page .gpb-table th::before,
+  .gpb-page .gpb-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* GroupMembershipToggle is shared with the dashboard and the use-case launcher, so it is not edited here. Inside this
+   page its panel sits flat in a card and its two buttons (the Add / Remove toggle and Retry) are P9 secondaries: the
+   fixed edge and ground of .pu-btn, never a vertical colour, so "Run check" stays the view's one primary. The rules
+   outrank the component's own (.gmt-toggle, .gmt-toggle--remove, .gmt-retry) by the page class and a doubled class. */
+.gpb-page .gmt-panel {
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--th-text);
+}
+
+.gpb-page .gmt-toggle.gmt-toggle,
+.gpb-page .gmt-retry.gmt-retry {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  background-image: none;
+  color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  white-space: normal;
+  /* The label carries the group name, which can be one long unbroken token. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  align-self: flex-start;
+}
+
+.gpb-page .gmt-toggle.gmt-toggle:hover:not(:disabled),
+.gpb-page .gmt-retry.gmt-retry:hover:not(:disabled) {
+  border-color: var(--btn-accent);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.gpb-page .gmt-toggle.gmt-toggle:focus-visible,
+.gpb-page .gmt-retry.gmt-retry:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}

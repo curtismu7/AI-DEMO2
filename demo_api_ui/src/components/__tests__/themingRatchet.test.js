@@ -275,8 +275,7 @@ describe('theming ratchet', () => {
 // 471 -> 773: the pin had no ceiling test (only the "not stale" floor below it),
 // so the tree drifted 302 rules UP while this stayed green. The ceiling test is
 // back and the pin is the measured value; it may only go down from here.
-// 766 -> 765: the Jev learning page moved onto the Ping UI primitives and dropped a ground that had no ink.
-const MAX_GROUND_WITHOUT_INK = 743;
+const MAX_GROUND_WITHOUT_INK = 736;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

@@ -21,6 +21,8 @@
 /use-cases/live
 /demo-summary
 /langchain
+/group-policy
+/group-policy/full
 /agent-gateway-authorization
 /privilege-pii-detection
 /settings
