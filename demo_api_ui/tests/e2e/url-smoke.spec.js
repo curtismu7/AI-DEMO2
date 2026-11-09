@@ -266,9 +266,7 @@ const ADMIN_ROUTES = [
   { path: '/authz-test', allowRedirectTo: ['/pingone-authorize', '/admin', '/login'] },
   '/mcp-tools',
   '/mcp-traffic',
-  // '/api-traffic' is not listed: vite.config.js proxies the PREFIX '/api' to the API server, so in the dev server a
-  // full-page load of /api-traffic is answered by the proxy (502 proxy_error) and never reaches the router. Production
-  // (nginx `location /api/`) serves it. See DEV_PROXY_SWALLOWED below.
+  '/api-traffic',
   '/dev-tools',
   '/error-audit',
   '/token-compliance',
@@ -302,13 +300,6 @@ const ADMIN_ROUTES = [
   '/architecture/token-flow',
   '/architecture/flow',
 ];
-
-/**
- * Routes whose path starts with a vite.config.js dev-proxy prefix ('/api'), so the dev server never serves the SPA for
- * them. Asserted to still be swallowed, so the day vite.config.js is fixed this test goes red and the route moves into
- * ADMIN_ROUTES. (Product fix, not made here: proxy '^/api/' instead of '/api'.)
- */
-const DEV_PROXY_SWALLOWED = ['/api-traffic'];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -348,17 +339,6 @@ test.describe('URL smoke — admin routes', () => {
       : entry.allowRedirectTo;
     test(`${routePath} renders without crash`, async ({ page }) => {
       await smokeCheck(page, routePath, { allowRedirectTo: redirectAllow });
-    });
-  }
-});
-
-test.describe('URL smoke — routes the vite dev proxy swallows', () => {
-  for (const routePath of DEV_PROXY_SWALLOWED) {
-    test(`${routePath} is answered by the dev proxy, not the app (known; see DEV_PROXY_SWALLOWED)`, async ({ page, baseURL }) => {
-      test.skip(!/^https?:\/\/(127\.0\.0\.1|localhost)/.test(baseURL || ''), 'only the vite dev server proxies by prefix');
-      await mockAdminAuth(page);
-      const res = await page.goto(routePath, { waitUntil: 'domcontentloaded' });
-      expect(res && res.status(), `${routePath} reached the SPA: remove it from DEV_PROXY_SWALLOWED and add it to ADMIN_ROUTES`).toBeGreaterThanOrEqual(500);
     });
   }
 });

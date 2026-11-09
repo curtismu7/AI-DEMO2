@@ -95,7 +95,7 @@ import { lengthToPx } from '../../../scripts/check-ui-patterns.mjs';
 // 69 -> 68: the Privilege User API Key & Secrets tab uses theme tokens.
 // 60 -> 59: UserMenu.css (the top-nav account dropdown was a white panel in dark).
 // 52 -> 51: PrivilegeA2aTab.css is themed (A2A page on the Ping UI primitives).
-const MAX_UNTHEMED = 51;
+const MAX_UNTHEMED = 50;
 
 const SRC = path.join(__dirname, '..', '..');
 
