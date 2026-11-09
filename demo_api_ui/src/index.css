@@ -1942,9 +1942,6 @@ body {
 :root[data-theme="dark"] .demo-data-scope-code {
   color: #051727;
 }
-:root:not([data-theme="dark"]) .tet-btn.tet-btn--secondary.tet-btn--inline {
-  color: #ffffff;
-}
 :root[data-theme="dark"] .unified-configuration-page {
   color: #ffffff;
 }
