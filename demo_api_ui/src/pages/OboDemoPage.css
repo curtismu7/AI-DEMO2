@@ -8,6 +8,17 @@
 /* Embedded in the Personal Agent Studio tab: the studio's own shell scrolls, so no 100vh floor of our own. */
 .pu-page.obo-demo.obo-demo--embedded { min-height: 0; }
 
+/* Left column of the run grid: the run, then the details of the chosen hop, so a click on a trace line changes
+   something beside it. The shared grid zeroes the margin of its direct .pu-card children only. */
+.pu-page.obo-demo .obo-demo__col { display: grid; gap: 12px; min-width: 0; }
+.pu-page.obo-demo .obo-demo__col > .pu-card { margin: 0; }
+
+/* Text for assistive technology only: the short "Showing step N" announcement. Mounted before it changes. */
+.pu-page.obo-demo .obo-demo__sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
 .pu-page.obo-demo .obo-demo__status { margin: 16px 0 0; }
 .pu-page.obo-demo .obo-demo__error { margin: 8px 0 0; color: var(--th-status-error-text); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 
@@ -61,4 +72,10 @@
   margin: 4px 0 0; padding: 8px 10px; background: var(--th-bg-inset); color: var(--th-text); border: 1px solid var(--th-border);
   border-radius: var(--radius-md); font-size: var(--font-size-sm); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
 }
-.pu-page.obo-demo code { overflow-wrap: anywhere; word-break: break-word; }
+/* The PingOne skin paints inline code in the vertical's pink (4.2:1 light, 3.8:1 dark), and links in a blue under
+   4.5:1. Page ink instead; a link is marked by its underline, not by colour alone (the info-text token is the body
+   ink in light mode). */
+.pu-page.obo-demo code { overflow-wrap: anywhere; word-break: break-word; color: var(--th-text); }
+.pu-page.obo-demo .pu-lede a {
+  color: var(--th-status-info-text); text-decoration: underline; text-underline-offset: 3px;
+}

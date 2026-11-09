@@ -11,8 +11,9 @@ import "./OboDemoPage.css";
 // On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns, for this
 // in-app run only, a step trace with token-free facts plus (when it captured them) the real
 // request/response and the caller's own raw tokens, which this page renders; client secrets arrive
-// already masked. Layout follows /privilege-a2a: the run on the left, the trace on the right, and a click
-// on a trace line opens that step's details on the left.
+// already masked. Layout follows /privilege-a2a: the run and, under it, the step details on the left, the trace on
+// the right, so a click on a trace line changes the details right beside it (on a phone the cards stack and the page
+// brings the details into view without moving keyboard focus).
 //
 // Honesty: nothing on this page is simulated. "Run the delegation" is a real RFC 8693 exchange at PingOne for the
 // signed-in session; there is no mock mode (an environment without the demo configured answers 503 and the page shows
@@ -55,6 +56,8 @@ const STEPS = {
     rows: (f) => [["scanned", "MCP result text and live event evidence"], ["token patterns found", f.leak ? "yes" : "0"]] },
 };
 const STEP_IDS = [1, 2, 3, 4, 5, 6, 7];
+// Who refused a failed hop, from the step itself (steps 2-3 are PingOne's token endpoint, 5-6 the downstream API).
+const REFUSER = { 2: "PingOne refused this step.", 3: "PingOne refused this step.", 5: "The downstream API refused this step.", 6: "The downstream API refused this step." };
 // The word each trace line shows (P7: a chip always carries its word) and the chip tone for it.
 const LABEL = { idle: "not run", run: "running", pass: "ok", fail: "failed", skip: "skipped" };
 const TONE = { idle: "neutral", run: "info", pass: "ok", fail: "danger", skip: "neutral" };
@@ -68,6 +71,9 @@ export default function OboDemoPage({ embedded = false }) {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // { ok, steps, checks, failedStep, error }
   const [selected, setSelected] = useState(null);
+  // A short announcement for a trace line the person picked (the details card itself is not a live region).
+  const [picked, setPicked] = useState("");
+  const detailsRef = useRef(null);
   // Reset hides the live calls already on screen. Matching on the event's own identity (not a clock
   // comparison) so a reconnect that replays the hub buffer cannot bring them back.
   const [dismissed, setDismissed] = useState(() => new Set());
@@ -86,6 +92,7 @@ export default function OboDemoPage({ embedded = false }) {
     setError("");
     setResult(null);
     setSelected(null);
+    setPicked("");
     setDismissed(new Set(liveAll.map(liveKey)));
   }
 
@@ -106,6 +113,7 @@ export default function OboDemoPage({ embedded = false }) {
     setError("");
     setResult(null);
     setSelected(null);
+    setPicked("");
     try {
       const response = await apiClient.post("/api/obo/run");
       if (seq !== runSeq.current) return;
@@ -154,6 +162,13 @@ export default function OboDemoPage({ embedded = false }) {
     cardTone = "danger";
   } else status = { tone: "neutral", word: "Not run", text: "Not run yet" };
 
+  function pick(id) {
+    setSelected(id);
+    setPicked(`Showing step ${id}: ${STEPS[id].title}`);
+    // Bring the details into view if they are off screen (phone widths); never moves focus.
+    detailsRef.current?.scrollIntoView?.({ block: "nearest" });
+  }
+
   function renderDetails() {
     if (!selected) return <p className="pu-note pu-empty">Select a line in the trace to see what happened at that step.</p>;
     const info = STEPS[selected];
@@ -166,7 +181,7 @@ export default function OboDemoPage({ embedded = false }) {
     else if (st === "fail" && step.facts?.error) {
       body = (
         <>
-          <div className="obo-demo__why"><StatusChip tone="danger">Refused</StatusChip> <b>Why it failed.</b> PingOne refused this step.{/subject_token/.test(step.facts.description || "") ? " It did not accept the signed-in token as the input to the exchange: the token may be expired, or its client may not be trusted by the tenant's exchange policy. Sign in again and retry." : ""}</div>
+          <div className="obo-demo__why"><StatusChip tone="danger">Refused</StatusChip> <b>Why it failed.</b> {REFUSER[selected] || "This step failed."}{selected === 3 && /subject_token/.test(step.facts.description || "") ? " It did not accept the signed-in token as the input to the exchange: the token may be expired, or its client may not be trusted by the tenant's exchange policy. Sign in again and retry." : ""}</div>
           <Table rows={[["error", step.facts.error], ["description", step.facts.description], ["http status", step.facts.httpStatus]]} />
         </>
       );
@@ -174,7 +189,7 @@ export default function OboDemoPage({ embedded = false }) {
     else body = <><p className="pu-note">{info.why}</p><Table rows={info.rows(step.facts)} /></>;
     return (
       <>
-        <h3 className="pu-h3">{selected}. {info.title}</h3>
+        <h4 className="pu-h3">{selected}. {info.title}</h4>
         <p className="pu-note pu-mono">{info.route}{st === "pass" && step?.ms ? ` · ${step.ms} ms` : ""}</p>
         {body}
         {step && st !== "idle" && st !== "skip" && st !== "run" ? <OboStepWire step={step} /> : null}
@@ -213,6 +228,7 @@ export default function OboDemoPage({ embedded = false }) {
           )}
         >
           <CardGrid>
+            <div className="obo-demo__col">
             <Card title="Run" tone={cardTone} data-testid="obo-run-card">
               {who ? (
                 <KvList
@@ -247,6 +263,11 @@ export default function OboDemoPage({ embedded = false }) {
                 </ul>
               ) : null}
             </Card>
+            <Card title="Step details" tone="neutral" data-testid="obo-details">
+              <p role="status" className="obo-demo__sr" data-testid="obo-picked">{picked}</p>
+              <div ref={detailsRef}>{renderDetails()}</div>
+            </Card>
+            </div>
             <Card title="Trace" tone="neutral" data-testid="obo-trace-card">
               <ol className="obo-demo__trace" aria-label="Delegation trace">
                 {STEP_IDS.map((id) => {
@@ -254,7 +275,7 @@ export default function OboDemoPage({ embedded = false }) {
                   const ms = byId[id]?.ms;
                   return (
                     <li key={id}>
-                      <button type="button" className="obo-demo__line" aria-current={selected === id ? "true" : undefined} onClick={() => setSelected(id)}>
+                      <button type="button" className="obo-demo__line" aria-current={selected === id ? "true" : undefined} onClick={() => pick(id)}>
                         <span className="obo-demo__num">{id}</span>
                         <span><span className="obo-demo__line-title">{STEPS[id].title}</span><span className="obo-demo__line-route">{STEPS[id].route}</span></span>
                         <span className="obo-demo__meta"><StatusChip tone={TONE[st]}>{LABEL[st]}</StatusChip>{st === "pass" && ms ? `${ms} ms` : ""}</span>
@@ -268,13 +289,7 @@ export default function OboDemoPage({ embedded = false }) {
           </CardGrid>
         </Section>
 
-        <Section id="obo-details-h" kicker="2 · Inspect a hop" title="Step details">
-          <Card tone="neutral" aria-live="polite" data-testid="obo-details">
-            {renderDetails()}
-          </Card>
-        </Section>
-
-        <Section id="obo-claude-h" kicker="3 · Or from Claude Code" title="Run it from Claude Code">
+        <Section id="obo-claude-h" kicker="2 · Or from Claude Code" title="Run it from Claude Code">
           <Card tone="neutral">
             <p className="pu-note">Same delegation, with Claude as the OAuth client. Claude sees claims and status codes, never a token.</p>
             <ol className="obo-demo__steps">
@@ -289,9 +304,9 @@ export default function OboDemoPage({ embedded = false }) {
           </Card>
         </Section>
 
-        <Section id="obo-live-h" kicker="4 · What Claude did" title="Live from Claude">
-          <Card tone={live.length ? "live" : "neutral"} aria-live="polite" data-testid="obo-live">
-            <p className="pu-status-line">
+        <Section id="obo-live-h" kicker="3 · What Claude did" title="Live from Claude">
+          <Card tone={live.length ? "live" : "neutral"} data-testid="obo-live">
+            <p className="pu-status-line" role="status" data-testid="obo-live-status">
               <StatusChip tone={live.length ? "info" : "neutral"}>{live.length ? "Received" : "Waiting"}</StatusChip>
               <span>{live.length ? (lastCall ? `Last call at ${lastCall}` : "A call arrived; its time is unknown.") : "Waiting for Claude to call the tool…"}</span>
             </p>
