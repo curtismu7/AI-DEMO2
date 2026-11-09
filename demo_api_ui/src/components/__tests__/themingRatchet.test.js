@@ -275,9 +275,7 @@ describe('theming ratchet', () => {
 // 471 -> 773: the pin had no ceiling test (only the "not stale" floor below it),
 // so the tree drifted 302 rules UP while this stayed green. The ceiling test is
 // back and the pin is the measured value; it may only go down from here.
-// 770 -> 768: AuthorizationFlowPage.css and the step list, chat bubbles, pills and outcome now set their own ink
-// with each ground (the page moved onto --th-* tokens for the Ping UI Standard).
-const MAX_GROUND_WITHOUT_INK = 768;
+const MAX_GROUND_WITHOUT_INK = 766;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
