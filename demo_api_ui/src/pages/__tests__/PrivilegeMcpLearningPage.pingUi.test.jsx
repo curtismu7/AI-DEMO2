@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import PrivilegeMcpLearningPage from "../PrivilegeMcpLearningPage";
 
@@ -101,6 +102,22 @@ describe("PrivilegeMcpLearningPage code blocks", () => {
     expect(screen.getAllByRole("status").some((s) => s.textContent === "Copied to clipboard")).toBe(true);
   });
 
+  it("announces a copy once: the button name stays put and only the status region speaks", async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    renderPage();
+    const btn = screen.getAllByRole("button", { name: /^Copy: / })[0];
+    const nameBefore = btn.getAttribute("aria-label");
+    const region = btn.parentElement.querySelector('[role="status"]');
+    // The live region exists, empty, before its content changes.
+    expect(region).not.toBeNull();
+    expect(region.textContent).toBe("");
+    fireEvent.click(btn);
+    await waitFor(() => expect(region).toHaveTextContent("Copied to clipboard"));
+    expect(btn.getAttribute("aria-label")).toBe(nameBefore);
+    expect(btn.getAttribute("aria-label")).not.toMatch(/Copied/);
+  });
+
   it("reports a refused copy instead of claiming success", async () => {
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
@@ -109,5 +126,31 @@ describe("PrivilegeMcpLearningPage code blocks", () => {
     fireEvent.click(btn);
     await waitFor(() => expect(btn).toHaveTextContent("Copy failed"));
     expect(btn).not.toHaveTextContent("Copied");
+  });
+});
+
+describe("PrivilegeMcpLearningPage landmarks and embedding", () => {
+  it("adds no <main> of its own: the app shell already supplies the one landmark", () => {
+    const { container } = renderPage();
+    expect(container.querySelector("main")).toBeNull();
+    expect(container.querySelector(".plp-content")).not.toBeNull();
+  });
+
+  it("marks the embedded page so the sticky nav does not reserve room for a top bar that is not there", () => {
+    const standalone = renderPage();
+    expect(standalone.container.querySelector(".plp-page")).not.toHaveClass("plp-page--embedded");
+    standalone.unmount();
+    const { container } = renderPage({ embedded: true });
+    expect(container.querySelector(".plp-page")).toHaveClass("plp-page--embedded");
+    const css = readFileSync("src/pages/PrivilegeMcpLearningPage.css", "utf8");
+    const rule = css.match(/\.plp-page--embedded \.plp-sidebar\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).toMatch(/top:\s*0/);
+    expect(rule[1]).not.toMatch(/topnav-height/);
+  });
+
+  it("carries no style rule for a class the page never renders", () => {
+    const css = readFileSync("src/pages/PrivilegeMcpLearningPage.css", "utf8");
+    expect(css).not.toMatch(/\.plp-back\b/);
   });
 });

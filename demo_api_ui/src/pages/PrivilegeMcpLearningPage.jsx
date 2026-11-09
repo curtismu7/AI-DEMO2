@@ -116,7 +116,7 @@ export default function PrivilegeMcpLearningPage({ embedded = false }) {
   };
 
   return (
-    <PingPage className="plp-page">
+    <PingPage className={`plp-page${embedded ? " plp-page--embedded" : ""}`}>
       <SimBanner data-testid="plp-banner">
         <strong>WRITTEN GUIDE</strong> — nothing on this page calls a gateway, PingOne or the Privilege console. It is
         hand-written text about the AI Agent Gateway; the host names, release names, cluster names and tenant ID in it are
@@ -144,7 +144,7 @@ export default function PrivilegeMcpLearningPage({ embedded = false }) {
 
         <div className="divider-drag-handle plp-divider" aria-label="Resize section navigation" {...navHandleProps} />
 
-        <main className="plp-content">
+        <div className="plp-content">
           {/* ─── Overview ─── */}
           <Section id="overview" kicker="1 · Overview" title="Overview">
             <p>
@@ -747,7 +747,7 @@ Auth Mode         None`}
               <li><a href="https://datatracker.ietf.org/doc/html/rfc9728" target="_blank" rel="noopener noreferrer">RFC 9728 — OAuth Protected Resource Metadata</a></li>
             </ul>
           </Section>
-        </main>
+        </div>
       </div>
       </PageFrame>
     </PingPage>
@@ -778,7 +778,7 @@ function CodeBlock({ title, children }) {
       <pre>
         <code>{children}</code>
       </pre>
-      <button type="button" className="pu-btn plp-code-copy" onClick={copy} aria-label={`${label}${title ? `: ${title}` : ""}`}>
+      <button type="button" className="pu-btn plp-code-copy" onClick={copy} aria-label={`Copy${title ? `: ${title}` : ""}`}>
         {label}
       </button>
       <span className="plp-sr" role="status">{state === "copied" ? "Copied to clipboard" : state === "failed" ? "Could not copy to the clipboard" : ""}</span>

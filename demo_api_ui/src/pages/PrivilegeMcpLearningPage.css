@@ -2,11 +2,6 @@
    primitives (src/styles/ping-ui.css); this file keeps only what is specific to a two-pane written guide:
    the section nav, long-form prose, code blocks and data tables. Tokens only. */
 
-.plp-back:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
 .plp-layout {
   display: flex;
   align-items: flex-start;
@@ -28,6 +23,15 @@
   max-height: calc(100vh - var(--topnav-height, 60px) - 44px);
   overflow-y: auto;
   flex-shrink: 0;
+}
+
+/* Embedded in the client's guide modal there is no app top bar to clear: stick to the modal's own scroll edge. */
+.plp-page--embedded .plp-sidebar {
+  top: 0;
+  max-height: 60vh;
+}
+.pu-page.plp-page--embedded .plp-content h2 {
+  scroll-margin-top: 12px;
 }
 
 .plp-nav-item {
