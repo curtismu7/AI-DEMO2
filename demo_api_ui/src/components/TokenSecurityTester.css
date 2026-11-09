@@ -50,6 +50,7 @@
 
 .tst-page .tst-about > summary:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .tst-page .tst-about__body {
