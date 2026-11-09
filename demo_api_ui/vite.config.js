@@ -184,7 +184,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        '/api': {
+        // Regex key: only paths under /api/ go to the API server. The bare prefix '/api' also swallowed the SPA route
+        // /api-traffic (a full-page load got a 502 from the proxy instead of the app).
+        '^/api/': {
           target: httpTarget,
           changeOrigin: true,
           secure: false,
