@@ -1,5 +1,5 @@
 import { StrictMode } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import DavinciLoginWidget from "../DavinciLoginWidget";
 
@@ -53,6 +53,54 @@ afterEach(() => {
   window.location = originalLocation;
   vi.restoreAllMocks();
   vi.clearAllMocks();
+});
+
+describe("DavinciLoginWidget accessibility and Ping UI hooks", () => {
+  test("reports its status: loading, then flow, then signedIn", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockResolvedValue({ ok: true, username: "demouser" });
+    const onStatus = vi.fn();
+    render(<DavinciLoginWidget onStatus={onStatus} />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+    await waitFor(() => expect(onStatus).toHaveBeenLastCalledWith("signedIn"));
+    const seen = onStatus.mock.calls.map((c) => c[0]);
+    expect(seen[0]).toBe("loading");
+    expect(seen).toContain("flow");
+  });
+
+  test("the live status region and the named flow region are mounted before anything is announced", async () => {
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+    const { container } = render(<DavinciLoginWidget />);
+    const status = container.querySelector(".dvl-status");
+    expect(status.getAttribute("role")).toBe("status");
+    const region = container.querySelector(".dvl-widget");
+    expect(region.getAttribute("role")).toBe("region");
+    expect(region.getAttribute("aria-label")).toBe("DaVinci flow");
+    expect(region.tabIndex).toBe(-1);
+    await waitFor(() => expect(container.querySelector(".dvl-status")).toBe(status));
+  });
+
+  test("Retry is the one primary button on a Ping UI page, sits above the flow area, and hands focus to the flow", async () => {
+    fetchWidgetConfig.mockRejectedValueOnce(new Error("DaVinci demo is not configured."));
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+    const { container, findByRole } = render(<DavinciLoginWidget ping />);
+    const retry = await findByRole("button", { name: "Retry" });
+    expect(retry.className).toBe("pu-btn pu-btn--primary");
+    const region = container.querySelector(".dvl-widget");
+    expect(retry.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    retry.focus();
+    fireEvent.click(retry);
+    expect(document.activeElement).toBe(region);
+  });
+
+  test("without ping, Retry keeps its original class", async () => {
+    fetchWidgetConfig.mockRejectedValueOnce(new Error("DaVinci demo is not configured."));
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+    const { findByRole } = render(<DavinciLoginWidget />);
+    expect((await findByRole("button", { name: "Retry" })).className).toBe("dvl-retry");
+  });
 });
 
 describe("DavinciLoginWidget rendering", () => {

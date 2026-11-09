@@ -21,7 +21,10 @@ import "./DavinciLoginPage.css";
 // records each API call (addresses and status only) for the lesson's Call
 // Inspector while a run is in flight.
 
-export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
+// Optional props, so other callers are unchanged:
+//   onStatus(status)  reports loading | flow | signedIn | error, so a host page can show what actually happened.
+//   ping              Ping UI Standard host (inside a PingPage): Retry is that view's one primary button (pu-btn--primary).
+export default function DavinciLoginWidget({ onCall, onStart, onSignedIn, onStatus, ping = false }) {
   const [status, setStatus] = useState("loading"); // loading | flow | signedIn | error
   const [error, setError] = useState(null);
   const [flowVersion, setFlowVersion] = useState(null);
@@ -36,6 +39,10 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
   // own lifecycle, so StrictMode's mount/uninstall/remount (which happens before
   // start()'s first await resolves) cannot leave it uninstalled for the run.
   const recordingRef = useRef(false);
+
+  useEffect(() => {
+    onStatus?.(status);
+  }, [status, onStatus]);
 
   useEffect(
     () => (onCall ? installWidgetTrace(onCall, window, () => recordingRef.current) : undefined),
@@ -117,6 +124,8 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
   const retry = () => {
     renderedRef.current = true;
     start();
+    // The Retry button unmounts as the flow restarts. Keep keyboard focus on the flow it restarted.
+    containerRef.current?.focus?.({ preventScroll: true });
   };
 
   return (
@@ -125,16 +134,17 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
       <DeviceSignInLink />
 
       {error && <div className="dvl-error" role="alert">{error}</div>}
-      {status === "loading" && <p className="dvl-status">Starting the DaVinci flow...</p>}
-
-      {/* Always mounted: skRenderScreen needs the node to exist before it runs. */}
-      <div ref={containerRef} className="dvWidget dvl-widget" />
-
+      {/* Right under the error it answers, not below the 580px widget area. */}
       {status === "error" && (
-        <button type="button" className="dvl-retry" onClick={retry}>
+        <button type="button" className={ping ? "pu-btn pu-btn--primary" : "dvl-retry"} onClick={retry}>
           Retry
         </button>
       )}
+      {/* Always mounted, so a screen reader announces the text when it appears. */}
+      <p className="dvl-status" role="status">{status === "loading" ? "Starting the DaVinci flow..." : ""}</p>
+
+      {/* Always mounted: skRenderScreen needs the node to exist before it runs. A named region so Retry can hand focus to it. */}
+      <div ref={containerRef} className="dvWidget dvl-widget" role="region" aria-label="DaVinci flow" tabIndex={-1} />
     </div>
   );
 }

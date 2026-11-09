@@ -22,6 +22,7 @@
 /privilege-demo
 /agent-builder
 /ungoverned-agent
+/davinci-widget
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability

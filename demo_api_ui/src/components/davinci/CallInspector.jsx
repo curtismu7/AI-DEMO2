@@ -5,7 +5,7 @@
 // the widget sign-in. Only method, address, status and the response's
 // capabilityName/connectorId/success are ever shown — never bodies, tokens,
 // interaction ids, nonce or form values.
-import { Status } from "../lesson";
+import { StatusChip, KvList } from "../pingUi";
 
 export function callKind(call) {
   const p = call?.path || "";
@@ -103,14 +103,18 @@ function CallCard({ n, call }) {
             <strong>{CALL_LABELS[callKind(call)]}</strong>
             <code>{call.method} {call.path}</code>
           </span>
-          <Status ok={ok}>HTTP {call.status}</Status>
+          <StatusChip tone={ok ? "ok" : "danger"}>HTTP {call.status}</StatusChip>
         </summary>
         <div className="dvl-call-detail">
-          <h4 className="dvl-call-title">
-            Call {n}: <code>{callTitle(call)}</code>
-          </h4>
+          <KvList
+            items={[
+              { label: "Call", value: `${n} of this run` },
+              { label: "Request", value: callTitle(call), mono: true },
+              ...(call.capabilityName ? [{ label: "Capability", value: call.capabilityName, mono: true }] : []),
+            ]}
+          />
           {callKind(call) === "final" && call.success === true && (
-            <p><Status ok>success, tokens returned</Status></p>
+            <p><StatusChip tone="ok">Success, tokens returned</StatusChip></p>
           )}
           <CallRole call={call} />
         </div>
@@ -121,7 +125,7 @@ function CallCard({ n, call }) {
 
 export default function CallInspector({ calls = [] }) {
   if (!calls.length) {
-    return <p className="dvl-calls-empty">No calls yet. The first appears as soon as the widget starts.</p>;
+    return <p className="dvl-calls-empty pu-note pu-empty">No calls yet. The first appears as soon as the widget starts.</p>;
   }
   return (
     <ol className="dvl-calls">

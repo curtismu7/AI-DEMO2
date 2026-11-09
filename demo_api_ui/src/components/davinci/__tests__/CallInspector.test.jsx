@@ -37,14 +37,25 @@ describe("CallInspector", () => {
     expect(cards[0].textContent).toContain("mints a DaVinci SDK token");
     expect(cards[1].textContent).toContain("Bearer");
     expect(cards[3].textContent).toContain("returnSuccessResponseWidget");
-    // The card's first .lesson-ok is its HTTP status; the tokens status comes after it.
-    expect([...cards[3].querySelectorAll(".lesson-ok")].map((e) => e.textContent).join(" ")).toContain("tokens");
+    // The card's first chip is its HTTP status; the tokens status comes after it.
+    expect([...cards[3].querySelectorAll(".pu-chip--ok")].map((e) => e.textContent).join(" ")).toContain("tokens");
     expect(cards[4].textContent).toContain("verifies both");
   });
 
-  it("warns on a failed call", () => {
+  it("shows a failed call as a danger chip with the status word", () => {
     const { container } = render(<CallInspector calls={[{ ...RUN[4], status: 401 }]} />);
-    expect(container.querySelector(".lesson-warn").textContent).toContain("HTTP 401");
+    expect(container.querySelector(".pu-chip--danger").textContent).toContain("HTTP 401");
+    expect(container.querySelector(".pu-chip--ok")).toBeNull();
+  });
+
+  it("lists the request and capability of a call as key-value rows", () => {
+    const { container } = render(<CallInspector calls={[RUN[3]]} />);
+    const kv = [...container.querySelectorAll(".dvl-call .pu-kv dt, .dvl-call .pu-kv dd")].map((e) => e.textContent);
+    expect(kv).toEqual([
+      "Call", "1 of this run",
+      "Request", "POST auth.pingone.com/env-1/davinci/connections/c-1/capabilities/customHTMLTemplate",
+      "Capability", "returnSuccessResponseWidget",
+    ]);
   });
 
   it("says what to expect before the widget starts", () => {

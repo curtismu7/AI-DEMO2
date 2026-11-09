@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 
 let widgetProps;
 vi.mock("../DavinciLoginWidget", () => ({
@@ -60,6 +60,83 @@ describe("DavinciLoginGuidePage", () => {
     open.mockRestore();
   });
 
+  it("puts the honest banner first inside the Ping UI page, as a note", () => {
+    const { container } = render(<DavinciLoginGuidePage />);
+    const page = container.querySelector(".pu-page.dvlg");
+    expect(page.firstElementChild.classList.contains("pu-banner-wrap")).toBe(true);
+    const banner = page.querySelector('[data-testid="dvlg-banner"]');
+    expect(banner.getAttribute("role")).toBe("note");
+    expect(banner.textContent).toContain("NOTHING SIMULATED");
+    expect(banner.textContent).toContain("Call Inspector");
+  });
+
+  it("shows the status the widget reports as a chip with a word, in a live region that is mounted from the start", () => {
+    const { container } = render(<DavinciLoginGuidePage />);
+    const live = container.querySelector(".dvlg-live-app [role=status]");
+    expect(live.textContent).toBe("Starting");
+    act(() => widgetProps.onStatus("flow"));
+    expect(container.querySelector(".dvlg-live-app [role=status]")).toBe(live);
+    expect(live.textContent).toBe("Flow running");
+    expect(live.querySelector(".pu-chip--info")).toBeTruthy();
+    act(() => widgetProps.onStatus("error"));
+    expect(live.textContent).toBe("Failed");
+    expect(live.querySelector(".pu-chip--danger")).toBeTruthy();
+    expect(container.querySelector(".dvlg-live-app").classList.contains("pu-card--danger")).toBe(true);
+  });
+
+  it("has no primary button while the flow runs, and gives the widget the Retry primary", () => {
+    const { container } = render(<DavinciLoginGuidePage />);
+    expect(container.querySelectorAll(".pu-btn--primary")).toHaveLength(0);
+    expect(widgetProps.ping).toBe(true);
+    expect(container.querySelector(".pu-btn").textContent).toBe("Open pop-out");
+  });
+
+  it("counts the recorded calls in a live chip", () => {
+    const { container } = render(<DavinciLoginGuidePage />);
+    const calls = container.querySelector(".dvlg-calls [role=status], [data-testid=dvlg-calls] [role=status]");
+    expect(calls.textContent).toBe("0 calls recorded");
+    act(() => widgetProps.onCall({ method: "POST", host: "h", path: "/e/davinci/policy/p/start", status: 200 }));
+    expect(calls.textContent).toBe("1 call recorded");
+  });
+
+  it("after sign-in, 'What just happened?' is the one primary and the key-value list names who signed in", () => {
+    const { container, getByRole } = render(<DavinciLoginGuidePage />);
+    act(() => widgetProps.onStatus("signedIn"));
+    act(() => widgetProps.onSignedIn({ username: "demouser" }));
+    const primaries = [...container.querySelectorAll(".pu-btn--primary")];
+    expect(primaries.map((b) => b.textContent)).toEqual(["What just happened?"]);
+    const kv = [...container.querySelectorAll('[data-testid="dvlg-signed-in"] .pu-kv dd')].map((e) => e.textContent);
+    expect(kv[0]).toBe("demouser");
+    expect(kv[2]).toBe("0");
+    expect(container.querySelector(".dvlg-live-app [role=status]").textContent).toBe("Signed in");
+    expect(getByRole("button", { name: "What just happened?" })).toBeTruthy();
+  });
+
+  it("shows a name the BFF did not return as such, not as an empty value", () => {
+    const { container } = render(<DavinciLoginGuidePage />);
+    act(() => widgetProps.onSignedIn({ username: null }));
+    expect(container.querySelector('[data-testid="dvlg-signed-in"] .pu-kv dd').textContent).toBe("Not returned by the BFF");
+  });
+
+  it("gives focus back to the summary button when the dialog closes", async () => {
+    const { container, getByRole } = render(<DavinciLoginGuidePage />);
+    act(() => widgetProps.onSignedIn({ username: "demouser" }));
+    const dialog = getByRole("dialog");
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    fireEvent.click(within(dialog).getAllByRole("button", { name: /close/i })[0]);
+    await waitFor(() => expect(document.activeElement).toBe(container.querySelector('[data-testid="dvlg-signed-in"] .pu-btn--primary')));
+  });
+
+  it("moves focus to the section heading when a summary link closes the dialog", async () => {
+    const { getByText } = render(<DavinciLoginGuidePage />);
+    act(() => widgetProps.onSignedIn({ username: "demouser" }));
+    fireEvent.click(getByText("Tokens to Session", { selector: ".dm-scroll a" }));
+    await waitFor(() => {
+      expect(document.activeElement.tagName).toBe("H2");
+      expect(document.activeElement.textContent).toBe("Tokens to Session");
+    });
+  });
+
   it("opens the run summary after sign-in, and its links close it", () => {
     const { getByText, queryByText } = render(<DavinciLoginGuidePage />);
     act(() => widgetProps.onSignedIn({ username: "demouser" }));
@@ -75,5 +152,27 @@ describe("DavinciLoginGuidePage", () => {
     refreshWidgetSessionIfNeeded.mockClear();
     render(<DavinciLoginGuidePage />);
     await waitFor(() => expect(refreshWidgetSessionIfNeeded).toHaveBeenCalledTimes(1));
+  });
+
+  describe("pop-out window", () => {
+    const original = window.location;
+    beforeEach(() => {
+      delete window.location;
+      window.location = { ...original, search: "?popout=1" };
+    });
+    afterEach(() => {
+      window.location = original;
+    });
+
+    it("keeps the banner first, adds no second main landmark, and offers Close window as a secondary", () => {
+      const { container, getByRole } = render(<DavinciLoginGuidePage />);
+      expect(container.querySelector("main")).toBeNull();
+      const page = container.querySelector(".pu-page.dvlg-popout-page");
+      expect(page.firstElementChild.classList.contains("pu-banner-wrap")).toBe(true);
+      expect(page.querySelector('[data-testid="dvlg-banner"]').textContent).not.toContain("Call Inspector lists");
+      expect(getByRole("button", { name: "Close window" }).className).toBe("pu-btn");
+      expect(container.querySelectorAll(".pu-btn--primary")).toHaveLength(0);
+      expect(widgetProps.ping).toBe(true);
+    });
   });
 });
