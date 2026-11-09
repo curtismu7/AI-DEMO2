@@ -276,7 +276,7 @@ describe('theming ratchet', () => {
 // so the tree drifted 302 rules UP while this stayed green. The ceiling test is
 // back and the pin is the measured value; it may only go down from here.
 // 766 -> 764: WhereEverythingRunsPage.css (Ping UI Standard conversion) sets its own ink on every themed ground.
-const MAX_GROUND_WITHOUT_INK = 764;
+const MAX_GROUND_WITHOUT_INK = 744;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

@@ -1,98 +1,32 @@
 /* demo_api_ui/src/pages/A2AProtocolLearningPage.css
  *
- * Theme tokens only — no literals for surfaces, lines or ink, and no dark
- * block. Per THEMING.md the best dark-mode fix adds no dark rules at all: every
- * colour here is a --th-* token that already flips under
- * :root[data-theme="dark"]. Never add a prefers-color-scheme query (THEMING.md
- * rule 1 — that is the incident-#1212 class).
+ * Page-specific rules only. Banner, frame, cards, chips, key-value rows, buttons and the form row come from
+ * the shared Ping UI primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md).
  *
- * The real token vocabulary is --th-bg-page/-band/-card/-inset, --th-text/
- * -body/-muted/-faint, --th-border/-strong, --th-code-bg/-text and
- * --th-status-{success,warning,error,info}(-text|-bg). --th-space-*,
- * --th-text-secondary and --th-error do NOT exist.
+ * Theme tokens only: surfaces, lines and ink are --th-* and flip under :root[data-theme="dark"], so there is
+ * no dark block and no prefers-color-scheme query (THEMING.md rule 1, incident #1212). Every rule that sets a
+ * ground also sets its own ink. Monospace comes from the <code> / <pre> element, never a font-family
+ * declaration (src/__tests__/uiRegression.test.js forbids monospace in CSS).
  */
 
-.a2l-page {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 24px;
-  color: var(--th-text);
+/* Controls row: the specialist picker and the fold buttons. */
+.a2l-controls__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
 }
+.a2l-controls__field { flex: 1 1 260px; min-width: 0; }
+.a2l-foldbar { margin-top: 0; }
+.pu-page.a2l-page .pu-actions + [role='status'] { margin-top: 8px; }
 
-.a2l-theme-toggle {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.a2l-theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.a2l-h1 { font-size: 1.7rem; margin: 0 0 8px; color: var(--th-text); }
-.a2l-sub { margin: 0 0 16px; max-width: 70ch; color: var(--th-text-body); }
-.a2l-h2 { font-size: 1.15rem; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
-.a2l-lead { margin: 0 0 14px; max-width: 78ch; color: var(--th-text-muted); }
-/* --th-text-faint fails AA here (2.56:1 light / 4.29:1 dark against the card
-   surface) — --th-text-muted is the tier that actually clears 4.5:1 for
-   caption-sized text. */
-.a2l-meta { color: var(--th-text-muted); font-size: 0.85rem; }
-
-.a2l-num {
-  display: inline-grid;
-  place-items: center;
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  font-size: 0.85rem;
-  color: var(--th-text-muted);
-}
-
-.a2l-header { border-bottom: 1px solid var(--th-border); padding-bottom: 16px; margin-bottom: 8px; position: relative; }
-
-.a2l-architecture-btn {
-  display: block;
-  margin-top: 14px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--btn-radius);
-  padding: 8px 14px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--btn-weight);
-  cursor: pointer;
-}
-.a2l-architecture-btn:hover { background: var(--th-bg-hover); }
-
-.a2l-vertical { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
-.a2l-vertical select {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  padding: 6px 10px;
-}
-
-.a2l-section { padding: 22px 0; border-bottom: 1px solid var(--th-border); }
-.a2l-foldbar { display: flex; gap: 8px; margin-top: 12px; }
-
-/* Each section is a native <details>: collapse needs no script and is
- * keyboard- and screen-reader-operable. The chevron is a rotated border, not a glyph.
+/* Folding sections. Each is a native <details>: collapse needs no script and is keyboard- and
+ * screen-reader-operable. The chevron is a rotated border, not a glyph.
  *
- * Two classes on purpose: the PingOne end-user-nano stylesheet (loaded from
- * assets.pingone.com, scoped under .end-user-nano) sets summary to list-item and
- * beats a single class, which left the chevron an inline sliver above the heading.
- * Found only in a real browser (getComputedStyle showed list-item), not by tests. */
+ * Two classes on purpose: the PingOne end-user-nano stylesheet (loaded from assets.pingone.com, scoped under
+ * .end-user-nano) sets summary to list-item and beats a single class, which left the chevron an inline sliver
+ * above the heading. Found only in a real browser (getComputedStyle showed list-item), not by tests. */
+.a2l-section { padding: 22px 0 8px; border-bottom: 1px solid var(--th-border); }
 .a2l-section > .a2l-summary {
   list-style: none;
   cursor: pointer;
@@ -113,154 +47,87 @@
 }
 .a2l-section[open] > .a2l-summary::before { transform: rotate(45deg); }
 .a2l-summary:hover::before { border-color: var(--th-text); }
-.a2l-summary:focus-visible { outline: 2px solid var(--th-text); outline-offset: 4px; border-radius: var(--radius-sm); }
-.a2l-section > .a2l-summary .a2l-h2 { margin-bottom: 0; }
+.a2l-summary:focus-visible { outline: 3px solid var(--th-focus-ring); outline-offset: 4px; border-radius: var(--radius-sm); }
+.a2l-section > .a2l-summary .a2l-h2 { margin-bottom: 0; display: flex; align-items: center; gap: 10px; }
 .a2l-section[open] > .a2l-summary { margin-bottom: 6px; }
 
-.a2l-layers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
-@media (max-width: 760px) { .a2l-layers { grid-template-columns: 1fr; } }
-
-.a2l-layer {
-  background: var(--th-bg-card);
+.a2l-num {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
 }
-.a2l-layer h3 { margin: 0 0 8px; font-size: 1rem; color: var(--th-text); }
-.a2l-layer p { margin: 0 0 8px; color: var(--th-text-body); }
 
-.a2l-links { font-size: 0.9rem; color: var(--th-text-muted); }
-.a2l-links a { color: var(--th-text); }
-
-.a2l-facts { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; }
-.a2l-facts li { color: var(--th-text-body); font-size: 0.92rem; }
+/* Small grey text inside rows (also used by the shared A2aStageTimings list). --th-text-muted is the tier
+   that clears 4.5:1 for caption-sized text; --th-text-faint does not. */
+.a2l-meta { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.pu-page.a2l-page .a2l-facts { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+.a2l-facts li { color: var(--th-text-body); font-size: var(--font-size-sm); }
 .a2l-facts b { color: var(--th-text); margin-right: 8px; }
-.a2l-skills { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 8px; }
+.pu-page.a2l-page .a2l-skills { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .a2l-skill-name { color: var(--th-text); font-weight: 600; }
 .a2l-skill-text { display: block; color: var(--th-text-body); }
 
-/* Provenance chips — the honesty signal. Distinct enough to scan, never
- * decorative: 'live-http' is the only one that means a real browser request. */
-.a2l-prov {
-  display: inline-block;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
-  color: var(--th-text-muted);
-  white-space: nowrap;
-}
-.a2l-prov--live-http {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-  border-color: var(--th-status-success);
-}
-.a2l-prov--replay {
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-  border-color: var(--th-status-info);
-}
+.a2l-links a { color: var(--th-text); }
 
-.a2l-pane {
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  padding: 12px 14px;
-  margin-bottom: 12px;
-}
-.a2l-pane--failed { border-color: var(--th-status-error); }
-.a2l-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
-.a2l-pane-title { font-weight: 600; color: var(--th-text); }
-.a2l-pane-caption { margin: 0 0 8px; font-size: 0.85rem; color: var(--th-text-muted); }
-.a2l-pane-note {
-  margin: 0 0 8px;
-  font-size: 0.85rem;
-  color: var(--th-text-body);
-  border-left: 3px solid var(--th-border-strong);
-  padding-left: 10px;
-}
-.a2l-pane-url { margin: 0 0 8px; font-size: 0.8rem; color: var(--th-text-muted); word-break: break-all; }
-/* Monospace comes from the <code> element, never a font-family declaration —
- * src/__tests__/uiRegression.test.js forbids monospace in CSS project-wide. */
+/* Panes: a heading beside its chips. */
+.a2l-pane-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 4px; }
+.a2l-pane-head .a2l-pane-title { margin: 0; min-width: 0; flex: 1 1 240px; }
+.a2l-pane-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.pu-page .a2l-pane-note { border-left: 3px solid var(--th-border-strong); padding-left: 10px; }
 
-.a2l-json,
-.a2l-diagram {
+.a2l-json {
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   padding: 10px 12px;
   overflow-x: auto;
-  font-size: 0.8rem;
+  max-width: 100%;
+  font-size: var(--font-size-2xs);
   line-height: 1.45;
-  margin: 0;
+  margin: 8px 0 0;
 }
-.a2l-diagram { margin-top: 12px; }
 
-.a2l-btn {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--btn-radius);
-  padding: 8px 14px;
-  cursor: pointer;
-  font-size: 0.9rem;
+/* The PingOne end-user-nano skin sets word-wrap: break-word on code and lists and beats single-class rules,
+   so wrapping is scoped under the page's own class. A long unbroken id or URL breaks inside its column. */
+.pu-page.a2l-page code,
+.pu-page.a2l-page .a2l-skills li,
+.pu-page.a2l-page .a2l-caveats li,
+.pu-page.a2l-page .a2l-status-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-.a2l-btn:hover { background: var(--th-bg-hover); }
-.a2l-btn:disabled { opacity: 0.6; cursor: default; }
-.a2l-btn--primary { border-color: var(--th-border-strong); font-weight: 600; }
 
-.a2l-runbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-.a2l-status { font-size: 0.88rem; color: var(--th-text-muted); margin: 0 0 10px; }
-.a2l-status code { color: var(--th-text-body); }
-.a2l-err { color: var(--th-status-error-text); font-size: 0.88rem; }
-.a2l-empty { color: var(--th-text-muted); font-style: italic; }
+.a2l-runbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 8px 0 12px; }
 
-.a2l-caveats { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+/* The shared agent-mode switch fills its selected option flat Ping Red, which sat beside the page's one
+   primary and read as a second one. Here the selected option is the inverse of the card (ink on ground). */
+/* !important on the ink only: a global dark rule (:root[data-theme="dark"] .page-agent-mode__opt--on) sets white
+   ink with !important, which would sit white on the --th-text ground in dark. */
+.pu-page.a2l-page .page-agent-mode .page-agent-mode__opt--on {
+  background: var(--th-text);
+  color: var(--th-bg-card) !important;
+}
+
+.pu-page.a2l-page .a2l-caveats { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 .a2l-caveats li { color: var(--th-text-body); max-width: 82ch; }
-.a2l-caveats code { background: var(--th-bg-inset); padding: 1px 5px; border-radius: var(--radius-sm); }
+.a2l-caveats code { background: var(--th-bg-inset); color: var(--th-text); padding: 1px 5px; border-radius: var(--radius-sm); }
 
-.a2l-lesson-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.a2l-lesson {
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
-}
-.a2l-lesson h3 { margin: 0 0 8px; color: var(--th-text); font-size: var(--font-size-md); }
-.a2l-lesson p { margin: 0 0 10px; color: var(--th-text-body); }
-.a2l-lesson a { color: var(--th-text); font-size: var(--font-size-sm); font-weight: 600; }
-.a2l-status-block {
-  margin-top: 16px;
-  padding: 14px 16px;
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-}
-.a2l-status-block h3 { margin: 0 0 10px; color: var(--th-text); font-size: var(--font-size-md); }
-.a2l-status-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-.a2l-status-list li { display: flex; align-items: baseline; gap: 9px; color: var(--th-text-body); }
-.a2l-status-state {
-  flex: 0 0 auto;
-  min-width: 58px;
-  padding: 2px 7px;
-  border-radius: 10px;
-  text-align: center;
-  font-size: var(--font-size-3xs);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.a2l-status-state--supported { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
-.a2l-status-state--next { background: var(--th-status-info-bg); color: var(--th-status-info-text); }
+.pu-page.a2l-page .a2l-subhead { margin-top: 20px; }
 
-@media (max-width: 760px) {
-  .a2l-lesson-grid { grid-template-columns: 1fr; }
-  .a2l-theme-toggle {
-    position: static;
-    display: inline-block;
-    margin-bottom: 12px;
-  }
+.pu-page.a2l-page .a2l-status-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.a2l-status-list li { display: flex; align-items: baseline; gap: 10px; color: var(--th-text-body); }
+.a2l-status-list li > .pu-chip { flex: 0 0 auto; }
+
+.a2l-docs h4 { margin: 12px 0 4px; font-size: var(--font-size-sm); color: var(--th-text); }
+.a2l-docs ul { margin: 0; padding-left: 20px; }
+
+@media (max-width: 600px) {
+  .a2l-status-list li { flex-direction: column; align-items: flex-start; gap: 4px; }
 }

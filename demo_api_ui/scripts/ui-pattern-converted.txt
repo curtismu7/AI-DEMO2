@@ -12,9 +12,12 @@
 /weather-mcp
 /intent-binding-learning
 /brave-mcp
+/a2a-protocol-learning
 /demo-track
+/privilege-mcp-learning
 /privilege-coding-agents
 /delegated-commerce
+/use-cases/live
 /demo-summary
 /langchain
 /agent-gateway-authorization
@@ -39,6 +42,7 @@
 /governance-timeline
 /demo-config
 /davinci-ciba-flows
+/authorization-flow
 /privilege-pf-token
 /ping-products/verify-recognize
 /autonomous-agents
@@ -51,6 +55,7 @@
 /pingone-platform-config
 /ai-products/core
 /ai-products/gateway
+/digital-worker
 /gateway-claims
 /gateway-stats
 /ai-products/authorize
