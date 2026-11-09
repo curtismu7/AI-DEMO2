@@ -4,6 +4,7 @@ import { HERO_VARIANTS } from "../config/heroVariants";
 import "./OAuthAcademyPage.css";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { sendAgentMessage } from "../services/demoAgentService";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import AgentConsentModal from "./AgentConsentModal";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -88,14 +89,22 @@ const OAuthAcademyPage = () => {
   const [isSending, setIsSending] = useState(false);
   // Pending HITL approval raised by a demonstrate tool: { challengeId, tool, reason, prompt }.
   const [hitlPending, setHitlPending] = useState(null);
-  // Token events the BFF returned with the last answer that carried any (the rail below renders them).
-  const [tokenEventCount, setTokenEventCount] = useState(0);
+  // How many token events the rail below is showing right now. Read from the rail's own store, not counted from
+  // answers: the rail keeps its run after Clear and after an answer with no events, so a page-side counter drifts.
+  const [railEventCount, setRailEventCount] = useState(
+    () => tokenChainTraceStore.getState().trace.tokenEvents.length,
+  );
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
   // Monotonic id for stable React keys — messages are append-only, never reordered.
   const nextIdRef = useRef(0);
   const tokenChain = useTokenChainOptional();
+
+  useEffect(
+    () => tokenChainTraceStore.subscribe((snap) => setRailEventCount(snap.trace.tokenEvents.length)),
+    [],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll must re-run on every new message; the effect reads only the (stable) ref but depends on the messages render.
   useEffect(() => {
@@ -135,9 +144,6 @@ const OAuthAcademyPage = () => {
       tokenChain
     ) {
       tokenChain.setTokenEvents("oauth-academy", data.tokenEvents);
-    }
-    if (Array.isArray(data?.tokenEvents) && data.tokenEvents.length > 0) {
-      setTokenEventCount(data.tokenEvents.length);
     }
   };
 
@@ -284,7 +290,7 @@ const OAuthAcademyPage = () => {
   const handleClear = () => {
     if (isSending) return;
     setMessages([]);
-    setTokenEventCount(0);
+    // Clear empties the conversation only; the token rail keeps its run and the chip below reads the rail.
     // The Clear button unmounts with the conversation; keep the keyboard in the page.
     inputRef.current?.focus();
   };
@@ -501,8 +507,8 @@ const OAuthAcademyPage = () => {
           <Card tone="neutral" data-testid="oa-token-chain">
             <div className="pu-status-line" role="status">
               <StatusChip>
-                {tokenEventCount > 0
-                  ? `${tokenEventCount} token events received`
+                {railEventCount > 0
+                  ? `${railEventCount} token ${railEventCount === 1 ? "event" : "events"} in the rail`
                   : "Waiting for a demonstration"}
               </StatusChip>
             </div>

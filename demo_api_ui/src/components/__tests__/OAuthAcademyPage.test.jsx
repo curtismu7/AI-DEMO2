@@ -1,14 +1,18 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 const toggleDarkMode = vi.fn();
 vi.mock('../../context/ThemeContext', () => ({
   useThemeOptional: () => ({ darkMode: false, toggleDarkMode }),
 }));
 
-const setTokenEvents = vi.fn();
+// The real context hands events to the rail's trace store; the rail itself is stubbed, the store is not.
+const setTokenEvents = vi.fn((_tool, events) => tokenChainTraceStore.ingestTokenEvents(events));
 vi.mock('../../context/TokenChainContext', () => ({
   useTokenChainOptional: () => ({ setTokenEvents }),
 }));
@@ -44,8 +48,11 @@ const status = () => screen.getByTestId('oa-status').textContent.trim();
 const input = () => screen.getByLabelText(/ask the oauth teacher a question/i);
 const topic = (name) => screen.getByRole('button', { name });
 
+const railChip = () => screen.getByTestId('oa-token-chain').textContent.trim();
+
 beforeEach(() => {
   vi.clearAllMocks();
+  tokenChainTraceStore.reset();
   global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
 });
 
@@ -204,7 +211,7 @@ describe('OAuthAcademyPage (Ping UI Standard)', () => {
       expect.objectContaining({ hitlChallengeId: 'c-1', consentGiven: true, forceHeuristic: true }),
     );
     expect(setTokenEvents).toHaveBeenCalledWith('oauth-academy', [{ id: 1 }, { id: 2 }, { id: 3 }]);
-    expect(screen.getByTestId('oa-token-chain').textContent).toContain('3 token events received');
+    expect(screen.getByTestId('oa-token-chain').textContent).toContain('3 token events in the rail');
   });
 
   it('a failed approval says so with a danger chip', async () => {
@@ -227,18 +234,65 @@ describe('OAuthAcademyPage (Ping UI Standard)', () => {
     expect(screen.getByRole('log').textContent).toMatch(/Failed to reach the OAuth Academy agent/);
   });
 
-  it('Clear empties the conversation and returns focus to the input instead of dropping it', async () => {
-    sendAgentMessage.mockResolvedValueOnce({ reply: 'hello', tokenEvents: [{ id: 1 }] });
+  it('Clear empties the conversation, returns focus to the input, and the rail chip keeps describing the rail', async () => {
+    sendAgentMessage.mockResolvedValueOnce({ reply: 'hello', tokenEvents: [{ id: 1 }, { id: 2 }] });
     renderPage();
     await userEvent.type(input(), 'what is oauth{Enter}');
     await waitFor(() => expect(status()).toBe('Answered'));
+    expect(railChip()).toContain('2 token events in the rail');
     const clear = screen.getByRole('button', { name: 'Clear' });
     clear.focus();
     await userEvent.keyboard('{Enter}');
     expect(screen.queryByRole('log')).toBeNull();
     expect(status()).toBe('Ready');
     expect(document.activeElement).toBe(input());
-    expect(screen.getByTestId('oa-token-chain').textContent).toContain('Waiting for a demonstration');
+    // Clear does not touch the rail, so its run is still on screen and the chip must not claim otherwise.
+    expect(tokenChainTraceStore.getState().trace.tokenEvents).toHaveLength(2);
+    expect(railChip()).toContain('2 token events in the rail');
+    expect(railChip()).not.toContain('Waiting for a demonstration');
+  });
+
+  it('the rail chip follows the rail: it empties when the rail is reset (the rail has its own Clear), and says one event in the singular', async () => {
+    renderPage();
+    expect(railChip()).toContain('Waiting for a demonstration');
+    act(() => { tokenChainTraceStore.ingestTokenEvents([{ id: 'a' }]); });
+    expect(railChip()).toContain('1 token event in the rail');
+    act(() => { tokenChainTraceStore.reset(); });
+    expect(railChip()).toContain('Waiting for a demonstration');
+  });
+
+  it('an answer without token events does not overwrite the count of what the rail still shows', async () => {
+    sendAgentMessage.mockResolvedValueOnce({ reply: 'one', tokenEvents: [{ id: 1 }, { id: 2 }] });
+    sendAgentMessage.mockResolvedValueOnce({ reply: 'two', tokenEvents: [] });
+    renderPage();
+    await userEvent.type(input(), 'demonstrate a real token exchange{Enter}');
+    await waitFor(() => expect(railChip()).toContain('2 token events in the rail'));
+    await userEvent.type(input(), 'what is oauth{Enter}');
+    await waitFor(() => expect(screen.getByRole('log').textContent).toContain('two'));
+    expect(tokenChainTraceStore.getState().trace.tokenEvents).toHaveLength(2);
+    expect(railChip()).toContain('2 token events in the rail');
+  });
+
+  it('both status regions exist before their words change, so a screen reader hears the change', async () => {
+    renderPage();
+    const chat = screen.getByTestId('oa-status');
+    const rail = screen.getByTestId('oa-token-chain').querySelector('[role="status"]');
+    expect(chat.getAttribute('role')).toBe('status');
+    expect(rail).not.toBeNull();
+    sendAgentMessage.mockResolvedValueOnce({ reply: 'x', tokenEvents: [{ id: 1 }] });
+    await userEvent.type(input(), 'what is oauth{Enter}');
+    await waitFor(() => expect(rail.textContent).toContain('1 token event in the rail'));
+    // the same nodes, updated in place (not re-created)
+    expect(screen.getByTestId('oa-status')).toBe(chat);
+    expect(chat.textContent).toContain('Answered');
+  });
+
+  it('the user bubble is a neutral card, not a Ping Red fill that reads as a second primary', () => {
+    const css = readFileSync(resolve(__dirname, '../OAuthAcademyPage.css'), 'utf8');
+    const rule = css.match(/\.message-row\.user \.message-bubble \{([^}]*)\}/)[1];
+    expect(rule).not.toMatch(/--oa-accent|#d20e0f/i);
+    expect(rule).toMatch(/background:\s*var\(--th-bg-card\)/);
+    expect(rule).toMatch(/color:\s*var\(--th-text\)/);
   });
 
   it('keeps the theme toggle as an aria-pressed secondary', () => {

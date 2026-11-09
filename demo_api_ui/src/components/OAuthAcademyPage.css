@@ -113,9 +113,12 @@
   border-top-left-radius: var(--v2-r-sm, 4px);
 }
 
+/* Ping Red is the primary button's fill, so the user's own bubble stays a neutral card: nothing but the one
+   primary looks pressable. */
 .oauth-academy-page .message-row.user .message-bubble {
-  background: var(--oa-accent);
-  color: #ffffff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
   border-top-right-radius: var(--v2-r-sm, 4px);
 }
 
