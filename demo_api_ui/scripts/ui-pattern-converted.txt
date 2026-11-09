@@ -8,6 +8,7 @@
 /privilege-map
 /weather-mcp
 /brave-mcp
+/a2a-protocol-learning
 /demo-track
 /privilege-coding-agents
 /delegated-commerce
