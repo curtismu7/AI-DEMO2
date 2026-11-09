@@ -72,7 +72,7 @@ docker run -d --name ai-demo-ping-mcpgw \
   --net=host \
   --env-file ping-mcpgw/procyon/config/proxy-token.env \
   -v ./ping-mcpgw/procyon:/var/lib/procyon \
-  public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d \
+  public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce \
   /procyon/bin/mcpgw -hostname local.ping-devops.com -mcpconfpath /var/lib/procyon/config/pingone.env
 ```
 
