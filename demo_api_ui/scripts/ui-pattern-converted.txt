@@ -38,6 +38,7 @@
 /privilege-shelf
 /personal-agent
 /personal-agent/full
+/pingone-platform-config
 /ai-products/core
 /ai-products/gateway
 /gateway-claims
