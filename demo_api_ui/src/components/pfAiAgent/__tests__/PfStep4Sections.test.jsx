@@ -39,7 +39,10 @@ describe("PingFederate AI Agent step-4 sections", () => {
 
   it("token exchange: needs a PingFederate session", () => {
     render(<PfTokenExchangeSection provider="pingone" />);
-    expect(screen.getByRole("button", { name: /run both exchanges/i })).toBeDisabled();
+    const run = screen.getByRole("button", { name: /run both exchanges/i });
+    expect(run).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(run);
+    expect(apiClient.post).not.toHaveBeenCalled();
     expect(screen.getByTestId("delegation-needs-pf")).toBeInTheDocument();
   });
 

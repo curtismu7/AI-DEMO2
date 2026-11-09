@@ -41,6 +41,7 @@
 /demo/enterprise-mcp
 /pingfederate-id-jag/demo
 /pingfederate-config
+/pingfederate-ai-agent
 /privilege-prompt-log
 /governance-timeline
 /demo-config

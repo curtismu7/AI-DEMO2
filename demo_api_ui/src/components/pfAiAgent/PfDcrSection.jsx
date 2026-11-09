@@ -1,7 +1,8 @@
 import { useState } from "react";
 import ProtocolTrace from "../ProtocolTrace";
 import apiClient from "../../services/apiClient";
-import { FeatureStatus, TraceSequenceDiagram } from "./shared";
+import { Card, KvList, StatusChip } from "../pingUi";
+import { FeatureStatus, FlowSection, RunStatus, TraceSequenceDiagram, Unavailable, actionClass } from "./shared";
 
 // The four BFF calls, in order. Each one also shows what PingFederate refuses.
 const STEPS = [
@@ -30,7 +31,7 @@ function proofPoints(result) {
   return points;
 }
 
-export default function PfDcrSection({ ready }) {
+export default function PfDcrSection({ ready, checked = true, lead = false }) {
   const [busy, setBusy] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -58,42 +59,50 @@ export default function PfDcrSection({ ready }) {
   }
 
   return (
-    <section className="pf-ai-agent__flow pf-ai-agent__flow--dcr" aria-labelledby="pf-ai-dcr-title" id="dcr">
-      <div className="pf-ai-agent__flow-title">
-        <p className="pf-ai-agent__eyebrow">Client enrolment</p>
-        <h2 id="pf-ai-dcr-title">Dynamic client registration</h2>
-        <p>An agent enrols itself as an OAuth client at PingFederate, uses it, and deletes it when done.</p>
-        <FeatureStatus ready={ready} />
-      </div>
-      <div className="pf-ai-agent__flow-body">
-        <dl className="pf-ai-agent__facts">
-          <div><dt>Standards</dt><dd>RFC 7591 register · RFC 7592 manage</dd></div>
-          <div><dt>Gate</dt><dd>Initial access token (scope dcr:register)</dd></div>
-          <div><dt>New client may get</dt><dd>openid, profile, email, accounts:read</dd></div>
-        </dl>
+    <FlowSection
+      anchor="dcr"
+      id="pf-ai-dcr-title"
+      kicker="Client enrolment"
+      title="Dynamic client registration"
+      lede="An agent enrols itself as an OAuth client at PingFederate, uses it, and deletes it when done."
+    >
+      <Card>
+        <div className="pu-status-line"><FeatureStatus ready={ready} checked={checked} /></div>
+        <KvList
+          items={[
+            { label: "Standards", value: "RFC 7591 register · RFC 7592 manage" },
+            { label: "Gate", value: "Initial access token (scope dcr:register)" },
+            { label: "New client may get", value: "openid, profile, email, accounts:read" },
+          ]}
+        />
         {ready
           ? (
-            <button className="pf-ai-agent__action" type="button" onClick={run} disabled={Boolean(busy)}>
-              {busy || "Register, use and delete a client"}
-            </button>
+            <div className="pu-actions">
+              <button className={actionClass(lead)} type="button" onClick={run} aria-disabled={busy ? "true" : undefined}>
+                Register, use and delete a client
+              </button>
+            </div>
           )
-          : <span className="pf-ai-agent__disabled-action">Enable PF dynamic client registration to run this</span>}
+          : <Unavailable checked={checked}>Enable PF dynamic client registration to run this</Unavailable>}
+        <RunStatus tone={busy ? "info" : "ok"} word={busy ? "Running" : result ? "Done" : ""}>
+          {busy ? busy : "Registered, used and deleted a client at PingFederate."}
+        </RunStatus>
         {error && (
-          <p className="pf-ai-agent__error" role="alert">
+          <p className="pfai-error" role="alert">
             The registration run stopped. Reason: <code>{error.code}</code>{error.detail && <> {error.detail}</>}
           </p>
         )}
-        {result && (
-          <div className="pf-ai-agent__proof" data-testid="dcr-proof">
-            <h3>Proof: what was sent and what came back</h3>
-            <TraceSequenceDiagram steps={result.trace} selfCall testId="dcr-sequence" />
-            <ul className="pf-ai-agent__proof-points">
-              {proofPoints(result).map((point) => <li key={point}>{point}</li>)}
-            </ul>
-            <ProtocolTrace steps={result.trace} explain={EXPLAIN} />
-          </div>
-        )}
-      </div>
-    </section>
+      </Card>
+      {result && (
+        <Card tone="ok" title="Proof: what was sent and what came back" data-testid="dcr-proof">
+          <div className="pu-status-line"><StatusChip tone="ok">Captured</StatusChip></div>
+          <TraceSequenceDiagram steps={result.trace} selfCall testId="dcr-sequence" />
+          <ul className="pfai-points">
+            {proofPoints(result).map((point) => <li key={point}>{point}</li>)}
+          </ul>
+          <ProtocolTrace steps={result.trace} explain={EXPLAIN} />
+        </Card>
+      )}
+    </FlowSection>
   );
 }
