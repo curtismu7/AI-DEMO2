@@ -27,6 +27,14 @@ const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 const scopeTopology = require('./scopeTopology');
 
+// Airline booking rules. Named constants, not env-tunable: the cloud rules carry the same values.
+// AIRLINE_PREMIUM_TIERS mirrors premiumTiers in
+// demo_mcp_resource_server/seed/airline-booking-policy-data.json (a test pins them equal).
+const AIRLINE_BOOKING_TOOL = 'book_airline_flight';
+const AIRLINE_AGENT_LIMIT_DEFAULT_USD = 500;
+const AIRLINE_PREMIUM_THRESHOLD_USD = 750;
+const AIRLINE_PREMIUM_TIERS = ['Premier Gold'];
+
 // Guard: prevent accidental use in production without an explicit opt-in.
 // The feature-flag check (ff_authorize_real) at the caller layer is the primary gate,
 // but a direct import of this module would bypass it. This secondary guard makes that impossible.
@@ -112,6 +120,22 @@ function getStepUpTypes() {
 }
 
 let _seq = 0;
+
+// Mock PingOne user records, keyed by the token subject (userId). In PingOne Authorize the
+// Trust Framework attribute MemberTier is READ FROM THE PINGONE USER's custom attribute
+// airlineMemberTier (keyed on UserId); it is never a request parameter. The simulated engine
+// mirrors that with this store: a subject with no record, or no value, has no tier, which is NOT
+// premium (fail closed). Same attribute name as the tenant's user schema.
+const _mockPingOneUsers = new Map();
+function setMockPingOneUser(sub, record) {
+  if (!sub || typeof sub !== 'string') throw new Error('setMockPingOneUser needs a non-empty subject');
+  _mockPingOneUsers.set(sub, { ...(record || {}) });
+}
+function clearMockPingOneUsers() { _mockPingOneUsers.clear(); }
+function getAirlineMemberTier(sub) {
+  const v = _mockPingOneUsers.get(String(sub || ''))?.airlineMemberTier;
+  return typeof v === 'string' ? v : '';
+}
 
 /** Ring buffer of recent simulated decisions (education / parity with PingOne recent decisions). */
 const SIMULATED_RECENT_MAX = 50;
@@ -221,6 +245,9 @@ async function evaluateMcpFirstTool({
   // `undefined` = caller not plumbed (legacy callers keep pre-consent
   // behavior); `''`/null-with-undefined-check = no consent → fail closed.
   mayActSub,
+  // Airline booking rules (Rule 3-airline parity). Optional; absent = the user's agent spend limit
+  // 500. There is NO tier input: it is the PingOne user's airlineMemberTier (setMockPingOneUser).
+  agentSpendLimit = null,
   toAccountId = null,        // payee from the tool call params (checked against rarPermittedPayees)
   useCaseId = null,          // launcher-supplied catalog slug (UC21 tier demo, etc.)
   // Signing-key identity, resolved by the caller against the live JWKS.
@@ -643,6 +670,47 @@ async function evaluateMcpFirstTool({
       recordSimulatedDecision(mismatchOut);
       return mismatchOut;
     }
+    }
+  }
+
+  // ── Airline booking rules (parity with Rule 3-airline in demo_authz_server/routes/decision.js
+  // and the cloud rules "MCP Deny — Agent Booking Over User Limit" and "MCP Deny — Airline
+  // Premium-Only Over $750"). RULE A (the user's preference): an agent is acting (actClientId)
+  // AND fare > the user's agent spend limit (default 500). RULE B (the airline's control): fare >
+  // 750 AND the member tier (the PingOne user's airlineMemberTier) is not premium. Both strict `>`; every failing rule is reported.
+  // Runs before the consent / step-up pause below, so the deny wins (DenyOverrides in the cloud).
+  if (toolName === AIRLINE_BOOKING_TOOL && amount !== null && !Number.isNaN(amount)) {
+    const parsedLimit = typeof agentSpendLimit === 'number' ? agentSpendLimit : parseFloat(agentSpendLimit);
+    const limit = Number.isFinite(parsedLimit) ? parsedLimit : AIRLINE_AGENT_LIMIT_DEFAULT_USD;
+    const tier = getAirlineMemberTier(userId) || 'none';
+    const failed = [];
+    if (actClientId && amount > limit) {
+      failed.push({ code: 'mcp-airline-agent-spend-limit', denyReason: 'airline_agent_spend_limit',
+        reason: `airline_agent_spend_limit: fare ${amount} on "${AIRLINE_BOOKING_TOOL}" exceeds the user's agent limit of ${limit}` });
+    }
+    if (amount > AIRLINE_PREMIUM_THRESHOLD_USD && !AIRLINE_PREMIUM_TIERS.includes(tier)) {
+      failed.push({ code: 'mcp-airline-premium-only', denyReason: 'airline_premium_only',
+        reason: `airline_premium_only: fare ${amount} on "${AIRLINE_BOOKING_TOOL}" is over ${AIRLINE_PREMIUM_THRESHOLD_USD} and member tier "${tier}" is not premium` });
+    }
+    if (failed.length) {
+      const airlineOut = {
+        decision: 'DENY',
+        denyReason: failed[0].denyReason,
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: failed[0].denyReason,
+          engine: 'simulated',
+          reason: failed.map((f) => f.reason).join(' | '),
+          statements: failed.map((f) => ({ code: f.code })),
+        },
+      };
+      recordSimulatedDecision(airlineOut);
+      return airlineOut;
     }
   }
 
@@ -1291,6 +1359,8 @@ module.exports = {
   evaluate,
   evaluateTransaction,
   evaluateMcpFirstTool,
+  setMockPingOneUser,
+  clearMockPingOneUsers,
   isSimulatedModeEnabled,
   resolveAuthorizeMode,
   buildAuthorizeFallbackSignal,

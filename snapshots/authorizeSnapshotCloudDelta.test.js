@@ -737,7 +737,7 @@ test('3h: no non-DSL keys leak into consent conditions; carve-out only when decl
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('structure: the committed snapshot carries all 38 new objects (157 total) and is reconciled', () => {
+test('structure: the committed snapshot carries all 45 new objects (172 total) and is reconciled', () => {
   const committed = readSnapshot();
   // +1 (2026-08-26): the TokenIss ATTRIBUTE for HasValidMcpAudience's
   // external-door exemption — 10 attrs now. No new condition/statement/rule:
@@ -753,11 +753,13 @@ test('structure: the committed snapshot carries all 38 new objects (157 total) a
   // file is the whole policy. The generator does not own them.
   // +7 (2026-10-10): per-user consent (mock Rule 2.6, may_act re-architecture) —
   // 1 attr (MayActSub), 2 conds, 2 stmts, 2 rules = 162 total.
-  assert.strictEqual(committed.length, 164,
+  // +8 (2026-11-09): the two airline booking rules (generator step 8h) - 2 attrs
+  // (AgentSpendLimit, MemberTier), 2 conds, 2 stmts, 2 rules.
+  assert.strictEqual(committed.length, 172,
     '73 pre-delta + 12 attrs + 9 conds + 9 stmts + 9 rules = 112, plus Agent Intent Governance ' +
     '(14 attrs + 11 conds + 8 stmts + 8 rules + 1 policy = 42) folded into the root set, ' +
     'plus 2 console-made objects (AccountContext attribute and its service), ' +
-    'plus 7 per-user-consent objects (1 attr + 2 conds + 2 stmts + 2 rules) = 164');
+    'plus 7 per-user-consent objects (1 attr + 2 conds + 2 stmts + 2 rules) = 164, plus 8 airline-booking-rule objects = 172');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 
@@ -777,12 +779,17 @@ test('structure: the committed snapshot carries all 38 new objects (157 total) a
     ATTR.MayActSub, COND.UserConsentMissing, COND.UserConsentMismatch,
     STMT.noUserConsent, STMT.consentMismatch,
     RULE.mcpDenyNoUserConsent, RULE.mcpDenyConsentMismatch,
+    // Airline booking rules (mock Rule 3-airline): A = user preference, B = airline control.
+    ATTR.AgentSpendLimit, ATTR.MemberTier,
+    COND.AgentBookingOverUserLimit, COND.PremiumOnlyBookingOver750,
+    STMT.airlineAgentSpendLimit, STMT.airlinePremiumOnly,
+    RULE.mcpDenyAirlineAgentSpendLimit, RULE.mcpDenyAirlinePremiumOnly,
   ];
-  assert.strictEqual(new Set(newIds).size, 37, 'the 37 new ids must be distinct');
+  assert.strictEqual(new Set(newIds).size, 45, 'the 45 new ids must be distinct');
   for (const id of newIds) assert.ok(findById(committed, id), `committed snapshot must contain ${id}`);
 });
 
-test('structure: all nine deny rules run before the MCP catch-all permit, in order', () => {
+test('structure: all eleven deny rules run before the MCP catch-all permit, in order', () => {
   const mcpPolicy = findById(reconciled(), '56789012-0002-4321-abcd-000000000002');
   const childIds = mcpPolicy.children.map((c) => c.id);
   // The RAR deny landed first (on main, #611) so it sits ahead of the five
@@ -792,6 +799,7 @@ test('structure: all nine deny rules run before the MCP catch-all permit, in ord
     RULE.rarAmountExceeded, RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
     RULE.mcpDenyInvalidKid, RULE.mcpDenyNoUserConsent, RULE.mcpDenyConsentMismatch,
+    RULE.mcpDenyAirlineAgentSpendLimit, RULE.mcpDenyAirlinePremiumOnly,
   ];
   const permitIdx = childIds.indexOf(RULE.mcpPermitValid);
   assert.strictEqual(permitIdx, childIds.length - 1, 'the catch-all permit stays last');
