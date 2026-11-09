@@ -1,8 +1,19 @@
 // demo_api_ui/src/pages/LangChainPage.js
 // /langchain — LangChain agent runtime + current brain/framework inventory
+//
+// Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md)
+// through the shared primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame,
+// P4 cards, P5 kv, P7 chips. P9: this page has no action buttons (its only controls are links), so it has
+// no primary button and none is invented. Honesty: the architecture, code sample and both tables are fixed
+// text, nothing runs here; only the Configured brain card is read live from the BFF.
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import InlineSpinner from '../components/shared/InlineSpinner';
+import PageHeader from "../components/common/PageHeader";
+import InlineSpinner from "../components/shared/InlineSpinner";
+import {
+  PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
+} from "../components/pingUi";
+import "./LangChainPage.css";
 
 const LCEL_CODE = `# LangChain / LangGraph agent — tools via BFF (AG-UI)
 from langgraph.prebuilt import create_react_agent
@@ -67,326 +78,287 @@ const ALL_FRAMEWORKS = [
   ["compliance_agent", "Compliance (Pydantic AI)", "3007", "AML specialist microservice"],
 ];
 
-export default function LangChainPage() {
-  const [status, setStatus] = useState(null);
+// The count comes from the rows below, so the sentence cannot drift from the table.
+const LLM_FRAMEWORK_ROWS = ALL_FRAMEWORKS.filter((r) => r[3].includes("llm_framework=")).length;
+const FRAMEWORKS_LEDE =
+  `Framework packages in this repo: ${ALL_FRAMEWORKS.length} are listed. Banking chat selects ${LLM_FRAMEWORK_ROWS} ` +
+  `of them through llm_framework (langchain_agent); LlamaIndex and Compliance are separate services. ` +
+  `Brains above are independent of which package runs.`;
 
-  useEffect(() => {
-    fetch("/api/langchain/config/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setStatus(d))
-      .catch(() => null);
-  }, []);
-
-  const activeProvider = status?.provider ?? null;
-  const isHeuristic =
-    !activeProvider || activeProvider === "heuristics" || activeProvider === "heuristic";
-
-  return (
-    <div
-      style={{
-        maxWidth: 860,
-        margin: "0 auto",
-        padding: "32px 16px",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <Link
-          to="/"
-          style={{ fontSize: 13, color: "var(--th-status-info-text)", textDecoration: "none" }}
-        >
-          ← Back
-        </Link>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>
-          LangChain in AI Demo
-        </h1>
-      </div>
-
-      <div
-        style={{
-          background: "var(--th-status-warning-bg)",
-          border: "1px solid var(--th-border)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          marginBottom: 20,
-          lineHeight: 1.6,
-          color: "var(--th-text)",
-        }}
-      >
-        Default banking AG-UI runtime (<code>langchain_agent</code> on :8888).
-        Same Ping delegated-OAuth / MCP / Authorize / HITL model as the other
-        frameworks — switch package with <code>llm_framework</code>, switch
-        brain with the agent mode picker (Heuristics · Gemini · llama.cpp).
-      </div>
-
-      <div
-        style={{
-          background: "var(--th-status-info-bg)",
-          border: "1px solid var(--th-status-info-border)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          marginBottom: 28,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <strong>Active brain / provider:</strong>{" "}
-          {status ? (
-            <span>
-              <code>{isHeuristic ? "heuristics" : activeProvider}</code>
-              {!isHeuristic && (
-                <>
-                  {" "}
-                  — model <code>{status.model}</code>
-                </>
-              )}
-              {isHeuristic ? (
-                <span style={{ color: "var(--th-text)", marginLeft: 8, fontSize: 12 }}>
-                  (no LLM key required)
-                </span>
-              ) : status.key_set?.[activeProvider] ? (
-                <span style={{ color: "var(--th-status-success-text)", marginLeft: 8 }}>
-                  key set
-                </span>
-              ) : activeProvider === "llamacpp" ||
-                activeProvider === "anthropic-lmstudio" ? (
-                <span style={{ color: "var(--th-text)", marginLeft: 8, fontSize: 12 }}>
-                  (local)
-                </span>
-              ) : (
-                <span style={{ color: "var(--th-status-error-text)", marginLeft: 8, fontSize: 12 }}>
-                  ⚠️ no key — set one in Config or the agent mode picker
-                </span>
-              )}
-            </span>
-          ) : (
-            <span style={{ color: "var(--th-text)" }}><InlineSpinner label="Loading…" /></span>
-          )}
-        </div>
-        <div style={{ marginLeft: "auto", fontSize: 12 }}>
-          <Link to="/config" style={{ color: "var(--th-status-info-text)" }}>
-            Change in Config →
-          </Link>
-        </div>
-      </div>
-
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 12 }}>Architecture</h2>
-        <p style={{ lineHeight: 1.6, color: "var(--th-text)" }}>
-          <code>langchain_agent</code> is a Python FastAPI service (AG-UI{" "}
-          <code>/run</code> on port 8888). The BFF selects it when{" "}
-          <code>llm_framework=langchain</code> (default) and forwards the
-          session brain (provider + model) from{" "}
-          <code>/api/langchain/config</code>. Tools execute through the BFF with
-          the delegated Ping token — never with long-lived secrets in the
-          browser.
-        </p>
-        <pre
-          style={{
-            background: "var(--th-bg-inset)",
-            borderRadius: 6,
-            padding: "12px 16px",
-            fontSize: 13,
-            overflowX: "auto",
-            lineHeight: 1.5,
-          }}
-        >
-          {`Browser  ──►  AIAgent  ──►  BFF
+const DIAGRAM = `Browser  ──►  AIAgent  ──►  BFF
                            │  llm_framework + agent_mode (brain)
                            ├─►  langchain_agent :8888  (AG-UI SSE)
                            │      LangGraph / LCEL + llm_factory
                            └─►  /internal/agent-tool  ──►  MCP gateway
-                                                          Ping Authorize`}
-        </pre>
-      </section>
+                                                          Ping Authorize`;
 
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 12 }}>LangGraph / LCEL pattern</h2>
-        <pre
-          style={{
-            background: "#1e1e1e",
-            color: "#d4d4d4",
-            borderRadius: 8,
-            padding: "16px 20px",
-            fontSize: 13,
-            overflowX: "auto",
-            lineHeight: 1.6,
-          }}
-        >
-          {LCEL_CODE}
-        </pre>
-        <p style={{ fontSize: 13, color: "var(--th-text)", marginTop: 8 }}>
-          Source: <code>langchain_agent/</code> (AG-UI run handler + LLM factory).
-          Framework comparison: Learn → Agent frameworks, or{" "}
-          <code>AGENTS_ECOSYSTEM.md</code>.
-        </p>
-      </section>
+const HEURISTIC_IDS = new Set(["heuristics", "heuristic"]);
+const LOCAL_PROVIDERS = new Set(["llamacpp", "anthropic-lmstudio"]);
 
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 12 }}>
-          Demo brains (Heuristics · Gemini · llama.cpp)
-        </h2>
-        <p style={{ fontSize: 14, color: "var(--th-text)", marginBottom: 12, lineHeight: 1.5 }}>
-          These are the usual live-demo choices in the agent mode picker. Other
-          modes (Helix, Anthropic, MLX, Groq) appear when configured — see{" "}
-          <code>agentModes.js</code>.
-        </p>
-        <table
-          style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-        >
-          <thead>
-            <tr style={{ background: "var(--th-bg-inset)" }}>
-              {["Brain", "Provider id", "Package / path", "Default model", "Notes"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "8px 12px",
-                      textAlign: "left",
-                      borderBottom: "2px solid var(--th-border)",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {DEMO_BRAINS.map((p, i) => {
-              const active =
-                (p.provider == null && isHeuristic) ||
-                (p.provider != null && activeProvider === p.provider);
-              return (
-                <tr
-                  key={p.id}
-                  style={{
-                    background: i % 2 === 0 ? "var(--th-bg-card)" : "var(--th-bg-inset)",
-                    fontWeight: active ? 600 : 400,
-                  }}
-                >
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                    {p.label}
-                    {active && (
-                      <span style={{ marginLeft: 6, color: "var(--th-status-info-text)" }}>
-                        ← active
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                    <code>{p.provider ?? "null"}</code>
-                  </td>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                    <code>{p.package}</code>
-                  </td>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                    <code>{p.defaultModel}</code>
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      borderBottom: "1px solid var(--th-border)",
-                      color: "var(--th-text)",
-                    }}
-                  >
-                    {p.notes}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
+/** What the banner says about the one live part of the page, from the request that actually ran. */
+const BANNER_LIVE_LINE = {
+  loading: "The Configured brain card is being read from the BFF now.",
+  ready:
+    "Only the Configured brain card is live: it is read from the BFF (/api/langchain/config/status), key flags only, never key material.",
+  unknown:
+    "The BFF answered, but its answer did not say which brain is configured, so the Configured brain card claims no brain or key.",
+  error:
+    "The BFF answered with an error and did not return a status, so the Configured brain card has nothing to show and no brain or key is claimed.",
+  unavailable:
+    "The BFF did not answer at all, so the Configured brain card has nothing to show and no brain or key is claimed.",
+};
 
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 12 }}>
-          Security: Keys Stay Server-Side
-        </h2>
-        <p style={{ lineHeight: 1.6, color: "var(--th-text)" }}>
-          API keys live in <code>req.session.langchain_config</code> on the BFF
-          only. <code>GET /api/langchain/config/status</code> returns boolean{" "}
-          <code>key_set</code> flags — never key material. Same pattern as PingOne
-          client secrets.
-        </p>
-      </section>
+/** A code or diagram block that can scroll sideways. It is a named region so the keyboard can reach it. */
+function CodeBlock({ label, children, ...rest }) {
+  return (
+    <pre className="lcp-pre" tabIndex={0} role="region" aria-label={label} {...rest}>
+      <code>{children}</code>
+    </pre>
+  );
+}
 
-      <section style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 12 }}>All agents we have</h2>
-        <p style={{ fontSize: 14, color: "var(--th-text)", marginBottom: 12, lineHeight: 1.5 }}>
-          Framework packages in this repo. Banking chat swaps among the first
-          four via <code>llm_framework</code>; LlamaIndex and Compliance are
-          separate services. Brains above are independent of which package runs.
-        </p>
-        <table
-          style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-        >
-          <thead>
-            <tr style={{ background: "var(--th-status-success-bg)" }}>
-              {["Directory", "Framework", "Port", "Role"].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: "8px 12px",
-                    textAlign: "left",
-                    borderBottom: "2px solid #c8e6c9",
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ALL_FRAMEWORKS.map((row, i) => (
-              <tr
-                key={row[0]}
-                style={{
-                  background: i % 2 === 0 ? "var(--th-bg-card)" : "var(--th-bg-inset)",
-                  fontWeight: row[0] === "langchain_agent" ? 600 : 400,
-                }}
-              >
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                  <code>{row[0]}</code>
-                  {row[0] === "langchain_agent" && (
-                    <span style={{ marginLeft: 6, color: "var(--th-status-success-text)", fontSize: 12 }}>
-                      this page
-                    </span>
+export default function LangChainPage() {
+  const [status, setStatus] = useState(null);
+  // loading until the BFF settles; then ready (it named a provider), unknown (it answered 2xx without the
+  // fields we need), error (it answered with an error status) or unavailable (no answer at all). Never spins forever.
+  const [statusState, setStatusState] = useState("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/langchain/config/status", { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) return { failed: true };
+        return Promise.resolve(r.json()).catch(() => null);
+      })
+      .then((d) => {
+        if (cancelled) return;
+        if (d?.failed) {
+          setStatusState("error");
+        } else if (d && typeof d.provider === "string" && d.provider) {
+          setStatus(d);
+          setStatusState("ready");
+        } else {
+          // a 200 without a provider (for example {}) says nothing: do not invent one
+          setStatusState("unknown");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatusState("unavailable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Only meaningful once statusState is "ready", when the BFF has named a provider.
+  const activeProvider = statusState === "ready" ? status.provider : null;
+  const isHeuristic = activeProvider != null && HEURISTIC_IDS.has(activeProvider);
+  const keyReported = typeof status?.key_set?.[activeProvider] === "boolean";
+
+  // The chip word says what the BFF reported; colour only follows it. Green only for a key the BFF says is set.
+  let chip;
+  let cardTone;
+  if (statusState === "loading") {
+    cardTone = "neutral";
+    chip = { tone: "neutral", word: "Checking" };
+  } else if (statusState === "unavailable") {
+    cardTone = "warn";
+    chip = { tone: "warn", word: "Not reachable" };
+  } else if (statusState === "error") {
+    cardTone = "warn";
+    chip = { tone: "warn", word: "Error answer" };
+  } else if (statusState === "unknown") {
+    cardTone = "neutral";
+    chip = { tone: "neutral", word: "Status not reported" };
+  } else if (isHeuristic) {
+    cardTone = "live";
+    chip = { tone: "info", word: "No key needed" };
+  } else if (status?.key_set?.[activeProvider]) {
+    cardTone = "live";
+    chip = { tone: "ok", word: "Key set" };
+  } else if (LOCAL_PROVIDERS.has(activeProvider)) {
+    cardTone = "live";
+    chip = { tone: "neutral", word: "Local, no key" };
+  } else if (keyReported) {
+    cardTone = "live";
+    chip = { tone: "danger", word: "No key set" };
+  } else {
+    cardTone = "live";
+    chip = { tone: "neutral", word: "Key not reported" };
+  }
+
+  const brainItems = [
+    { label: "Provider", value: activeProvider, mono: true },
+    { label: "Model", value: isHeuristic ? "none (deterministic NL parser)" : status?.model ?? "not reported", mono: !isHeuristic },
+  ];
+
+  return (
+    <PingPage className="lcp">
+      <SimBanner data-testid="lcp-banner">
+        Reference page. The architecture, code sample and both tables below are fixed text; nothing runs on this
+        page. {BANNER_LIVE_LINE[statusState]}
+      </SimBanner>
+
+      <PageHeader
+        back={{ to: "/", label: "Back" }}
+        eyebrow="Agent frameworks"
+        title="LangChain in AI Demo"
+        summary="Default banking AG-UI runtime (langchain_agent on :8888). Same Ping delegated-OAuth / MCP / Authorize / HITL model as the other frameworks: switch package with llm_framework, switch brain with the agent mode picker (Heuristics · Gemini · llama.cpp)."
+      />
+
+      <PageFrame>
+        <Section id="lcp-active" kicker="1 · Right now" title="Configured brain / provider">
+          <CardGrid>
+            <Card tone={cardTone} title="Configured brain" data-testid="lcp-active-brain">
+              <div className="pu-status-line">
+                {/* the spinner is itself a live region, so it sits beside this one, not inside it */}
+                <span className="pu-status-line" role="status" aria-live="polite">
+                  <StatusChip tone={chip.tone}>{chip.word}</StatusChip>
+                  {statusState === "unavailable" && (
+                    <span>The BFF status endpoint did not respond.</span>
                   )}
-                </td>
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                  {row[1]}
-                </td>
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
-                  {row[2]}
-                </td>
-                <td
-                  style={{
-                    padding: "8px 12px",
-                    borderBottom: "1px solid var(--th-border)",
-                    color: "var(--th-text)",
-                  }}
-                >
-                  {row[3]}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p style={{ fontSize: 13, color: "var(--th-text)", marginTop: 12 }}>
-          Full write-up: <code>AGENTS_ECOSYSTEM.md</code> · In-app: Learn → Agent
-          frameworks (inventory).
-        </p>
-      </section>
-    </div>
+                  {statusState === "error" && (
+                    <span>The BFF answered with an error and did not return a status.</span>
+                  )}
+                  {statusState === "unknown" && (
+                    <span>The BFF answered without naming a provider, so none is shown.</span>
+                  )}
+                  {statusState === "ready" && isHeuristic && <span>No LLM key required.</span>}
+                  {statusState === "ready" && !isHeuristic && chip.tone === "danger" && (
+                    <span>Set one in Config or the agent mode picker.</span>
+                  )}
+                </span>
+                {statusState === "loading" && <InlineSpinner label="Reading the configured brain…" />}
+              </div>
+              {statusState === "ready" && <KvList items={brainItems} />}
+              <p className="pu-note">
+                As the BFF reports it for this browser. Signed out, that is the global configuration, not a choice
+                made in your own session.
+              </p>
+              <p className="pu-note">
+                <Link to="/config" className="lcp-link">Change in Config →</Link>
+              </p>
+            </Card>
+          </CardGrid>
+        </Section>
+
+        <Section id="lcp-arch" kicker="2 · How it fits" title="Architecture">
+          <Card tone="neutral">
+            <p className="lcp-intro">
+              <code>langchain_agent</code> is a Python FastAPI service (AG-UI <code>/run</code> on port 8888). The
+              BFF selects it when <code>llm_framework=langchain</code> (default) and forwards the session brain
+              (provider + model) from <code>/api/langchain/config</code>. Tools execute through the BFF with the
+              delegated Ping token, never with long-lived secrets in the browser.
+            </p>
+            <CodeBlock label="Architecture diagram (text)" data-testid="lcp-diagram">{DIAGRAM}</CodeBlock>
+          </Card>
+        </Section>
+
+        <Section id="lcp-pattern" kicker="3 · Pattern" title="LangGraph / LCEL pattern">
+          <Card tone="neutral">
+            <CodeBlock label="LangGraph agent code sample" data-testid="lcp-code">{LCEL_CODE}</CodeBlock>
+            <p className="pu-note">
+              Source: <code>langchain_agent/</code> (AG-UI run handler + LLM factory). Framework comparison: Learn →
+              Agent frameworks, or <code>AGENTS_ECOSYSTEM.md</code>.
+            </p>
+          </Card>
+        </Section>
+
+        <Section
+          id="lcp-brains"
+          kicker="4 · Brains"
+          title="Demo brains (Heuristics · Gemini · llama.cpp)"
+          lede="These are the usual live-demo choices in the agent mode picker. Other modes (Helix, Anthropic, MLX, Groq) appear when configured; see agentModes.js."
+        >
+          <Card tone="neutral">
+            <div className="lcp-table-wrap">
+              <table className="lcp-table" data-testid="lcp-brains" aria-label="Demo brains">
+                <thead>
+                  <tr>
+                    {["Brain", "Provider id", "Package / path", "Default model", "Notes"].map((h) => (
+                      <th key={h} scope="col">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {DEMO_BRAINS.map((p) => {
+                    // Marked only once the BFF has named a provider; before that, or on an empty answer, nothing is claimed.
+                    const active =
+                      statusState === "ready" &&
+                      (p.provider == null ? isHeuristic : activeProvider === p.provider);
+                    return (
+                      <tr key={p.id} className={active ? "lcp-row--active" : undefined}>
+                        <td data-label="Brain">
+                          {p.label}
+                          {active && (
+                            <span className="lcp-cell-chip"><StatusChip tone="info">Configured</StatusChip></span>
+                          )}
+                        </td>
+                        <td data-label="Provider id"><code>{p.provider ?? "null"}</code></td>
+                        <td data-label="Package / path"><code>{p.package}</code></td>
+                        <td data-label="Default model"><code>{p.defaultModel}</code></td>
+                        <td data-label="Notes">{p.notes}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </Section>
+
+        <Section id="lcp-security" kicker="5 · Security" title="Security: Keys Stay Server-Side">
+          <Card>
+            <p className="lcp-intro">
+              API keys live in <code>req.session.langchain_config</code> on the BFF only.{" "}
+              <code>GET /api/langchain/config/status</code> returns boolean <code>key_set</code> flags, never key
+              material. Same pattern as PingOne client secrets.
+            </p>
+          </Card>
+        </Section>
+
+        <Section
+          id="lcp-agents"
+          kicker="6 · Inventory"
+          title="All agents we have"
+          lede={FRAMEWORKS_LEDE}
+        >
+          <Card tone="neutral">
+            <div className="lcp-table-wrap">
+              <table className="lcp-table" data-testid="lcp-agents" aria-label="Agent framework packages">
+                <thead>
+                  <tr>
+                    {["Directory", "Framework", "Port", "Role"].map((h) => (
+                      <th key={h} scope="col">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ALL_FRAMEWORKS.map((row) => {
+                    const here = row[0] === "langchain_agent";
+                    return (
+                      <tr key={row[0]} className={here ? "lcp-row--active" : undefined}>
+                        <td data-label="Directory">
+                          <code>{row[0]}</code>
+                          {here && (
+                            <span className="lcp-cell-chip"><StatusChip tone="neutral">This page</StatusChip></span>
+                          )}
+                        </td>
+                        <td data-label="Framework">{row[1]}</td>
+                        <td data-label="Port">{row[2]}</td>
+                        <td data-label="Role">{row[3]}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="pu-note">
+              Full write-up: <code>AGENTS_ECOSYSTEM.md</code> · In-app: Learn → Agent frameworks (inventory).
+            </p>
+          </Card>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
 }

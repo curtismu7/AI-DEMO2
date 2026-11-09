@@ -70,6 +70,35 @@ describe('PrivilegeMcpOAuthConfig', () => {
     expect(screen.queryByText('super-secret')).not.toBeInTheDocument();
   });
 
+  it('keeps keyboard focus on Save and Test Connection while they work (aria-disabled, not disabled)', async () => {
+    let release;
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      if (opts && (opts.method === 'PUT' || opts.method === 'POST')) {
+        return new Promise((resolve) => { release = () => resolve({ ok: true, json: () => Promise.resolve({ status: 200, step: 'mcp' }) }); });
+      }
+      return jsonResponse(EMPTY_CONFIG);
+    });
+    render(<PrivilegeMcpOAuthConfig />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+    for (const [name, busyName] of [[/^save$/i, /saving/i], [/test connection/i, /testing/i]]) {
+      const button = screen.getByRole('button', { name });
+      button.focus();
+      fireEvent.click(button);
+      const busy = await screen.findByRole('button', { name: busyName });
+      expect(busy).toHaveAttribute('aria-disabled', 'true');
+      expect(busy).not.toBeDisabled();
+      expect(busy).toHaveFocus();
+      // a second press while busy does not send a second request
+      const writes = () => global.fetch.mock.calls.filter(([, o]) => o && (o.method === 'PUT' || o.method === 'POST')).length;
+      const before = writes();
+      fireEvent.click(busy);
+      expect(writes()).toBe(before);
+      release();
+      await waitFor(() => expect(screen.getByRole('button', { name })).not.toHaveAttribute('aria-disabled'));
+    }
+  });
+
   it('Test Connection shows the live status even when it is a 401', async () => {
     global.fetch = vi.fn().mockImplementation((url, opts) => {
       if (url.endsWith('/api/mcp-oauth-config/test')) {

@@ -228,11 +228,12 @@ describe('McpShowcasePage on the Ping UI primitives', () => {
     fireEvent.click(remove);
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove Miami' })).toBeNull());
     const denver = screen.getByRole('button', { name: 'Remove Denver' });
-    expect(document.activeElement).toBe(denver);
+    // focus moves in a passive effect after the row is removed: wait for it instead of racing it
+    await waitFor(() => expect(document.activeElement).toBe(denver));
     // removing the only row left falls back to the add-city input
     fireEvent.click(denver);
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove Denver' })).toBeNull());
-    expect(document.activeElement).toBe(input);
+    await waitFor(() => expect(document.activeElement).toBe(input));
   });
 
   it('blocklist: removing a city moves focus to the row that takes its place, and announces it politely', async () => {
@@ -242,14 +243,14 @@ describe('McpShowcasePage on the Ping UI primitives', () => {
     removeTampa.focus();
     fireEvent.click(removeTampa);
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove Tampa' })).toBeNull());
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove Orlando' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove Orlando' })));
     const live = document.getElementById('wbl-status');
     expect(live.getAttribute('role')).toBe('status');
     expect(live.textContent).toBe('Removed Tampa. 2 blocked.');
     // removing the last row falls back to the one before it
     fireEvent.click(screen.getByRole('button', { name: 'Remove Orlando' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove Orlando' })).toBeNull());
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove Miami' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove Miami' })));
   });
 
   it('blocklist: adding announces; Block city with nothing typed says what is missing and sends nothing', async () => {

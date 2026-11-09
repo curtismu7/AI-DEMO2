@@ -40,6 +40,12 @@ describe('PrivilegeSaasAccessPage (standalone UI standard)', () => {
     const receipt = screen.getByTestId('psa-receipt');
     expect(receipt.querySelector('dl.pu-kv')).not.toBeNull();
     expect(receipt.textContent).toMatch(/grt-/);
+    // A simulated receipt is a sample in an info chip, not a green "Issued" verdict, and it says nothing was granted.
+    expect(receipt.textContent).not.toMatch(/Issued/);
+    expect(receipt.querySelector('.pu-chip--ok')).toBeNull();
+    expect(receipt.querySelector('.pu-chip--info').textContent).toBe('Sample receipt');
+    expect(receipt.closest('.pu-card').className).not.toContain('pu-card--ok');
+    expect(receipt.textContent).toMatch(/nothing was granted/);
     expect(within(stages).getAllByText('Done')).toHaveLength(2);
     advance().focus();
     fireEvent.click(advance());
@@ -71,5 +77,12 @@ describe('PrivilegeSaasAccessPage (standalone UI standard)', () => {
     const verdict = await waitFor(() => screen.getByTestId('plc-verdict'));
     expect(verdict.querySelector('.plc__chip').textContent).toBe('Denied');
     expect(verdict.textContent).toMatch(/denied the call/);
+  });
+
+  it('the live check is titled as a call to a sample tool, not as reading a real ledger', () => {
+    render(<PrivilegeSaasAccessPage />);
+    expect(screen.getByRole('heading', { name: 'Call a tool through the gateway (sample data)' })).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/for real|live entitlement ledger|real call is the ledger/i);
+    expect(document.body.textContent).toMatch(/not a real entitlement ledger/);
   });
 });

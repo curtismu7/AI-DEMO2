@@ -4,6 +4,7 @@ const express = require('express');
 const { requireSession } = require('../middleware/auth');
 const { verticalManifest } = require('../services/verticalManifest');
 const { a2aDemoProfile } = require('../config/a2aSpecialists');
+const { readGatewayRecord } = require('../services/gatewayRecordService');
 
 const router = express.Router();
 const MAX_MESSAGE_LENGTH = 4000;
@@ -250,6 +251,15 @@ router.post('/scan-card', requireSession, express.json({ limit: '8kb' }), async 
   } finally {
     clearTimeout(timer);
   }
+});
+
+// The gateway's own record of a run: its guardrail verdicts, model calls, accepted A2A requests and refusals
+// between two instants, read from the store the gateway ships to. No door sign-in is needed.
+router.get('/gateway-record', requireSession, async (req, res) => {
+  const result = await readGatewayRecord({ since: req.query.since, until: req.query.until });
+  if (!result.ok) return res.status(result.status).json({ state: 'unavailable', error: result.error });
+  res.set('Server-Timing', `store;dur=${result.tookMs}`);
+  return res.json({ state: 'ready', hits: result.hits, tookMs: result.tookMs });
 });
 
 module.exports = router;

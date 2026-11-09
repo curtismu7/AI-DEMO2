@@ -402,8 +402,8 @@ Agent and must not inherit Agent-mode settings.
 | OIDC client ID | `a6219652-47af-4ed2-8dea-20e9940b3377` |
 | OIDC callback | `https://cmuir-agentless-mcpgw.ping-devops.com/callback` |
 | Console callback | `https://callback.login.privilege.pingone.com/oidc/callback` |
-| Gateway version | `v1.260729` |
-| Gateway image | `public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d` |
+| Gateway version | `v1.261106` (read from the live `agentless-mcpgw` deployments on 2026-11-09; earlier builds of this table said `v1.260729`) |
+| Gateway image | `public.ecr.aws/s7q1z8z4/privilege-aigw:v1.261106` (digest `sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce`). Until 2026-11-09 the local Compose gateway ran the older `privilege-mcpgw` repo at `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d` (build 2026-07-30); both ship `/procyon/bin/mcpgw` |
 
 The public route is:
 

@@ -17,6 +17,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { notifyError } from '../utils/appToast';
 import './CIBAPanel.css';
+// The education tabs render <pre className="edu-code">; that rule lives here, not in CIBAPanel.css, and nothing else
+// loads it before the drawer opens, so the code blocks painted unstyled on first open.
+import './shared/EducationDrawer.css';
 import {
   CibaWhatContent,
   CibaFullStackContent,
@@ -119,13 +122,13 @@ function CodeBlock({ children }) {
 
 function StatusBadge({ status }) {
   const map = {
-    idle:     { color: '#374151', label: 'Idle' },
-    loading:  { color: 'var(--brand-navy)', label: 'Initiating…' },
-    pending:  { color: '#d97706', label: 'Waiting for approval' },
-    approved: { color: '#16a34a', label: '✅ Approved' },
-    denied:   { color: '#dc2626', label: '❌ Denied' },
-    error:    { color: '#dc2626', label: '⚠ Error' },
-    expired:  { color: '#374151', label: 'Expired' },
+    idle:     { color: 'var(--th-text-body)', label: 'Idle' },
+    loading:  { color: 'var(--th-text)', label: 'Initiating…' },
+    pending:  { color: 'var(--th-status-warning-text)', label: 'Waiting for approval' },
+    approved: { color: 'var(--th-status-success-text)', label: '✅ Approved' },
+    denied:   { color: 'var(--th-status-error-text)', label: '❌ Denied' },
+    error:    { color: 'var(--th-status-error-text)', label: '⚠ Error' },
+    expired:  { color: 'var(--th-text-body)', label: 'Expired' },
   };
   const s = map[status] || map.idle;
   return (
@@ -254,7 +257,7 @@ function TryItTab({ cibaStatus }) {
           <strong>CIBA is not enabled.</strong> Set <code>CIBA_ENABLED=true</code> and
           configure PingOne (see the Setup tab) to try a live demo.
         </div>
-        <p style={{ fontSize: '0.85rem', color: '#374151', marginTop: '1rem' }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--th-text-body)', marginTop: '1rem' }}>
           Once enabled, this tab lets you initiate a live CIBA request (approval is by email link or text-message link
           depending on the channel you pick) and watch the polling loop in real time.
         </p>
@@ -579,7 +582,7 @@ export default function CIBAPanel() {
                 <li><strong>Admin</strong> (<code>role === &apos;admin&apos;</code>): Activity logs, manage users, view <em>all</em> accounts and transactions, Security Settings (thresholds / PingOne Authorize integration), Application Configuration link, full MCP Inspector. Routed to <code>/admin</code> and admin-only routes.</li>
                 <li><strong>Customer</strong> (<code>role === &apos;customer&apos;</code>): Personal dashboard only — own accounts, deposits, transfers, withdrawals within normal policy; MCP Inspector in read-oriented use; no tenant-wide admin screens.</li>
               </ul>
-              <p className="ciba-section-desc" style={{ fontSize: '0.85rem', color: '#374151' }}>
+              <p className="ciba-section-desc" style={{ fontSize: '0.85rem', color: 'var(--th-text-body)' }}>
                 The UI loads the signed-in user from <code>GET /api/auth/oauth/status</code> (admin PingOne app), <code>GET /api/auth/oauth/user/status</code> (end-user app), and <code>GET /api/auth/session</code> (basic auth). The post-login redirect depends on the user's <strong>stored role</strong> — a user whose record has <code>role: admin</code> is routed to <code>/admin</code> regardless of which OAuth app was used for sign-in.
               </p>
 

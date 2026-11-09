@@ -26,7 +26,7 @@ export const CONSENT_MOCK_DETAIL = {
     refs: [SPEC('OpenID CIBA Core 1.0 token errors', 'authorization_pending, slow_down, access_denied and expired_token while polling'), PING_CIBA],
   },
   real: {
-    form: 'Push on the user\'s device, tap opens the deep link:\n  GET https://<host>/transaction-consent?challenge=<challenge id>\n\n  The challenge id comes from the BFF: POST /api/transactions/consent-challenge\n  <- 201 { "challengeId": "<id>", "expiresAt": "...", "snapshot": {...} }',
+    form: 'The link a consent challenge opens (this BFF sends no push; PingOne CIBA delivers by email or SMS):\n  GET https://<host>/transaction-consent?challenge=<challenge id>\n\n  The challenge id comes from the BFF: POST /api/transactions/consent-challenge\n  <- 201 { "challengeId": "<id>", "expiresAt": "...", "snapshot": {...} }',
     refs: [PING_MFA, RFC(9470, 'Step-up authentication challenge: why a high-value transaction asks for consent first')],
   },
   confirm: {
