@@ -2,11 +2,15 @@
 # Every other routed page is reported but advisory. Add a route in the SAME PR that converts the page.
 # One route path per line, exactly as in src/App.js.
 /privilege-saas-access
+/client-registration
 /pingone-authorize
+/scope-audit
 /delegation-chain-value
 /token-security
+/session-lab
 /privilege-map
 /weather-mcp
+/intent-binding-learning
 /brave-mcp
 /a2a-protocol-learning
 /demo-track
@@ -15,17 +19,22 @@
 /delegated-commerce
 /demo-summary
 /langchain
+/agent-gateway-authorization
 /privilege-pii-detection
 /settings
 /privilege-gateway-topologies
 /agent-lifecycle
+/token-exchange-tester
 /demo-map
 /privilege-demo
 /agent-builder
 /ungoverned-agent
+/oauth-academy
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
+/demo/enterprise-mcp
+/pingfederate-id-jag/demo
 /pingfederate-config
 /privilege-prompt-log
 /governance-timeline
@@ -39,6 +48,7 @@
 /privilege-shelf
 /personal-agent
 /personal-agent/full
+/pingone-platform-config
 /ai-products/core
 /ai-products/gateway
 /gateway-claims
@@ -52,5 +62,6 @@
 /ai-products/privilege-mcp
 /privilege-a2a
 /transaction-consent
+/audit
 /privilege-for-ai
 /privilege-ai-policies

@@ -29,6 +29,7 @@
 /personal-agent/full
 /pingfederate-config
 /pingone-authorize
+/pingone-platform-config
 /policy-decision-trace
 /privilege-a2a
 /privilege-ai-policies
