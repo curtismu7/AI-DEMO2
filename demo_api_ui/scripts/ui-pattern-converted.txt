@@ -6,6 +6,7 @@
 /pingone-authorize
 /delegation-chain-value
 /token-security
+/session-lab
 /privilege-map
 /weather-mcp
 /brave-mcp
