@@ -4,7 +4,9 @@
  */
 import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import TokenExchangeTesterPage from '../TokenExchangeTesterPage';
 import { PI_FLOW_SIGNIN_EVENT } from '../../utils/authUi';
 
@@ -170,7 +172,7 @@ describe('TokenExchangeTesterPage on the Ping UI Standard', () => {
     const page = container.querySelector('.pu-page.tet-page');
     expect(page).toBeTruthy();
     expect(page.firstElementChild.querySelector('[role="note"]')).toBeTruthy();
-    expect(screen.getByTestId('tet-banner').textContent).toMatch(/nothing on this page is simulated/i);
+    expect(screen.getByTestId('tet-banner').textContent).toMatch(/nothing here is simulated/i);
     // the banner does not name an identity provider it cannot know
     expect(screen.getByTestId('tet-banner').textContent).not.toMatch(/PingOne|PingFederate/);
     await screen.findByRole('button', { name: /Exchange Token/i });
@@ -342,3 +344,183 @@ describe('TokenExchangeTesterPage on the Ping UI Standard', () => {
     expect(screen.getByTestId('tet-response').className).toContain('pu-card--danger');
   });
 });
+
+// ─── Skeptic fixes (PR 3515) ─────────────────────────────────────────────────
+const ERR_400 = () => ({ ok: false, status: 400, json: async () => ({ success: false, mode: 'single', error: 'invalid_grant', request: { audience: 'x' } }) });
+
+describe('TokenExchangeTesterPage skeptic fixes', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('does not carry a failed result or error from one mode into the other', async () => {
+    stubFetch({ exchange: ERR_400 });
+    render(<TokenExchangeTesterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /Exchange Token/i }));
+    const status = await screen.findByTestId('tet-status');
+    await waitFor(() => expect(within(status).getByText('invalid_grant')).toBeTruthy());
+    expect(screen.getByRole('region', { name: /Full response/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /2-exchange/i }));
+    expect(within(screen.getByTestId('tet-status')).getByText('Not run')).toBeTruthy();
+    expect(screen.queryByText('invalid_grant')).toBeNull();
+    expect(screen.queryByRole('region', { name: /Full response/i })).toBeNull();
+  });
+
+  it('clears the blocked 2-exchange error when going back to 1-exchange', async () => {
+    stubFetch({ agent: AGENT_NONE, exchange: () => { throw new Error('must not call'); } });
+    render(<TokenExchangeTesterPage />);
+    await screen.findByRole('button', { name: /Exchange Token/i });
+    fireEvent.click(screen.getByRole('button', { name: /2-exchange/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Run 2-Exchange/i }));
+    expect(await screen.findByText(/Agent actor token is not available/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /1-exchange/i }));
+    expect(screen.queryByText(/Agent actor token is not available/i)).toBeNull();
+    expect(within(screen.getByTestId('tet-status')).getByText('Not run')).toBeTruthy();
+  });
+
+  it('names no identity provider anywhere on the page, whatever the mode or state', async () => {
+    stubFetch({ agent: AGENT_NONE, exchange: ERR_400 });
+    const { container } = render(<TokenExchangeTesterPage />);
+    await screen.findByRole('button', { name: /Exchange Token/i });
+    fireEvent.click(screen.getByRole('button', { name: /2-exchange/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Run 2-Exchange/i }));
+    await screen.findByText(/Agent actor token is not available/i);
+    expect(container.textContent).not.toMatch(/PingOne|PingFederate/);
+  });
+
+  it('result text does not claim a left/right position (the columns stack on a phone)', async () => {
+    stubFetch({
+      exchange: () => ({ ok: true, status: 200, json: async () => ({ success: true, mode: 'single', request: {} }) }),
+    });
+    render(<TokenExchangeTesterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /Exchange Token/i }));
+    const status = await screen.findByTestId('tet-status');
+    await waitFor(() => expect(within(status).getByText('Issued')).toBeTruthy());
+    expect(status.textContent).not.toMatch(/\b(left|right)\b/i);
+  });
+
+  it('the session live region exists before it has content, so signed-out text is announced when it appears', async () => {
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    global.fetch = vi.fn(async (url) => {
+      await gate;
+      if (String(url).includes('session-preview')) return { ok: false, status: 401, json: async () => ({}) };
+      return { ok: true, json: async () => AGENT_OK };
+    });
+    render(<TokenExchangeTesterPage />);
+    const region = screen.getByTestId('tet-session-status');
+    expect(region.getAttribute('role')).toBe('status');
+    release();
+    await screen.findByRole('button', { name: /Customer Sign In/i });
+    // the very same element now holds the text
+    expect(screen.getByTestId('tet-session-status')).toBe(region);
+    expect(region.textContent).toMatch(/Please log in first/);
+    expect(within(region).getByText('Signed out')).toBeTruthy();
+  });
+
+  it('the live region is there before a mid-run session end writes into it', async () => {
+    stubFetch({ exchange: () => ({ ok: false, status: 401, json: async () => ({ code: 'login_required' }) }) });
+    render(<TokenExchangeTesterPage />);
+    const run = await screen.findByRole('button', { name: /Exchange Token/i });
+    const region = screen.getByTestId('tet-session-status');
+    expect(region.textContent).toBe('');
+    fireEvent.click(run);
+    await waitFor(() => expect(region.textContent).toMatch(/Your session ended/));
+    expect(screen.getByTestId('tet-session-status')).toBe(region);
+  });
+
+  it('moves focus to the remaining button when the session ends while focus is in a field that goes away', async () => {
+    stubFetch({ exchange: () => ({ ok: false, status: 401, json: async () => ({ code: 'login_required' }) }) });
+    render(<TokenExchangeTesterPage />);
+    await screen.findByRole('button', { name: /Exchange Token/i });
+    const scopes = screen.getByLabelText(/Scopes/i);
+    scopes.focus();
+    expect(document.activeElement).toBe(scopes);
+    fireEvent.submit(scopes.closest('form'));
+    await screen.findByText(/Your session ended/i);
+    expect(screen.queryByLabelText(/Scopes/i)).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Customer Sign In/i }));
+  });
+
+  it('a check that never answers ends as a plain-words state instead of "Checking" for ever', async () => {
+    vi.useFakeTimers();
+    global.fetch = vi.fn((url, init) => new Promise((_, reject) => {
+      init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }));
+    render(<TokenExchangeTesterPage />);
+    expect(screen.getAllByText('Checking').length).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(8100);
+    await vi.advanceTimersByTimeAsync(8100);
+    vi.useRealTimers();
+    const subject = screen.getByTestId('tet-subject');
+    await waitFor(() => expect(within(subject).getByText('Not checked')).toBeTruthy());
+    expect(within(subject).getByText(/check timed out/i)).toBeTruthy();
+    expect(within(subject).queryByText('Signed out')).toBeNull();
+    expect(within(screen.getByTestId('tet-agent')).getByText(/check timed out/i)).toBeTruthy();
+    expect(screen.queryByText('Checking')).toBeNull();
+    // still one primary, and it is sign-in
+    expect(primaries()).toHaveLength(1);
+  });
+});
+
+// ─── Page CSS: scoped, and legible in both themes ────────────────────────────
+describe('TokenExchangeTesterPage CSS', () => {
+  const css = fs.readFileSync(path.resolve(__dirname, '../TokenExchangeTesterPage.css'), 'utf8');
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const indexCss = fs.readFileSync(path.resolve(__dirname, '../../index.css'), 'utf8');
+
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const lum = (c) => {
+    const [r, g, b] = c.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a, b) => { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const over = (fg, a, bg) => fg.map((v, i) => v * a + bg[i] * (1 - a));
+
+  it('every selector in the page stylesheet is scoped under .pu-page.tet-page', () => {
+    const selectors = [...stripped.matchAll(/(^|\})\s*([^{}@]+)\{/g)].map((m) => m[2].trim());
+    expect(selectors.length).toBeGreaterThan(5);
+    selectors.forEach((group) => {
+      group.split(',').forEach((sel) => expect(sel.trim()).toMatch(/^\.pu-page\.tet-page\b/));
+    });
+  });
+
+  it('leaves no dead .tet-btn rule behind in index.css', () => {
+    expect(indexCss).not.toMatch(/\.tet-btn/);
+  });
+
+  it('dark: highlighted JSON keys clear 4.5:1 on the card ground (the shared palette measures 4.31:1)', () => {
+    const card = hex('#131c2e'); // dark --th-bg-card
+    const wash = over([255, 82, 82], 0.18, card); // .jh-dark .jh-focus background
+    const shared = fs.readFileSync(path.resolve(__dirname, '../../components/shared/JsonHighlight.css'), 'utf8');
+    const sharedInk = shared.match(/\.jh-dark \.jh-focus \{[^}]*color: (#[0-9a-f]{6})/i)[1];
+    expect(ratio(hex(sharedInk), wash)).toBeLessThan(4.5); // the reason for the override
+    const m = stripped.match(/\.pu-page\.tet-page \.tet-json\.jh-dark \.jh-focus \{\s*color: (#[0-9a-f]{6});/i);
+    expect(m).toBeTruthy();
+    expect(ratio(hex(m[1]), wash)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('light: the highlighted keys and the palette inks clear 4.5:1 on the card ground', () => {
+    const card = hex('#ffffff');
+    expect(ratio(hex('#d20e0f'), over([210, 14, 15], 0.1, card))).toBeGreaterThanOrEqual(4.5);
+    ['#0550ae', '#15803d', '#b45309'].forEach((c) => expect(ratio(hex(c), card)).toBeGreaterThanOrEqual(4.5));
+  });
+
+  it('true / false / null are ink, not error red, unless the field is one the palette flags as critical', () => {
+    expect(stripped).toMatch(/\.pu-page\.tet-page \.tet-json \.jh-keyword:not\(\.jh-critical\) \{\s*color: var\(--th-text\);/);
+  });
+
+  it('every rule that sets a --th-* background sets its own ink in the same rule', () => {
+    const rules = [...stripped.matchAll(/([^{}]+)\{([^}]*)\}/g)];
+    rules.forEach(([, sel, body]) => {
+      if (/background(-color)?:\s*var\(--th-/.test(body)) {
+        expect(body, sel.trim()).toMatch(/(^|[;\s])color:/);
+      }
+    });
+  });
+});
+

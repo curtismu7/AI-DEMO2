@@ -12,7 +12,7 @@
 // "Run 2-Exchange". It takes aria-disabled (never disabled) while running or when 2-exchange lacks the agent
 // token, so focus stays on it and a click explains why. Mode buttons and the theme toggle are secondaries.
 // Page CSS keeps only the two-column split, the mode toggle mark and the JSON blocks.
-import React, { useId, useState, useEffect } from 'react';
+import React, { useId, useState, useEffect, useRef } from 'react';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenExchangeTesterPage.css';
 import JsonHighlight from '../components/shared/JsonHighlight';
@@ -25,6 +25,20 @@ import { useThemeOptional } from '../context/ThemeContext';
 import { openSignIn } from '../utils/signInService';
 
 const RETURN_TO = '/token-exchange-tester';
+
+// A readiness check that never answers must not leave the cards on "Checking" for ever.
+const CHECK_TIMEOUT_MS = 8000;
+
+/** fetch() that gives up after `ms`; the abort surfaces as an AbortError the caller maps to a plain-words label. */
+async function fetchWithTimeout(url, init, ms = CHECK_TIMEOUT_MS) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Summarize a token-event claims object for the readiness / step cards.
@@ -106,6 +120,7 @@ export default function TokenExchangeTesterPage() {
   const [userReady, setUserReady] = useState({ status: 'checking', claims: null, label: null });
   const [agentReady, setAgentReady] = useState({ status: 'checking', claims: null, label: null });
   const [sessionEnded, setSessionEnded] = useState(false);
+  const runRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +130,7 @@ export default function TokenExchangeTesterPage() {
      */
     async function loadTokens() {
       try {
-        const sessionRes = await fetch('/api/tokens/session-preview', { credentials: 'include' });
+        const sessionRes = await fetchWithTimeout('/api/tokens/session-preview', { credentials: 'include' });
         if (!sessionRes.ok) {
           if (!cancelled) {
             setUserReady({ status: 'missing', claims: null, label: 'No user session' });
@@ -140,14 +155,22 @@ export default function TokenExchangeTesterPage() {
             }
           }
         }
-      } catch {
+      } catch (err) {
+        // A failed or timed-out request is not "no session": say the session was not checked.
         if (!cancelled) {
-          setUserReady({ status: 'missing', claims: null, label: 'No user session' });
+          setUserReady({
+            status: 'missing',
+            unchecked: true,
+            claims: null,
+            label: err?.name === 'AbortError'
+              ? 'The session check timed out'
+              : 'The session could not be checked',
+          });
         }
       }
 
       try {
-        const agentRes = await fetch('/api/tokens/agent-cc-preview', { credentials: 'include' });
+        const agentRes = await fetchWithTimeout('/api/tokens/agent-cc-preview', { credentials: 'include' });
         if (!agentRes.ok) {
           if (!cancelled) {
             setAgentReady({ status: 'missing', claims: null, label: 'Agent CC unavailable' });
@@ -177,9 +200,13 @@ export default function TokenExchangeTesterPage() {
             });
           }
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setAgentReady({ status: 'missing', claims: null, label: 'Agent CC unavailable' });
+          setAgentReady({
+            status: 'missing',
+            claims: null,
+            label: err?.name === 'AbortError' ? 'The agent token check timed out' : 'Agent CC unavailable',
+          });
         }
       }
     }
@@ -195,6 +222,19 @@ export default function TokenExchangeTesterPage() {
   const canRun = mode === 'single' ? hasSession : canRunDouble;
   const blockedDouble = hasSession && mode === 'double' && !agentOk;
 
+  // The session can end while focus is in a field that then leaves the page: put focus on the one button that is left.
+  useEffect(() => {
+    if (sessionEnded) runRef.current?.focus();
+  }, [sessionEnded]);
+
+  // A result or error belongs to the mode that produced it; do not carry it into the other mode.
+  const chooseMode = (next) => {
+    if (next === mode) return;
+    setMode(next);
+    setResult(null);
+    setError(null);
+  };
+
   const handleExchange = async (e) => {
     e.preventDefault();
     if (loading) return; // aria-disabled keeps focus; the submit is ignored
@@ -203,7 +243,8 @@ export default function TokenExchangeTesterPage() {
       return;
     }
     if (mode === 'double' && !agentOk) {
-      setError('Agent actor token is not available. Configure PingOne MCP Token Exchanger credentials, then refresh.');
+      setResult(null);
+      setError('Agent actor token is not available. Configure the MCP Token Exchanger credentials, then refresh.');
       return;
     }
 
@@ -260,7 +301,9 @@ export default function TokenExchangeTesterPage() {
   const subjectChip = {
     ready: { tone: 'ok', word: 'Ready' },
     checking: { tone: 'neutral', word: 'Checking' },
-    missing: { tone: 'warn', word: 'Signed out' },
+    missing: userReady.unchecked
+      ? { tone: 'warn', word: 'Not checked' }
+      : { tone: 'warn', word: 'Signed out' },
   }[userReady.status];
   const agentChip = {
     ready: { tone: 'ok', word: 'Ready' },
@@ -280,8 +323,8 @@ export default function TokenExchangeTesterPage() {
       tone: 'ok',
       word: 'Issued',
       text: result.mode === 'double'
-        ? 'Both exchanges succeeded. Each step is on the left.'
-        : 'The 1-exchange request returned an exchanged token. Its claims are on the left.',
+        ? 'Both exchanges succeeded. Each step has its own card with its claims.'
+        : 'The 1-exchange request returned an exchanged token. Its decoded claims are in the Exchanged token card.',
     };
   } else runStatus = { tone: 'neutral', word: 'Not run', text: 'Run an exchange to see the request and response here.' };
 
@@ -297,11 +340,10 @@ export default function TokenExchangeTesterPage() {
   return (
     <PingPage className="tet-page">
       <SimBanner data-testid="tet-banner">
-        <strong>LIVE EXCHANGE</strong> — nothing on this page is simulated. Running an exchange sends a real RFC 8693
-        token-exchange request, made by this app&apos;s BFF, to the token endpoint the app is configured with. The
-        subject is the token from your signed-in session; in 2-exchange mode the agent&apos;s client-credentials
-        token is the actor. The page shows decoded claims only: the signature never leaves the server. Signed out,
-        there is no subject token, so nothing can be exchanged.
+        <strong>LIVE EXCHANGE</strong> — nothing here is simulated. Run sends a real RFC 8693 token-exchange request,
+        made by this app&apos;s BFF, to the token endpoint the app is configured with. The subject is your session
+        token (the agent&apos;s token is the actor in 2-exchange). Only decoded claims are shown. Signed out, there is
+        nothing to exchange.
       </SimBanner>
       <PageHeader
         eyebrow="Tokens & delegation"
@@ -359,7 +401,7 @@ export default function TokenExchangeTesterPage() {
               {agentReady.claims && <Claims summary={agentReady.claims} />}
               {agentReady.status === 'missing' && mode === 'double' && (
                 <p className="pu-note">
-                  Required for 2-exchange. Configure PingOne MCP Token Exchanger credentials in Admin → Config.
+                  Required for 2-exchange. Configure the MCP Token Exchanger credentials in Admin → Config.
                 </p>
               )}
             </Card>
@@ -378,21 +420,24 @@ export default function TokenExchangeTesterPage() {
             <div className="tet-col-left">
               <Card title="Exchange configuration" data-testid="tet-config">
                 <form onSubmit={handleExchange} className="tet-form" aria-label="Exchange configuration">
-                  {checking && (
-                    <p className="pu-status-line" role="status">
-                      <InlineSpinner label="Checking session…" />
-                    </p>
-                  )}
-                  {!checking && !hasSession && (
-                    <>
-                      <p className="pu-status-line" role="status">
-                        <StatusChip tone="warn">Signed out</StatusChip>
+                  {/* One live region that exists from the first render; its content changes. */}
+                  <div role="status" data-testid="tet-session-status">
+                    {checking && (
+                      <p className="pu-status-line">
+                        <InlineSpinner label="Checking session…" />
+                      </p>
+                    )}
+                    {!checking && !hasSession && (
+                      <p className="pu-status-line">
+                        <StatusChip tone="warn">{subjectChip.word}</StatusChip>
                         {sessionEnded
                           ? 'Your session ended, so the exchange did not run. Sign in again to continue.'
-                          : 'Please log in first to test token exchange. The subject token comes from your session.'}
+                          : userReady.unchecked
+                            ? `${userReady.label}. Sign in to continue, or reload to check again.`
+                            : 'Please log in first to test token exchange. The subject token comes from your session.'}
                       </p>
-                    </>
-                  )}
+                    )}
+                  </div>
                   {hasSession && (
                     <>
                       <div className="tet-field">
@@ -401,7 +446,7 @@ export default function TokenExchangeTesterPage() {
                           <button
                             type="button"
                             className="pu-btn"
-                            onClick={() => setMode('single')}
+                            onClick={() => chooseMode('single')}
                             aria-pressed={mode === 'single'}
                           >
                             1-exchange
@@ -409,7 +454,7 @@ export default function TokenExchangeTesterPage() {
                           <button
                             type="button"
                             className="pu-btn"
-                            onClick={() => setMode('double')}
+                            onClick={() => chooseMode('double')}
                             aria-pressed={mode === 'double'}
                           >
                             2-exchange
@@ -471,6 +516,7 @@ export default function TokenExchangeTesterPage() {
                         aria-describedby={blockedDouble ? 'tet-run-reason' : undefined}
                         onClick={hasSession ? undefined : signIn}
                         data-testid="tet-run"
+                        ref={runRef}
                       >
                         {primaryLabel}
                       </button>
