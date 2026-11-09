@@ -41,6 +41,7 @@
 /governance-timeline
 /demo-config
 /davinci-ciba-flows
+/authorization-flow
 /privilege-pf-token
 /ping-products/verify-recognize
 /autonomous-agents

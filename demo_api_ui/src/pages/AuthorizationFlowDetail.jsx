@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Card, KvList, StatusChip } from "../components/pingUi";
 import { TOKEN_ORDER, detailFor } from "./authorizationFlowDetails";
 import { lanesFor, profileFor } from "./authorizationFlowData";
 
 // The "what is really happening" region: follows the step being played. Plain-English account, tokens in play,
 // the request and response, the decoded token with every claim explained, and what this boundary checks.
+// Every outcome word carries "(scripted)": nothing here is checked or minted, so no chip claims a real result.
 
 function CodeBlock({ label, text }) {
   const [copied, setCopied] = useState(false);
@@ -14,11 +16,15 @@ function CodeBlock({ label, text }) {
   };
   return (
     <div className="afd-code">
-      <div className="afd-label">
+      <div className="afd-label pu-label">
         {label}
-        <button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+        <span className="afd-label__copy">
+          <span aria-live="polite" className="afd-copied">{copied ? "Copied" : ""}</span>
+          <button type="button" className="pu-btn afd-copy" aria-label={`Copy ${label.toLowerCase()}`} onClick={copy}>Copy</button>
+        </span>
       </div>
-      <pre>{text}</pre>
+      {/* A long line scrolls inside the block, so the block takes the keyboard to scroll it. */}
+      <pre role="region" aria-label={label} tabIndex={0}>{text}</pre>
     </div>
   );
 }
@@ -37,38 +43,36 @@ export default function AuthorizationFlowDetail({ moment, vertical, stepIndex })
   const liveToken = d?.token?.idx || 0;
 
   return (
-    <section className="afd" aria-label="Step detail">
+    <Card className="afd" role="region" aria-label="Step detail">
       <header className="afd__head">
         {step ? (
           <>
             <span className="afd__kicker">Step {stepIndex + 1} of {moment.steps.length}</span>
-            <h2>{step.label}</h2>
+            <h3 className="pu-h3 afd__title">{step.label}</h3>
             <span className="afd__route">{names[step.from]} <i>{"→"}</i> {names[step.to]}</span>
-            {d?.refused ? <span className="afd__pill afd__pill--no">Refused</span> : d?.ok ? <span className="afd__pill afd__pill--ok">Succeeds</span> : <span className="afd__pill afd__pill--info">In flight</span>}
+            <StatusChip>{d?.refused ? "Refused (scripted)" : d?.ok ? "Succeeds (scripted)" : "In flight (scripted)"}</StatusChip>
           </>
         ) : (
           <>
             <span className="afd__kicker">Step detail</span>
-            <h2>Press Simulate, or pick a step</h2>
+            <h3 className="pu-h3 afd__title">Press Simulate, or pick a step</h3>
           </>
         )}
       </header>
 
       <div>
-        <div className="afd-label">Tokens in play</div>
-        <div className="afd__tokens">
-          {TOKEN_ORDER.map((name, i) => (
-            <div key={name} className={`afd__tok${liveToken === i + 1 ? " afd__tok--live" : ""}`}>
-              <strong>{i + 1} {"·"} {name}</strong>
-              <span>{TOKEN_LINES[i]}</span>
-            </div>
-          ))}
-        </div>
-        {d?.token ? <p className="afd__tokline"><strong>{d.token.name}.</strong> {d.token.summary}</p> : null}
+        <p className="pu-label">Tokens in play</p>
+        <KvList
+          items={TOKEN_ORDER.map((name, i) => ({
+            label: `${i + 1} · ${name}`,
+            value: liveToken === i + 1 ? <>{TOKEN_LINES[i]} <StatusChip>In use at this step</StatusChip></> : TOKEN_LINES[i],
+          }))}
+        />
+        {d?.token ? <p className="pu-note"><strong>{d.token.name}.</strong> {d.token.summary}</p> : null}
       </div>
 
       {!d ? (
-        <p className="afd__idle">
+        <p className="pu-note afd__idle">
           Each step shows what is happening and why, the request and response, the token in use with every claim
           explained, and what that boundary checks. Three tokens narrow the authority as the call moves inward.
         </p>
@@ -86,30 +90,28 @@ export default function AuthorizationFlowDetail({ moment, vertical, stepIndex })
           ) : null}
           {d.token ? (
             <div>
-              <div className="afd-label">{d.token.name}, decoded (illustrative values)</div>
-              <div className="afd__scroll">
-                <table className="afd__claims">
-                  <thead><tr><th>Claim</th><th>Value</th><th>What it means</th></tr></thead>
-                  <tbody>
-                    {d.token.claims.map((c) => (
-                      <tr key={c.claim} className={c.key ? "afd__key" : undefined}>
-                        <td>{c.claim}</td><td>{c.value}</td><td>{c.meaning}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <p className="pu-label">{d.token.name}, decoded (illustrative values)</p>
+              <table className="afd__claims">
+                <thead><tr><th>Claim</th><th>Value</th><th>What it means</th></tr></thead>
+                <tbody>
+                  {d.token.claims.map((c) => (
+                    <tr key={c.claim} className={c.key ? "afd__key" : undefined}>
+                      <td data-label="Claim">{c.claim}</td><td data-label="Value">{c.value}</td><td data-label="What it means">{c.meaning}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
           <div>
-            <div className="afd-label">What this boundary checks</div>
+            <p className="pu-label">What this boundary checks</p>
             <ul className={`afd__checks${d.refused ? " afd__checks--no" : ""}`}>
               {d.checks.map((c) => <li key={c}>{c}</li>)}
             </ul>
           </div>
         </>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -122,13 +124,13 @@ export function StepList({ moment, vertical, stepIndex, onPick }) {
           <button
             type="button"
             aria-current={i === stepIndex ? "step" : undefined}
-            className={`${i === stepIndex ? "afd-steps__cur" : ""}${i > stepIndex ? " afd-steps__future" : ""}${s.block ? " afd-steps__no" : ""}`}
+            className={`pu-btn${i === stepIndex ? " afd-steps__cur" : ""}${i > stepIndex ? " afd-steps__future" : ""}${s.block ? " afd-steps__no" : ""}`}
             onClick={() => onPick(i)}
           >
             <span className="afd-steps__n">{i + 1}</span>
             <span>
               {s.label}
-              <small>{names[s.from]} {"→"} {names[s.to]}</small>
+              <small>{names[s.from]} {"→"} {names[s.to]}{s.block ? " · refusal" : ""}</small>
             </span>
           </button>
         </li>

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -15,8 +15,11 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "../components/DiagramStepBar";
+import PageHeader from "../components/common/PageHeader";
+import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip } from "../components/pingUi";
 import AuthorizationFlowDetail, { StepList } from "./AuthorizationFlowDetail";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
+import { useFitOnResize } from "../hooks/useFitOnResize";
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { DEFAULT_VERTICAL, PROFILES, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor, profileFor } from "./authorizationFlowData";
 import "./AuthorizationFlowPage.css";
@@ -76,14 +79,14 @@ const startNodes = (vertical) => lanesFor(vertical).map((l, i) => ({
   data: l,
   style: { width: LANE_W },
 }));
-const ARROW = {
-  dark: { plain: "#7fb2e6", ok: "#3ddc97", block: "#ff5a5a" },
-  light: { plain: "#12538d", ok: "#0a7a4a", block: "#c40d0f" },
-};
 const appTheme = () => (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
 const laneIndex = Object.fromEntries(lanesFor(DEFAULT_VERTICAL).map((l, i) => [l.id, i]));
 
-function edgeFor(step, i, hot, theme) {
+// The arrowhead colour is a CSS variable of the canvas (--af-arrow / --af-ok / --af-block), so the dark and light
+// palettes in AuthorizationFlowPage.css restyle the markers without rebuilding the edges.
+const ARROW_VAR = { plain: "var(--af-arrow)", ok: "var(--af-ok)", block: "var(--af-block)" };
+
+function edgeFor(step, i, hot) {
   const forward = laneIndex[step.from] < laneIndex[step.to];
   const tone = step.block ? "block" : step.ok ? "ok" : "plain";
   return {
@@ -94,12 +97,19 @@ function edgeFor(step, i, hot, theme) {
     targetHandle: `${forward ? "l" : "r"}${i}`,
     type: "msg",
     label: step.label,
-    markerEnd: { type: MarkerType.ArrowClosed, color: ARROW[theme][tone] },
+    markerEnd: { type: MarkerType.ArrowClosed, color: ARROW_VAR[tone] },
     className: `af-edge af-edge--${tone}${hot ? " af-edge--hot" : ""}`,
   };
 }
 
-function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
+// Fit the whole drawing while it can be read; in a canvas narrower than NARROW_BELOW px the fit stops at READABLE_ZOOM
+// (lane sub-titles 12px land at about 9.6px) and the drawing is panned instead of shrunk to dots.
+const FIT = { padding: 0.03 };
+const NARROW_BELOW = 1290; // 1518px of drawing x 0.8 plus the fit padding
+const READABLE_ZOOM = 0.8;
+const READABLE = { narrowBelow: NARROW_BELOW, minZoom: READABLE_ZOOM };
+
+function Visualiser({ moment, stepper, theme, vertical }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(startNodes(vertical));
   // A new vertical renames the system-of-record lane; boxes the viewer has dragged stay where they are.
   useEffect(() => {
@@ -109,18 +119,22 @@ function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
   const { fitView } = useReactFlow();
   const shown = stepper.step;
   const edges = useMemo(
-    () => moment.steps.slice(0, shown + 1).map((s, i) => edgeFor(s, i, i === shown, theme)),
-    [moment, shown, theme],
+    () => moment.steps.slice(0, shown + 1).map((s, i) => edgeFor(s, i, i === shown)),
+    [moment, shown],
   );
 
+  // Refit whenever the canvas changes size (the detail panel moves, the window resizes, Reset). True while the
+  // drawing is too wide to show whole at a readable size.
+  const ref = useRef(null);
+  const pannable = useFitOnResize(ref, FIT, READABLE);
+  // Then keep the two lanes of the message in view as the walkthrough moves along.
   useEffect(() => {
-    // Refit when the detail panel moves: the diagram's column changes width.
-    const id = setTimeout(() => fitView({ padding: 0.03 }), 120);
-    return () => clearTimeout(id);
-  }, [fitView, layoutKey]);
+    const st = pannable && shown >= 0 ? moment.steps[shown] : null;
+    if (st) fitView({ nodes: [{ id: st.from }, { id: st.to }], padding: 0.15, minZoom: READABLE_ZOOM, maxZoom: 1.2, duration: 200 });
+  }, [pannable, shown, moment, fitView]);
 
   return (
-    <div className="af-canvas" data-af-theme={theme}>
+    <div className="af-canvas" data-af-theme={theme} data-pannable={pannable ? "true" : undefined} ref={ref}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -137,6 +151,7 @@ function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
         <Background gap={24} />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {pannable ? <p className="af-pan-hint">Drag to pan, use + and − to zoom</p> : null}
     </div>
   );
 }
@@ -182,76 +197,150 @@ export default function AuthorizationFlowPage() {
   const done = reached === moment.steps.length - 1;
   const current = reached >= 0 ? moment.steps[reached] : null;
 
+  // P9, one primary per view state: this button is the only primary. Idle it starts the walkthrough; once one is
+  // running, paused or jumped into from the step list it restarts it. The shared step bar keeps Simulate, Pause,
+  // Resume, Prev, Next, Stop and Reset as secondaries. The button stays mounted, so keyboard focus stays on it.
+  const playing = stepper.active;
+
+  // Reset, Stop and the like disable or swap the button that has focus, and the browser drops focus to <body>. The
+  // bar belongs to the shared DiagramControls, so the page wraps the actions it hands the bar: after one of them
+  // changes the state, focus that fell out lands on the primary, the one named place to start again. A focus the
+  // bar itself moved on (Simulate to Pause) is left alone.
+  const primaryRef = useRef(null);
+  const refocus = useRef(false);
+  const barStepper = useMemo(() => {
+    const wrap = (fn) => (...args) => { refocus.current = true; return fn(...args); };
+    return {
+      ...stepper,
+      simulate: wrap(stepper.simulate),
+      prev: wrap(stepper.prev),
+      next: wrap(stepper.next),
+      pause: wrap(stepper.pause),
+      resume: wrap(stepper.resume),
+      stop: wrap(stepper.stop),
+    };
+  }, [stepper]);
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    const a = document.activeElement;
+    if (!a || a === document.body || a.disabled) primaryRef.current?.focus({ preventScroll: true });
+  }, [stepper.step, stepper.paused]);
+
   return (
-    <div className="af-page">
-      <header className="af-page__head">
-        <h1>Authorization Flow</h1>
-        <p>
-          An assistant acts for a customer without becoming the authority. PingOne signs the customer in, runs both
-          token exchanges and the CIBA push; {profile.org} decides. This is a scripted walkthrough of the six moments:
-          no live calls are made from this page.
-        </p>
-      </header>
+    <PingPage className="af-page">
+      <SimBanner data-testid="af-banner">
+        <strong>SCRIPTED, NOT LIVE</strong> — This is a scripted walkthrough of six moments for {profile.org}{" "}
+        ({profile.label}). Nothing on this page calls PingOne, a gateway, a model or a phone: the messages, the token
+        claims and the amounts are written into the page, no token is minted and no check runs. Pick another vertical
+        to retell the same moments for that business.
+      </SimBanner>
+      <PageHeader
+        eyebrow="Learn · Authorization"
+        title="Authorization Flow"
+        summary={`An assistant acts for a customer without becoming the authority. In this scripted telling, PingOne signs the customer in, runs both token exchanges and the CIBA push; ${profile.org} decides.`}
+      />
+      <PageFrame>
+        <Section
+          id="af-choose-h"
+          kicker="1 · Choose"
+          title="A vertical and a moment"
+          lede="Each vertical tells the same six moments with its own business, tool and system of record."
+        >
+          <Card tone="neutral" className="af-pick">
+            <label className="pu-label" htmlFor="af-vertical">Vertical</label>
+            <select id="af-vertical" className="pu-select af-vertical" value={vertical} onChange={(e) => pickVertical(e.target.value)}>
+              {VERTICAL_OPTIONS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+            </select>
+            <p className="pu-label af-pick__moments" id="af-moments-l">Moment</p>
+            <div className="pu-actions af-chips" role="group" aria-labelledby="af-moments-l">
+              {moments.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  aria-pressed={x.id === momentId}
+                  className="pu-btn af-chip"
+                  onClick={() => setMomentId(x.id)}
+                >
+                  <span>{x.num}</span> {x.chip}
+                </button>
+              ))}
+            </div>
+            <div className="pu-actions">
+              <button type="button" ref={primaryRef} className="pu-btn pu-btn--primary" data-testid="af-simulate" onClick={stepper.simulate}>
+                {playing ? "Restart this moment" : "Simulate this moment"}
+              </button>
+            </div>
+          </Card>
+        </Section>
 
-      <label className="af-vertical">
-        Vertical
-        <select value={vertical} onChange={(e) => pickVertical(e.target.value)}>
-          {VERTICAL_OPTIONS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-        </select>
-      </label>
-
-      <div className="af-chips" role="tablist" aria-label="Moments">
-        {moments.map((x) => (
-          <button
-            key={x.id}
-            type="button"
-            role="tab"
-            aria-selected={x.id === momentId}
-            className={`af-chip${x.id === momentId ? " af-chip--on" : ""}`}
-            onClick={() => setMomentId(x.id)}
-          >
-            <span>{x.num}</span> {x.chip}
-          </button>
-        ))}
-      </div>
-
-      <div className={`af-grid${detailSide ? " af-grid--side" : ""}`}>
-        <section className="af-chat" aria-label="Conversation">
-          <h2>Conversation</h2>
-          <p className="af-chat__prompt">{moment.prompt}</p>
-          <ol className="af-chat__log">
-            {chat.length === 0 ? <li className="af-chat__empty">Press Simulate to run this moment.</li> : null}
-            {chat.map((c, i) => (
-              <li key={i} className={`af-bubble af-bubble--${c.role}`}>{c.text}</li>
-            ))}
-          </ol>
-          <h2 className="af-chat__steps">Steps</h2>
-          <StepList moment={moment} vertical={vertical} stepIndex={reached} onPick={stepper.goTo} />
-        </section>
-
-        <div className="af-main">
-        <section className="af-vis" aria-label="Authorization flow diagram">
-          <DiagramStepBar stepper={stepper} caption={current ? current.label : ""} testId="af-step-bar" />
-          <div className="af-toggles">
-            <button type="button" className="af-theme" aria-pressed={detailSide} onClick={() => setDetailSide((v) => !v)}>
-              {detailSide ? "Detail below" : "Detail on the side"}
-            </button>
-            <button type="button" className="af-theme" aria-pressed={theme === "dark"} onClick={toggleTheme}>
-              {theme === "dark" ? "Light mode" : "Dark mode"}
-            </button>
+        <Section
+          id="af-walk-h"
+          kicker="2 · Walk it"
+          title="The messages, one at a time"
+          lede="Each arrow is one message. Drag a box to move it; the arrows follow."
+        >
+          <div className={`af-grid${detailSide ? " af-grid--side" : ""}`}>
+            <Card className="af-vis" role="region" aria-label="Authorization flow diagram">
+              <DiagramStepBar stepper={barStepper} caption={current ? current.label : ""} testId="af-step-bar" />
+              <div className="af-toggles">
+                <button type="button" className="pu-btn af-theme" aria-pressed={detailSide} onClick={() => setDetailSide((v) => !v)}>
+                  Detail on the side
+                </button>
+                <button type="button" className="pu-btn af-theme" aria-pressed={theme === "dark"} onClick={toggleTheme}>
+                  Dark diagram
+                </button>
+              </div>
+              <ReactFlowProvider>
+                <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} />
+              </ReactFlowProvider>
+              <p className="pu-note af-proves"><strong>{moment.num}</strong> {moment.proves}</p>
+              <div role="status" className="af-outcome-slot">
+                {done ? (
+                  <p className={`pu-status-line af-outcome af-outcome--${moment.outcome.kind}`}>
+                    <StatusChip>{moment.outcome.kind === "block" ? "Refused (scripted)" : "Succeeds (scripted)"}</StatusChip>
+                    <span>{moment.outcome.text}</span>
+                  </p>
+                ) : null}
+              </div>
+            </Card>
+            {detailSide ? <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} /> : null}
           </div>
-          <ReactFlowProvider>
-            <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} layoutKey={detailSide} />
-          </ReactFlowProvider>
-          <p className="af-proves"><strong>{moment.num}</strong> {moment.proves}</p>
-          {done ? (
-            <p role="status" className={`af-outcome af-outcome--${moment.outcome.kind}`}>{moment.outcome.text}</p>
-          ) : null}
-        </section>
-        {detailSide ? null : <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} />}
-        </div>
-        {detailSide ? <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} /> : null}
-      </div>
-    </div>
+        </Section>
+
+        <Section
+          id="af-follow-h"
+          kicker="3 · Follow along"
+          title="Conversation and steps"
+          lede="The chat grows as the walkthrough reaches each message. Pick a step to jump to it."
+        >
+          <div className="af-story">
+            <Card title="Conversation" className="af-chat">
+              <p className="pu-note af-chat__prompt">{moment.prompt}</p>
+              <ol className="af-chat__log" aria-live="polite">
+                {chat.length === 0 ? <li className="af-chat__empty">Press Simulate to run this moment.</li> : null}
+                {chat.map((c, i) => (
+                  <li key={i} className={`af-bubble af-bubble--${c.role}`} data-who={c.role === "user" ? "You" : "Assistant"}>{c.text}</li>
+                ))}
+              </ol>
+            </Card>
+            <Card title="Steps" tone="neutral" className="af-steps">
+              <StepList moment={moment} vertical={vertical} stepIndex={reached} onPick={stepper.goTo} />
+            </Card>
+          </div>
+        </Section>
+
+        {detailSide ? null : (
+          <Section
+            id="af-detail-h"
+            kicker="4 · Detail"
+            title="What happens at this step (scripted)"
+            lede="Follows the step in focus. The values are illustrative; the shapes are the real PingOne ones."
+          >
+            <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} />
+          </Section>
+        )}
+      </PageFrame>
+    </PingPage>
   );
 }
