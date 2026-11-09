@@ -1,78 +1,66 @@
-.p1platform {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 var(--space-4, 16px) 64px;
+/* PingOne platform config (/pingone-platform-config): only what is specific to this page. The banner, frame,
+   sections, cards, key-value lists, chips and the button are the shared Ping UI primitives (src/styles/ping-ui.css,
+   docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only, type comes from the --font-size-* scale,
+   code uses var(--font-mono), no inline styles. */
+
+/* Each object is one card in the grid. */
+.pu-page.p1platform .p1platform__rows {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.pu-page.p1platform .p1platform__rows > li > .pu-card {
+  margin: 0;
+  height: 100%;
 }
 
-.p1platform__section {
-  margin: 32px 0;
-  padding: 20px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--th-bg-card);
+/* Audiences, app types and object names are exact identifiers and run long. The PingOne end-user-nano skin sets
+   word-wrap on code and lists and beats single-class rules, so the wrapping is scoped under the page class. */
+.pu-page.p1platform .pu-h3,
+.pu-page.p1platform .p1platform__what,
+.pu-page.p1platform .pu-kv dd,
+.pu-page.p1platform code,
+.pu-page.p1platform .pu-banner {
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
-.p1platform h2 {
-  margin: 0 0 8px;
-  font-size: var(--font-size-lg, 20px);
-}
-
-.p1platform h3 {
-  margin: 0 0 2px;
-  font-size: var(--font-size-md, 15px);
-  font-weight: 700;
-}
-
-.p1platform p {
-  margin: 0 0 6px;
+.pu-page.p1platform .p1platform__what {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
   color: var(--th-text-body);
 }
 
-.p1platform__intro {
-  font-weight: 600;
-}
-
-.p1platform__rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 12px;
-}
-
-.p1platform__row {
-  border-left: 3px solid var(--ping-red, #d20e0f);
-  padding: 6px 0 6px 14px;
-}
-
-.p1platform__meta {
-  font-size: var(--font-size-sm, 13px);
-  color: var(--th-text-muted);
-}
-
-.p1platform__meta code,
-.p1platform code {
+.pu-page.p1platform code {
   font-family: var(--font-mono);
-  background: var(--th-bg-inset);
+  font-size: var(--font-size-2xs);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   padding: 1px 5px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 5px);
 }
 
-.p1platform__caveats {
-  background: var(--th-bg-inset);
-}
-
-.p1platform__caveats ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-.p1platform__secondary {
-  display: inline-block;
-  padding: 8px 14px;
-  border: 1px solid var(--ping-red, #d20e0f);
-  border-radius: var(--btn-radius, 8px);
-  color: var(--ping-red, #d20e0f);
-  font-weight: var(--btn-weight, 600);
+/* The one primary is a link, and the shared primary rule styles <button> only: the same fixed Ping Red tokens
+   are applied here, scoped to this page so it does not depend on another page's sheet having loaded. */
+.pu-page.p1platform a.p1platform__setup.pu-btn--primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
   text-decoration: none;
+}
+.pu-page.p1platform a.p1platform__setup.pu-btn--primary:hover {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+}
+
+/* The link sits in the always-dark header band, where the shared focus ring (--th-status-info-text, navy in the
+   light theme) disappears into the band. White ink from the fixed button tokens keeps the ring visible in both themes. */
+.pu-page.p1platform a.p1platform__setup.pu-btn--primary:focus-visible {
+  outline: 3px solid var(--btn-accent-text);
+  outline-offset: 2px;
 }

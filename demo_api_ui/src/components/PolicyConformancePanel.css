@@ -36,20 +36,10 @@
   color: var(--th-text);
 }
 
+/* Colour, edge, size and focus ring come from .pu-btn (a secondary, inside the page's PingPage root). */
 .pcp__run {
   flex: 0 0 auto;
-  padding: 8px 14px;
-  border: 1px solid var(--btn-accent-edge);
-  border-radius: var(--radius-md);
-  background: var(--btn-accent);
-  color: var(--btn-accent-text);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  cursor: pointer;
 }
-
-.pcp__run:hover:not(:disabled) { background: var(--btn-accent-hover); }
-.pcp__run:disabled { opacity: 0.6; cursor: default; }
 
 .pcp__note,
 .pcp__error,

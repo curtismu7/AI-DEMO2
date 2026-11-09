@@ -47,6 +47,7 @@
 
 const scopeTopology = require('../scopeTopology');
 const pingOneUserLookup = require('../pingOneUserLookup');
+const mockPingOneUsers = require('../mockPingOneUsers');
 const ruleStore = require('../ruleStore');
 const { setDecisionContext, getDecisionContext } = require('../correlationContext');
 const { log, warn, auditDecision } = require('../logger');
@@ -162,6 +163,10 @@ const DENY_CODE_BY_REASON_PREFIX = {
   // identically at the BFF.
   no_user_consent: 'no_user_consent',
   may_act_mismatch: 'may_act_mismatch',
+  // Airline booking rules (Rule 3-airline) - same codes as the cloud statements.
+  // A = the user's preference (agent spend limit), B = the airline's control (premium only).
+  airline_agent_spend_limit: 'mcp-airline-agent-spend-limit',
+  airline_premium_only: 'mcp-airline-premium-only',
 };
 // Every deny without a specific cloud rule maps to the shared MCP deny statement
 // (the cloud snapshot multi-parents this one across all seven MCP deny rules).
@@ -199,6 +204,15 @@ const MCP_DECISION_CONTEXTS = new Set(['McpFirstTool', 'McpToolCall', 'McpToolsL
 // misstate the rules' scope for the next reader. Rule applicability is per-rule;
 // policy routing is per-request.
 const MCP_TOOL_CALL_CONTEXTS = new Set(['McpToolCall', 'McpFirstTool']);
+
+// Airline booking rules (Rule 3-airline). Named constants, deliberately not env-tunable: the
+// cloud rules carry the same values. AIRLINE_PREMIUM_TIERS mirrors premiumTiers in
+// demo_mcp_resource_server/seed/airline-booking-policy-data.json (a test pins them equal);
+// this image does not ship that seed, so it cannot be read here.
+const AIRLINE_BOOKING_TOOL = 'book_airline_flight';
+const AIRLINE_AGENT_LIMIT_DEFAULT_USD = 500;
+const AIRLINE_PREMIUM_THRESHOLD_USD = 750;
+const AIRLINE_PREMIUM_TIERS = ['Premier Gold'];
 
 // Scopes that authorize the gateway hop itself rather than a specific tool. A
 // token carrying only these cannot express per-tool scopes (Rule 3).
@@ -271,6 +285,12 @@ module.exports = async function decisionHandler(req, res) {
     MayActSub = '',
     RarAuthorizationDetails = '',
     ResourceOwnerId = '',
+    // Airline booking rules (Rule 3-airline). PingGateway sends AgentSpendLimit for
+    // book_airline_flight only; '' = absent -> 500. There is deliberately NO MemberTier here: the
+    // tier is read from the PingOne user's airlineMemberTier (mockPingOneUsers), keyed on UserId
+    // (the token sub; ClientId carries the same value), and a MemberTier a caller sends is ignored.
+    UserId = '',
+    AgentSpendLimit = '',
     RequiredGroup = '',
     UserGroups = '',   // JS array or JSON array string, e.g. ['Premium','Standard'] or '["Premium","Standard"]'
     ToAccountId = '',
@@ -1002,6 +1022,47 @@ module.exports = async function decisionHandler(req, res) {
     }
   }
 
+  // ── Rule 3-airline: the two airline booking rules ──────────────────────────────────────────────
+  // RULE A (owner: the user)   "No tickets bought by an AI agent over $500": an agent is acting
+  //   (ActClientId present) AND fare > the user's AgentSpendLimit (default 500). A direct caller
+  //   is never denied by A.
+  // RULE B (owner: the airline) "Only premium members can book over $750": fare > 750 AND
+  //   the member's tier is not premium. Applies to every caller, agent or not. The tier is the
+  //   PingOne user's custom attribute airlineMemberTier, read by Authorize in the cloud and from
+  //   the mock user record (mockPingOneUsers) here; a missing record or value is NOT premium.
+  // Both are strict `>`: exactly 500 and exactly 750 pass. Both are evaluated and EVERY failing
+  // rule is reported (A's code first), so a $940 agent booking by a standard member lists both.
+  // Cloud twins: "MCP Deny — Agent Booking Over User Limit" / "MCP Deny — Airline Premium-Only
+  // Over $750" (snapshots/gen-authorize-snapshot.js step 8h); the simulated engine has the same
+  // two checks. Runs BEFORE the step-up / consent pause so the deny wins, as DenyOverrides does
+  // in the cloud. PingGateway overwrites TransactionAmount with the catalogue fare and adds
+  // AgentSpendLimit from one data file before it asks (p1az-decision.groovy), so the caller
+  // cannot understate the fare; nobody on the request path can claim a tier.
+  // Known pre-existing difference, NOT changed here: Rule 4's STEP_UP uses >= 500 and the 250
+  // HITL skip differs from the cloud; the new rules are exact at 500 and 750 in all three engines.
+  if (MCP_TOOL_CALL_CONTEXTS.has(DecisionContext) && ToolName === AIRLINE_BOOKING_TOOL && TransactionAmount !== '') {
+    const fare = parseFloat(TransactionAmount);
+    if (!Number.isNaN(fare)) {
+      // Missing, empty or garbage limit falls back to 500: fail closed, never "no limit".
+      const parsedLimit = parseFloat(AgentSpendLimit);
+      const limit = AgentSpendLimit !== '' && Number.isFinite(parsedLimit) ? parsedLimit : AIRLINE_AGENT_LIMIT_DEFAULT_USD;
+      const tier = mockPingOneUsers.getAirlineMemberTier(UserId !== '' ? UserId : ClientId) || 'none';
+      const failed = [];
+      if (ActClientId !== '' && fare > limit) {
+        failed.push({ code: 'mcp-airline-agent-spend-limit',
+          reason: `airline_agent_spend_limit: fare ${fare} on "${AIRLINE_BOOKING_TOOL}" exceeds the user's agent limit of ${limit}` });
+      }
+      if (fare > AIRLINE_PREMIUM_THRESHOLD_USD && !AIRLINE_PREMIUM_TIERS.includes(tier)) {
+        failed.push({ code: 'mcp-airline-premium-only',
+          reason: `airline_premium_only: fare ${fare} on "${AIRLINE_BOOKING_TOOL}" is over ${AIRLINE_PREMIUM_THRESHOLD_USD} and member tier "${tier}" is not premium` });
+      }
+      if (failed.length) {
+        warn(`[AuthzServer/decision] DENY — ${failed.map((f) => f.reason).join(' | ')}`);
+        return denyMany(res, failed.map((f) => f.reason).join(' | '), failed.map((f) => f.code));
+      }
+    }
+  }
+
   // ── Rule 3c: RAR amount/payee enforcement (NNP-1, UC14) ─────────────────────────────────────────
   // When ff_rar is on, enforce the attested authorization_details from the TraT's azd field.
   // RarAuthorizationDetails arrives as a JSON string (serialised by the BFF before placing it
@@ -1335,6 +1396,19 @@ function permitWithAdvice(res, reason, advice) {
   res.json({
     decision: 'PERMIT', reason, advice,
     statements: statementsFor('mcp-tool-authorized'),
+    policy_source: POLICY_SOURCE,
+    decision_id: decisionId, policy_version: 'mock-v1',
+  });
+}
+
+/** A deny that lists EVERY rule that failed: one `{code}` statement per rule (cloud shape). */
+function denyMany(res, reason, codes) {
+  const decisionId = randomId();
+  const record = auditDecision('DENY', reason, { decisionId, policyVersion: 'mock-v1' });
+  _emitDecisionHop('deny', reason, record);
+  res.json({
+    decision: 'DENY', reason,
+    statements: codes.flatMap((c) => statementsFor(c)),
     policy_source: POLICY_SOURCE,
     decision_id: decisionId, policy_version: 'mock-v1',
   });

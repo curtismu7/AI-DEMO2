@@ -1,14 +1,16 @@
 import { useState } from "react";
 import apiClient from "../../services/apiClient";
-import { FeatureStatus } from "./shared";
+import { Card, KvList, StatusChip } from "../pingUi";
+import { FeatureStatus, FlowSection, RunStatus, Unavailable, actionClass } from "./shared";
 
 // DPoP (RFC 9449): the token PingFederate issues is bound to a key the BFF holds, so a copy of it is useless.
-export default function PfDpopSection({ ready, result }) {
+export default function PfDpopSection({ ready, result, checked = true, lead = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const bound = result?.dpopThumbprint ? result : null;
 
   async function start() {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -21,38 +23,46 @@ export default function PfDpopSection({ ready, result }) {
   }
 
   return (
-    <section className="pf-ai-agent__flow pf-ai-agent__flow--dpop" aria-labelledby="pf-ai-dpop-title" id="dpop">
-      <div className="pf-ai-agent__flow-title">
-        <p className="pf-ai-agent__eyebrow">Sender-constrained tokens</p>
-        <h2 id="pf-ai-dpop-title">DPoP</h2>
-        <p>PingFederate binds the access token to a key only the BFF holds. A stolen copy fails without that key.</p>
-        <FeatureStatus ready={ready} />
-      </div>
-      <div className="pf-ai-agent__flow-body">
-        <dl className="pf-ai-agent__facts">
-          <div><dt>Standard</dt><dd>RFC 9449</dd></div>
-          <div><dt>Client</dt><dd>ai-demo-pf-rar-dpop (DPoP required)</dd></div>
-          <div><dt>Proof</dt><dd>A signed JWT per request, carrying the public key</dd></div>
-        </dl>
+    <FlowSection
+      anchor="dpop"
+      id="pf-ai-dpop-title"
+      kicker="Sender-constrained tokens"
+      title="DPoP"
+      lede="PingFederate binds the access token to a key only the BFF holds. A stolen copy fails without that key."
+    >
+      <Card>
+        <div className="pu-status-line"><FeatureStatus ready={ready} checked={checked} /></div>
+        <KvList
+          items={[
+            { label: "Standard", value: "RFC 9449" },
+            { label: "Client", value: "ai-demo-pf-rar-dpop (DPoP required)" },
+            { label: "Proof", value: "A signed JWT per request, carrying the public key" },
+          ]}
+        />
         {ready
           ? (
-            <button className="pf-ai-agent__action" type="button" onClick={start} disabled={busy}>
-              {busy ? "Opening PingFederate" : "Sign in and get a DPoP-bound token"}
-            </button>
+            <div className="pu-actions">
+              <button className={actionClass(lead)} type="button" onClick={start} aria-disabled={busy ? "true" : undefined}>
+                Sign in and get a DPoP-bound token
+              </button>
+            </div>
           )
-          : <span className="pf-ai-agent__disabled-action">Enable the PF DPoP client to run this</span>}
-        {error && <p className="pf-ai-agent__error" role="alert">DPoP sign-in did not start. Reason: <code>{error}</code></p>}
-        {bound && (
-          <div className="pf-ai-agent__result" role="status" data-testid="dpop-result">
-            <h3>Token bound to this app&apos;s key</h3>
-            <dl>
-              <div><dt>Token type</dt><dd>{bound.tokenType}</dd></div>
-              <div><dt>Key thumbprint (cnf.jkt)</dt><dd><code>{bound.dpopThumbprint}</code></dd></div>
-            </dl>
-            <p className="pf-ai-agent__hint">The full request trace is in the rich authorization request section below.</p>
-          </div>
-        )}
-      </div>
-    </section>
+          : <Unavailable checked={checked}>Enable the PF DPoP client to run this</Unavailable>}
+        <RunStatus tone="info" word={busy ? "Opening" : ""}>Opening PingFederate to sign in.</RunStatus>
+        {error && <p className="pfai-error" role="alert">DPoP sign-in did not start. Reason: <code>{error}</code></p>}
+      </Card>
+      {bound && (
+        <Card tone="ok" title="Token bound to this app's key" data-testid="dpop-result">
+          <div className="pu-status-line"><StatusChip tone="ok">Bound</StatusChip></div>
+          <KvList
+            items={[
+              { label: "Token type", value: bound.tokenType },
+              { label: "Key thumbprint (cnf.jkt)", value: <code>{bound.dpopThumbprint}</code> },
+            ]}
+          />
+          <p className="pu-note">The full request trace is in the rich authorization request section above.</p>
+        </Card>
+      )}
+    </FlowSection>
   );
 }
