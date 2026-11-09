@@ -8,6 +8,10 @@ import DigitalWorkerSignIn from "./DigitalWorkerSignIn";
 //
 //   ask(snapshot, label) -> Promise<"approved" | "denied" | "expired" | "cancelled" | "signin" | "error" | "busy">
 //   host                 -> the element to render (null when idle); the phone itself is a floating modal
+//   open                 -> true while a request card is on screen. That card carries the view's primary button
+//                           ("Open mock phone", then "Close"), so the page's own unattended actions step down to
+//                           secondary while it is open (one primary per view). The sign-in prompt for a signed-out
+//                           phone is a secondary, so the run's own primary stays the one.
 //
 // snapshot is what the server's mock accepts: { amount, type: "transfer" | "withdrawal", description }.
 export default function useConsentPhone() {
@@ -50,11 +54,12 @@ export default function useConsentPhone() {
 
   const host = request || needsSignIn ? (
     <div className="dw-consent">
-      {needsSignIn ? <DigitalWorkerSignIn what="approve on the mock phone" /> : null}
+      {needsSignIn ? <DigitalWorkerSignIn what="approve on the mock phone" primary={false} focusOnMount /> : null}
       {request ? (
         <ConsentMockPhoneFlow
           key={request.id}
           embedded
+          pingUi
           scenario={request.scenario}
           onDecision={finish}
           onError={onError}
@@ -64,5 +69,5 @@ export default function useConsentPhone() {
     </div>
   ) : null;
 
-  return { ask, host };
+  return { ask, host, open: Boolean(request) };
 }
