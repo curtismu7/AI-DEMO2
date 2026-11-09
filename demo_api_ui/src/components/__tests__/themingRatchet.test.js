@@ -17,6 +17,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+// @ts-ignore - plain ESM script shared with CI (npm run check:ui-patterns); lengthToPx resolves clamp/min/max/calc/vw
+import { lengthToPx } from '../../../scripts/check-ui-patterns.mjs';
 
 // Lower this when you migrate a stylesheet. Never raise it.
 // 190 at the time this guard was written; 189 after ExchangeModeToggle.css
@@ -93,7 +95,7 @@ import path from 'node:path';
 // 69 -> 68: the Privilege User API Key & Secrets tab uses theme tokens.
 // 60 -> 59: UserMenu.css (the top-nav account dropdown was a white panel in dark).
 // 52 -> 51: PrivilegeA2aTab.css is themed (A2A page on the Ping UI primitives).
-const MAX_UNTHEMED = 51;
+const MAX_UNTHEMED = 50;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -123,21 +125,58 @@ function unthemed() {
  *
  * Unlike MAX_UNTHEMED this is not a ratchet that walks down — it is a hard
  * zero. A new sub-10px value is always a bug, never a not-yet-migrated file.
+ *
+ * Every font-size value is resolved with the same lengthToPx() that
+ * check-ui-patterns.mjs uses for the enforced pages (px rem em pt %, vw/vh at a
+ * 375px phone, clamp/min/max/calc by interval arithmetic), and so is the size in
+ * the `font:` shorthand. The first version of this guard matched only
+ * `font-size: <digits>px` and `0.<digits>rem`, so `clamp(6px, 1vw, 8px)`, `.62rem`
+ * and `font: 9px ...` all passed it. A value it cannot resolve (a var() inside a
+ * clamp) is skipped, as check-ui-patterns does for advisory pages.
  */
-const SUB_10_PX = /font-size:\s*([0-9]+(?:\.[0-9]+)?)px/g;
-const SUB_10_REM = /font-size:\s*(0\.[0-9]+)rem/g;
+const FONT_SIZE_DECL = /(?<![-\w])font-size:\s*([^;}]+)/g;
+const FONT_SHORTHAND = /(?<![-\w])font:\s*([^;}]+)/g;
+const SHORTHAND_SIZE = /(?:^|\s)((?:\d+\.?\d*|\.\d+)(?:px|rem|em|pt|%))(?=[\s/,]|$)/;
+const NOT_A_LENGTH = /^(?:var\(|inherit$|initial$|unset$|revert|smaller$|larger$)/;
+
+/**
+ * The sub-10px declarations that are still in the tree on this commit, with how many each file has. This is
+ * the measured list the stricter floor found; it is a pin, not a licence. Fix one (use var(--font-size-3xs) or
+ * larger), then delete its line — the "not stale" test below fails until you do. Never add a line.
+ */
+const KNOWN_BELOW_FLOOR = {
+  'theme/refinedDashboardV2.css': 8, // .62rem (9.92px) x4, .6rem (9.6px) x3, 0.6em (9.6px)
+  'components/ServerTopologyStory.css': 1, // font: 9px var(--font-mono)
+  'components/TokenTopologyPanel.css': 1, // font: 800 9px var(--font-mono)
+};
+
+function belowFloorByFile() {
+  const byFile = {};
+  const note = (f, what) => {
+    const rel = path.relative(SRC, f);
+    (byFile[rel] ||= []).push(what);
+  };
+  for (const f of cssFiles(SRC)) {
+    const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of src.matchAll(FONT_SIZE_DECL)) {
+      const v = m[1].replace(/!important/, '').trim();
+      if (NOT_A_LENGTH.test(v)) continue;
+      const px = lengthToPx(v);
+      if (px !== null && px < 10) note(f, `font-size: ${v.replace(/\s+/g, ' ')} (${px}px)`);
+    }
+    for (const m of src.matchAll(FONT_SHORTHAND)) {
+      const size = SHORTHAND_SIZE.exec(m[1]);
+      const px = size ? lengthToPx(size[1]) : null;
+      if (px !== null && px < 10) note(f, `font: ${m[1].replace(/\s+/g, ' ').trim()} (${px}px)`);
+    }
+  }
+  return byFile;
+}
 
 function belowFloor() {
   const hits = [];
-  for (const f of cssFiles(SRC)) {
-    const src = fs.readFileSync(f, 'utf8');
-    for (const m of src.matchAll(SUB_10_PX)) {
-      if (parseFloat(m[1]) < 10) hits.push(`${path.relative(SRC, f)} — ${m[0]}`);
-    }
-    // rem is root-relative and the root is 16px, so 0.625rem is the 10px line.
-    for (const m of src.matchAll(SUB_10_REM)) {
-      if (parseFloat(m[1]) < 0.625) hits.push(`${path.relative(SRC, f)} — ${m[0]}`);
-    }
+  for (const [rel, list] of Object.entries(belowFloorByFile())) {
+    if (list.length > (KNOWN_BELOW_FLOOR[rel] || 0)) hits.push(...list.map((w) => `${rel} — ${w}`));
   }
   return hits;
 }
@@ -150,6 +189,21 @@ describe('font-size floor', () => {
       `Font sizes below the 10px floor (REGRESSION_PLAN §0 H2). Use ` +
         `var(--font-size-3xs) or larger:\n  ${hits.slice(0, 8).join('\n  ')}`,
     ).toEqual([]);
+  });
+
+  it('resolves clamp()/min()/max()/calc(), unit-less leading dots and the font: shorthand, not just 12px', () => {
+    expect(lengthToPx('clamp(6px, 1vw, 8px)')).toBeLessThan(10);
+    expect(lengthToPx('min(9px, 2rem)')).toBeLessThan(10);
+    expect(lengthToPx('calc(0.5rem + 1px)')).toBeLessThan(10);
+    expect(lengthToPx('.62rem')).toBeLessThan(10);
+    expect(SHORTHAND_SIZE.exec('800 9px var(--font-mono)')?.[1]).toBe('9px');
+    expect(SHORTHAND_SIZE.exec('italic 600 .5rem/1 serif')?.[1]).toBe('.5rem');
+    expect(lengthToPx('clamp(11px, 1vw, 14px)')).toBeGreaterThanOrEqual(10);
+  });
+
+  it('the known sub-10px list is not stale — delete a line when its file is fixed', () => {
+    const now = Object.fromEntries(Object.entries(belowFloorByFile()).map(([f, l]) => [f, l.length]));
+    expect(now, 'update KNOWN_BELOW_FLOOR to exactly this (only ever by deleting or lowering lines)').toEqual(KNOWN_BELOW_FLOOR);
   });
 });
 
@@ -218,7 +272,10 @@ describe('theming ratchet', () => {
  */
 // 504 -> 500: the new banking demo-step hover/done states and PingFederate
 // comparison/session/result surfaces now declare their own themed ink.
-const MAX_GROUND_WITHOUT_INK = 471;
+// 471 -> 773: the pin had no ceiling test (only the "not stale" floor below it),
+// so the tree drifted 302 rules UP while this stayed green. The ceiling test is
+// back and the pin is the measured value; it may only go down from here.
+const MAX_GROUND_WITHOUT_INK = 770;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
@@ -241,6 +298,15 @@ function groundWithoutInk() {
 }
 
 describe('ground-without-ink ratchet', () => {
+  it(`no more than ${MAX_GROUND_WITHOUT_INK} themed grounds lack their own ink`, () => {
+    const hits = groundWithoutInk();
+    expect(
+      hits.length,
+      `Ground-without-ink rules rose to ${hits.length} (pin is ${MAX_GROUND_WITHOUT_INK}). A rule that sets a ` +
+        `--th-* background must set its own \`color\` (THEMING.md §1.5). e.g. ${hits.slice(-3).join(' | ')}`,
+    ).toBeLessThanOrEqual(MAX_GROUND_WITHOUT_INK);
+  });
+
   it('the pin is not stale — lower MAX_GROUND_WITHOUT_INK when it drops', () => {
     const count = groundWithoutInk().length;
     expect(

@@ -44,7 +44,7 @@ describe("PrivilegeShelfPage", () => {
   it("links the privilege-map GitHub repository in a new tab", () => {
     renderAt(<PrivilegeShelfPage />);
     const a = screen.getByRole("link", { name: /privilege-map on GitHub/ });
-    expect(a.getAttribute("href")).toBe("https://github.com/cmuir_pingcorp/privilege-map");
+    expect(a.getAttribute("href")).toBe("https://github.com/curtismu7/privilege-map-LAB");
     expect(a.getAttribute("target")).toBe("_blank");
     expect(a.getAttribute("rel")).toMatch(/noopener/);
   });

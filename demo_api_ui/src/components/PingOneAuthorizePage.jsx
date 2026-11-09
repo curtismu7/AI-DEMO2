@@ -191,14 +191,20 @@ export default function PingOneAuthorizePage() {
   const recordingOn = !!selected?.recordRecentRequests;
 
   // Fetch recent decisions when an endpoint with recording on is selected.
+  // Latest request wins: a slow answer for an endpoint the user has since left is dropped, so another
+  // endpoint's decisions never show as the current endpoint's.
+  const recentSeq = useRef(0);
   const loadRecent = useCallback(async (epId, on) => {
+    const seq = ++recentSeq.current;
     if (!epId || !on) { setRecent({ decisions: [], error: null, loading: false }); return; }
     setRecent({ decisions: [], error: null, loading: true });
     try {
       const res = await bffAxios.get(`/api/authorize/recent-decisions?endpointId=${encodeURIComponent(epId)}&limit=10`);
+      if (seq !== recentSeq.current) return;
       setRecent({ decisions: res.data?.decisions || [], error: null, loading: false });
     } catch (e) {
-      setRecent({ decisions: [], error: e.response?.data?.message || e.message, loading: false });
+      if (seq !== recentSeq.current) return;
+      setRecent({ decisions: [], error: e.response?.data?.message || e.message || 'request failed', loading: false });
     }
   }, []);
 
@@ -206,13 +212,17 @@ export default function PingOneAuthorizePage() {
 
   // Turning on "recent decisions" also turns on recording for the endpoint, which triggers the refetch above.
   const includeRecent = async (on) => {
-    if (!on || !selectedId || recordingOn) return;
+    if (!on || !selectedId) return;
+    // Recording already on (a previous read failed): ticking again is the retry.
+    if (recordingOn) { loadRecent(selectedId, true); return; }
+    const epId = selectedId;
     try {
-      const res = await bffAxios.post(`/api/authorize/endpoints/${encodeURIComponent(selectedId)}/recording`, { enabled: true });
+      setRecent(r => ({ ...r, error: null }));
+      const res = await bffAxios.post(`/api/authorize/endpoints/${encodeURIComponent(epId)}/recording`, { enabled: true });
       const flag = res.data?.recordRecentRequests !== false;
-      setData(d => d ? { ...d, endpoints: (d.endpoints || []).map(e => e.id === selectedId ? { ...e, recordRecentRequests: flag } : e) } : d);
+      setData(d => d ? { ...d, endpoints: (d.endpoints || []).map(e => e.id === epId ? { ...e, recordRecentRequests: flag } : e) } : d);
     } catch (e) {
-      setRecent(r => ({ ...r, error: e.response?.data?.message || e.message }));
+      setRecent(r => ({ ...r, error: e.response?.data?.message || e.message || 'request failed' }));
     }
   };
 
@@ -267,6 +277,7 @@ export default function PingOneAuthorizePage() {
           onClearPendingTest={clearPendingTest}
           onRan={onRan}
           recent={recent.decisions}
+          recentError={recent.error}
           onIncludeRecent={includeRecent}
           onModeChange={setEngine}
           buttonClassName="pu-btn pu-btn--primary"

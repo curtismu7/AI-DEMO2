@@ -59,7 +59,7 @@
   padding: 0.55rem 0.9rem;
   color: var(--th-text);
   background: var(--th-bg-inset);
-  border: 1px solid var(--th-border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   font: inherit;
   font-size: var(--font-size-sm);
@@ -153,7 +153,7 @@
   padding: 0.65rem 0.75rem;
   color: var(--th-text);
   background: var(--th-bg-card);
-  border: 1px solid var(--th-border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   font: inherit;
 }
@@ -180,7 +180,8 @@
 
 .p1p-auth__run-chip[aria-disabled="true"] {
   cursor: wait;
-  opacity: 0.75;
+  /* Busy: 0.75 dropped the white label to 4.1:1 on a light ground. 0.88 holds 4.9:1 in both themes. */
+  opacity: 0.88;
 }
 
 .p1p-auth__status,

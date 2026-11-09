@@ -44,6 +44,7 @@ export default function PrivilegeMcpOAuthConfig({ saveClassName = 'pu-btn', test
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (saving) return;
     setSaving(true);
     setSaveResult(null);
     try {
@@ -63,9 +64,10 @@ export default function PrivilegeMcpOAuthConfig({ saveClassName = 'pu-btn', test
     } finally {
       setSaving(false);
     }
-  }, [form]);
+  }, [form, saving]);
 
   const handleTest = useCallback(async () => {
+    if (testing) return;
     setTesting(true);
     setTestResult(null);
     try {
@@ -77,7 +79,7 @@ export default function PrivilegeMcpOAuthConfig({ saveClassName = 'pu-btn', test
     } finally {
       setTesting(false);
     }
-  }, []);
+  }, [testing]);
 
   const testChip = testResult && testChipFor(testResult);
 
@@ -157,8 +159,8 @@ export default function PrivilegeMcpOAuthConfig({ saveClassName = 'pu-btn', test
         </div>
 
         <div className="pu-actions">
-          <button type="button" className={saveClassName} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-          <button type="button" className={testClassName} onClick={handleTest} disabled={testing}>{testing ? 'Testing…' : 'Test Connection'}</button>
+          <button type="button" className={saveClassName} onClick={handleSave} aria-disabled={saving ? 'true' : undefined}>{saving ? 'Saving…' : 'Save'}</button>
+          <button type="button" className={testClassName} onClick={handleTest} aria-disabled={testing ? 'true' : undefined}>{testing ? 'Testing…' : 'Test Connection'}</button>
         </div>
 
         {saveResult && (

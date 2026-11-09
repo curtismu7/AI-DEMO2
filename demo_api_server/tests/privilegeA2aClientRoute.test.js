@@ -393,3 +393,43 @@ describe('an agent that goes silent', () => {
     expect(response.text).toMatch(/sent nothing for \d+ seconds/i);
   });
 });
+
+describe('the gateway record', () => {
+  const since = Date.UTC(2026, 10, 8, 12, 0, 0);
+  const until = since + 20000;
+  const store = (sources, ok = true, status = 200) => jest.fn().mockResolvedValue({ ok, status, json: async () => ({ hits: { hits: sources.map((_source) => ({ _source })) } }) });
+
+  it('needs a signed-in session', async () => {
+    await request(createApp()).get(`/api/privilege-a2a/gateway-record?since=${since}&until=${until}`).set('x-test-unauthenticated', 'true').expect(401);
+  });
+
+  it('returns only the fields the page shows, for the window asked, and drops the key', async () => {
+    global.fetch = store([{ msg: 'AIGuard', time: '2026-11-08T12:00:01Z', Event: 'llm_request_blocked', VirtualKeyID: 'sk-orion-secret-key', Headers: { Authorization: 'Bearer x' }, ComplianceMappings: [{ Framework: 'mitre_atlas', Identifier: 'AML.T0051', Source: 'r1', CatalogVersion: 'v9' }] }]);
+    const res = await request(createApp()).get(`/api/privilege-a2a/gateway-record?since=${since}&until=${until}`).expect(200);
+    expect(res.body.state).toBe('ready');
+    expect(res.body.hits).toEqual([{ msg: 'AIGuard', time: '2026-11-08T12:00:01Z', Event: 'llm_request_blocked', ComplianceMappings: [{ Framework: 'mitre_atlas', Identifier: 'AML.T0051', Source: 'r1' }] }]);
+    expect(JSON.stringify(res.body)).not.toMatch(/sk-orion|Bearer/);
+    const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(sent.query.bool.filter[0].range.time).toEqual({ gte: '2026-11-08T12:00:00.000Z', lte: '2026-11-08T12:00:20.000Z' });
+    expect(sent.query.bool.filter[1].terms['msg.keyword']).toEqual(['AIGuard', 'LLM request', 'Received HTTP request', 'A2A policy denied']);
+    expect(sent.size).toBe(100);
+  });
+
+  it.each([['missing', ''], ['not numbers', '?since=a&until=b'], ['reversed', `?since=${until}&until=${since}`], ['wider than an hour', `?since=${since}&until=${since + 2 * 3600 * 1000}`]])('refuses a window that is %s', async (_name, qs) => {
+    global.fetch = jest.fn();
+    await request(createApp()).get(`/api/privilege-a2a/gateway-record${qs}`).expect(400);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('says the record is unavailable, without a stack or a hostname, when the store cannot be reached', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('getaddrinfo ENOTFOUND opensearch.internal.example'));
+    const res = await request(createApp()).get(`/api/privilege-a2a/gateway-record?since=${since}&until=${until}`).expect(503);
+    expect(res.body.state).toBe('unavailable');
+    expect(JSON.stringify(res.body)).not.toMatch(/ENOTFOUND|internal\.example/);
+  });
+
+  it('reports a store error as unavailable', async () => {
+    global.fetch = store([], false, 500);
+    await request(createApp()).get(`/api/privilege-a2a/gateway-record?since=${since}&until=${until}`).expect(502);
+  });
+});

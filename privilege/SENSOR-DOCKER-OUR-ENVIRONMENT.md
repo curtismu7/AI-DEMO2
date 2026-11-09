@@ -110,7 +110,7 @@ Three places hold the configuration: compose (profile `mcpgw`), the gateway's ow
 
 | Setting | Value | Where |
 | --- | --- | --- |
-| Gateway image | `public.ecr.aws/s7q1z8z4/privilege-mcpgw`, pinned by digest | `docker-compose.yml`, service `ping-mcpgw` |
+| Gateway image | `public.ecr.aws/s7q1z8z4/privilege-aigw` v1.261106, pinned by digest (was `privilege-mcpgw` until 2026-11-09) | `docker-compose.yml`, service `ping-mcpgw` |
 | Gateway command | `/procyon/bin/mcpgw -hostname local.ping-devops.com -mcpconfpath /var/lib/procyon/config/pingone.env` | same |
 | Enrollment token | `ENV_PROXY_TOKEN` | `ping-mcpgw/procyon/config/proxy-token.env` (gitignored) |
 | OIDC settings | `SERVER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_AUTH_URL`, `OIDC_TOKEN_URL`, `OIDC_USER_URL`, `OIDC_SCOPES` | `ping-mcpgw/procyon/config/pingone.env` |

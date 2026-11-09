@@ -169,13 +169,13 @@ export default function PrivilegePiiDetectionPage() {
           </CardGrid>
         </Section>
 
-        <Section id="pii-live" kicker="3 · Live check" title="Fetch a real record through the gateway">
+        <Section id="pii-live" kicker="3 · Live check" title="Call a tool through the gateway (sample data)">
           <Card tone="live">
-            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> Not simulated: the verdict below comes from the gateway.</p>
+            <p className="pu-status-line"><StatusChip tone="info">Live call</StatusChip> The allow or deny decision below comes from the gateway. The tool behind it is a fictional sample, so any record it returns is made-up data.</p>
             <PrivilegeLiveCheck
               tool="get_investment_transactions"
               args={{ subject: 'alice' }}
-              label="Fetch a real record through the Privilege gateway"
+              label="Call a sample tool through the gateway"
               buttonClassName="pu-btn pu-btn--primary"
               statusChip
             />

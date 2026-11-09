@@ -17,6 +17,8 @@
   gap: 0.4rem;
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Zoom block */
@@ -64,6 +66,8 @@
   border: 1px solid #bfdbfe;
   border-radius: 5px;
   padding: 0.25rem 0.6rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .dc-step-label--paused {
   color: #92400e;

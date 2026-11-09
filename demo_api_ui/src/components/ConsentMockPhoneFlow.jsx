@@ -71,14 +71,26 @@ export default function ConsentMockPhoneFlow({ scenario, onDone, embedded = fals
   useEffect(() => {
     if (!pending) return undefined;
     const timer = setInterval(() => {
-      apiClient.get(`${BASE}/status`).then((r) => setView(r.data)).catch(() => {});
+      apiClient.get(`${BASE}/status`).then((r) => {
+        // The request ended elsewhere (e.g. the mock phone answered): a stale 'could not answer' no longer applies.
+        if (OUTCOME[r.data?.state]) setError('');
+        setView(r.data);
+      }).catch(() => {});
     }, POLL_MS);
     return () => clearInterval(timer);
   }, [pending]);
 
-  const answer = (decision) => apiClient.post(`${BASE}/decision`, { decision })
-    .then((r) => setView(r.data))
-    .catch(() => setError('The mock phone could not answer.'));
+  // One answer at a time: a second press while the first is in flight is ignored, not sent as a duplicate.
+  const answering = useRef(false);
+  const answer = (decision) => {
+    if (answering.current) return Promise.resolve();
+    answering.current = true;
+    setError('');
+    return apiClient.post(`${BASE}/decision`, { decision })
+      .then((r) => { setError(''); setView(r.data); })
+      .catch(() => setError('The mock phone could not answer.'))
+      .finally(() => { answering.current = false; });
+  };
 
   const doneLabel = pending ? 'Cancel' : embedded ? 'Close' : 'Pick another scenario';
   const chip = OUTCOME_CHIP[view?.state];

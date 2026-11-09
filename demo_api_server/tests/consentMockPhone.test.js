@@ -15,6 +15,12 @@ describe('consent mock phone (session-scoped CIBA stand-in)', () => {
     expect(poll(req).state).toBe('pending');
   });
 
+  it('the trace says PingOne CIBA delivers by email or SMS and never claims a device push', () => {
+    const text = JSON.stringify(start(signedIn(), body).trace.map(({ title, note }) => ({ title, note })));
+    expect(text).toMatch(/email or SMS/);
+    expect(text).not.toMatch(/push/i);
+  });
+
   it('approve and deny finish the request and clear it', () => {
     for (const [decision, state] of [['approve', 'approved'], ['deny', 'denied']]) {
       const req = signedIn();

@@ -5,6 +5,9 @@
   border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
   border-radius: var(--radius-pill);
   overflow: hidden;
+  /* Wraps (and rounds less) rather than running past the edge at phone width / A+ text zoom. */
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .page-agent-mode__opt {

@@ -37,4 +37,11 @@ describe("DiagramStepBar", () => {
     const { container } = render(<DiagramStepBar stepper={stepper({ total: 0 })} caption="" />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("names its toolbar when given a label, so a page with several diagrams has distinguishable controls", () => {
+    const { rerender } = render(<DiagramStepBar stepper={stepper()} caption="" />);
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    rerender(<DiagramStepBar stepper={stepper()} caption="" label="Simulated replay controls" />);
+    expect(screen.getByRole("toolbar", { name: "Simulated replay controls" })).toBeInTheDocument();
+  });
 });

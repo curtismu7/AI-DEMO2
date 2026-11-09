@@ -12,6 +12,12 @@
   font-family: var(--font-primary);
 }
 
+/* Focused (tabindex -1) when it opens so a keyboard or screen-reader user starts inside it; not a control, so no ring. */
+.ww-backdrop:focus,
+.ww-docked:focus {
+  outline: none;
+}
+
 .ww-card {
   position: relative;
   width: clamp(320px, 440px, 92vw);
