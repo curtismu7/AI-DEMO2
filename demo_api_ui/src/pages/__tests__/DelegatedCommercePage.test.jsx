@@ -33,6 +33,7 @@ vi.mock("../../utils/roleSwitch", () => ({
 }));
 
 import apiClient from "../../services/apiClient";
+import { callMcpTool } from "../../services/demoAgentService";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -128,4 +129,48 @@ it("explains where a customer gets the one-time claim code", () => {
       "The administrator receives this one-time code after completing 1A. Ask them to create the agent and share the displayed code before claiming it.",
     ),
   ).toBeInTheDocument();
+});
+
+describe("Reset view during a pending approval (F4)", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("cancels the poll, clears busy, and never retries the checkout after the reset", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/delegated-commerce/status") {
+        return Promise.resolve({ data: { registration: { id: "r", applicationId: "a", status: "active", scopes: ["read"] }, authorized: true, scopes: ["read"] } });
+      }
+      if (url.startsWith("/api/auth/ciba/poll/")) return Promise.resolve({ data: { status: "pending" } });
+      return Promise.resolve({ data: {} });
+    });
+    apiClient.post.mockImplementation((url) => {
+      if (url === "/api/auth/ciba/initiate") return Promise.resolve({ data: { auth_req_id: "req-1", interval: 1, engine: "simulated" } });
+      return Promise.resolve({ data: {} });
+    });
+    let checkouts = 0;
+    callMcpTool.mockImplementation(async (tool) => {
+      if (tool === "list_orders") return { result: { content: [{ type: "text", text: "[]" }] }, tokenEvents: [] };
+      checkouts += 1;
+      return checkouts === 1 ? { result: { error: "mcp_step_up_required" } } : { result: { content: [{ type: "text", text: "{}" }] } };
+    });
+
+    render(<DelegatedCommercePage user={{ role: "admin" }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to step 2" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Call list_orders as agent" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to step 3" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Checkout $600 headphones" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/auth/ciba/initiate", expect.anything()));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(screen.getByRole("button", { name: "Running..." })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+    // The page is no longer busy ...
+    expect(screen.queryByRole("button", { name: "Running..." })).toBeNull();
+    // ... and the approval that lands afterwards finds nothing to retry.
+    apiClient.get.mockImplementation((url) => Promise.resolve({ data: url.startsWith("/api/auth/ciba/poll/") ? { status: "approved" } : {} }));
+    const pollsBefore = apiClient.get.mock.calls.filter(([u]) => u.startsWith("/api/auth/ciba/poll/")).length;
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(checkouts).toBe(1);
+    expect(apiClient.get.mock.calls.filter(([u]) => u.startsWith("/api/auth/ciba/poll/")).length).toBe(pollsBefore);
+  });
 });

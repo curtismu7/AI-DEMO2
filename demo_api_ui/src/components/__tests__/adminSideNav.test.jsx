@@ -277,6 +277,38 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(document.getElementById(controls)).toBeTruthy();
   });
 
+  // KB-1: on the icon rail a group's links used to take focus while aria-expanded was false.
+  it("on the icon rail, a group reports aria-expanded=false and activating it opens the rail with the group expanded", () => {
+    window.localStorage.setItem("adminSideNav.collapsed", "true");
+    const { container } = renderNav();
+    const nav = container.querySelector(".admin-side-nav");
+    expect(nav).toHaveClass("admin-side-nav--collapsed");
+    const monitoring = container.querySelector(".admin-side-nav__item--parent[title='Observability']");
+    expect(monitoring.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(monitoring);
+
+    expect(nav).not.toHaveClass("admin-side-nav--collapsed");
+    const opened = screen.getByRole("button", { name: /^Observability/ });
+    expect(opened.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(opened.getAttribute("aria-controls"))).toBeTruthy();
+  });
+
+  it("does not report a group as expanded while the rail is collapsed, even when its route is current", () => {
+    window.localStorage.setItem("adminSideNav.collapsed", "true");
+    const { container } = renderNav("/privilege-saas-access");
+    const parents = container.querySelectorAll(".admin-side-nav__item--parent[aria-controls]");
+    expect(parents.length).toBeGreaterThan(5);
+    parents.forEach((b) => expect(b.getAttribute("aria-expanded")).toBe("false"));
+  });
+
+  it("never reveals the collapsed flyout on focus-within (display:none keeps its links out of the tab order)", () => {
+    const navCss = readFileSync(path.resolve(__dirname, "../AdminSideNav.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(navCss).toMatch(/\.admin-side-nav--collapsed \.admin-side-nav__submenu--flyout \{\s*display: none;/);
+    expect(navCss).not.toMatch(/focus-within[^{]*submenu--flyout/);
+  });
+
   it("no longer renders the removed Learn/education section", () => {
     renderNav();
     expect(screen.queryByText(/Guided Demo Tour/i)).toBeNull();

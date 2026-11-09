@@ -42,7 +42,7 @@ Shared page layout for AI-DEMO2, re-created from the standalone Ping UI Standard
 | Component | Props | Renders |
 | --- | --- | --- |
 | `PingPage` | `className`, any div props | `div.pu-page` |
-| `SimBanner` | children, any div props (`data-testid`) | `div.pu-banner-wrap > div.pu-banner[role=note]`. Mode banner: say what is simulated and what is real. |
+| `SimBanner` | children, any div props (`data-testid`) | `div.pu-banner-wrap > div.pu-banner[role=note]`. Mode banner: say what is simulated and what is real. At <= 600px the banner is held to three lines and a `More` / `Less` button (`aria-expanded`) opens the rest; the full text stays in the DOM, and focusing a link inside opens it. The button appears only while text is clipped. |
 | `PageFrame` | children | `div.pu-frame` |
 | `Section` | `id` (required, names the landmark), `kicker`, `title`, `lede?` | `section > p.pu-kicker + h2.pu-h2 (+ p.pu-lede)` |
 | `CardGrid` | children | `div.pu-card-grid` (auto-fit, min 340px, wraps at phone width) |

@@ -1,6 +1,6 @@
 // /privilege-pf-token: a PingFederate-issued token, accepted by the Privilege gateway (verified 2026-10-26).
 // Source of every value here: privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md, section "Working configuration".
-export const DOC_URL = 'https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md';
+export const DOC_URL = 'https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md';
 
 // What each gateway answer means. 401 and 403 are different layers: the log is the only place that names the reason.
 export const VERDICTS = {

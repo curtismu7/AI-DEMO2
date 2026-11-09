@@ -83,4 +83,11 @@ describe('InspectorListItem', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button')).toHaveClass('inspector-shell-tree-item--active');
   });
+
+  it('exposes the selected row with aria-pressed', () => {
+    const { rerender } = render(<InspectorListItem label="x" active={false} />);
+    expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
+    rerender(<InspectorListItem label="x" active />);
+    expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+  });
 });

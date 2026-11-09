@@ -53,7 +53,7 @@
   margin: 0 0 8px;
   padding: 10px;
   gap: 10px;
-  border: 1px solid var(--th-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -63,7 +63,7 @@
 }
 
 .dcom-page .dcom-step:hover {
-  border-color: var(--control-border);
+  border-color: var(--th-text);
 }
 
 .dcom-page .dcom-step--active {

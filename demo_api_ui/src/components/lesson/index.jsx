@@ -159,13 +159,13 @@ export function LessonLayout({
             ))}
           </nav>}
           {showSectionNav && <div className="divider-drag-handle" aria-label="Resize section navigation" {...handleProps} />}
-          <main className="lesson-content">
+          <div className="lesson-content">
             {children}
             <footer className="lesson-print-legal">
               <p>{LEGAL_COPYRIGHT}</p>
               <p>{LEGAL_TRADEMARK}</p>
             </footer>
-          </main>
+          </div>
         </div>
       </div>
     </PrintExcludeContext.Provider>

@@ -1,93 +1,64 @@
-.pfconfig {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 0 var(--space-4, 16px) 64px;
-}
+/* PingFederate config by use case (/pingfederate-config): only what is specific to this page. The banner, frame,
+   sections, cards, key-value lists, chips and the button are the shared Ping UI primitives (src/styles/ping-ui.css,
+   docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only, type comes from the --font-size-* scale,
+   code uses var(--font-mono), no inline styles. */
 
-.pfconfig__intro {
-  margin: 16px 0 8px;
-  color: var(--th-text-body);
-}
-
-.pfconfig__group {
-  margin: 32px 0;
-  padding: 20px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--th-bg-card);
-}
-
-.pfconfig__group h2 {
-  margin: 0 0 8px;
-  font-size: var(--font-size-lg, 20px);
-}
-
-.pfconfig__why {
-  margin: 0 0 8px;
-  color: var(--th-text-body);
-}
-
-.pfconfig__script {
-  margin: 0 0 16px;
-  font-size: var(--font-size-sm, 13px);
-  color: var(--th-text-muted);
-}
-
-.pfconfig__script code {
-  font-family: var(--font-mono);
-  background: var(--th-bg-inset);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm, 4px);
-}
-
-.pfconfig__objects {
+/* The object list is the card grid, each item holds one card. */
+.pu-page.pfconfig .pfconfig__objects {
   list-style: none;
-  margin: 0;
   padding: 0;
-  display: grid;
-  gap: 12px;
+  margin: 12px 0;
 }
-
-.pfconfig__object {
-  border-left: 3px solid var(--ping-red, #d20e0f);
-  padding: 8px 0 8px 14px;
-}
-
-.pfconfig__object h3 {
-  margin: 0 0 4px;
-  font-size: var(--font-size-md, 15px);
-  font-weight: 700;
-}
-
-.pfconfig__object p {
+.pu-page.pfconfig .pfconfig__objects > li > .pu-card {
   margin: 0;
+  height: 100%;
+}
+
+/* Object names are exact identifiers (aiDemoPf..., comma lists) and run long. The PingOne end-user-nano skin sets
+   word-wrap on code and lists and beats single-class rules, so the wrapping is scoped under the page class. */
+.pu-page.pfconfig .pu-h3,
+.pu-page.pfconfig .pfconfig__what,
+.pu-page.pfconfig code,
+.pu-page.pfconfig .pu-banner {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.pu-page.pfconfig .pfconfig__what {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
   color: var(--th-text-body);
 }
 
-.pfconfig__caveats {
-  margin-top: 32px;
-  padding: 16px 20px;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--th-bg-inset);
+.pu-page.pfconfig code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm, 5px);
 }
 
-.pfconfig__caveats h2 {
-  margin: 0 0 8px;
-  font-size: var(--font-size-lg, 20px);
+/* The one primary is a link, and the shared primary rule styles <button> only: the same fixed Ping Red tokens
+   are applied here, scoped to this page so it does not depend on another page's sheet having loaded. */
+.pu-page.pfconfig a.pfconfig__hub.pu-btn--primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
+}
+.pu-page.pfconfig a.pfconfig__hub.pu-btn--primary:hover {
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
 }
 
-.pfconfig__caveats ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-.pfconfig__secondary {
-  display: inline-block;
-  padding: 8px 14px;
-  border: 1px solid var(--ping-red, #d20e0f);
-  border-radius: var(--btn-radius, 8px);
-  color: var(--ping-red, #d20e0f);
-  font-weight: var(--btn-weight, 600);
-  text-decoration: none;
+/* The link sits in the always-dark header band, where the shared focus ring (--th-status-info-text, navy in the
+   light theme) disappears into the band. White ink from the fixed button tokens keeps the ring visible in both themes. */
+.pu-page.pfconfig a.pfconfig__hub.pu-btn--primary:focus-visible {
+  outline: 3px solid var(--btn-accent-text);
+  outline-offset: 2px;
 }

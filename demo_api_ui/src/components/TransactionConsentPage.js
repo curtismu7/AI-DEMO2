@@ -1,7 +1,8 @@
 // banking_api_ui/src/components/TransactionConsentPage.js
 //
 // /transaction-consent. Two modes:
-//   - live: `?challenge=` is present, so this is a real CIBA push deep link and the consent modal opens.
+//   - live: `?challenge=` is present, so a consent challenge exists and the consent modal opens. (PingOne CIBA delivers by
+//     email or SMS; this BFF never sends a push or a push link.)
 //   - simulate: no challenge, so the page runs a mock CIBA request through the BFF and answers it on a mock phone.
 //
 // Simulate mode follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md)
@@ -71,13 +72,13 @@ export default function TransactionConsentPage({ user }) {
   const homePath = user?.role === 'admin' ? '/admin' : '/dashboard';
 
   if (!user) {
-    // CIBA push deep-links land here signed out — show the page and ask,
+    // Consent-challenge links land here signed out — show the page and ask,
     // never dump on home. (return_to is a bare path; the ?challenge= param
-    // does not survive login — the push notification link remains the way back.)
+    // does not survive login — the original link remains the way back.)
     return <SignInPrompt message="Sign in to review this transfer approval." />;
   }
 
-  // Live mode: real challenge from CIBA push
+  // Live mode: real consent challenge
   if (challengeId) {
     return (
       <TransactionConsentModal
@@ -101,15 +102,15 @@ export default function TransactionConsentPage({ user }) {
     <PingPage className="tc-page">
       <SimBanner data-testid="tc-banner">
         <strong>SIMULATED</strong> — there is no challenge ID in this link, so nothing here is a real approval.
-        The CIBA request, the push, the mock phone and your tap on it are all simulated: PingOne is not called,
+        The CIBA request, the approval prompt, the mock phone and your tap on it are all simulated: PingOne is not called,
         no token is issued and no money moves. What is real: your browser talks to this machine&apos;s BFF,
-        which holds the mock request and records the protocol trace you see. A real approval arrives by a
-        push link that carries <code>?challenge=</code>.
+        which holds the mock request and records the protocol trace you see. In PingOne, CIBA delivers the approval request
+        by email or SMS, and a real consent challenge opens this page with <code>?challenge=</code>.
       </SimBanner>
       <PageHeader
         eyebrow="Delegation and consent · Transaction consent"
         title="Transaction Consent — Simulate"
-        summary="A high-value transaction pauses for the user's approval on their own device. Pick a scenario: the BFF starts a mock CIBA request, the mock phone gets the push, and your tap on it is the decision."
+        summary="A high-value transaction pauses for the user's approval. Pick a scenario: the BFF starts a mock CIBA request, the mock phone gets the approval prompt, and your tap on it is the decision."
       />
       <PageFrame>
         {simulating ? (
@@ -177,23 +178,24 @@ function SimulateLanding({ onStartSimulation, focusId }) {
         id="tc-real-h"
         kicker="2 · In production"
         title="How the real flow differs"
-        lede="This page normally activates from a CIBA push notification that carries a challenge ID. None of the steps below run here."
+        lede="This page normally opens with a consent challenge ID in the link. PingOne CIBA itself delivers by email or SMS; the mock phone is the local stand-in. None of the steps below run here."
       >
         <CardGrid>
           <Card tone="neutral" title="When a transaction needs step-up">
             <p className="pu-note">
-              When a high-value transaction triggers a step-up requirement, PingOne sends a CIBA
-              (Client-Initiated Backchannel Authentication) push to the user&apos;s device. The user opens
-              this page via the push link containing a challenge ID, reviews the transaction details, and
-              approves or denies.
+              When a high-value transaction triggers a step-up requirement, PingOne CIBA
+              (Client-Initiated Backchannel Authentication) delivers the approval request to the user by
+              email or SMS through DaVinci. The user reviews the transaction details on a consent
+              challenge, opened here with a challenge ID, and approves or denies. The mock phone on this
+              page is the local stand-in for that email or SMS.
             </p>
           </Card>
           <Card tone="neutral" title="The CIBA consent flow">
             <ol className="tc-steps">
               <li>User (or AI agent) initiates a transaction that exceeds the authorization threshold</li>
               <li>PingOne Authorize returns a step-up obligation (CIBA consent required)</li>
-              <li>BFF calls PingOne CIBA endpoint — sends push notification to user&apos;s device</li>
-              <li>User opens this page via the deep link (<code>/transaction-consent?challenge=...</code>) or answers on the device</li>
+              <li>BFF calls the PingOne CIBA endpoint — PingOne delivers the approval request by email or SMS (DaVinci)</li>
+              <li>User answers the email or SMS request, or opens this page with the consent challenge (<code>/transaction-consent?challenge=...</code>)</li>
               <li>User reviews transaction details and approves or denies</li>
               <li>PingOne completes the CIBA flow — transaction proceeds or is blocked</li>
             </ol>
@@ -205,7 +207,7 @@ function SimulateLanding({ onStartSimulation, focusId }) {
         <EmbeddedFlowDiagram
           config={CONSENT_MOCK_DIAGRAM}
           title="Simulated CIBA exchange"
-          lede="Simulate mode keeps the whole CIBA exchange between your browser, the BFF and a mock phone; a real run swaps in PingOne and a deep link."
+          lede="Simulate mode keeps the whole CIBA exchange between your browser, the BFF and a mock phone; a real run swaps in PingOne (email or SMS) and a consent-challenge link."
           ariaLabel="Transaction consent mock CIBA flow"
           testId="tc-diagram"
           pingStyle

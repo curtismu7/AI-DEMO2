@@ -49,17 +49,16 @@ describe('OwaspLearnerPage (standalone UI standard)', () => {
     expect(container.querySelectorAll('.pu-card').length).toBeGreaterThan(10);
     expect(screen.getByTestId('owasp-source').querySelector('dl.pu-kv')).not.toBeNull();
     const chips = [...container.querySelectorAll('.pu-chip')].map((c) => c.textContent.trim());
-    expect(chips).toEqual(['In scope', 'Planned', 'Out of scope']);
+    expect(chips).toEqual(['In scope', 'Out of scope']);
     const covered = within(screen.getByTestId('owasp-lane-covered'));
-    const planned = within(screen.getByTestId('owasp-lane-planned'));
     const out = within(screen.getByTestId('owasp-lane-out'));
-    expect(covered.getAllByRole('listitem')).toHaveLength(7);
-    expect(planned.getAllByRole('listitem')).toHaveLength(1);
+    expect(covered.getAllByRole('listitem')).toHaveLength(8);
     expect(out.getAllByRole('listitem')).toHaveLength(7);
-    expect(planned.getByText('Resource Overload')).toBeTruthy();
+    // T4 is the control UC18 (rate limiting, maturity "works"), so it sits with the enforced threats.
+    expect(covered.getByText('Resource Overload')).toBeTruthy();
     expect(screen.getByTestId('owasp-lane-covered').className).toContain('pu-card--ok');
     // the lede counts match the lanes
-    expect(screen.getByText('7 of the 15').tagName).toBe('STRONG');
+    expect(screen.getByText('8 of the 15').tagName).toBe('STRONG');
   });
 
   it('opens one key component at a time with a real button, and keyboard focus stays on it', async () => {
@@ -104,5 +103,14 @@ describe('OwaspLearnerPage (standalone UI standard)', () => {
     const { container } = renderPage();
     expect(container.querySelectorAll('pre, code').length).toBe(0);
     container.querySelectorAll('.pu-chip').forEach((c) => expect(c.textContent.trim().length).toBeGreaterThan(0));
+  });
+
+  it('the map row for UC18 and the T4 lane agree: a control row that exists, no "planned" label anywhere', () => {
+    const { container } = renderPage();
+    const row = [...container.querySelectorAll('.owasp-map-row')].find((r) => r.textContent.includes('UC18'));
+    expect(row.textContent).toMatch(/T4/);
+    expect(within(screen.getByTestId('owasp-lane-covered')).getByText('Resource Overload')).toBeTruthy();
+    expect(screen.queryByTestId('owasp-lane-planned')).toBeNull();
+    expect(container.textContent).not.toMatch(/planned|still being built|not built yet/i);
   });
 });
