@@ -43,6 +43,7 @@
 /governance-timeline
 /demo-config
 /davinci-ciba-flows
+/secret-rotation
 /authorization-flow
 /privilege-pf-token
 /ping-products/verify-recognize
