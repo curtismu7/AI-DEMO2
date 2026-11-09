@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ProtocolTrace from "../ProtocolTrace";
 import apiClient from "../../services/apiClient";
 import { Card, StatusChip } from "../pingUi";
@@ -41,6 +41,16 @@ export default function PfCimdTester({ ready, checked = true }) {
   const [client, setClient] = useState(null);
   const [probe, setProbe] = useState(null);
   const [pasted, setPasted] = useState("");
+  const tabRefs = useRef({});
+
+  // Arrow keys, Home and End move between the two tabs and select the one focused.
+  function onTabKeyDown(event, index) {
+    const next = { ArrowRight: (index + 1) % TABS.length, ArrowLeft: (index + TABS.length - 1) % TABS.length, Home: 0, End: TABS.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    setTab(TABS[next][0]);
+    tabRefs.current[TABS[next][0]]?.focus();
+  }
 
   async function call(label, path, body, set, finished) {
     if (busy) return;
@@ -69,8 +79,20 @@ export default function PfCimdTester({ ready, checked = true }) {
     >
       <Card>
         <div className="pfai-tabs" role="tablist" aria-label="CIMD tester side">
-          {TABS.map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} className="pu-btn pfai-tab" onClick={() => setTab(id)}>
+          {TABS.map(([id, label], index) => (
+            <button
+              key={id}
+              ref={(node) => { tabRefs.current[id] = node; }}
+              id={`pfai-tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={ready && tab === id ? `pfai-tabpanel-${id}` : undefined}
+              tabIndex={tab === id ? 0 : -1}
+              className="pu-btn pfai-tab"
+              onClick={() => setTab(id)}
+              onKeyDown={(event) => onTabKeyDown(event, index)}
+            >
               {label}
             </button>
           ))}
@@ -79,7 +101,7 @@ export default function PfCimdTester({ ready, checked = true }) {
         {!ready && <Unavailable checked={checked}>Enable PF CIMD to run the tester</Unavailable>}
 
         {ready && tab === "server" && (
-          <div role="tabpanel" aria-label="Test PingFederate">
+          <div role="tabpanel" id="pfai-tabpanel-server" aria-labelledby="pfai-tab-server">
             <p className="pu-note">
               Step 1 reads PingFederate&apos;s discovery document. Step 2 is a real sign-in with this app&apos;s document URL as
               the client_id: authorization code with PKCE, no client secret (the CIMD card above).
@@ -94,7 +116,7 @@ export default function PfCimdTester({ ready, checked = true }) {
         )}
 
         {ready && tab === "client" && (
-          <div role="tabpanel" aria-label="Test a document">
+          <div role="tabpanel" id="pfai-tabpanel-client" aria-labelledby="pfai-tab-client">
             <div className="pu-actions">
               <button className="pu-btn" type="button" aria-disabled={disabled()} onClick={() => call("Checking", "client", {}, setClient, "Checked this app's document.")}>
                 Check this app&apos;s document

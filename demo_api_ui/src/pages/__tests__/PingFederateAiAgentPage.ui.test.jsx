@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import apiClient from "../../services/apiClient";
 import PingFederateAiAgentPage from "../PingFederateAiAgentPage";
 import { leadAction } from "../../components/pfAiAgent/leadAction";
@@ -172,6 +173,126 @@ describe("PingFederate AI Agent page: Ping UI Standard", () => {
       answer({ ...base, pfSignedIn: true });
       render(<PingFederateAiAgentPage />);
       expect(await screen.findByText(/You are signed in at PingFederate/)).toBeInTheDocument();
+    });
+  });
+
+  describe("skeptic findings", () => {
+    it("banner does not say flows run against PingFederate when nothing is configured", async () => {
+      answer({ sessionProvider: "none", features: {} });
+      render(<PingFederateAiAgentPage />);
+      await waitFor(() => expect(screen.getByTestId("pfai-banner")).toHaveTextContent(/No PingFederate flow is configured/));
+      expect(screen.getByTestId("pfai-banner")).not.toHaveTextContent(/Live against|sends real requests/);
+    });
+
+    it("banner says Ready means configured, only when a flow is configured", async () => {
+      answer(base);
+      render(<PingFederateAiAgentPage />);
+      await waitFor(() => expect(screen.getByTestId("pfai-banner")).toHaveTextContent(/Ready means configured, not that PingFederate was reached/));
+      expect(screen.getByTestId("pfai-banner")).not.toHaveTextContent(/Live against/);
+    });
+
+    it("shows a mock-only CIBA as a neutral stand-in, not Not configured", async () => {
+      answer({ sessionProvider: "pingfederate", features: { cibaMock: true } });
+      render(<PingFederateAiAgentPage />);
+      const chips = await screen.findAllByText("Mock phone only");
+      expect(chips).toHaveLength(2);
+      chips.forEach((chip) => expect(chip.closest(".pu-chip").className).toMatch(/neutral/));
+    });
+
+    it("rar=success with no recorded result is neutral and does not claim PF accepted", async () => {
+      window.history.pushState({}, "", "/pingfederate-ai-agent?rar=success");
+      answer(base);
+      render(<PingFederateAiAgentPage />);
+      const line = await screen.findByText(/no recorded result for this request/);
+      const region = line.closest('[role="status"]');
+      expect(region).toHaveTextContent("Returned");
+      expect(region.querySelector(".pu-chip").className).not.toMatch(/ok/);
+      expect(screen.queryByText(/PF accepted the RAR request/)).toBeNull();
+    });
+
+    it("rar=success with an accepted result is green Done", async () => {
+      window.history.pushState({}, "", "/pingfederate-ai-agent?rar=success");
+      answer({ ...base, rarResult: { outcome: "accepted", trace: [] } });
+      render(<PingFederateAiAgentPage />);
+      expect(await screen.findByText("PingFederate accepted the RAR request.")).toBeInTheDocument();
+    });
+
+    it("the callback line is a live region mounted before its text", async () => {
+      window.history.pushState({}, "", "/pingfederate-ai-agent?cimd=success");
+      apiClient.get.mockReturnValue(new Promise(() => {}));
+      // The first render (no effects run) has the region and no text; the text arrives after mount.
+      const first = renderToString(<PingFederateAiAgentPage />);
+      expect(first).toMatch(/pfai-callback" role="status"><\/div>/);
+      const { container } = render(<PingFederateAiAgentPage />);
+      const region = container.querySelector(".pfai-callback");
+      expect(region).toHaveAttribute("role", "status");
+      await waitFor(() => expect(region).toHaveTextContent(/Checking the BFF session/));
+      expect(container.querySelector(".pfai-callback")).toBe(region);
+    });
+
+    it("tells the user why Ask for approval does nothing when no user is entered", async () => {
+      answer({ sessionProvider: "pingfederate", features: { ciba: true } });
+      render(<PingFederateAiAgentPage />);
+      const ask = await screen.findByRole("button", { name: /Ask for approval/ });
+      expect(ask).toHaveAttribute("aria-disabled", "true");
+      expect(ask).toHaveAccessibleDescription(/Enter a user to ask/);
+      fireEvent.change(screen.getByLabelText(/User to ask/), { target: { value: "demouser" } });
+      expect(ask).not.toHaveAttribute("aria-disabled");
+      expect(screen.queryByText(/Enter a user to ask before/)).toBeNull();
+    });
+
+    it("announces the approval email through a live region mounted with the button", async () => {
+      answer({ sessionProvider: "pingfederate", features: { ciba: true, cibaEmail: true } });
+      const pending = { state: "pending", interval: 60, loginHint: "demouser", expiresAt: new Date(Date.now() + 120000).toISOString() };
+      apiClient.post.mockImplementation((url) => Promise.resolve({ data: String(url).endsWith("/email/send") ? { sentTo: "d@example.com" } : pending }));
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      fireEvent.click(await screen.findByRole("button", { name: /Ask for approval/ }));
+      const send = await screen.findByRole("button", { name: "Send approval email" });
+      const region = send.closest(".pu-card").querySelector('div[role="status"]');
+      expect(region).not.toBeNull();
+      expect(region).toBeEmptyDOMElement();
+      fireEvent.click(send);
+      const note = await screen.findByTestId("ciba-email-sent");
+      expect(region).toContainElement(note);
+    });
+
+    it("clears a stale CIBA error when the next action starts", async () => {
+      answer({ sessionProvider: "pingfederate", features: { ciba: true, cibaMock: true } });
+      const pending = { state: "pending", interval: 60, loginHint: "demouser", expiresAt: new Date(Date.now() + 120000).toISOString() };
+      let decisions = 0;
+      apiClient.post.mockImplementation((url) => {
+        if (String(url).endsWith("/mock-decision")) {
+          decisions += 1;
+          return decisions === 1 ? Promise.reject(new Error("x")) : Promise.resolve({ data: { state: "approved", loginHint: "demouser", subject: "demouser" } });
+        }
+        return Promise.resolve({ data: pending });
+      });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      fireEvent.click(await screen.findByRole("button", { name: /Ask for approval/ }));
+      const approve = await screen.findByRole("button", { name: "Approve on mock phone" });
+      fireEvent.click(approve);
+      expect(await screen.findByRole("alert")).toHaveTextContent(/mock phone could not answer/);
+      fireEvent.click(screen.getByRole("button", { name: "Approve on mock phone" }));
+      await screen.findByTestId("ciba-outcome");
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("CIMD tester tabs: aria-controls, roving tabindex and arrow keys", async () => {
+      answer({ ...base, features: { ...base.features, cimd: true } });
+      render(<PingFederateAiAgentPage />);
+      const server = await screen.findByRole("tab", { name: /Test PingFederate/ });
+      await waitFor(() => expect(server).toHaveAttribute("aria-controls", "pfai-tabpanel-server"));
+      expect(document.getElementById("pfai-tabpanel-server")).toHaveAttribute("aria-labelledby", server.id);
+      const client = screen.getByRole("tab", { name: /Test a document/ });
+      expect(server).toHaveAttribute("tabindex", "0");
+      expect(client).toHaveAttribute("tabindex", "-1");
+      server.focus();
+      fireEvent.keyDown(server, { key: "ArrowRight" });
+      expect(client).toHaveAttribute("aria-selected", "true");
+      expect(document.activeElement).toBe(client);
+      fireEvent.keyDown(client, { key: "Home" });
+      expect(server).toHaveAttribute("aria-selected", "true");
+      expect(document.activeElement).toBe(server);
     });
   });
 

@@ -203,7 +203,10 @@ describe("PingFederate AI Agent page", () => {
       fireEvent.click(await ask());
       fireEvent.click(await screen.findByRole("button", { name: /Approve on mock phone/i }));
 
-      expect(await screen.findByTestId("ciba-outcome")).toHaveTextContent("Approved by demouser through PingFederate CIBA.");
+      // A simulated approval is never described as a PingFederate one.
+      const outcome = await screen.findByTestId("ciba-outcome");
+      expect(outcome).toHaveTextContent("Approved by demouser on the mock phone. No real device was contacted and no token was issued.");
+      expect(outcome).not.toHaveTextContent(/through PingFederate CIBA/);
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/mock-decision", { decision: "approve" });
     });
 

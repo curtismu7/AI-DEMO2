@@ -134,9 +134,14 @@ const CIBA_ERRORS = {
 // Which authorization server answered: the BFF picks it from the signed-in provider.
 const cibaServerName = (state) => (state?.provider === "pingone" ? "PingOne" : "PingFederate");
 
-function cibaOutcome(state) {
+// The BFF titles a mock-phone run's first step "... (mock phone)"; the page also remembers a tap it sent itself.
+const isMockCiba = (state, tapped = false) => tapped || Boolean(state?.trace?.[0]?.title?.includes("mock phone"));
+
+function cibaOutcome(state, mock = false) {
   switch (state?.state) {
-    case "approved": return `Approved by ${state.subject || state.loginHint} through ${cibaServerName(state)} CIBA.`;
+    case "approved": return mock
+      ? `Approved by ${state.subject || state.loginHint} on the mock phone. No real device was contacted and no token was issued.`
+      : `Approved by ${state.subject || state.loginHint} through ${cibaServerName(state)} CIBA.`;
     case "denied": return "The user denied the request.";
     case "expired": return "The request expired before anyone answered it.";
     case "error": return "The approval request failed.";
@@ -157,8 +162,8 @@ function cibaBannerText(features, provider, cibaEnabled) {
 }
 
 const cibaTone = (state) => ({ approved: "ok", denied: "warn", expired: "neutral", error: "danger", pending: "info" }[state?.state] || "neutral");
-const cibaWord = (state) => {
-  if (state?.state === "approved") return state.trace?.[0]?.title?.includes("mock phone") ? "Approved on mock phone" : "Approved";
+const cibaWord = (state, mock = false) => {
+  if (state?.state === "approved") return mock ? "Approved on mock phone" : "Approved";
   return { denied: "Denied", expired: "Expired", error: "Failed", pending: "Waiting" }[state?.state] || "";
 };
 
@@ -183,6 +188,10 @@ export default function PingFederateAiAgentPage({ user }) {
   const [cibaError, setCibaError] = useState("");
   const [phoneClosed, setPhoneClosed] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [mockTapped, setMockTapped] = useState(false);
+  // The callback line is mounted empty and filled after mount, so the live region announces it.
+  const [callbackShown, setCallbackShown] = useState(false);
+  useEffect(() => setCallbackShown(true), []);
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
   const askRef = useRef(null);
   const reopenRef = useRef(null);
@@ -257,6 +266,7 @@ export default function PingFederateAiAgentPage({ user }) {
     setCibaState(null);
     setPhoneClosed(false);
     setEmailSent(false);
+    setMockTapped(false);
     try {
       const response = await apiClient.post("/api/pf-ai-agent/ciba/start", {
         loginHint: cibaUser.trim(),
@@ -283,6 +293,7 @@ export default function PingFederateAiAgentPage({ user }) {
   // Email channel: send the approval email over a real SMTP round trip to the BFF's in-process sink.
   async function sendApprovalEmail() {
     setEmailSent(false);
+    setCibaError("");
     try {
       const response = await apiClient.post("/api/pf-ai-agent/ciba/email/send", {});
       setEmailSent(true);
@@ -300,8 +311,10 @@ export default function PingFederateAiAgentPage({ user }) {
 
   // Mock phone: stands in for the user's device when PF_AI_CIBA_MOCK_ENABLED is on.
   async function decideOnMockPhone(decision) {
+    setCibaError("");
     try {
       const response = await apiClient.post("/api/pf-ai-agent/ciba/mock-decision", { decision });
+      setMockTapped(true);
       setCibaState(response.data);
     } catch {
       setCibaError("The mock phone could not answer.");
@@ -310,6 +323,7 @@ export default function PingFederateAiAgentPage({ user }) {
 
   // Web approver: the PingFederate stand-in authenticator is waiting for a person; the next poll sees the answer.
   async function decideOnWebApprover(decision) {
+    setCibaError("");
     try {
       await apiClient.post("/api/pf-ai-agent/ciba/web-approver/decision", { decision });
     } catch {
@@ -340,6 +354,9 @@ export default function PingFederateAiAgentPage({ user }) {
   }
 
   const statusKnown = !loadingStatus && status !== null;
+  const anyPfReady = Boolean(features.cimd || idJagReady || features.rar || features.ciba || features.dcr || features.rarDpop);
+  // A working stand-in for human approval, named in words where the real feature reads "Not configured".
+  const cibaStand = features.cibaMock ? "Mock phone only" : features.cibaWebApprover ? "Web approver only" : "";
   const lead = leadAction({
     loading: loadingStatus,
     phoneOpen,
@@ -377,23 +394,45 @@ export default function PingFederateAiAgentPage({ user }) {
   } else {
     banner = (
       <>
-        <strong>Live against PingFederate.</strong> A flow marked Ready sends real requests to the PingFederate this BFF is configured for, and each proof panel shows the traffic that came back, with secrets redacted by the BFF. A flow marked Not configured does not run.{" "}
+        {anyPfReady
+          ? <><strong>Read from this BFF.</strong> A flow marked Ready is configured here and sends real requests to the PingFederate this BFF is configured for; Ready means configured, not that PingFederate was reached. Each proof panel shows the traffic that came back, with secrets redacted by the BFF. A flow marked Not configured does not run.</>
+          : <><strong>No PingFederate flow is configured on this BFF.</strong> Nothing below sends a request to PingFederate until a flow is configured.</>}{" "}
         {features.dcr ? "Dynamic client registration creates a real client at PingFederate and the same run deletes it. " : ""}
         {cibaBannerText(features, provider, cibaEnabled)}
       </>
     );
   }
 
-  const callbackWord = callbackResult === "success" ? "Done" : callbackResult === "denied" ? "Denied" : "Not completed";
-  const callbackTone = callbackResult === "success" ? "ok" : callbackResult === "denied" ? "warn" : "danger";
-  let callbackText = "";
+  // The line says what the BFF confirmed, not just what the URL claims: green only where the status call backs it.
+  let callbackWord;
+  let callbackTone;
+  let callbackText;
   if (queryStatus.get("cimd")) {
-    if (callbackResult !== "success") callbackText = "CIMD authorization did not complete.";
-    else if (loadingStatus) callbackText = "Returned from PingFederate. Checking the BFF session.";
-    else if (pfSignedIn) callbackText = "CIMD authorization completed. You are signed in at PingFederate; the token stays with the BFF and the third-party exchange below now uses it.";
-    else callbackText = "PingFederate returned success, but the BFF reports no PingFederate sign-in for this session, so the exchange below will not use it.";
+    if (callbackResult !== "success") {
+      callbackWord = callbackResult === "denied" ? "Denied" : "Not completed";
+      callbackTone = callbackResult === "denied" ? "warn" : "danger";
+      callbackText = "CIMD authorization did not complete.";
+    } else if (loadingStatus) {
+      [callbackWord, callbackTone, callbackText] = ["Checking", "neutral", "Returned from PingFederate. Checking the BFF session."];
+    } else if (!status) {
+      [callbackWord, callbackTone, callbackText] = ["Returned", "neutral", "PingFederate returned success, but the status check failed, so this page cannot say whether the BFF holds a PingFederate sign-in."];
+    } else if (pfSignedIn) {
+      [callbackWord, callbackTone, callbackText] = ["Done", "ok", "CIMD authorization completed. You are signed in at PingFederate; the token stays with the BFF and the third-party exchange below now uses it."];
+    } else {
+      [callbackWord, callbackTone, callbackText] = ["No sign-in", "warn", "PingFederate returned success, but the BFF reports no PingFederate sign-in for this session, so the exchange below will not use it."];
+    }
+  } else if (callbackResult === "success") {
+    if (rarResult?.outcome === "accepted") {
+      [callbackWord, callbackTone, callbackText] = ["Done", "ok", "PingFederate accepted the RAR request."];
+    } else if (loadingStatus) {
+      [callbackWord, callbackTone, callbackText] = ["Checking", "neutral", "Returned from PingFederate. Checking the BFF's record of the request."];
+    } else {
+      [callbackWord, callbackTone, callbackText] = ["Returned", "neutral", "PingFederate sent the user back with success, but the BFF has no recorded result for this request, so it is not confirmed here."];
+    }
+  } else if (callbackResult === "denied") {
+    [callbackWord, callbackTone, callbackText] = ["Denied", "warn", "PF denied the RAR request."];
   } else {
-    callbackText = callbackResult === "success" ? "PF accepted the RAR request." : callbackResult === "denied" ? "PF denied the RAR request." : "RAR authorization did not complete.";
+    [callbackWord, callbackTone, callbackText] = ["Not completed", "danger", "RAR authorization did not complete."];
   }
 
   // Where the answer comes from is the channel the BFF reported, so a mock phone is never described as a real device.
@@ -401,9 +440,10 @@ export default function PingFederateAiAgentPage({ user }) {
     : phoneChannel === "mock" ? "the mock phone (no real device is contacted)"
       : phoneChannel === "web" ? "the web approver"
         : `their device (${cibaServerName(cibaState)} CIBA)`;
+  const cibaMock = isMockCiba(cibaState, mockTapped);
   const cibaMessageText = cibaPending
     ? `Waiting for ${cibaState.loginHint} to approve on ${cibaWhere}. Expires ${new Date(cibaState.expiresAt).toLocaleTimeString()}.`
-    : cibaOutcome(cibaState);
+    : cibaOutcome(cibaState, cibaMock);
   const exchangeNeedsPf = !pfSignedIn && provider !== "pingfederate";
 
   return (
@@ -428,8 +468,7 @@ export default function PingFederateAiAgentPage({ user }) {
       <PageFrame>
         {callbackResult && (
           <div className="pu-status-line pfai-callback" role="status">
-            <StatusChip tone={callbackTone}>{callbackWord}</StatusChip>
-            <span>{callbackText}</span>
+            {callbackShown && <><StatusChip tone={callbackTone}>{callbackWord}</StatusChip><span>{callbackText}</span></>}
           </div>
         )}
         {queryStatus.get("rar") === "success" && rarResult?.tokenType && (
@@ -448,7 +487,7 @@ export default function PingFederateAiAgentPage({ user }) {
                 { label: "Client metadata", value: <FeatureStatus ready={features.cimd} checked={statusKnown} /> },
                 { label: "ID-JAG (third-party exchange)", value: <FeatureStatus ready={idJagReady} checked={statusKnown} /> },
                 { label: "Rich authorization", value: <FeatureStatus ready={features.rar} checked={statusKnown} /> },
-                { label: "Human approval (CIBA)", value: <FeatureStatus ready={features.ciba} checked={statusKnown} /> },
+                { label: "Human approval (CIBA)", value: <FeatureStatus ready={features.ciba} checked={statusKnown} stand={cibaStand} /> },
                 { label: "Client registration (DCR)", value: <FeatureStatus ready={features.dcr} checked={statusKnown} /> },
                 { label: "DPoP", value: <FeatureStatus ready={features.rarDpop} checked={statusKnown} /> },
               ]}
@@ -660,7 +699,7 @@ export default function PingFederateAiAgentPage({ user }) {
 
         <FlowSection id="pf-ai-ciba-title" kicker="Human approval" title="Ask a person to approve (CIBA)" lede="PingFederate asks the named user's PingOne MFA device to approve this request, and this page waits for the answer. The user needs an enrolled MFA device.">
           <Card>
-            <div className="pu-status-line"><FeatureStatus ready={features.ciba} checked={statusKnown} /></div>
+            <div className="pu-status-line"><FeatureStatus ready={features.ciba} checked={statusKnown} stand={cibaStand} /></div>
             <label className="pfai-field">
               <span>User to ask (PingOne username)</span>
               <input
@@ -688,6 +727,7 @@ export default function PingFederateAiAgentPage({ user }) {
                   ref={askRef}
                   onClick={askForApproval}
                   aria-disabled={cibaBusy || cibaPending || !cibaUser.trim() ? "true" : undefined}
+                  aria-describedby={cibaUser.trim() ? undefined : "pfai-ciba-needs-user"}
                 >
                   Ask for approval
                 </PfButton>
@@ -697,23 +737,30 @@ export default function PingFederateAiAgentPage({ user }) {
               )}
               {emailPending && <PfButton onClick={sendApprovalEmail}>Send approval email</PfButton>}
             </div>
+            {cibaEnabled && supportedSession && !cibaUser.trim() && (
+              <p className="pu-note" id="pfai-ciba-needs-user">Enter a user to ask before you can ask for approval.</p>
+            )}
             <RunStatus
               tone={cibaBusy ? "info" : cibaTone(cibaState)}
-              word={cibaBusy ? "Sending" : cibaMessageText ? cibaWord(cibaState) : ""}
+              word={cibaBusy ? "Sending" : cibaMessageText ? cibaWord(cibaState, cibaMock) : ""}
               testId={cibaPending ? "ciba-pending" : cibaOutcome(cibaState) ? "ciba-outcome" : undefined}
             >
               {cibaBusy ? "Sending the approval request." : cibaMessageText}
             </RunStatus>
-            {emailPending && emailSent && (
-              <p className="pu-note" data-testid="ciba-email-sent">
-                Approval email sent to {cibaState.loginHint} over the in-process SMTP sink. Open the one-time link in the email to approve or deny — this page polls until it is answered.
-              </p>
+            {emailPending && (
+              <div role="status">
+                {emailSent && (
+                  <p className="pu-note" data-testid="ciba-email-sent">
+                    Approval email sent to {cibaState.loginHint} over the in-process SMTP sink. Open the one-time link in the email to approve or deny — this page polls until it is answered.
+                  </p>
+                )}
+              </div>
             )}
             {cibaError && <p className="pfai-error" role="alert">{cibaError}</p>}
           </Card>
           {cibaState?.trace?.length > 0 && (
             <Card tone={cibaState.state === "approved" ? "ok" : cibaState.state === "pending" ? "live" : "neutral"} title="Proof: what was sent and what came back" data-testid="ciba-proof">
-              <div className="pu-status-line"><StatusChip tone={cibaTone(cibaState)}>{cibaWord(cibaState) || "Captured"}</StatusChip></div>
+              <div className="pu-status-line"><StatusChip tone={cibaTone(cibaState)}>{cibaWord(cibaState, cibaMock) || "Captured"}</StatusChip></div>
               <TraceSequenceDiagram steps={cibaState.trace} testId="ciba-sequence" />
               <ul className="pfai-points">
                 {cibaProofPoints(cibaState).map((point) => <li key={point}>{point}</li>)}

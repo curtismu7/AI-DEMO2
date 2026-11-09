@@ -9,11 +9,13 @@ export const actionClass = (lead) => (lead ? "pu-btn pu-btn--primary" : "pu-btn"
 
 // `checked` is false until the BFF status call has answered (and when it failed): then "Not configured" would be a
 // claim nobody checked, so the chip says "Not checked" instead.
-export function FeatureStatus({ ready, checked = true }) {
+// `stand` names a stand-in that works although the real feature is not configured (the mock phone, the web
+// approver): the chip then says so in words and is neutral, so "Not configured" is never shown beside a working stand-in.
+export function FeatureStatus({ ready, checked = true, stand = "" }) {
   if (!checked) return <StatusChip tone="neutral">Not checked</StatusChip>;
-  return ready
-    ? <StatusChip tone="ok">Ready</StatusChip>
-    : <StatusChip tone="warn">Not configured</StatusChip>;
+  if (ready) return <StatusChip tone="ok">Ready</StatusChip>;
+  if (stand) return <StatusChip tone="neutral">{stand}</StatusChip>;
+  return <StatusChip tone="warn">Not configured</StatusChip>;
 }
 
 // A section of the page. `anchor` keeps the old deep-link id on a wrapper (Section puts its id on the heading).
