@@ -277,7 +277,7 @@ describe('theming ratchet', () => {
 // back and the pin is the measured value; it may only go down from here.
 // 766 -> 764: AuthorizationFlowPage.css and the step list, chat bubbles, pills and outcome now set their own ink
 // with each ground (the page moved onto --th-* tokens for the Ping UI Standard).
-const MAX_GROUND_WITHOUT_INK = 764;
+const MAX_GROUND_WITHOUT_INK = 746;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
