@@ -113,4 +113,15 @@ describe('TransactionConsentPage (simulate mode, Ping UI Standard)', () => {
     renderAt('/transaction-consent', null);
     expect(screen.getByTestId('sign-in')).toBeTruthy();
   });
+
+  it('describes production CIBA as email or SMS, with the mock phone as the local stand-in, and never as a device push or push link', () => {
+    const { container } = renderAt('/transaction-consent');
+    const text = container.textContent;
+    expect(text).toMatch(/delivers the approval request to the user by\s+email or SMS through DaVinci/);
+    expect(text).toMatch(/mock phone on this\s+page is the local stand-in for that email or SMS/);
+    expect(screen.getByTestId('tc-banner').textContent).toMatch(/email or SMS/);
+    expect(text).not.toMatch(/push (notification|link)/i);
+    expect(text).not.toMatch(/sends push|push to the user|push to the user's device|push\W+to user/i);
+    expect(text).not.toMatch(/mock phone gets the push/i);
+  });
 });

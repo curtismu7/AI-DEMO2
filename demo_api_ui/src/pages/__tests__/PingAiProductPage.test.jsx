@@ -99,7 +99,7 @@ describe("PingAiProductPage", () => {
       const { container } = render(<MemoryRouter><PingAiProductPage product={product} /></MemoryRouter>);
       const cards = container.querySelectorAll(".pai-run");
       expect(cards.length).toBeGreaterThan(0);
-      const kinds = [/live calls/, /mixes live and simulated/, /simulated option/, /sample data/, /nothing is called/];
+      const kinds = [/live calls/, /mixes live and simulated/, /simulated option/, /sample data/, /nothing is called/, /Opens drawings; admins also get live controls/];
       cards.forEach((card) => {
         expect(card.querySelector(".pai-run__label").textContent).toMatch(new RegExp(kinds.map((k) => k.source).join("|")));
         const title = card.querySelector("h3").textContent;
@@ -142,5 +142,14 @@ describe("PingAiProductPage", () => {
     expect(productPageStyles).toMatch(
       /\.pai-lesson-page \.pai-product-nav__link:not\(\.pai-product-nav__link--active\),[^}]*color:\s*var\(--th-text-invert\)\s*;[^}]*-webkit-text-fill-color:\s*var\(--th-text-invert\)\s*;/,
     );
+  });
+
+  it("the Agent-to-agent architecture card does not say nothing is called: its default tab calls the admin API", () => {
+    const { container } = render(<MemoryRouter><PingAiProductPage product="privilegeA2a" /></MemoryRouter>);
+    const card = [...container.querySelectorAll(".pai-run")].find((c) => c.querySelector("h3").textContent === "Agent-to-agent architecture");
+    expect(card).toBeTruthy();
+    expect(card.querySelector(".pai-run__label").textContent).toBe("Opens drawings; admins also get live controls");
+    expect(card.textContent).not.toMatch(/nothing is called/);
+    expect(card.textContent).toMatch(/admin API/);
   });
 });

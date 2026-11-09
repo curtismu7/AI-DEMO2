@@ -68,7 +68,7 @@ describe("App.js — critical JSX placements", () => {
     expect(productRoutes).toHaveLength(8);
     expect(appSrc).toContain('className="ai-product-main"');
     expect(appSrc).toMatch(
-      /<Route\s+path="\/ai-products\/core"[\s\S]*?<AppShell[\s\S]*?<main className="ai-product-main">/,
+      /<Route\s+path="\/ai-products\/core"[\s\S]*?<AppShell[\s\S]*?<div className="ai-product-main">/,
     );
     expect(appSrc).toMatch(
       /<Route\s+path="\/ai-products\/protect"[\s\S]*?<PingAiProductPage product="protect"\s*\/>/,

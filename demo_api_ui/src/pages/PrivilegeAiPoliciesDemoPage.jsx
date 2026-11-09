@@ -29,7 +29,7 @@ import './PrivilegeAiPoliciesDemoPage.css';
 
 const CLIENT_PAGE = '/privilege-mcp-client';
 const LIVE_PAGE = '/privilege-ai-policies';
-const DOC_URL = 'https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md';
+const DOC_URL = 'https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md';
 
 // The outcome word is always shown; the tone only adds colour to it (P7).
 const VERDICT_TONE = { allow: 'ok', deny: 'danger', hold: 'warn', signin: 'warn', 'tool-error': 'warn', error: 'danger' };

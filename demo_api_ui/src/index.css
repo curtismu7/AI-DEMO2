@@ -452,6 +452,10 @@ textarea::placeholder {
   --th-status-info-solid: #051727;
   --th-status-info-bg: #fcfcfc;
   --th-status-info-border: #bfdbfe;
+  /* Keyboard focus ring: 3:1 or better against every surface token (page, card, inset, hover). On-band is for the
+     always-dark title band (--th-bg-band to #12538d), where the page ring would vanish in light theme. */
+  --th-focus-ring: #12538d;
+  --th-focus-ring-on-band: #ffffff;
 }
 :root[data-theme="dark"] {
   /* Deep-red end of the button gradient is under 3:1 on a dark page: the edge goes light
@@ -534,6 +538,8 @@ textarea::placeholder {
   --th-status-info-solid: #051727;
   --th-status-info-bg: #16233c;
   --th-status-info-border: #051727;
+  --th-focus-ring: #93c5fd;
+  --th-focus-ring-on-band: #ffffff;
 }
 
 html {
