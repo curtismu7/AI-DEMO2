@@ -1,4 +1,4 @@
-import { loadGatewayRecord, normalizeGuardrailEvent } from "../gatewayEvents";
+import { loadGatewayRecord, loadGatewayRecordViaDoor, normalizeGuardrailEvent } from "../gatewayEvents";
 
 const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
 const searchResult = (sources) => json({
@@ -48,7 +48,7 @@ test("the record for a run is the gateway's lines in its time window, split by k
     .mockResolvedValueOnce(json({ tools: [{ name: "SearchIndexTool" }] }))
     .mockResolvedValueOnce(searchResult([BLOCKED, MODEL_CALL]));
 
-  const record = await loadGatewayRecord({ since: Date.UTC(2026, 9, 5, 9, 59, 58), until: Date.UTC(2026, 9, 5, 10, 0, 5), fetchImpl });
+  const record = await loadGatewayRecordViaDoor({ since: Date.UTC(2026, 9, 5, 9, 59, 58), until: Date.UTC(2026, 9, 5, 10, 0, 5), fetchImpl });
 
   expect(record.state).toBe("ready");
   expect(record.guardrail.map((entry) => entry.event)).toEqual(["a2a_request_blocked"]);
@@ -65,7 +65,7 @@ test("accepted A2A requests and policy refusals are read from the same window", 
     .mockResolvedValueOnce(json({ tools: [{ name: "SearchIndexTool" }] }))
     .mockResolvedValueOnce(searchResult([accepted, refused]));
 
-  const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl });
+  const record = await loadGatewayRecordViaDoor({ since: 0, until: 1, fetchImpl });
 
   expect(record.requests).toEqual([{ time: "2026-10-05T10:00:02Z", app: "langchainagent", method: "POST", path: "/a2a/jsonrpc", principal: "03de8762", tenant: "0428ba4f" }]);
   expect(record.denials).toEqual([{ time: "2026-10-05T10:00:03Z", app: "restrictedagent", principal: "b1645e7b", reason: "principal does not have access" }]);
@@ -74,13 +74,13 @@ test("accepted A2A requests and policy refusals are read from the same window", 
 test("a door that has not been signed in to is reported, not treated as empty", async () => {
   const fetchImpl = vi.fn().mockResolvedValueOnce(json({ tools: [], privilege_login_required: true, loginUrl: "/login/door" }));
 
-  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl, signIn: null })).toEqual({ state: "needsAuth", loginUrl: "/login/door", guardrail: [], modelCalls: [], requests: [], denials: [] });
+  expect(await loadGatewayRecordViaDoor({ since: 0, until: 1, fetchImpl, signIn: null })).toEqual({ state: "needsAuth", loginUrl: "/login/door", guardrail: [], modelCalls: [], requests: [], denials: [] });
 });
 
 test("a failure to read the record never rejects", async () => {
   const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
 
-  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "error", error: "network down", guardrail: [], modelCalls: [], requests: [], denials: [] });
+  expect(await loadGatewayRecordViaDoor({ since: 0, until: 1, fetchImpl })).toEqual({ state: "error", error: "network down", guardrail: [], modelCalls: [], requests: [], denials: [] });
 });
 
 test("a door that is not signed in is signed in silently and asked again", async () => {
@@ -90,7 +90,7 @@ test("a door that is not signed in is signed in silently and asked again", async
     .mockResolvedValueOnce(json({ tools: [{ name: "SearchIndexTool" }] }))
     .mockResolvedValueOnce(searchResult([BLOCKED]));
 
-  const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl, signIn });
+  const record = await loadGatewayRecordViaDoor({ since: 0, until: 1, fetchImpl, signIn });
 
   expect(signIn).toHaveBeenCalledWith("/login/door");
   expect(record.state).toBe("ready");
@@ -102,9 +102,50 @@ test("if the silent sign-in does not take, the door is reported once, not retrie
   const needsLogin = () => json({ tools: [], privilege_login_required: true, loginUrl: "/login/door" });
   const fetchImpl = vi.fn().mockResolvedValueOnce(needsLogin()).mockResolvedValueOnce(needsLogin());
 
-  const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl, signIn });
+  const record = await loadGatewayRecordViaDoor({ since: 0, until: 1, fetchImpl, signIn });
 
   expect(signIn).toHaveBeenCalledTimes(1);
   expect(fetchImpl).toHaveBeenCalledTimes(2);
   expect(record.state).toBe("needsAuth");
+});
+
+describe("the record read by the app's server", () => {
+  const serverBody = (hits) => json({ state: "ready", hits });
+
+  test("is split by kind without any door sign-in", async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(serverBody([BLOCKED, MODEL_CALL]));
+    const signIn = vi.fn();
+
+    const record = await loadGatewayRecord({ since: Date.UTC(2026, 9, 5, 9, 59, 58), until: Date.UTC(2026, 9, 5, 10, 0, 5), fetchImpl, signIn });
+
+    expect(record.state).toBe("ready");
+    expect(record.source).toBe("server");
+    expect(record.guardrail.map((entry) => entry.event)).toEqual(["a2a_request_blocked"]);
+    expect(record.modelCalls).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`/api/privilege-a2a/gateway-record?since=${Date.UTC(2026, 9, 5, 9, 59, 58)}&until=${Date.UTC(2026, 9, 5, 10, 0, 5)}`);
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  test("falls back to the door when the server cannot reach the store", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(json({ state: "unavailable", error: "not reachable" }, 503))
+      .mockResolvedValueOnce(json({ tools: [{ name: "SearchIndexTool" }] }))
+      .mockResolvedValueOnce(searchResult([BLOCKED]));
+
+    const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl });
+
+    expect(record.source).toBe("door");
+    expect(record.state).toBe("ready");
+    expect(record.guardrail).toHaveLength(1);
+  });
+
+  test("falls back to the door when the request itself fails, and still never rejects", async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
+
+    const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl });
+
+    expect(record.source).toBe("door");
+    expect(record.state).toBe("error");
+  });
 });
