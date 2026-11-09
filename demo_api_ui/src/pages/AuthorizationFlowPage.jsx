@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -19,6 +19,7 @@ import PageHeader from "../components/common/PageHeader";
 import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip } from "../components/pingUi";
 import AuthorizationFlowDetail, { StepList } from "./AuthorizationFlowDetail";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
+import { useFitOnResize } from "../hooks/useFitOnResize";
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { DEFAULT_VERTICAL, PROFILES, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor, profileFor } from "./authorizationFlowData";
 import "./AuthorizationFlowPage.css";
@@ -101,7 +102,14 @@ function edgeFor(step, i, hot) {
   };
 }
 
-function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
+// Fit the whole drawing while it can be read; in a canvas narrower than NARROW_BELOW px the fit stops at READABLE_ZOOM
+// (lane sub-titles 12px land at about 9.6px) and the drawing is panned instead of shrunk to dots.
+const FIT = { padding: 0.03 };
+const NARROW_BELOW = 1290; // 1518px of drawing x 0.8 plus the fit padding
+const READABLE_ZOOM = 0.8;
+const READABLE = { narrowBelow: NARROW_BELOW, minZoom: READABLE_ZOOM };
+
+function Visualiser({ moment, stepper, theme, vertical }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(startNodes(vertical));
   // A new vertical renames the system-of-record lane; boxes the viewer has dragged stay where they are.
   useEffect(() => {
@@ -115,14 +123,18 @@ function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
     [moment, shown],
   );
 
+  // Refit whenever the canvas changes size (the detail panel moves, the window resizes, Reset). True while the
+  // drawing is too wide to show whole at a readable size.
+  const ref = useRef(null);
+  const pannable = useFitOnResize(ref, FIT, READABLE);
+  // Then keep the two lanes of the message in view as the walkthrough moves along.
   useEffect(() => {
-    // Refit when the detail panel moves: the diagram's column changes width.
-    const id = setTimeout(() => fitView({ padding: 0.03 }), 120);
-    return () => clearTimeout(id);
-  }, [fitView, layoutKey]);
+    const st = pannable && shown >= 0 ? moment.steps[shown] : null;
+    if (st) fitView({ nodes: [{ id: st.from }, { id: st.to }], padding: 0.15, minZoom: READABLE_ZOOM, maxZoom: 1.2, duration: 200 });
+  }, [pannable, shown, moment, fitView]);
 
   return (
-    <div className="af-canvas" data-af-theme={theme}>
+    <div className="af-canvas" data-af-theme={theme} data-pannable={pannable ? "true" : undefined} ref={ref}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -139,6 +151,7 @@ function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
         <Background gap={24} />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {pannable ? <p className="af-pan-hint">Drag to pan, use + and − to zoom</p> : null}
     </div>
   );
 }
@@ -189,6 +202,31 @@ export default function AuthorizationFlowPage() {
   // Resume, Prev, Next, Stop and Reset as secondaries. The button stays mounted, so keyboard focus stays on it.
   const playing = stepper.active;
 
+  // Reset, Stop and the like disable or swap the button that has focus, and the browser drops focus to <body>. The
+  // bar belongs to the shared DiagramControls, so the page wraps the actions it hands the bar: after one of them
+  // changes the state, focus that fell out lands on the primary, the one named place to start again. A focus the
+  // bar itself moved on (Simulate to Pause) is left alone.
+  const primaryRef = useRef(null);
+  const refocus = useRef(false);
+  const barStepper = useMemo(() => {
+    const wrap = (fn) => (...args) => { refocus.current = true; return fn(...args); };
+    return {
+      ...stepper,
+      simulate: wrap(stepper.simulate),
+      prev: wrap(stepper.prev),
+      next: wrap(stepper.next),
+      pause: wrap(stepper.pause),
+      resume: wrap(stepper.resume),
+      stop: wrap(stepper.stop),
+    };
+  }, [stepper]);
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    const a = document.activeElement;
+    if (!a || a === document.body || a.disabled) primaryRef.current?.focus({ preventScroll: true });
+  }, [stepper.step, stepper.paused]);
+
   return (
     <PingPage className="af-page">
       <SimBanner data-testid="af-banner">
@@ -200,7 +238,7 @@ export default function AuthorizationFlowPage() {
       <PageHeader
         eyebrow="Learn · Authorization"
         title="Authorization Flow"
-        summary={`An assistant acts for a customer without becoming the authority. PingOne signs the customer in, runs both token exchanges and the CIBA push; ${profile.org} decides.`}
+        summary={`An assistant acts for a customer without becoming the authority. In this scripted telling, PingOne signs the customer in, runs both token exchanges and the CIBA push; ${profile.org} decides.`}
       />
       <PageFrame>
         <Section
@@ -215,13 +253,12 @@ export default function AuthorizationFlowPage() {
               {VERTICAL_OPTIONS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
             </select>
             <p className="pu-label af-pick__moments" id="af-moments-l">Moment</p>
-            <div className="pu-actions af-chips" role="tablist" aria-label="Moments">
+            <div className="pu-actions af-chips" role="group" aria-labelledby="af-moments-l">
               {moments.map((x) => (
                 <button
                   key={x.id}
                   type="button"
-                  role="tab"
-                  aria-selected={x.id === momentId}
+                  aria-pressed={x.id === momentId}
                   className="pu-btn af-chip"
                   onClick={() => setMomentId(x.id)}
                 >
@@ -230,7 +267,7 @@ export default function AuthorizationFlowPage() {
               ))}
             </div>
             <div className="pu-actions">
-              <button type="button" className="pu-btn pu-btn--primary" data-testid="af-simulate" onClick={stepper.simulate}>
+              <button type="button" ref={primaryRef} className="pu-btn pu-btn--primary" data-testid="af-simulate" onClick={stepper.simulate}>
                 {playing ? "Restart this moment" : "Simulate this moment"}
               </button>
             </div>
@@ -245,7 +282,7 @@ export default function AuthorizationFlowPage() {
         >
           <div className={`af-grid${detailSide ? " af-grid--side" : ""}`}>
             <Card className="af-vis" role="region" aria-label="Authorization flow diagram">
-              <DiagramStepBar stepper={stepper} caption={current ? current.label : ""} testId="af-step-bar" />
+              <DiagramStepBar stepper={barStepper} caption={current ? current.label : ""} testId="af-step-bar" />
               <div className="af-toggles">
                 <button type="button" className="pu-btn af-theme" aria-pressed={detailSide} onClick={() => setDetailSide((v) => !v)}>
                   Detail on the side
@@ -255,7 +292,7 @@ export default function AuthorizationFlowPage() {
                 </button>
               </div>
               <ReactFlowProvider>
-                <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} layoutKey={detailSide} />
+                <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} />
               </ReactFlowProvider>
               <p className="pu-note af-proves"><strong>{moment.num}</strong> {moment.proves}</p>
               <div role="status" className="af-outcome-slot">
@@ -297,7 +334,7 @@ export default function AuthorizationFlowPage() {
           <Section
             id="af-detail-h"
             kicker="4 · Detail"
-            title="What is really happening"
+            title="What happens at this step (scripted)"
             lede="Follows the step in focus. The values are illustrative; the shapes are the real PingOne ones."
           >
             <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} />

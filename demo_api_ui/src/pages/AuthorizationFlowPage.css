@@ -8,9 +8,9 @@
 .pu-page .af-pick__moments { margin-top: 12px; }
 .pu-page .af-chip span { font-weight: var(--font-weight-bold); }
 
-/* A selected moment or a pressed toggle: heavier edge, inset ground and the same ink, so it never relies on colour alone
-   (a check mark is added to a selected moment). */
-.pu-page .af-chip[aria-selected='true'],
+/* A chosen moment or a pressed toggle: heavier edge, inset ground and the same ink, so it never relies on colour alone
+   (a check mark is added to a chosen moment). */
+.pu-page .af-chip[aria-pressed='true'],
 .pu-page .af-theme[aria-pressed='true'] {
   padding: 7px 15px;
   border: 2px solid var(--th-text);
@@ -18,10 +18,20 @@
   color: var(--th-text);
   font-weight: var(--font-weight-bold);
 }
-.pu-page .af-chip[aria-selected='true']::before { content: '\2713\00a0'; }
+.pu-page .af-chip[aria-pressed='true']::before { content: '\2713\00a0'; }
 
 /* ---- Walk it: diagram card, with the detail beside it when asked ---- */
-.af-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+/* The 11-lane diagram is 1518px of drawing. In the 1100px frame it scales to 0.59 (lane sub-titles about 7px on screen),
+   so the walk-it grid grows past the frame, centred, to the page width less 32px or 1800px. It is sized from the page's
+   own width (100cqw), not from vw: the app zooms the whole page (1.125 by default) and vw ignores that zoom. Never
+   narrower than the frame, so on a phone or a narrow window nothing changes. */
+.pu-page.af-page { container-type: inline-size; }
+.af-grid {
+  --af-grid-w: max(100%, min(calc(100cqw - 32px), 1800px));
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start;
+  width: var(--af-grid-w); max-width: none;
+  margin-inline: calc((100% - var(--af-grid-w)) / 2);
+}
 .af-grid > .pu-card { margin: 0; }
 .af-grid--side { grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem); }
 @media (max-width: 1000px) { .af-grid--side { grid-template-columns: minmax(0, 1fr); } }
@@ -110,7 +120,9 @@
 /* ---- Lane diagram (P8, page-local). The canvas has its own dark/light palette so the diagram reads the same in
    either app theme; the Dark diagram toggle switches it. These literals are the diagram's fixed palette: they are
    read only inside .af-canvas and no button takes them. ---- */
-.af-canvas { height: 26rem; margin: 8px 0; border-radius: var(--radius-md); background: var(--af-bg); overflow: hidden; }
+/* Tall enough that the fit is set by the width, not the height: 40% of the page width, between 26rem and 44rem. */
+.af-canvas { position: relative; height: clamp(26rem, 40cqw, 44rem); margin: 8px 0; border-radius: var(--radius-md); background: var(--af-bg); overflow: hidden; }
+.af-pan-hint { position: absolute; top: 8px; right: 8px; z-index: 5; margin: 0; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--af-head-bg); color: var(--af-head-tx); border: 1px solid var(--af-head-bd); font-size: var(--font-size-2xs); pointer-events: none; }
 .af-canvas .react-flow { background: var(--af-bg); }
 .af-canvas .react-flow__controls-button { background: var(--af-ctl-bg); color: var(--af-head-tx); border-color: var(--af-head-bd); }
 .af-canvas .react-flow__background { opacity: 0.35; }
