@@ -219,6 +219,34 @@ function seedIfEmpty(conn: DatabaseSync): void {
   console.log(`[airlines-db] seeded ${dbPath()} from ${file}`);
 }
 
+// Seed flights are parsed once per seed path; withDb tops the table up from them on every open.
+let seedFlightsCache: { file: string; flights: Array<Record<string, string | null | undefined>> } | null = null;
+
+/**
+ * Insert seed flights that are missing from an already-seeded database, so an existing
+ * airlines.db gains the booking-rule catalogue flights (SH101..SH109) on restart. INSERT OR
+ * IGNORE: an existing row (possibly edited out-of-band) is never overwritten, and
+ * passengers, bookings and seats are never touched.
+ */
+function topUpSeedFlights(conn: DatabaseSync): void {
+  const file = seedPath();
+  if (!seedFlightsCache || seedFlightsCache.file !== file) {
+    let flights: Array<Record<string, string | null | undefined>> = [];
+    if (fs.existsSync(file)) {
+      flights = JSON.parse(fs.readFileSync(file, 'utf8')).flights || [];
+    }
+    seedFlightsCache = { file, flights };
+  }
+  if (seedFlightsCache.flights.length === 0) return;
+  const ins = conn.prepare(
+    'INSERT OR IGNORE INTO flights (flight_number, origin, destination, departure_time, arrival_time, gate, aircraft, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+  );
+  for (const f of seedFlightsCache.flights) {
+    ins.run(f.flight_number as string, f.origin as string, f.destination as string, f.departure_time as string,
+      f.arrival_time as string, f.gate ?? null, f.aircraft ?? null, f.status as string);
+  }
+}
+
 /**
  * Run `fn` against a freshly opened connection, then close it.
  *
@@ -243,6 +271,7 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
     conn.exec('PRAGMA foreign_keys = ON');
     conn.exec(SCHEMA);
     seedIfEmpty(conn);
+    topUpSeedFlights(conn);
     return fn(conn);
   } finally {
     conn.close();
@@ -293,6 +322,40 @@ export function nextFlightFor(passengerRef: string): string | null {
      LIMIT 1
   `).get(passengerRef) as { flight_number: string } | undefined);
   return row ? row.flight_number : null;
+}
+
+// ── Booking-rule facts ─────────────────────────────────────────────────────────────────────
+// The authoritative fare for a flight comes from seed/airline-booking-policy-data.json, the same
+// file PingGateway reads (synced copy) to put the fare in the Authorize request. The caller never
+// sets the price that is judged; bookFlight only checks the quote against this.
+function bookingDataPath(): string {
+  return process.env.AIRLINE_BOOKING_DATA_PATH || path.join(__dirname, '..', '..', 'seed', 'airline-booking-policy-data.json');
+}
+
+let fareCache: { file: string; fares: Map<string, number> } | null = null;
+
+function loadFares(): Map<string, number> {
+  const file = bookingDataPath();
+  if (fareCache && fareCache.file === file) return fareCache.fares;
+  const fares = new Map<string, number>();
+  try {
+    const flights = JSON.parse(fs.readFileSync(file, 'utf8')).flights;
+    if (flights && typeof flights === 'object') {
+      for (const [k, v] of Object.entries(flights)) {
+        if (typeof v === 'number' && Number.isFinite(v) && v > 0) fares.set(k, v);
+      }
+    }
+  } catch (err) {
+    console.warn(`[airlines-db] booking data unreadable at ${file}: ${(err as Error).message}`);
+  }
+  fareCache = { file, fares };
+  return fares;
+}
+
+/** Catalogue fare in USD for a flight number, or null when unknown or the data file is unreadable. */
+export function getFare(flightNumber: string): number | null {
+  // A Map lookup, never obj[key]: "__proto__" / "constructor" must not resolve.
+  return loadFares().get(flightNumber) ?? null;
 }
 
 export function getFlight(flightNumber: string): Flight | null {

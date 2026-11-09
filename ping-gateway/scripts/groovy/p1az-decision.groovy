@@ -362,6 +362,35 @@ def accountId         = ''
 def hitlChallengeId   = ''
 def elicitationConfirmed = false
 def toolArgs          = [:]
+// Airline booking rules (book_airline_flight, tools/call only). The fare the policy judges comes
+// from the catalogue file, never from the caller's `amount`; the user's agent spend limit comes from
+// the same file. The member tier is NOT looked up here: PingOne Authorize reads it from the PingOne
+// user's custom attribute airlineMemberTier (Trust Framework attribute MemberTier), keyed on the
+// UserId parameter (the token sub) that is always sent. See lookupBookingFacts below.
+def bookingFare       = null   // BigDecimal, authoritative fare
+def bookingLimit      = null   // BigDecimal, the user's agent spend limit
+def bookingSource     = null   // 'sub' (member record) | 'default' (defaultMember)
+def bookingError      = ''     // '' | unknown_flight_fare | booking_data_unavailable
+def bookingOverride   = null   // [claimed:, authoritative:] when the caller's amount differed
+// Pure lookup over the parsed data file: facts for one flight and one token subject. Returns
+// [fare:, limit:, source:] or throws. Kept free of request state so it can be run alone.
+def lookupBookingFacts = { Object data, Object flightArg, String subject ->
+    def flights = data?.flights
+    def flight = (flightArg instanceof CharSequence) ? flightArg.toString().trim().toUpperCase() : ''
+    if (!(flights instanceof Map) || !flight || !flights.containsKey(flight) || !(flights.get(flight) instanceof Number)) {
+        return [error: 'unknown_flight_fare']
+    }
+    def members = (data.members instanceof Map) ? data.members : [:]
+    def member = (subject && members.containsKey(subject) && members.get(subject) instanceof Map) ? members.get(subject) : null
+    def profile = member ?: data.defaultMember
+    if (!(profile instanceof Map)) throw new IllegalStateException('no member profile')
+    def limitRaw = profile.agentSpendLimitUsd
+    return [
+        fare  : new BigDecimal(flights.get(flight).toString()),
+        limit : new BigDecimal(String.valueOf(limitRaw != null ? limitRaw : 500)),
+        source: member != null ? 'sub' : 'default',
+    ]
+}
 try {
     def bodyStr = request.entity.string
     if (bodyStr) {
@@ -422,6 +451,30 @@ try {
             transactionType   = args?.transaction_type ?: toolName
             toAccountId       = args?.toAccountId ?: (args?.to_account_id ?: '')
             accountId         = args?.accountId ?: (args?.account_id ?: (args?.fromAccountId ?: (args?.from_account_id ?: toAccountId)))
+            if (toolName == 'book_airline_flight') {
+                try {
+                    def bookingData = new JsonSlurper().parse(new File('/var/gateway/config/airline-booking-policy-data.json'))
+                    def facts = lookupBookingFacts(bookingData, args instanceof Map ? args.get('flight_number') : null, String.valueOf(sub ?: ''))
+                    if (facts.error) {
+                        bookingError = facts.error
+                    } else {
+                        bookingFare   = facts.fare
+                        bookingLimit  = facts.limit
+                        bookingSource = facts.source
+                        // OVERWRITE the caller's amount: an omitted or understated amount must not
+                        // switch the rules off. toPlainString keeps 500.01 / 750.01 exact.
+                        def claimedAmt = amt != null ? String.valueOf(amt) : null
+                        def same = false
+                        try { same = (claimedAmt != null && new BigDecimal(claimedAmt).compareTo(bookingFare) == 0) } catch (Exception ignore) { same = false }
+                        if (!same) bookingOverride = [claimed: claimedAmt, authoritative: bookingFare.toPlainString()]
+                        transactionAmount = bookingFare.toPlainString()
+                    }
+                } catch (Exception e) {
+                    // Log the class only: never echo file contents.
+                    logger.warn('[P1AZ] airline booking data unavailable: ' + e.getClass().getSimpleName())
+                    bookingError = 'booking_data_unavailable'
+                }
+            }
         }
     }
 } catch (Exception e) {
@@ -478,6 +531,15 @@ def denyLocal = { String reason, String message ->
     rejected.headers.put('Content-Type', 'application/json')
     rejected.entity.setString(JsonOutput.toJson([error: reason, message: message, tool: toolName]))
     return Promises.newResultPromise(rejected)
+}
+
+// Airline booking rules fail closed locally: no catalogue fare (unknown flight, missing or odd
+// flight_number) or an unreadable data file means the rules cannot be judged, so the call never
+// reaches P1AZ and nothing is booked.
+if (bookingError) {
+    return denyLocal(bookingError, bookingError == 'unknown_flight_fare'
+        ? 'no catalogue fare for the requested flight'
+        : 'airline booking data is unavailable')
 }
 
 // Temporal (mirrors decision.js Rules 0d/0e) — exp is already covered upstream
@@ -955,6 +1017,14 @@ def resourceOwnerHeader = request.headers.getFirst('X-Resource-Owner-Id') ?: ''
 if (resourceOwnerHeader) {
     parameters.ResourceOwnerId = resourceOwnerHeader
 }
+// Airline booking rules: the USER's agent spend limit, from the member record, for
+// book_airline_flight only (other tools are unaffected; the cloud attribute defaults to 500).
+// Amount/TransactionAmount above already carry the catalogue fare. NO member tier is sent: Rule B's
+// MemberTier is resolved by PingOne Authorize from the PingOne user's airlineMemberTier, so a
+// caller or this gateway can never claim a tier.
+if (bookingFare != null) {
+    parameters.AgentSpendLimit = bookingLimit.toPlainString()
+}
 // Absent values are omitted, never fabricated (C1 preamble). Both audience keys are
 // omitted together when introspection surfaced no aud — mock Rule 0b reads TokenAudActual
 // first and TokenAudience second, so leaving EITHER populated with a fabricated value
@@ -1203,6 +1273,13 @@ def auditTrail = [
         ] : null,
     ],
     mcpAudit: mcpAudit,
+    // Airline booking rules: what the gateway used instead of the caller's word. Null for other tools.
+    fareOverride: bookingOverride,
+    bookingFacts: bookingFare != null ? [
+        profileSource     : bookingSource,
+        agentSpendLimitUsd: bookingLimit.toPlainString(),
+        fareUsd           : bookingFare.toPlainString(),
+    ] : null,
     filterChain: [
         [filter: 'McpValidationFilter', result: 'passed'],
         [filter: 'McpAuditFilter', result: 'passed'],
