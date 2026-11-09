@@ -22,9 +22,15 @@
 }
 
 :is(.lesson-page, .lesson-run, .lesson-lede, .lesson-list, .lesson-foot) a:focus-visible {
-  outline: 2px solid var(--th-status-info);
+  outline: 3px solid var(--th-focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/* The header band is dark in both themes, so its links and buttons (the /ai-products product nav) take the on-band ring. */
+.lesson-header.lesson-header :is(a, button, [role='button']):focus-visible {
+  outline: 3px solid var(--th-focus-ring-on-band);
+  outline-offset: 2px;
 }
 
 /* --th-bg-band is dark navy in BOTH themes, so its ink is --th-text-invert. */

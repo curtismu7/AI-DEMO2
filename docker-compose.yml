@@ -2184,10 +2184,14 @@ services:
     # and the skill's "The PingOne token wall" section.
     #
     # Pinned by digest (multi-arch manifest list, works on both Apple Silicon and
-    # amd64) rather than a tag — no public tag-listing access to confirm a stable
-    # version tag exists, and this is the exact build verified above. Bump by
-    # re-pulling :latest and updating the digest when re-verifying.
-    image: public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d
+    # amd64) rather than a tag. 2026-11-09: moved from the privilege-mcpgw repo
+    # (last build 2026-07-30, newest tag v1.260807, sha256:0faad590…) to the
+    # privilege-aigw repo, tag v1.261106 — the same line the hosted gateway runs.
+    # Same /procyon/bin/mcpgw command, so command, env files and the named
+    # volumes (enrollment cert pair in mcpgw-ssl) are unchanged. Roll back by
+    # restoring the old digest. Bump by re-pulling a newer dated tag and
+    # updating the digest.
+    image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce
     pull_policy: always
     container_name: ai-demo-ping-mcpgw
     # AGENTLESS (self-hosted frontend) MODE — see privilege/PRIVILEGE-MCP.md.

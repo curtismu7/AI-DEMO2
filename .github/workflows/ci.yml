@@ -334,7 +334,7 @@ jobs:
     name: API server tests (Jest)
     needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || fromJSON(vars.CI_TEST_RUNNER || '"ubuntu-24.04"') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -386,7 +386,7 @@ jobs:
     # to report on a stale head. changes.result == 'success' reproduces the implicit success() the
     # old job had on `changes`, so a draft or closed-PR run still skips this job.
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs['ui'] == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || fromJSON(vars.CI_TEST_RUNNER || '"ubuntu-24.04"') }}
     timeout-minutes: 5
     steps:
       - name: Require every UI shard and the build and movie-reel job
@@ -417,7 +417,7 @@ jobs:
     # serializing them added that to every UI PR. `gates` is still a required upstream of `main-red`.
     # Not on push to main: the merged PR already ran its Vitest step on this code.
     if: needs.changes.outputs['ui'] == 'true' && github.event_name != 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || fromJSON(vars.CI_TEST_RUNNER || '"ubuntu-24.04"') }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -552,10 +552,12 @@ jobs:
         run: |
           npm --prefix demo_api_ui exec -- playwright install-deps chromium
           npm --prefix demo_api_ui exec -- playwright install chromium
-      - name: Movie reel is on screen (Playwright)
+      # The shell keyboard spec rides the same job and browser: it presses the real Tab key (skip link first,
+      # no off-screen stops, one <main>) and is mocked the same way, so it needs no stack.
+      - name: Movie reel is on screen and the shell is keyboard-reachable (Playwright)
         if: steps.reel.outputs.needed == 'true'
         working-directory: demo_api_ui
-        run: node_modules/.bin/playwright test tests/e2e/movie-reel-visible.spec.js
+        run: node_modules/.bin/playwright test tests/e2e/movie-reel-visible.spec.js tests/e2e/shell-keyboard.spec.js
         env:
           CI: 'true'
           BANKING_UI_PORT: '4173'

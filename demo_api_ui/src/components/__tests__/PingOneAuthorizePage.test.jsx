@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
 import PingOneAuthorizePage from '../PingOneAuthorizePage';
 
@@ -313,5 +313,82 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
       expect(ref).toHaveAttribute('aria-pressed', 'true');
       expect(audit).toHaveAttribute('aria-pressed', 'false');
     });
+  });
+});
+
+describe('recent decisions: stale responses and failures (F5, F7)', () => {
+  const TWO = {
+    ...LIVE_POLICY_RESPONSE,
+    endpoints: [
+      { id: 'e1', name: 'Endpoint One', recordRecentRequests: true },
+      { id: 'e2', name: 'Endpoint Two', recordRecentRequests: true },
+    ],
+    transactionEndpointId: 'e1',
+  };
+  const decision = (id) => ({ id, decision: 'PERMIT', requestedAt: '2026-11-08T02:00:00.000Z' });
+
+  function wire({ recent, post } = {}) {
+    bffAxios.get.mockImplementation((url) => {
+      if (url === '/api/authorize/pingone-policies') return Promise.resolve({ data: { policies: ONE_POLICY, note: null } });
+      if (url === '/api/authorize/pingone-live-policy') return Promise.resolve({ data: TWO });
+      if (url.startsWith('/api/authorize/recent-decisions')) return recent(url);
+      return Promise.resolve({ data: {} });
+    });
+    if (post) bffAxios.post.mockImplementation(post);
+  }
+
+  beforeEach(() => { vi.clearAllMocks(); mockSearch = ''; });
+
+  test('F5: a slow answer for the endpoint the user left never shows as the current endpoint\'s decisions', async () => {
+    let releaseE1;
+    wire({
+      recent: (url) => (url.includes('endpointId=e1')
+        ? new Promise((resolve) => { releaseE1 = () => resolve({ data: { decisions: [decision('AAAAAAAA-1')] } }); })
+        : Promise.resolve({ data: { decisions: [decision('BBBBBBBB-2')] } })),
+    });
+    render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    fireEvent.change(screen.getByLabelText('Endpoint'), { target: { value: 'e2' } });
+    await waitFor(() => expect(bffAxios.get).toHaveBeenCalledWith(expect.stringContaining('endpointId=e2')));
+    await act(async () => { releaseE1(); });
+    fireEvent.click(screen.getByLabelText(/Include PingOne's recent decisions/));
+    expect((await screen.findAllByText('Decision BBBBBBBB')).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Decision AAAAAAAA')).toHaveLength(0);
+  });
+
+  test('F7: a failed recent-decisions read is shown with a word chip, and the box is unticked', async () => {
+    wire({ recent: () => Promise.reject(Object.assign(new Error('Request failed'), { response: { status: 500, data: { message: 'upstream down' } } })) });
+    render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    const box = screen.getByLabelText(/Include PingOne's recent decisions/);
+    fireEvent.click(box);
+    const err = await screen.findByTestId('p1az-recent-error');
+    expect(err).toHaveTextContent('Could not read');
+    expect(err).toHaveTextContent('upstream down');
+    await waitFor(() => expect(box).not.toBeChecked());
+  });
+
+  test('F7: a failed recording toggle is shown and the box is unticked; ticking again retries', async () => {
+    const one = { ...TWO, endpoints: [{ id: 'e1', name: 'Endpoint One', recordRecentRequests: false }] };
+    let posts = 0;
+    bffAxios.get.mockImplementation((url) => {
+      if (url === '/api/authorize/pingone-policies') return Promise.resolve({ data: { policies: ONE_POLICY, note: null } });
+      if (url === '/api/authorize/pingone-live-policy') return Promise.resolve({ data: one });
+      return Promise.resolve({ data: { decisions: [] } });
+    });
+    bffAxios.post.mockImplementation(() => {
+      posts += 1;
+      return posts === 1 ? Promise.reject(Object.assign(new Error('Forbidden'), { response: { status: 403, data: {} } })) : Promise.resolve({ data: { recordRecentRequests: true } });
+    });
+    render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    const box = screen.getByLabelText(/Include PingOne's recent decisions/);
+    fireEvent.click(box);
+    expect(await screen.findByTestId('p1az-recent-error')).toHaveTextContent('Could not read');
+    await waitFor(() => expect(box).not.toBeChecked());
+    fireEvent.click(box);
+    await waitFor(() => expect(screen.queryByTestId('p1az-recent-error')).toBeNull());
+    expect(posts).toBe(2);
+    expect(box).toBeChecked();
   });
 });

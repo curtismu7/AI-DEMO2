@@ -13,8 +13,14 @@ The current SE deployments are documented separately in
 | Agentless (`cmuir`) | `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp` | Gateway OAuth/PKCE |
 | Agent (`cmuir2`) | `https://opensearch.default.applications.procyon.ai:8643/mcp` | Installed Privilege Agent |
 
-The current image is `public.ecr.aws/s7q1z8z4/privilege-mcpgw` pinned at digest
-`sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
+The current image is `public.ecr.aws/s7q1z8z4/privilege-aigw:v1.261106` pinned at digest
+`sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce` (same
+`/procyon/bin/mcpgw` binary; the hosted `agentless-mcpgw` releases run the same tag).
+Until 2026-11-09 the local Compose gateway used the older `privilege-mcpgw` repo at
+`sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d` (build
+2026-07-30); to roll back, restore that digest in `docker-compose.yml`. The 2026-08-12
+reason for choosing `mcpgw` (a `WWW-Authenticate` challenge on a tokenless request) was
+not re-verified on the new image; an unauthenticated `POST :8620/mcp` returns 401 as before.
 The public Agentless ingress terminates HTTPS and forwards to gateway port `8623`.
 
 Sections below that discuss Compose, `privilege-proxy`/`cyonproxy`, port `8620`,

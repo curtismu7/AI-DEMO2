@@ -9,13 +9,29 @@
  * Auth is simulated by intercepting OAuth status endpoints — no live server
  * required. API data endpoints return minimal stubs so pages load cleanly.
  *
- * Run:
- *   cd banking_api_ui
- *   npx playwright test tests/e2e/url-smoke.spec.js
- *   npx playwright test tests/e2e/url-smoke.spec.js --headed   # visual
+ * Run (one command; it starts its own dev server and stops it):
+ *   cd demo_api_ui
+ *   npm run test:e2e:smoke
+ *   npm run test:e2e:smoke -- --headed --workers=3   # extra arguments go to playwright
  */
 
+const fs = require('fs');
+const path = require('path');
 const { test, expect } = require('@playwright/test');
+
+// Every test mocks its own page (page.route), so they are independent: let --workers spread them. A file runs on one
+// worker by default, which made the old 69-test run strictly serial.
+test.describe.configure({ mode: 'parallel' });
+
+/**
+ * Every route held to the Ping UI Standard (scripts/ui-pattern-converted.txt). Read from that file, not copied:
+ * the hand lists below named 4 of 43 converted routes and went stale. Add a route there and it is covered here.
+ */
+const CONVERTED_ROUTES = fs
+  .readFileSync(path.join(__dirname, '..', '..', 'scripts', 'ui-pattern-converted.txt'), 'utf8')
+  .split('\n')
+  .map((l) => l.replace(/#.*/, '').trim())
+  .filter(Boolean);
 
 // ─── Auth fixture objects ────────────────────────────────────────────────────
 
@@ -269,8 +285,9 @@ const ADMIN_ROUTES = [
   '/mcp-gateway',
   '/agent-gateway-inspector',
   { path: '/pinggateway-inspector', allowRedirectTo: ['/agent-gateway-inspector'] },
-  { path: '/pinggateway-test', allowRedirectTo: ['/agent-gateway-inspector'] },
-  '/mcp-inspector',
+  { path: '/pinggateway-test', allowRedirectTo: ['/agent-gateway-capabilities'] },
+  // Both redirects below are the current App.js behaviour (they were /mcp-inspector and /agent-gateway-inspector in June).
+  { path: '/mcp-inspector', allowRedirectTo: ['/pingone-mcp-inspector'] },
   '/resource-server',
   '/resource-server-cc',
   // Monitoring sub-routes
@@ -326,45 +343,49 @@ test.describe('URL smoke — admin routes', () => {
   }
 });
 
-/** Wait for the React app to redirect away from `startPath`. */
-async function waitForRedirectFrom(page, startPath) {
-  try {
-    await page.waitForFunction(
-      (sp) => {
-        const root = document.getElementById('root');
-        if (!root || root.children.length === 0) return false;
-        return new URL(window.location.href).pathname !== sp;
-      },
-      startPath,
-      { timeout: 10000 },
-    );
-  } catch (_) {
-    // If no redirect fired, we fall through; the assertion below will report.
-  }
-}
-
-test.describe('URL smoke — unknown routes redirect (no 404 / blank)', () => {
-  test('unknown route as admin redirects to /admin', async ({ page }) => {
+test.describe('URL smoke — every converted (Ping UI Standard) route', () => {
+  test.beforeEach(async ({ page }) => {
     await mockAdminAuth(page);
-    await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
-    await waitForRedirectFrom(page, '/this-does-not-exist');
-    const path = new URL(page.url()).pathname;
-    expect(['/admin', '/dashboard'], `Unknown route went to ${path}`).toContain(path);
   });
 
-  test('unknown route as customer redirects to /dashboard', async ({ page }) => {
-    await mockCustomerAuth(page);
-    await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
-    await waitForRedirectFrom(page, '/this-does-not-exist');
-    const path = new URL(page.url()).pathname;
-    expect(['/dashboard', '/admin'], `Unknown route went to ${path}`).toContain(path);
+  test('the converted-route list was read and is not empty', () => {
+    expect(CONVERTED_ROUTES.length).toBeGreaterThanOrEqual(43);
   });
+
+  for (const route of CONVERTED_ROUTES) {
+    test(`${route} mounts as a Ping UI page without an uncaught error`, async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(e.message));
+      await smokeCheck(page, route, { allowRedirectTo: [] });
+      // The Ping UI Standard root and its simulation banner (P2) are what the static check cannot prove at runtime.
+      // The route chunk is lazy: on a loaded machine the TopNav text can land well before the page does.
+      await expect(page.locator('.pu-page').first(), `${route} has no .pu-page root`).toBeVisible({ timeout: 45000 });
+      await expect(page.locator('.pu-page [role="note"]').first(), `${route} has no banner inside the page`).toBeVisible({ timeout: 15000 });
+      expect(errors, `${route} threw an uncaught error`).toEqual([]);
+    });
+  }
+});
+
+test.describe('URL smoke — unknown routes show the Not Found page (no crash / blank)', () => {
+  // App.js ends both the signed-in shell and the guest shell with <Route path="*" element={<NotFoundPage />}/>, so an
+  // unknown path stays on its URL and says "Page not found". (The June expectation was a redirect to /admin or
+  // /dashboard, which the router no longer does.)
+  for (const [name, mock] of [
+    ['admin', mockAdminAuth],
+    ['customer', mockCustomerAuth],
+  ]) {
+    test(`unknown route as ${name} shows Page not found`, async ({ page }) => {
+      await mock(page);
+      await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible({ timeout: 45000 });
+      expect(new URL(page.url()).pathname).toBe('/this-does-not-exist');
+    });
+  }
 
   test('unknown route unauthenticated does not crash', async ({ page }) => {
     await mockNoAuth(page);
     await page.goto('/this-does-not-exist', { waitUntil: 'domcontentloaded' });
-    // Unauthenticated catch-all renders TopNav without redirecting — no crash
-    // is the important guarantee; the URL may stay or redirect.
+    // The guest catch-all may show Not Found or send the visitor to sign in; no crash is the guarantee.
     try {
       await page.waitForFunction(
         () => {

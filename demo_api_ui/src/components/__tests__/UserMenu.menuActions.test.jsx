@@ -122,3 +122,43 @@ describe('UserMenu menu actions', () => {
     expect(screen.getByRole('checkbox', { name: /Security alerts/ }).checked).toBe(true);
   });
 });
+
+describe('UserMenu keyboard and state (KB-8)', () => {
+  it('reports its open state with aria-expanded and aria-haspopup', () => {
+    open();
+    const trigger = screen.getByLabelText('User menu');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('is closed on first render', () => {
+    render(
+      <MemoryRouter>
+        <UserMenu user={USER} onLogout={vi.fn()} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText('User menu')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Profile')).toBeNull();
+  });
+
+  it('closes on Escape and returns focus to the trigger', () => {
+    open();
+    const trigger = screen.getByLabelText('User menu');
+    screen.getByText('Profile').closest('button').focus();
+    fireEvent.keyDown(screen.getByText('Profile'), { key: 'Escape' });
+    expect(screen.queryByText('Profile')).toBeNull();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('closes when focus moves out of the menu', () => {
+    open();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    fireEvent.blur(screen.getByText('Profile').closest('button'), { relatedTarget: outside });
+    expect(screen.queryByText('Profile')).toBeNull();
+    outside.remove();
+  });
+});

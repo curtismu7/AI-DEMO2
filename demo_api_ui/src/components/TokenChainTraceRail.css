@@ -32,10 +32,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Phone width: the toolbar (Views, More) drops under the title instead of running past the card. */
+  flex-wrap: wrap;
+  gap: 6px 10px;
 }
 .tctr-title { font-size: var(--font-size-body); font-weight: 700; }
 .tctr-title-group {
   display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; min-width: 0;
 }
 /* Which class of agent ran this chain, derived from the tokens themselves
    (deriveAgentClass.js) rather than asserted by config. It sits on the header
@@ -72,6 +76,10 @@
   border-radius: var(--radius-lg);
   background: var(--th-bg-inset, #eff0f1);
   width: fit-content;
+  /* Wrap rather than clip: at phone width the Sequence tab sat past the card edge and could not be touched. */
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .tctr-chain-tabs button {
   border: 0;
@@ -118,6 +126,7 @@
    way back to the chain when a view has replaced it. */
 .tctr-toolbar {
   display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; min-width: 0;
 }
 .tctr-back-btn {
   background: none; border: 1px solid rgba(255, 255, 255, 0.35);
