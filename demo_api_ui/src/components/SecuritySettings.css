@@ -137,7 +137,7 @@
 
 .pu-page .sset-toggle[aria-pressed='true'] {
   background: var(--th-status-info);
-  color: var(--th-text);
+  color: #fff;
 }
 
 .sset-toggle__thumb {
@@ -149,7 +149,7 @@
   border-radius: 50%;
   background: var(--th-text);
   transition: left 0.15s;
-  color: var(--th-text);
+  color: var(--th-bg);
 }
 
 .sset-toggle[aria-pressed='true'] .sset-toggle__thumb {
