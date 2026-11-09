@@ -70,12 +70,33 @@ describe("DavinciLoginGuidePage", () => {
     expect(banner.textContent).toContain("Call Inspector");
   });
 
+  it("takes the banner's lead from the state the widget reports, so it is true when the run failed", () => {
+    const { container } = render(<DavinciLoginGuidePage />);
+    const banner = () => container.querySelector('[data-testid="dvlg-banner"]').textContent;
+    expect(banner()).toContain("STARTING THE LIVE FLOW");
+    act(() => widgetProps.onStatus("flow"));
+    expect(banner()).toContain("STARTING THE LIVE FLOW");
+    act(() => widgetProps.onStatus("screen"));
+    expect(banner()).toMatch(/^LIVE FLOW, NOTHING SIMULATED/);
+    act(() => widgetProps.onStatus("error"));
+    expect(banner()).toContain("LIVE FLOW FAILED");
+    expect(banner()).not.toMatch(/^LIVE FLOW, NOTHING SIMULATED/);
+    expect(banner()).toContain("failed to start or complete");
+    act(() => widgetProps.onStatus("signedIn"));
+    expect(banner()).toContain("SIGNED IN");
+    expect(banner()).not.toContain("failed to start");
+  });
+
   it("shows the status the widget reports as a chip with a word, in a live region that is mounted from the start", () => {
     const { container } = render(<DavinciLoginGuidePage />);
     const live = container.querySelector(".dvlg-live-app [role=status]");
     expect(live.textContent).toBe("Starting");
     act(() => widgetProps.onStatus("flow"));
     expect(container.querySelector(".dvlg-live-app [role=status]")).toBe(live);
+    // Asked DaVinci to draw, nothing seen yet: neutral, not "running".
+    expect(live.textContent).toBe("Waiting for DaVinci");
+    expect(live.querySelector(".pu-chip--neutral")).toBeTruthy();
+    act(() => widgetProps.onStatus("screen"));
     expect(live.textContent).toBe("Flow running");
     expect(live.querySelector(".pu-chip--info")).toBeTruthy();
     act(() => widgetProps.onStatus("error"));
@@ -162,6 +183,16 @@ describe("DavinciLoginGuidePage", () => {
     });
     afterEach(() => {
       window.location = original;
+    });
+
+    it("states the failure in the banner and keeps Close window a secondary in every state", () => {
+      const { container, getByRole } = render(<DavinciLoginGuidePage />);
+      act(() => widgetProps.onStatus("error"));
+      expect(container.querySelector('[data-testid="dvlg-banner"]').textContent).toContain("LIVE FLOW FAILED");
+      expect(container.querySelectorAll(".pu-btn--primary")).toHaveLength(0);
+      act(() => widgetProps.onStatus("signedIn"));
+      expect(getByRole("button", { name: "Close window" }).className).toBe("pu-btn");
+      expect(container.querySelectorAll(".pu-btn--primary")).toHaveLength(0);
     });
 
     it("keeps the banner first, adds no second main landmark, and offers Close window as a secondary", () => {

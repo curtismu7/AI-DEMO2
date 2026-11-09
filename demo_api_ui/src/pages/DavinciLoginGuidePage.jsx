@@ -14,7 +14,8 @@
 // session accepted by the BFF), never assumed.
 //
 // P9, one primary per view state. The DaVinci screens inside the widget are DaVinci's own HTML, not ours.
-//   starting / flow running (signed out)  : no primary ("Open pop-out" and the lesson header controls are secondaries)
+//   starting / flow running (signed out)  : none of ours. The action is DaVinci's own submit inside the widget; a second
+//                                           primary of ours would compete with it ("Open pop-out" and the header controls are secondaries)
 //   flow failed to start or complete      : "Retry" is the one primary
 //   signed in                             : "What just happened?" is the one primary
 //   summary dialog open                   : the page behind it keeps its primary; the dialog's own Close is DraggableModal's
@@ -38,34 +39,42 @@ const JOURNEYS = [
   ["03", "Recover", "Reset a forgotten password."],
 ];
 
-// What the widget reports (DavinciLoginWidget onStatus) as a chip. Green only for the one thing the page checked end to end.
+// What the widget reports (DavinciLoginWidget onStatus) as a chip. Green only for the one thing the page checked end to end;
+// "flow" (SDK loaded, asked to draw) is neutral because nothing has been seen yet, info only once DaVinci drew a screen.
 const STATUS_VIEW = {
   loading: { tone: "neutral", word: "Starting", card: "live" },
-  flow: { tone: "info", word: "Flow running", card: "live" },
+  flow: { tone: "neutral", word: "Waiting for DaVinci", card: "live" },
+  screen: { tone: "info", word: "Flow running", card: "live" },
   signedIn: { tone: "ok", word: "Signed in", card: "ok" },
   error: { tone: "danger", word: "Failed", card: "danger" },
 };
 
-// Two texts: the pop-out window has no Call Inspector, so its banner does not mention one.
-const BANNER = (
-  <>
-    <strong>LIVE FLOW, NOTHING SIMULATED</strong> — the widget runs the real DaVinci flow: this page asks the app&apos;s
-    BFF for a short-lived SDK token, DaVinci draws each screen, and a completed sign-in makes the BFF verify the
-    returned tokens and start a real app session. The Call Inspector lists the calls this browser actually made
-    (addresses and status only, never values or tokens). The lesson text is explanation. If the DaVinci connection is
-    not configured or not reachable, the widget says so and offers Retry instead of faking a flow.
-  </>
-);
+// The banner's lead says what is true of THIS state (it is read from the widget, never assumed). "Nothing simulated"
+// is true in every state: when the flow cannot run the widget says so instead of faking one.
+const BANNER_LEAD = {
+  loading: "STARTING THE LIVE FLOW, NOTHING SIMULATED",
+  flow: "STARTING THE LIVE FLOW, NOTHING SIMULATED",
+  screen: "LIVE FLOW, NOTHING SIMULATED",
+  signedIn: "LIVE FLOW, SIGNED IN, NOTHING SIMULATED",
+  error: "LIVE FLOW FAILED, NOTHING SIMULATED",
+};
 
-const POPOUT_BANNER = (
-  <>
-    <strong>LIVE FLOW, NOTHING SIMULATED</strong> — the widget runs the real DaVinci flow: this page asks the app&apos;s
-    BFF for a short-lived SDK token, DaVinci draws each screen, and a completed sign-in makes the BFF verify the
-    returned tokens and start a real app session. This window shows only the flow; open the lesson page for the call
-    trace. If the DaVinci connection is not configured or not reachable, the widget says so and offers Retry instead of
-    faking a flow.
-  </>
-);
+// Two bodies: the pop-out window has no Call Inspector, so its banner does not mention one.
+function bannerText(status, popout = false) {
+  return (
+    <>
+      <strong>{BANNER_LEAD[status] || BANNER_LEAD.loading}</strong> — the widget is wired to the real DaVinci flow: this
+      page asks the app&apos;s BFF for a short-lived SDK token, DaVinci draws each screen, and a completed sign-in makes
+      the BFF verify the returned tokens and start a real app session.{" "}
+      {popout
+        ? "This window shows only the flow; open the lesson page for the call trace."
+        : "The Call Inspector lists the calls this browser actually made (addresses and status only, never values or tokens). The lesson text is explanation."}{" "}
+      {status === "error"
+        ? "This run failed to start or complete: the reason is in the flow card, and Retry runs it again."
+        : "If the DaVinci connection is not configured or not reachable, the widget says so and offers Retry instead of faking a flow."}
+    </>
+  );
+}
 
 function FlowStatus({ status }) {
   const v = STATUS_VIEW[status] || STATUS_VIEW.loading;
@@ -147,7 +156,7 @@ export default function DavinciLoginGuidePage() {
   if (isPopout) {
     return (
       <PingPage className="dvlg dvlg-popout-page">
-        <SimBanner data-testid="dvlg-banner">{POPOUT_BANNER}</SimBanner>
+        <SimBanner data-testid="dvlg-banner">{bannerText(widgetStatus, true)}</SimBanner>
         <PageHeader className="dvl-login-header" eyebrow="PingOne DaVinci" title="DaVinci Widget Login" summary="Run the DaVinci flow in a separate window." />
         <Card tone={(STATUS_VIEW[widgetStatus] || STATUS_VIEW.loading).card} className="dvlg-popout-card">
           <p className="pu-status-line"><FlowStatus status={widgetStatus} />Pop-out window</p>
@@ -166,7 +175,7 @@ export default function DavinciLoginGuidePage() {
 
   return (
     <PingPage className="dvlg">
-      <SimBanner data-testid="dvlg-banner">{BANNER}</SimBanner>
+      <SimBanner data-testid="dvlg-banner">{bannerText(widgetStatus)}</SimBanner>
       <LessonLayout
         title="DaVinci Widget"
         pageClassName="dvl-lesson"
