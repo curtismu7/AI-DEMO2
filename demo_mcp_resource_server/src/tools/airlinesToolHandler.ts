@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import {
   airlinesDatabaseName,
   createBooking,
+  getFare,
   getFlight,
   getPassengerRecord,
   listBookings,
@@ -151,6 +152,19 @@ function bookFlight(args: Record<string, unknown>, subject: string): unknown {
   if (!flight) {
     return { source: SOURCE, booked: false, flightNumber, note: `No flight ${flightNumber} in the airlines database.` };
   }
+  // The fare judged by the booking rules is the catalogue fare, never the caller's. A quote that
+  // disagrees is refused (so a lie cannot be booked at the wrong price), as is a flight with no
+  // fare. This server is not a policy engine: whether a fare is allowed is decided at the gateway.
+  const fare = getFare(flightNumber);
+  if (fare === null) {
+    return { source: SOURCE, booked: false, reason: 'no_fare', flightNumber, note: `No catalogue fare for ${flightNumber}.` };
+  }
+  if (Math.abs(amount - fare) > 0.005) {
+    return {
+      source: SOURCE, booked: false, reason: 'fare_mismatch', flightNumber,
+      note: `Quoted $${amount} does not match the fare for ${flightNumber}.`,
+    };
+  }
   const match = resolvePassenger(subject);
   if (!match) {
     return { source: SOURCE, booked: false, note: 'No passenger records in the airlines database.' };
@@ -178,7 +192,8 @@ function bookFlight(args: Record<string, unknown>, subject: string): unknown {
     arrivalTime: flight.arrival_time,
     passengers,
     cabin: 'Economy',
-    amount,
+    amount: fare,
+    fare,
   };
 }
 
