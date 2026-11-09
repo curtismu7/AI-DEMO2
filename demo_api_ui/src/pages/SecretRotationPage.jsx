@@ -46,8 +46,21 @@ const RUN_VIEW = {
   done: { word: 'Rotated', tone: 'ok', card: 'ok' },
   aborted: { word: 'Refused', tone: 'warn', card: 'warn' },
   failed: { word: 'Failed', tone: 'danger', card: 'danger' },
+  // POST /start answered with an error: the BFF preflights before it spawns anything, so nothing was rotated.
+  notstarted: { word: 'Not started', tone: 'neutral', card: 'neutral' },
+  // No answer (network) or a poll that failed: the run may or may not exist.
   error: { word: 'Unknown', tone: 'warn', card: 'warn' },
 };
+
+// One application's run: kept per application so that choosing another row neither loses a running rotation nor lets a
+// second one start for the same application.
+const NO_RUN = { status: 'idle', lines: [], errorMessage: '' };
+
+// A response to POST /start (4xx, or the BFF's own 500/502 preflight failures) means the run never spawned.
+function startRefused(err) {
+  const code = err?.response?.status;
+  return Boolean(code) && (code < 500 || code === 500 || code === 502);
+}
 
 export default function SecretRotationPage() {
   const [apps, setApps] = useState([]);
@@ -84,17 +97,19 @@ export default function SecretRotationPage() {
   const [confirming, setConfirming] = useState(false);
   const [armed, setArmed] = useState(false);
   const [reason, setReason] = useState('');
-  const [lines, setLines] = useState([]);
-  const [status, setStatus] = useState('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-  const timer = useRef(null);
+  // appId -> { status, lines, errorMessage }. The page shows the selected application's entry.
+  const [runs, setRuns] = useState({});
+  // Applications with a rotation in flight (from the click on "Yes, rotate" until its run ends). Read synchronously so
+  // a second start can never slip in between two renders.
+  const inflight = useRef(new Set());
+  const timers = useRef({});
   // Set true on unmount; checked before every setState/re-poll so an
   // in-flight request or a pending poll timeout can't act on an unmounted
   // page (same pattern as KillSwitchConfirmModal.jsx).
   const cancelledRef = useRef(false);
-  // Bumped each time a different application is selected. A run's POST or poll that lands after that must not write its
-  // log or fingerprint under the newly selected application.
-  const viewTokenRef = useRef(0);
+  const setRun = useCallback((appId, patch) => {
+    setRuns((r) => ({ ...r, [appId]: { ...(r[appId] || NO_RUN), ...patch } }));
+  }, []);
 
   useEffect(() => {
     // A LOCAL `cancelled`, not `cancelledRef` — React StrictMode double-invokes
@@ -127,42 +142,36 @@ export default function SecretRotationPage() {
     return () => {
       cancelled = true;
       cancelledRef.current = true;
-      clearTimeout(timer.current);
+      Object.values(timers.current).forEach(clearTimeout);
+      timers.current = {};
     };
   }, []);
 
-  const poll = useCallback(async (runId, token) => {
+  const poll = useCallback(async (appId, runId) => {
     try {
       const { data } = await apiClient.get(`/api/admin/secret-rotation/runs/${runId}`);
-      if (cancelledRef.current || viewTokenRef.current !== token) return;
-      setLines(data.lines || []);
-      setStatus(data.status);
+      if (cancelledRef.current) return;
+      setRun(appId, { lines: data.lines || [], status: data.status });
       if (data.status === 'running') {
-        timer.current = setTimeout(() => {
-          if (!cancelledRef.current && viewTokenRef.current === token) poll(runId, token);
+        timers.current[appId] = setTimeout(() => {
+          if (!cancelledRef.current) poll(appId, runId);
         }, POLL_MS);
+      } else {
+        inflight.current.delete(appId);
       }
     } catch (err) {
-      if (cancelledRef.current || viewTokenRef.current !== token) return;
-      setStatus('error');
-      setErrorMessage(err?.message || 'Unknown error');
+      inflight.current.delete(appId);
+      if (cancelledRef.current) return;
+      setRun(appId, { status: 'error', errorMessage: err?.message || 'Unknown error' });
     }
-  }, []);
+  }, [setRun]);
 
   function selectApp(a) {
-    // The row click, its radio and its name button all land here: re-choosing the current application must not wipe
-    // its run.
+    // The row click, its radio and its name button all land here: re-choosing the current application is a no-op.
     if (selected?.id === a.id) return;
-    viewTokenRef.current += 1;
     setSelected(a);
     setArmed(false);
     setReason('');
-    // Clear the previous app's run too, or its fingerprint and log render
-    // under the newly selected app's heading.
-    clearTimeout(timer.current);
-    setLines([]);
-    setStatus('idle');
-    setErrorMessage('');
   }
 
   function closeConfirm() {
@@ -173,41 +182,45 @@ export default function SecretRotationPage() {
 
   function openConfirm() {
     // aria-disabled keeps the button focusable while a run is going; the click does nothing then.
-    if (status === 'running') return;
+    if (selected && inflight.current.has(selected.id)) return;
     setConfirming(true);
   }
 
   async function startRotation() {
-    const token = viewTokenRef.current;
+    const app = selected;
+    const why = reason;
+    if (inflight.current.has(app.id)) return;
+    inflight.current.add(app.id);
+    // The dialog's state belongs to the click, not to the response: reset it now so a late response cannot wipe what the
+    // operator has since typed for another application.
     setConfirming(false);
-    setStatus('running');
-    setErrorMessage('');
+    setArmed(false);
+    setReason('');
+    setRun(app.id, { status: 'running', lines: [], errorMessage: '' });
     try {
       const { data } = await apiClient.post('/api/admin/secret-rotation/start', {
-        appId: selected.id,
+        appId: app.id,
         // Server-derived by /apps — never guessed here. A key invented from the
         // display name can never match a real vault entry.
-        vaultKey: selected.vaultKey,
+        vaultKey: app.vaultKey,
         // Both false: the rotation runs inside the BFF container, which ships
         // no docker CLI and no kubectl. The run log prints the exact host
         // command to finish the job instead.
         restart: false,
         k8s: false,
-        reason,
+        reason: why,
       });
-      if (viewTokenRef.current !== token) return; // another application was selected meanwhile
-      setArmed(false);
-      setReason('');
-      poll(data.runId, token);
+      if (cancelledRef.current) return;
+      poll(app.id, data.runId);
     } catch (err) {
-      if (cancelledRef.current || viewTokenRef.current !== token) return;
-      setArmed(false);
-      setReason('');
-      setStatus('error');
-      setErrorMessage(err?.message || 'Unknown error');
+      inflight.current.delete(app.id);
+      if (cancelledRef.current) return;
+      const message = err?.response?.data?.error || err?.message || 'Unknown error';
+      setRun(app.id, { status: startRefused(err) ? 'notstarted' : 'error', errorMessage: message });
     }
   }
 
+  const { status, lines, errorMessage } = (selected && runs[selected.id]) || NO_RUN;
   const fingerprint = parseFingerprint(lines);
 
   let inspectorStatus = 'Loading applications…';
@@ -244,6 +257,7 @@ export default function SecretRotationPage() {
                 apps={apps}
                 appsState={appsState}
                 selected={selected}
+                runs={runs}
                 onSelect={selectApp}
                 colWidths={colWidths}
                 startColResize={startColResize}
@@ -317,7 +331,7 @@ export default function SecretRotationPage() {
 }
 
 // Below the page so the page reads banner first in source order; function declarations hoist.
-function AppTable({ apps, appsState, selected, onSelect, colWidths, startColResize }) {
+function AppTable({ apps, appsState, selected, runs, onSelect, colWidths, startColResize }) {
   return (
     <>
       <div className="inspector-shell-tree-header">Rotatable applications</div>
@@ -385,6 +399,7 @@ function AppTable({ apps, appsState, selected, onSelect, colWidths, startColResi
                       {a.name}
                     </button>
                     <div className="srot-row-clientid">{a.clientId}</div>
+                    {runs[a.id]?.status === 'running' && <StatusChip tone="info">Running</StatusChip>}
                   </td>
                   <td className="srot-meta">{a.tokenEndpointAuthMethod}</td>
                 </tr>
@@ -428,6 +443,9 @@ function RunDetail({ selected, status, errorMessage, fingerprint, confirming, on
             },
           ]}
         />
+        <p className="pu-note srot-irreversible">
+          Irreversible: the old secret stops working the moment PingOne accepts the change.
+        </p>
         <div className="pu-actions">
           <button
             type="button"
@@ -446,11 +464,12 @@ function RunDetail({ selected, status, errorMessage, fingerprint, confirming, on
           <StatusChip tone={run.tone}>{run.word}</StatusChip>
           <span>
             {status === 'idle' && 'No rotation has been run for this application in this view.'}
-            {running && 'Rotating… the old secret stops working as soon as PingOne accepts the change. A second run is blocked until this one ends.'}
+            {running && 'Rotating… the old secret stops working as soon as PingOne accepts the change. Another run of this application is blocked until this one ends.'}
             {status === 'done' && 'The run reported success: rotated in PingOne, written to the vault and checked by the run. The secret is not shown. The log prints the host command that restarts the services.'}
             {status === 'aborted' && 'Rotation refused — nothing was changed. See the log.'}
             {status === 'failed' && 'Rotation did not finish cleanly. The secret may already have been rotated. See the log.'}
-            {status === 'error' && `Rotation status unknown: ${errorMessage}`}
+            {status === 'notstarted' && `The rotation was not started, so nothing was changed. The server said: ${errorMessage}`}
+            {status === 'error' && `Could not confirm what happened (${errorMessage}). The rotation may or may not have run; check the log and the fingerprint before trying again.`}
           </span>
         </div>
         {/* The mask claims a secret exists, so only a completed rotation earns it. */}
