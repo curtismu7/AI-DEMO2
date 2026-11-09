@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import JevLearningPage from './JevLearningPage';
@@ -89,7 +91,7 @@ describe('JevLearningPage', () => {
   it('renders signed out and labels simulated mode as not evidence about Jev', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(1, 'simulated')));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getByText(/Simulated - not configured/)).toBeTruthy());
     expect(screen.getByText(/says nothing about Jev/)).toBeTruthy();
   });
@@ -97,8 +99,8 @@ describe('JevLearningPage', () => {
   it('a risk run loads its score into the threshold lesson', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.97)));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('tab', { name: 'Step-up risk' }));
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Step-up risk' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getByText('0.97')).toBeTruthy());
   });
 
@@ -109,7 +111,7 @@ describe('JevLearningPage', () => {
     let resolveReply;
     vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((resolve) => { resolveReply = resolve; })));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     // The progress region is mounted before the run (see the Ping UI conversion block below); it carries the words.
     expect(await screen.findByText(/Jev is reading the text/i)).toBeTruthy();
     expect(screen.getByTestId('jevl-live-status').textContent).toMatch(/Running/);
@@ -121,7 +123,7 @@ describe('JevLearningPage', () => {
   it('each result box explains itself, and the Jev box quotes its score in plain words', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getByText(/matched nothing on its trigger-word list/i)).toBeTruthy());
     expect(screen.getByText(/about 84%/)).toBeTruthy();
   });
@@ -129,7 +131,7 @@ describe('JevLearningPage', () => {
   it('says how a service uses the score: policy thresholds, with the slider as the worked example', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getAllByText(/allow below 0\.4/i).length).toBeGreaterThan(0));
   });
 
@@ -140,14 +142,14 @@ describe('JevLearningPage', () => {
     }) };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(hit));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getAllByText(/matched a trigger phrase/i).length).toBeGreaterThan(0));
   });
 
   it('explains the scenario itself - what a prompt injection is and why these examples', () => {
     render(<JevLearningPage />);
     expect(screen.getAllByText(/A prompt injection is text that tries to take over the assistant/).length).toBe(2);
-    fireEvent.click(livePanel().getByRole('tab', { name: 'Step-up risk' }));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Step-up risk' }));
     expect(screen.getByText(/Fraudulent transfers are urgent, oversized, or go to new payees/)).toBeTruthy();
   });
 
@@ -235,7 +237,7 @@ describe('LangChain integration panel', () => {
     const f = vi.fn().mockResolvedValue(lcReply(agentLive));
     vi.stubGlobal('fetch', f);
     render(<JevLearningPage />);
-    fireEvent.click(lc().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(lc().getByText('P(yes) = 0.83')).toBeTruthy());
     expect(f.mock.calls[0][0]).toBe('/api/demo/jev/langchain');
     expect(lc().getByText(/94 prompt · 1 completion/)).toBeTruthy();
@@ -249,7 +251,7 @@ describe('LangChain integration panel', () => {
   it('shows an inline error on failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ message: 'LangChain Jev did not answer; try again.' }) }));
     render(<JevLearningPage />);
-    fireEvent.click(lc().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(lc().getByRole('alert').textContent).toMatch(/LangChain Jev did not answer/));
   });
 });
@@ -274,7 +276,7 @@ describe('Ping UI Standard conversion', () => {
     render(<JevLearningPage />);
     const found = primaries();
     expect(found).toHaveLength(1);
-    expect(found[0]).toBe(livePanel().getByRole('button', { name: 'Decide' }));
+    expect(found[0]).toBe(livePanel().getByRole('button', { name: /^Decide/ }));
     for (const name of ['Run bake-off', 'Run intent bake-off']) {
       expect(screen.getByRole('button', { name }).classList.contains('pu-btn--primary')).toBe(false);
     }
@@ -285,7 +287,7 @@ describe('Ping UI Standard conversion', () => {
     const f = vi.fn().mockReturnValue(new Promise((resolve) => { resolveReply = resolve; }));
     vi.stubGlobal('fetch', f);
     render(<JevLearningPage />);
-    const decide = livePanel().getByRole('button', { name: 'Decide' });
+    const decide = livePanel().getByRole('button', { name: /^Decide/ });
     decide.focus();
     fireEvent.click(decide);
     await waitFor(() => expect(decide.getAttribute('aria-disabled')).toBe('true'));
@@ -304,7 +306,7 @@ describe('Ping UI Standard conversion', () => {
     vi.stubGlobal('fetch', f);
     render(<JevLearningPage />);
     fireEvent.change(livePanel().getByLabelText('Text to judge'), { target: { value: '   ' } });
-    const decide = livePanel().getByRole('button', { name: 'Decide' });
+    const decide = livePanel().getByRole('button', { name: /^Decide/ });
     expect(decide.getAttribute('aria-disabled')).toBe('true');
     expect(livePanel().getByText(/Type or pick some text first/)).toBeTruthy();
     expect(livePanel().getByLabelText('Text to judge').getAttribute('aria-describedby')).toBe('jevl-live-reason');
@@ -318,12 +320,12 @@ describe('Ping UI Standard conversion', () => {
     expect(region.getAttribute('role')).toBe('status');
     expect(region.textContent).toBe('');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.9)));
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getByTestId('jevl-live-status').textContent).toMatch(/Finished/));
     expect(screen.getByTestId('jevl-live-status')).toBe(region); // same node: it was never remounted
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ message: 'nope' }) }));
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(region.textContent).toMatch(/Failed/));
     expect(region.textContent).not.toMatch(/Finished/);
   });
@@ -331,14 +333,14 @@ describe('Ping UI Standard conversion', () => {
   it('the Jev card chip and tone come from the mode the server reported', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(1, 'simulated')));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     const card = await screen.findByTestId('jevl-live-jev');
     expect(card.classList.contains('pu-card--warn')).toBe(true);
     expect(within(card).getByText('Simulated - not configured').closest('.pu-chip').classList.contains('pu-chip--warn')).toBe(true);
     expect(screen.getByTestId('jevl-live-status').textContent).not.toMatch(/Jev is reading/);
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.4, 'live')));
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(screen.getByTestId('jevl-live-jev').classList.contains('pu-card--live')).toBe(true));
     expect(within(screen.getByTestId('jevl-live-jev')).getByText('Live: m').closest('.pu-chip').classList.contains('pu-chip--info')).toBe(true);
   });
@@ -366,11 +368,11 @@ describe('Ping UI Standard conversion', () => {
     expect(row.textContent).toMatch(/Step-up/); // the default score 0.62 sits between 0.4 and 0.9
   });
 
-  it('scenario tabs and example buttons are secondaries that show the chosen one', () => {
+  it('scenario and example buttons are secondaries that show the chosen one', () => {
     render(<JevLearningPage />);
-    const tab = livePanel().getByRole('tab', { name: 'Intent routing' });
+    const tab = livePanel().getByRole('button', { name: 'Intent routing' });
     fireEvent.click(tab);
-    expect(tab.getAttribute('aria-selected')).toBe('true');
+    expect(tab.getAttribute('aria-pressed')).toBe('true');
     expect(tab.className).toBe('pu-btn');
     const first = SCENARIO_FIRST_EXAMPLE_INTENT;
     expect(livePanel().getByRole('button', { name: first }).getAttribute('aria-pressed')).toBe('true');
@@ -384,7 +386,203 @@ describe('Ping UI Standard conversion', () => {
     const long = 'x'.repeat(100);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({ message: long }) }));
     render(<JevLearningPage />);
-    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
     await waitFor(() => expect(livePanel().getByRole('alert').textContent).toBe(long));
+  });
+});
+
+describe('skeptic fixes on the conversion', () => {
+  const lc = () => within(screen.getByRole('region', { name: 'The same lesson through LangChain' }));
+  const rulesNo = { latencyMs: 0, answer: { type: 'noul', probability: 0 } };
+  const lcBody = (probability, mode = 'live', extra = {}) => ({
+    ok: true,
+    json: async () => ({
+      heuristic: rulesNo,
+      langchain: { mode, model: 'von', latency_ms: 9, answer: { type: 'noul', probability }, ...extra },
+    }),
+  });
+
+  it('LangChain rules card only claims the model disagreed when a live model really scored the other way', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(lcBody(0.9)));
+    render(<JevLearningPage />);
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(lc().getByTestId('jevl-lc-rules')).toBeTruthy());
+    expect(lc().getByTestId('jevl-lc-rules').textContent).toMatch(/model beside it read the same text and disagreed/);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(lcBody(0.02)));
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(lc().getByText('P(yes) = 0.02')).toBeTruthy());
+    expect(lc().getByTestId('jevl-lc-rules').textContent).not.toMatch(/disagreed/);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ heuristic: rulesNo, langchain: null }) }));
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(lc().getByTestId('jevl-lc-jev').textContent).toMatch(/No answer/));
+    expect(lc().getByTestId('jevl-lc-rules').textContent).not.toMatch(/disagreed/);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(lcBody(0.9, 'simulated')));
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(lc().getByTestId('jevl-lc-jev').textContent).toMatch(/Simulated - not configured/));
+    expect(lc().getByTestId('jevl-lc-rules').textContent).not.toMatch(/disagreed/);
+    expect(lc().getByTestId('jevl-lc-jev').textContent).not.toMatch(/read the meaning/);
+  });
+
+  it('a LangChain call with no answer gets a neutral card and chip, not Simulated', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ heuristic: rulesNo, langchain: null }) }));
+    render(<JevLearningPage />);
+    fireEvent.click(lc().getByRole('button', { name: /^Decide/ }));
+    const card = await screen.findByTestId('jevl-lc-jev');
+    expect(card.classList.contains('pu-card--neutral')).toBe(true);
+    const chip = within(card).getByText('No answer').closest('.pu-chip');
+    expect(chip.classList.contains('pu-chip--neutral')).toBe(true);
+    expect(card.textContent).not.toMatch(/Simulated/);
+  });
+
+  it('an unrecognised mode is neutral and not called simulated or live', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.4, 'mystery')));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    const card = await screen.findByTestId('jevl-live-jev');
+    expect(card.classList.contains('pu-card--neutral')).toBe(true);
+    expect(card.textContent).toMatch(/Mode not reported/);
+    expect(card.textContent).not.toMatch(/Simulated|Live:/);
+    expect(screen.getByTestId('jevl-live-status').textContent).toMatch(/did not say which mode/);
+  });
+
+  it('the rules explanation follows the answer and scenario, not a fixed example', async () => {
+    const choice = { ok: true, json: async () => ({
+      jev: { mode: 'live', model: 'm', latencyMs: 5, answer: { type: 'choice', choice: 'check_balance', confidence: 0.9 } },
+      heuristic: { latencyMs: 0, answer: { type: 'choice', choice: 'other', confidence: 1 } },
+    }) };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(choice));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: 'Intent routing' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    const card = await screen.findByTestId('jevl-live-rules');
+    expect(card.textContent).toMatch(/picked "other" by matching listed words/);
+    expect(card.textContent).not.toMatch(/trigger|kindly forget/i);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.3)));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Step-up risk' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(screen.getByTestId('jevl-live-rules').textContent).toMatch(/No fixed rule matched/));
+    expect(screen.getByTestId('jevl-live-rules').textContent).not.toMatch(/kindly forget|trigger/i);
+  });
+
+  it('the busy text does not claim a local model', async () => {
+    let resolveReply;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((resolve) => { resolveReply = resolve; })));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(screen.getByTestId('jevl-live-status').textContent).toMatch(/Running/));
+    expect(screen.getByTestId('jevl-live-status').textContent).not.toMatch(/local model/i);
+    resolveReply(reply(0.2));
+    await waitFor(() => expect(screen.getByTestId('jevl-live-status').textContent).toMatch(/Finished/));
+  });
+
+  it('the banner does not promise the rules result on a failed call', () => {
+    render(<JevLearningPage />);
+    const text = screen.getByTestId('jevl-banner').textContent;
+    expect(text).not.toMatch(/always run/);
+    expect(text).toMatch(/failed call shows its error/);
+  });
+
+  it('the scenario pickers are toggle buttons in a group, not an incomplete tab pattern', () => {
+    const { container } = render(<JevLearningPage />);
+    expect(container.querySelector('[role="tab"], [role="tablist"]')).toBeNull();
+    const group = screen.getByRole('group', { name: 'Scenario' });
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+    fireEvent.click(buttons[2]);
+    expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
+    expect(screen.getByRole('group', { name: 'Scenario for the LangChain run' })).toBeTruthy();
+  });
+
+  it('the two Decide buttons have different names that still start with the visible word', () => {
+    render(<JevLearningPage />);
+    const names = screen.getAllByRole('button', { name: /^Decide/ }).map((b) => b.getAttribute('aria-label'));
+    expect(names).toHaveLength(2);
+    expect(new Set(names).size).toBe(2);
+    names.forEach((n) => expect(n.startsWith('Decide')).toBe(true));
+  });
+
+  it('a stable mounted status region announces the policy outcome as the sliders move', () => {
+    render(<JevLearningPage />);
+    const region = screen.getByTestId('jevl-outcome-status');
+    expect(region.getAttribute('role')).toBe('status');
+    expect(region.textContent).toMatch(/Current outcome: Step-up.*0\.62/);
+    fireEvent.change(screen.getByLabelText(/Risk score P\(yes risky\)/), { target: { value: '0.95' } });
+    expect(screen.getByTestId('jevl-outcome-status')).toBe(region);
+    expect(region.textContent).toMatch(/Current outcome: Deny.*0\.95/);
+  });
+
+  it('the slider says where its score came from: sample, a live run, the rules, or you', async () => {
+    render(<JevLearningPage />);
+    expect(screen.queryByLabelText(/Jev P\(yes risky\)/)).toBeNull();
+    expect(screen.getByTestId('jevl-risk-source').textContent).toMatch(/sample value, not a Jev score/i);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.97, 'live')));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Step-up risk' }));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(screen.getByTestId('jevl-risk-source').textContent).toMatch(/Jev, m/));
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.1, 'simulated')));
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(screen.getByTestId('jevl-risk-source').textContent).toMatch(/no model answered/));
+
+    fireEvent.change(screen.getByLabelText(/Risk score P\(yes risky\)/), { target: { value: '0.5' } });
+    expect(screen.getByTestId('jevl-risk-source').textContent).toBe('Set by you.');
+  });
+
+  it('a reply that lands after the scenario changed is dropped, not shown under the new scenario', async () => {
+    let resolveReply;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((resolve) => { resolveReply = resolve; })));
+    render(<JevLearningPage />);
+    const decide = livePanel().getByRole('button', { name: /^Decide/ });
+    fireEvent.click(decide);
+    await waitFor(() => expect(decide.getAttribute('aria-disabled')).toBe('true'));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Intent routing' }));
+    expect(decide.getAttribute('aria-disabled')).toBeNull(); // the new scenario can be run straight away
+    resolveReply(reply(0.9));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByTestId('jevl-live-rules')).toBeNull();
+    expect(screen.getByTestId('jevl-live-status').textContent).toBe('');
+  });
+
+  it('a failed run does not leak its error into the next scenario', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ message: 'upstream down' }) }));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: /^Decide/ }));
+    await waitFor(() => expect(livePanel().getByRole('alert').textContent).toBe('upstream down'));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Intent routing' }));
+    expect(livePanel().queryByRole('alert')).toBeNull();
+    expect(screen.getByTestId('jevl-live-status').textContent).toBe('');
+  });
+
+  it('keeps the result cards mounted while a rerun is in flight, so focus is not dropped', async () => {
+    let resolveSecond;
+    const f = vi.fn()
+      .mockResolvedValueOnce(reply(0.4))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve; }));
+    vi.stubGlobal('fetch', f);
+    render(<JevLearningPage />);
+    const decide = livePanel().getByRole('button', { name: /^Decide/ });
+    fireEvent.click(decide);
+    const card = await screen.findByTestId('jevl-live-jev');
+    decide.focus();
+    fireEvent.click(decide);
+    await waitFor(() => expect(decide.getAttribute('aria-disabled')).toBe('true'));
+    expect(screen.getByTestId('jevl-live-jev')).toBe(card);
+    expect(document.activeElement).toBe(decide);
+    resolveSecond(reply(0.6));
+    await waitFor(() => expect(decide.getAttribute('aria-disabled')).toBeNull());
+  });
+
+  it('the page CSS keeps a busy primary at full strength (white on red 5.5:1) and scopes the new rules', () => {
+    const css = readFileSync(resolve(__dirname, 'JevLearningPage.css'), 'utf8');
+    const rule = css.match(/\.pu-page\.jevl-page button\.pu-btn\.pu-btn--primary\[aria-disabled='true'\]\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).toMatch(/opacity:\s*1/);
+    const outcome = css.match(/\.jevl-page \.jevl-outcome-status \{([^}]*)\}/);
+    expect(outcome[1]).toMatch(/color:/);
   });
 });

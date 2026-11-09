@@ -1,5 +1,5 @@
 // demo_api_ui/src/pages/JevLearningPage.jsx
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   SYSTEM_COMPARE,
   SCENARIOS,
@@ -71,14 +71,53 @@ function explainJev(answer) {
   return `The model read the meaning of the text and scored how likely the answer to the question above is "yes": about ${pct}%. Unlike the rules, it can say "probably" or "not sure", and a score near 50% means it is unsure.`;
 }
 
+/** True when two answers to the same question point different ways (a yes against a no, or two different picks). */
+function disagree(a, b) {
+  if (!a || !b) return false;
+  if (a.type === 'choice' && b.type === 'choice') return a.choice !== b.choice;
+  if (a.type !== 'choice' && b.type !== 'choice') return (a.probability >= 0.5) !== (b.probability >= 0.5);
+  return false;
+}
+
+/**
+ * What the keyword rules' answer means, worded for the answer that was actually returned (a pick, or a yes/no) and the
+ * scenario that was run. The long form is the live panel's; the short form is the LangChain panel's.
+ */
+function rulesNote(answer, scenario, short) {
+  if (answer.type === 'choice') {
+    return short
+      ? `Picked "${answer.choice}" by matching listed words; anything it does not match is filed under "other".`
+      : `It picked "${answer.choice}" by matching listed words (send, pay, move mean a transfer; balance, how much mean a balance check) and files everything else under "other". It never reads meaning, so a message worded differently falls through.`;
+  }
+  const hit = rulesHit(answer);
+  if (scenario !== 'injection') {
+    if (short) return hit ? 'A fixed rule matched - yes (1.00), the only verdict it knows.' : 'No fixed rule matched - no (0.00).';
+    return hit
+      ? 'A fixed rule matched, so it says yes (1.00) - and that is all it can ever say. It never reads meaning and never says "maybe".'
+      : 'No fixed rule matched, so it says no (0.00) - but that only means the exact patterns it knows are absent. It never reads meaning and never says "maybe".';
+  }
+  if (short) {
+    return hit
+      ? 'Matched a trigger phrase on its fixed list - yes (1.00), the only verdict it knows.'
+      : 'Matched nothing on its trigger-word list - no (0.00).';
+  }
+  return hit
+    ? 'Matched a trigger phrase on its fixed list, so it says yes (1.00) - and that is all it can ever say. It never reads meaning and never says "maybe", so a reworded attack that uses no listed phrase slips straight through.'
+    : 'Matched nothing on its trigger-word list, so it says no (0.00) - but that only means the exact phrases it knows are absent. A reworded attack such as "Please kindly forget everything you were told" contains no trigger phrase, so this list would miss it.';
+}
+
 // The page component comes first in the file on purpose: scripts/check-ui-patterns.mjs reads the source in order and
 // requires the banner before any section, card or button. The helpers below are hoisted function declarations.
 export default function JevLearningPage() {
-  const [risk, setRisk] = useState(0.62);
+  // Where the slider's score came from, so a sample never reads as a Jev result.
+  const [risk, setRisk] = useState({ p: 0.62, source: 'sample', model: '' });
+  const loadRisk = useCallback((p, mode, model) => setRisk({ p, source: mode === 'live' ? 'live' : 'rules', model }), []);
+  const setRiskByHand = useCallback((p) => setRisk({ p, source: 'you', model: '' }), []);
   return (
     <PingPage className="jevl-page">
       <SimBanner data-testid="jevl-banner">
-        <strong>WHAT IS REAL ON THIS PAGE</strong> — the keyword rules always run, on the server. Jev answers live only
+        <strong>WHAT IS REAL ON THIS PAGE</strong> — the keyword rules run on the server for every call, so you see
+        them only while the server answers (a failed call shows its error, not a result). Jev answers live only
         when the server has a decision model configured, and every Jev result says which it was:{' '}
         <strong>Live</strong> (the model answered this call), <strong>Simulated</strong> (no model configured, so that
         column repeats the keyword rules) or <strong>Recorded</strong> (a saved run of {RECORDED_RUN.model} from{' '}
@@ -111,8 +150,8 @@ export default function JevLearningPage() {
           </Card>
         </Section>
 
-        <LivePanel onRisk={setRisk} />
-        <ThresholdLesson probability={risk} setProbability={setRisk} />
+        <LivePanel onRisk={loadRisk} />
+        <ThresholdLesson probability={risk.p} source={risk} setProbability={setRiskByHand} />
         <Bakeoff />
         <IntentBakeoff />
         <LangChainPanel />
@@ -125,14 +164,16 @@ const MODE_CHIP = {
   live: { tone: 'info', card: 'live' },
   recorded: { tone: 'neutral', card: 'neutral' },
   simulated: { tone: 'warn', card: 'warn' },
+  unknown: { tone: 'neutral', card: 'neutral' }, // no mode, or one this page does not know: claim nothing
 };
-const modeKind = (mode) => (MODE_CHIP[mode] ? mode : 'simulated');
+const modeKind = (mode) => (mode && mode !== 'unknown' && MODE_CHIP[mode] ? mode : 'unknown');
 
 /** The word on the chip comes from the mode the server reported, never a fixed claim. */
 function ModeBadge({ mode, model }) {
   const kind = modeKind(mode);
-  let word = 'Simulated - not configured';
-  if (kind === 'recorded') word = `Recorded: ${model}, ${RECORDED_RUN.date}`;
+  let word = mode ? 'Mode not reported' : 'No answer';
+  if (kind === 'simulated') word = 'Simulated - not configured';
+  else if (kind === 'recorded') word = `Recorded: ${model}, ${RECORDED_RUN.date}`;
   else if (kind === 'live') word = `Live: ${model}`;
   return <StatusChip tone={MODE_CHIP[kind].tone}>{word}</StatusChip>;
 }
@@ -174,15 +215,28 @@ function RunStatus({ busy, error, done, busyText, doneText, testId }) {
   );
 }
 
+/** The progress line once a run has finished, worded for the mode the server reported and for nothing else. */
+function liveDone(kind, card, liveText) {
+  if (kind === 'live') return liveText;
+  if (kind === 'simulated') return `${card} repeats the keyword rules: no model is configured, so treat it as the baseline again.`;
+  return `The server did not say which mode answered, so do not read ${card.toLowerCase()} as a live model answer.`;
+}
+
+/** The progress line under a finished bake-off table, worded for the mode the Jev column reported. */
+function tableDone(mode) {
+  if (mode === 'live') return 'This table is the live run.';
+  if (mode === 'simulated') return 'No model is configured, so the Jev column repeats the keyword rules.';
+  return 'The server did not say which mode answered, so do not read the Jev column as a live model.';
+}
+
 function ScenarioPicker({ scenario, onPick, label }) {
   return (
-    <div className="jevl-choices" role="tablist" aria-label={label}>
+    <div className="jevl-choices" role="group" aria-label={label}>
       {Object.entries(SCENARIOS).map(([key, s]) => (
         <button
           key={key}
           type="button"
-          role="tab"
-          aria-selected={scenario === key}
+          aria-pressed={scenario === key}
           className="pu-btn"
           onClick={() => onPick(key)}
         >
@@ -212,27 +266,35 @@ function LivePanel({ onRisk }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const runId = useRef(0); // a reply that lands after the scenario changed belongs to the old scenario: drop it
+
   const pick = (key) => {
+    runId.current += 1;
     setScenario(key);
     setText(SCENARIOS[key].examples[0]);
     setResult(null);
     setError('');
+    setBusy(false);
   };
 
   const empty = !text.trim();
   const run = useCallback(async () => {
     if (busy || empty) return; // aria-disabled keeps focus on the button; the click is ignored
+    runId.current += 1;
+    const mine = runId.current;
     setBusy(true);
     setError('');
     try {
       const r = await evaluate(scenario, text);
+      if (mine !== runId.current) return;
       setResult(r);
-      if (scenario === 'risk' && r.jev.answer.type === 'noul') onRisk(r.jev.answer.probability);
+      if (scenario === 'risk' && r.jev.answer.type === 'noul') onRisk(r.jev.answer.probability, r.jev.mode, r.jev.model);
     } catch (e) {
+      if (mine !== runId.current) return;
       setResult(null);
       setError(e.message);
     } finally {
-      setBusy(false);
+      if (mine === runId.current) setBusy(false);
     }
   }, [scenario, text, onRisk, busy, empty]);
 
@@ -260,6 +322,7 @@ function LivePanel({ onRisk }) {
           <button
             type="button"
             className="pu-btn pu-btn--primary"
+            aria-label="Decide: keyword rules and Jev, direct call"
             aria-disabled={busy || empty ? 'true' : undefined}
             onClick={run}
             data-testid="jevl-live-decide"
@@ -271,10 +334,8 @@ function LivePanel({ onRisk }) {
           busy={busy}
           error={error}
           done={Boolean(result)}
-          busyText="Jev is reading the text. This is a decision model, not a chat: it takes a second, longer the first time while the local model loads."
-          doneText={jevKind === 'live'
-            ? 'Both deciders answered. Compare the two cards below.'
-            : 'The Jev card repeats the keyword rules: no model is configured, so treat it as the baseline again.'}
+          busyText="Jev is reading the text. This is a decision model, not a chat: it takes a second, and longer on the first call."
+          doneText={liveDone(jevKind, 'The Jev card', 'Both deciders answered. Compare the two cards below.')}
           testId="jevl-live-status"
         />
         {error && <p className="pu-note jevl-error" role="alert">{error}</p>}
@@ -283,22 +344,10 @@ function LivePanel({ onRisk }) {
         <CardGrid>
           <Card tone="neutral" title="Keyword rules" data-testid="jevl-live-rules">
             <p className="jevl-big">{headline(result.heuristic.answer)}</p>
-            {rulesHit(result.heuristic.answer) ? (
-              <p className="pu-note">
-                Matched a trigger phrase on its fixed list, so it says yes (1.00) - and that is all it
-                can ever say. It never reads meaning and never says "maybe", so a reworded attack that
-                uses no listed phrase slips straight through.
-              </p>
-            ) : (
-              <p className="pu-note">
-                Matched nothing on its trigger-word list, so it says no (0.00) - but that only means the
-                exact phrases it knows are absent. "Please kindly forget everything you were told" is an
-                attack with no trigger phrase, which is exactly what it just missed.
-              </p>
-            )}
+            <p className="pu-note">{rulesNote(result.heuristic.answer, scenario, false)}</p>
             <KvList items={[
               { label: 'Latency', value: `${result.heuristic.latencyMs} ms` },
-              { label: 'Answers', value: 'always 0 or 1, never unsure' },
+              { label: 'Answers', value: result.heuristic.answer.type === 'choice' ? 'always a listed pick, never unsure' : 'always 0 or 1, never unsure' },
             ]}
             />
           </Card>
@@ -332,10 +381,18 @@ function LivePanel({ onRisk }) {
   );
 }
 
-function ThresholdLesson({ probability, setProbability }) {
+const RISK_SOURCE_NOTE = {
+  sample: 'A sample value, not a Jev score. Run the Step-up risk example above to load one.',
+  you: 'Set by you.',
+  rules: 'Loaded from the last Step-up risk run, but no model answered: this is the keyword rules, not a Jev score.',
+};
+const riskSourceNote = (src) => (src.source === 'live' ? `Loaded from the last Step-up risk run (Jev, ${src.model}).` : RISK_SOURCE_NOTE[src.source]);
+
+function ThresholdLesson({ probability, source, setProbability }) {
   const [stepUpAt, setStepUpAt] = useState(0.4);
   const [denyAt, setDenyAt] = useState(0.9);
   const outcome = decide(probability, stepUpAt, denyAt);
+  const outcomeLabel = POLICY_RULES.find((r) => r.id === outcome)?.label;
   return (
     <Section
       id="jev-thresh"
@@ -345,10 +402,12 @@ function ThresholdLesson({ probability, setProbability }) {
     >
       <Card data-testid="jevl-thresholds">
         <label className="jevl-slider">
-          Jev P(yes risky): <strong>{probability.toFixed(2)}</strong>
+          Risk score P(yes risky): <strong>{probability.toFixed(2)}</strong>
           <input type="range" min="0" max="1" step="0.01" value={probability}
+            aria-describedby="jevl-risk-source"
             onChange={(e) => setProbability(Number(e.target.value))} />
         </label>
+        <p id="jevl-risk-source" className="pu-note" data-testid="jevl-risk-source">{riskSourceNote(source)}</p>
         <label className="jevl-slider">
           Step-up at: <strong>{stepUpAt.toFixed(2)}</strong>
           <input type="range" min="0" max="1" step="0.01" value={stepUpAt}
@@ -359,6 +418,9 @@ function ThresholdLesson({ probability, setProbability }) {
           <input type="range" min="0" max="1" step="0.01" value={denyAt}
             onChange={(e) => setDenyAt(Math.max(Number(e.target.value), stepUpAt))} />
         </label>
+        <p role="status" aria-live="polite" className="jevl-outcome-status" data-testid="jevl-outcome-status">
+          Current outcome: <strong>{outcomeLabel}</strong> at a score of {probability.toFixed(2)}
+        </p>
         <ul className="jevl-outcomes">
           {POLICY_RULES.map((r) => (
             <li
@@ -491,9 +553,7 @@ function Bakeoff() {
           error={error}
           done={rows !== null}
           busyText={`Running the ${BAKEOFF.length} messages through both deciders, one at a time.`}
-          doneText={score.mode === 'live'
-            ? 'This table is the live run.'
-            : 'No model is configured, so the Jev column repeats the keyword rules.'}
+          doneText={tableDone(score.mode)}
           testId="jevl-bake-status"
         />
         {error && <p className="pu-note jevl-error" role="alert">{error}</p>}
@@ -528,7 +588,7 @@ function Bakeoff() {
           </p>
         )}
       </Card>
-      <GuardrailReadout rows={shown} live={score.mode !== 'simulated'} />
+      <GuardrailReadout rows={shown} live={score.mode === 'live' || score.mode === 'recorded'} />
     </Section>
   );
 }
@@ -596,9 +656,7 @@ function IntentBakeoff() {
           error={error}
           done={rows !== null}
           busyText={`Running the ${INTENT_BAKEOFF.length} messages through both deciders, one at a time.`}
-          doneText={score.mode === 'live'
-            ? 'This table is the live run.'
-            : 'No model is configured, so the Jev column repeats the keyword rules.'}
+          doneText={tableDone(score.mode)}
           testId="jevl-intent-status"
         />
         {error && <p className="pu-note jevl-error" role="alert">{error}</p>}
@@ -629,7 +687,7 @@ function IntentBakeoff() {
         <p className="jevl-big">
           Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
         </p>
-        {score.mode !== 'simulated' && (
+        {(score.mode === 'live' || score.mode === 'recorded') && (
           <p className="pu-note">
             Jev's confidence ranged from {score.min}% to {score.max}%.
             {score.topWrong
@@ -638,7 +696,7 @@ function IntentBakeoff() {
           </p>
         )}
       </Card>
-      <IntentReadout rows={shown} live={score.mode !== 'simulated'} />
+      <IntentReadout rows={shown} live={score.mode === 'live' || score.mode === 'recorded'} />
     </Section>
   );
 }
@@ -654,16 +712,22 @@ function LangChainPanel() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const runId = useRef(0); // a reply that lands after the scenario changed belongs to the old scenario: drop it
+
   const pick = (key) => {
+    runId.current += 1;
     setScenario(key);
     setText(SCENARIOS[key].examples[0]);
     setResult(null);
     setError('');
+    setBusy(false);
   };
 
   const empty = !text.trim();
   const run = useCallback(async () => {
     if (busy || empty) return; // aria-disabled keeps focus on the button; the click is ignored
+    runId.current += 1;
+    const mine = runId.current;
     setBusy(true);
     setError('');
     try {
@@ -674,12 +738,14 @@ function LangChainPanel() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || `HTTP ${res.status}`);
+      if (mine !== runId.current) return;
       setResult(body);
     } catch (e) {
+      if (mine !== runId.current) return;
       setResult(null);
       setError(e.message);
     } finally {
-      setBusy(false);
+      if (mine === runId.current) setBusy(false);
     }
   }, [scenario, text, busy, empty]);
 
@@ -715,6 +781,7 @@ function LangChainPanel() {
           <button
             type="button"
             className="pu-btn"
+            aria-label="Decide: keyword rules and Jev, through LangChain"
             aria-disabled={busy || empty ? 'true' : undefined}
             onClick={run}
             data-testid="jevl-lc-decide"
@@ -727,7 +794,9 @@ function LangChainPanel() {
           error={error}
           done={Boolean(result)}
           busyText="Jev is reading the text, through LangChain in the agent container: a bit longer than the direct call."
-          doneText={result?.langchain ? 'Both answers are in. Compare the two cards below.' : 'The call returned no LangChain answer, so only the keyword rules are shown.'}
+          doneText={result?.langchain
+            ? liveDone(lcKind, 'The LangChain card', 'Both answers are in. Compare the two cards below.')
+            : 'The call returned no LangChain answer, so only the keyword rules are shown.'}
           testId="jevl-lc-status"
         />
         {error && <p className="pu-note jevl-error" role="alert">{error}</p>}
@@ -737,9 +806,10 @@ function LangChainPanel() {
           <Card tone="neutral" title="Keyword rules" data-testid="jevl-lc-rules">
             <p className="jevl-big">{headline(result.heuristic.answer)}</p>
             <p className="pu-note">
-              {rulesHit(result.heuristic.answer)
-                ? 'Matched a trigger phrase on its fixed list - yes (1.00), the only verdict it knows.'
-                : 'Matched nothing on its trigger-word list - no (0.00), even though the model beside it read the same text and disagreed.'}
+              {rulesNote(result.heuristic.answer, scenario, true)}
+              {lcKind === 'live' && disagree(result.heuristic.answer, result.langchain.answer)
+                ? ' The model beside it read the same text and disagreed.'
+                : ''}
             </p>
             <KvList items={[{ label: 'Computed', value: 'in the BFF, same rules as above' }]} />
           </Card>
@@ -749,7 +819,10 @@ function LangChainPanel() {
             data-testid="jevl-lc-jev"
           >
             <p className="jevl-big">{result.langchain ? headline(result.langchain.answer) : '—'}</p>
-            {result.langchain && <p className="pu-note">{explainJev(result.langchain.answer)}</p>}
+            {lcKind === 'live' && <p className="pu-note">{explainJev(result.langchain.answer)}</p>}
+            {lcKind === 'simulated' && (
+              <p className="pu-note">No model is configured behind this call, so this card is not a model answer. It says nothing about Jev.</p>
+            )}
             {result.langchain && (
               <KvList items={[
                 { label: 'Latency', value: `${result.langchain.latency_ms} ms` },

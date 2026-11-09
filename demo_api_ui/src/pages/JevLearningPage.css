@@ -189,6 +189,25 @@ a.jev-tab { display: inline-block; }
   outline-offset: 2px;
 }
 
+/* A busy or empty primary keeps full strength: the shared 0.88 opacity on [aria-disabled] dropped white-on-red under 4.5:1
+   in one theme. The state is still named in words (the status line, the note under the text box) and by cursor. */
+.pu-page.jevl-page button.pu-btn.pu-btn--primary[aria-disabled='true'] {
+  opacity: 1;
+  cursor: not-allowed;
+  color: var(--btn-accent-text);
+}
+
+/* The spoken outcome of the policy sliders; a status region that stays mounted so a change is announced. */
+.jevl-page .jevl-outcome-status {
+  margin: 12px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.jevl-page .jevl-outcome-status strong {
+  color: var(--th-text);
+}
+
 /* Progress region: always mounted so its words are read when they change; empty while idle. */
 .jevl-page .jevl-status .pu-status-line {
   margin: 10px 0 0;
