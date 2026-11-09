@@ -4,6 +4,7 @@
 /privilege-saas-access
 /pingone-authorize
 /delegation-chain-value
+/token-security
 /privilege-map
 /weather-mcp
 /intent-binding-learning
