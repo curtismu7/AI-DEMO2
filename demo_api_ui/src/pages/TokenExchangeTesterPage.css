@@ -1,287 +1,156 @@
-/* TokenExchangeTesterPage — plain inspector-style layout: tokens left, results right.
-   Themed with --th-* per THEMING.md. */
+/* Token Exchange Tester: only what is specific to this page, the two-column split, the mode toggle mark and the
+   JSON blocks. The banner, frame, cards, key-value lists, chips, labels and buttons are the shared Ping UI
+   primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1),
+   type comes from the --font-size-* scale (H2), no inline colour (H3).
+   Every rule is scoped under .pu-page.tet-page so the PingOne end-user-nano skin (which sets word-wrap on code and
+   lists) cannot beat it, and so no other page that shares a name is touched. */
 
-.tet-page {
-  background: var(--th-bg-page);
-  color: var(--th-text);
-  font-family: var(--font-primary);
-}
-
-/* Top bar */
-.tet-topbar {
-  color: var(--th-text);
-  background: var(--th-bg-inset);
-  border-bottom: 1px solid var(--th-border);
-  padding: 12px 20px;
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-}
-.tet-topbar h1 { font-size: var(--font-size-md); font-weight: 600; color: var(--th-text); margin: 0; }
-.tet-topbar__status { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
-
-.tet-theme-toggle {
-  margin-left: auto;
-  align-self: center;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.tet-theme-toggle:hover {
-  color: var(--th-text);
-  background: var(--th-bg-hover);
-}
-
-/* No session */
-.tet-no-session {
-  padding: 16px 20px;
-  color: var(--th-status-error-text);
-  font-size: var(--font-size-sm);
-}
-
-/* Two-column grid: tokens left, results right */
-.tet-grid {
+/* Two columns: configuration and claims on the left, request and response on the right. The left width is set by the
+   shared divider handle (--tet-left-w, an inline custom property that holds a length only). */
+.pu-page.tet-page .tet-grid {
   display: grid;
-  grid-template-columns: var(--tet-left-w, 380px) 6px 1fr;
+  grid-template-columns: var(--tet-left-w, 380px) 6px minmax(0, 1fr);
+  align-items: start;
 }
+
+.pu-page.tet-page .tet-grid--solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pu-page.tet-page .tet-col-left,
+.pu-page.tet-page .tet-col-right {
+  min-width: 0;
+}
+
+.pu-page.tet-page .tet-col-left {
+  padding-right: 8px;
+}
+
+.pu-page.tet-page .tet-grid--solo .tet-col-left {
+  padding-right: 0;
+}
+
+.pu-page.tet-page .tet-col-right {
+  padding-left: 8px;
+}
+
 @media (max-width: 900px) {
-  .tet-grid { grid-template-columns: 1fr; }
-  .tet-grid > .divider-drag-handle { display: none; }
-  .tet-topbar { flex-wrap: wrap; }
-  .tet-theme-toggle { margin-left: 0; }
+  .pu-page.tet-page .tet-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pu-page.tet-page .tet-grid > .divider-drag-handle {
+    display: none;
+  }
+
+  .pu-page.tet-page .tet-col-left,
+  .pu-page.tet-page .tet-col-right {
+    padding-left: 0;
+    padding-right: 0;
+  }
 }
 
-.tet-col-left {
-  border-right: 1px solid var(--th-border);
-  padding: 16px 20px;
-}
-.tet-col-right {
-  padding: 16px 20px;
+/* Form rows. */
+.pu-page.tet-page .tet-field {
+  margin-bottom: 12px;
 }
 
-.tet-section-label {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--th-text-muted);
-  margin: 16px 0 8px;
+.pu-page.tet-page .tet-field .pu-select + .pu-select {
+  margin-top: 6px;
 }
-.tet-section-label:first-child { margin-top: 0; }
 
-/* Form */
-.tet-field { margin-bottom: 12px; }
-.tet-field label {
-  display: block;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  color: var(--th-text-muted);
-  margin-bottom: 4px;
+.pu-page.tet-page .tet-input {
   font-family: var(--font-mono);
+  font-weight: var(--font-weight-normal);
 }
-.tet-field select, .tet-field input {
-  display: block;
-  width: 100%;
-  padding: 7px 9px;
-  font-size: var(--font-size-sm);
-  font-family: var(--font-mono);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--th-text);
-  box-sizing: border-box;
+
+/* Mode toggle: two secondary .pu-btn buttons. The chosen one is marked by aria-pressed, never by colour alone:
+   heavier weight plus a 3px bar under the label, in the fixed button accent (not the vertical). */
+.pu-page.tet-page .tet-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 6px;
 }
-.tet-field select:focus, .tet-field input:focus { outline: none; border-color: var(--th-status-info); }
 
-.tet-btn {
-  color: var(--th-text-on-emphasis);
-  padding: 9px 16px;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  background: var(--th-bg-emphasis);
-  border: none;
-  border-radius: var(--btn-radius);
-  cursor: pointer;
+.pu-page.tet-page .tet-mode .pu-btn[aria-pressed='true'] {
+  border-color: var(--btn-accent);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  box-shadow: inset 0 -3px 0 var(--btn-accent);
+  font-weight: var(--font-weight-bold);
 }
-.tet-btn:hover:not(:disabled) {
-  color: var(--th-text-on-emphasis);
-  background: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
-}
-.tet-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Token claims */
-.tet-claims {
-  margin: 0;
-  font-size: var(--font-size-2xs);
-  font-family: var(--font-mono);
+/* 2-exchange steps: one card per hop, each carrying its own result. */
+.pu-page.tet-page .tet-steps {
+  display: flex;
+  flex-direction: column;
 }
-.tet-claims dt { color: var(--th-text-muted); font-weight: 700; margin-top: 4px; }
-.tet-claims dd { margin: 0 0 0 0; color: var(--th-text); word-break: break-all; }
 
-/* Results column */
-.tet-error {
+/* The error text inside the result status. */
+.pu-page.tet-page .tet-error {
+  margin: 8px 0 0;
   padding: 10px 12px;
+  border: 1px solid var(--th-status-error-border);
+  border-radius: var(--radius-lg);
   color: var(--th-status-error-text);
   font-size: var(--font-size-sm);
-  border: 1px solid var(--th-border);
+  overflow-wrap: anywhere;
 }
-.tet-json {
+
+/* JSON blocks: wrap an unbroken value instead of scrolling the page sideways, scroll long blocks inside. */
+.pu-page.tet-page .tet-json {
+  max-height: 320px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  /* The card ground, not --th-code-bg: the shared JsonHighlight light palette (green strings, red keys) measures
+     4.4:1 and 4.08:1 on --th-code-bg and clears 4.5:1 on the card ground. The palette itself is shared, so it is
+     reported, not changed here. */
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.7;
-  color: var(--th-code-text);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
-  margin: 0;
-  background: var(--th-code-bg);
-  padding: 12px 14px;
-  border: 1px solid var(--th-border);
-  max-height: 320px;
-  overflow: auto;
-}
-.tet-empty {
-  color: var(--th-text-muted);
-  font-size: var(--font-size-sm);
 }
 
-.tet-muted {
-  color: var(--th-text-muted);
-  font-size: var(--font-size-2xs);
-  margin: 0;
+.pu-page.tet-page .tet-json--compact {
+  max-height: 160px;
 }
 
-/* Token readiness (subject + agent) */
-.tet-readiness {
-  color: var(--th-text);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--th-border);
-  background: var(--th-bg-card);
+.pu-page.tet-page .tet-json:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
 }
-@media (max-width: 900px) {
-  .tet-readiness { grid-template-columns: 1fr; }
+
+.pu-page.tet-page .tet-json * {
+  overflow-wrap: anywhere;
 }
-.tet-ready-card {
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  background: var(--th-bg-inset);
-}
-.tet-ready-card--ok { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); }
-.tet-ready-card--bad { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
-.tet-ready-card--checking { border-color: var(--th-border-strong); background: var(--th-bg-inset); }
-.tet-ready-card__title {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--th-text);
+
+/* Spacing between the status text and the JSON blocks below it, and above each block's label. */
+.pu-page.tet-page .tet-result-status {
   margin-bottom: 4px;
 }
-.tet-ready-card__meta {
-  font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
-  margin-bottom: 8px;
-  word-break: break-word;
-}
-.tet-ready-card__hint {
-  font-size: var(--font-size-2xs);
-  color: var(--th-status-error-text);
-  margin: 8px 0 0;
-}
-.tet-btn--secondary {
-  color: #fff;
-  display: inline-block;
-  margin-top: 8px;
-  background: #263746;
-  text-decoration: none;
-  text-align: center;
-}
-.tet-btn--secondary:hover { background: #051727; }
-.tet-btn--secondary:is(:link, :visited) { color: #fff; }
 
-.tet-no-session button {
-  color: var(--th-status-info-text);
-  font-weight: 600;
+.pu-page.tet-page .tet-json-label {
+  margin: 12px 0 4px;
 }
 
-/* Mode toggle */
-.tet-mode-toggle {
-  display: flex;
-  gap: 0;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  width: fit-content;
-  margin-bottom: 6px;
-}
-.tet-mode-btn {
-  padding: 7px 14px;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: none;
-  cursor: pointer;
-}
-.tet-mode-btn + .tet-mode-btn { border-left: 1px solid var(--th-border-strong); }
-.tet-mode-btn--active {
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
-}
-.tet-field-hint {
-  font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
-  margin: 0;
+/* The shared JsonHighlight palette is not edited here (it is reported). Two page-scoped corrections:
+   1. Dark: the highlighted keys (aud, scope, payload) are #ff5252 on a 0.18 red wash over the card ground, 4.31:1.
+      A lighter red on the same wash measures 6.07:1 (the page test computes it).
+   2. true / false / null are bold red in the shared palette, which reads as an error inside a green "Issued" card.
+      Red stays for the fields the palette itself flags as critical (error, status, result...); the rest is ink. */
+.pu-page.tet-page .tet-json.jh-dark .jh-focus {
+  color: #ff8a8a;
 }
 
-/* 2-exchange step cards */
-.tet-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.tet-step {
+.pu-page.tet-page .tet-json .jh-keyword:not(.jh-critical) {
   color: var(--th-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  background: var(--th-bg-card);
-}
-.tet-step--ok { border-color: var(--th-status-success-border); }
-.tet-step--failed { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
-.tet-step--pending { border-color: var(--th-border); }
-.tet-step__head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: baseline;
-  margin-bottom: 6px;
-}
-.tet-step__label {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  color: var(--th-text);
-}
-.tet-step__status {
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-.tet-step__why {
-  font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
-  margin: 0 0 8px;
-}
-.tet-json--compact {
-  max-height: 160px;
-  margin-top: 8px;
+  font-weight: var(--font-weight-bold);
 }
