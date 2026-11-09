@@ -6,6 +6,7 @@
 /* The shell paints its own light-grey ground; the page's ground is the standard's. */
 .crp-page .app-page-shell {
   background: var(--th-bg-page);
+  color: var(--th-text);
 }
 
 /* The shell's Dark/Light toggle is blue (--app-primary-blue), and under a vertical that is the vertical's colour on a
@@ -109,6 +110,7 @@
 .crp-input[readonly],
 .crp-textarea[readonly] {
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .crp-input:focus-visible,
@@ -119,6 +121,7 @@
 
 .pu-select[aria-disabled='true'] {
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .crp-checkbox-group {
