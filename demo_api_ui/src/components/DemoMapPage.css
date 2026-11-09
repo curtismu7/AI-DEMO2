@@ -1,115 +1,77 @@
-.demo-map {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 24px 16px 64px;
+/* /demo-map: only what the Ping UI primitives (src/styles/ping-ui.css) do not cover.
+   Surfaces, ink, lines and card edges all come from the primitives. Links are info-text tokens; no vertical colour
+   and no button here (the page has links only). Rules sit under .pu-page.demo-map so they outrank the PingOne
+   end-user-nano skin, which sets word-wrap and list styles on bare ul/li/a. */
+
+.pu-page.demo-map .demo-map__desc {
+  margin: 0 0 8px;
 }
 
-.demo-map__legend {
+.pu-page.demo-map .demo-map__links {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-top: 12px;
-  font-size: var(--font-size-2xs);
-  color: rgba(255, 255, 255, 0.85);
+  gap: 0 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
 }
 
-.demo-map__legend b {
-  color: #ffffff;
-}
-
-.demo-map__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 14px;
-  margin-top: 20px;
-}
-
-.demo-map__group {
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-xl);
-  padding: 14px;
-  background: var(--th-bg-card);
-}
-
-.demo-map__group-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 4px;
-  font-size: var(--font-size-base);
-}
-
-.demo-map__product {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  color: var(--th-text-muted);
-}
-
-.demo-map__group-desc {
-  margin: 0 0 10px;
-  font-size: 12.5px;
-  color: var(--th-text-body);
-}
-
-.demo-map__row {
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 8px;
-  padding: 6px 0;
-  border-top: 1px solid var(--th-border);
-  font-size: 12.5px;
-}
-
-.demo-map__row-label {
-  color: var(--th-text-muted);
-  text-transform: uppercase;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  padding-top: 2px;
-}
-
-.demo-map__row-value {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-}
-
-.demo-map__row-value a {
-  color: var(--th-status-info-text);
-  text-decoration: none;
-}
-
-.demo-map__row-value a:hover {
-  text-decoration: underline;
-}
-
-.demo-map__row-value a:focus-visible,
-.demo-map__step a:focus-visible {
-  outline: 2px solid var(--th-status-info);
-  outline-offset: 2px;
-}
-
-.demo-map__step {
+.pu-page.demo-map .demo-map__links li {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
+  min-width: 0;
+  min-height: 24px;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.demo-map__step-num {
-  color: var(--th-status-info);
+.pu-page.demo-map .demo-map__links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--th-status-info-text);
+  /* The info-text token is the body ink in light mode, so a link is marked by its underline, not by colour alone. */
+  text-decoration: underline;
+  text-decoration-color: var(--control-border);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.pu-page.demo-map .demo-map__links a:hover {
+  text-decoration-color: currentcolor;
+}
+
+.pu-page.demo-map .demo-map__links a:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.pu-page.demo-map .demo-map__step-num {
+  color: var(--th-text-muted);
   font-size: var(--font-size-3xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.06em;
+  flex: none;
+  white-space: nowrap;
 }
 
-.demo-map__step-diagram {
+.pu-page.demo-map .demo-map__step-diagram {
+  flex: none;
+  min-width: 24px;
+  justify-content: center;
   font-size: var(--font-size-xs);
 }
 
-.demo-map__planned {
-  margin-top: 24px;
-  border-top: 1px solid var(--th-border);
-  padding-top: 12px;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-sm);
+/* The product name is data from the catalog and can be long ("PingOne Privilege & Privilege for AI"): the shared chip
+   is nowrap, which pushed it past the card at 375px. Let it wrap inside the card. */
+.pu-page.demo-map .pu-chip {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.pu-page.demo-map .pu-chip .pu-chip__dot {
+  flex: none;
 }

@@ -2,16 +2,21 @@
 //
 // The gateway has no "what did you decide" API. It writes a line per guardrail
 // verdict and per model call to its log, and the deployment ships those lines
-// to the `gateway-events` index. This reads them the same way the Gateway
-// findings panel does (components/GatewayVerdicts.jsx): through the gateway
-// itself, via the built-in-privilege-opensearch door of the MCP inspector (repointed to the Aggregate app after opensearch-hitl was deleted, 2026-10-12). That door
-// needs its own sign-in once per session, so a caller must handle `needsAuth`.
+// to the `gateway-events` index. The app's server reads that index for a run
+// (`/api/privilege-a2a/gateway-record`), which needs no door sign-in. When the
+// server cannot reach the index (a local run), this falls back to reading the
+// lines the way the Gateway findings panel does (components/GatewayVerdicts.jsx):
+// through the gateway itself, via the built-in-privilege-opensearch door of the
+// MCP inspector (repointed to the Aggregate app after opensearch-hitl was deleted,
+// 2026-10-12). That door needs its own sign-in once per session, so a caller must
+// handle `needsAuth`.
 import { authGate, extractSearchHits, frameworkLabel, pickSearchTool } from '../components/GatewayVerdicts';
 import { signInToGatewayDoorSilently } from './gatewayDoorSignIn';
 
 const PROFILE_ID = 'built-in-privilege-opensearch';
 const INDEX = 'gateway-events';
 const INSPECTOR_BASE = '/api/mcp/inspector';
+const RECORD_URL = '/api/privilege-a2a/gateway-record';
 // Where a person signs in to the door; the Gateway findings panel lives there.
 export const GATEWAY_RECORD_SIGN_IN_PATH = '/llm-gateway';
 
@@ -83,14 +88,25 @@ export function normalizeA2aDenial(doc) {
   return { time: src.time || null, app: src.App || '', principal: src.Principal || '', reason: src.Reason || '' };
 }
 
+/** The record's shape once the lines are split by kind. */
+function splitRecord(sources) {
+  return {
+    state: 'ready',
+    guardrail: sources.filter((src) => src.msg === 'AIGuard').map(normalizeGuardrailEvent),
+    modelCalls: sources.filter((src) => src.msg === 'LLM request').map(normalizeModelCall),
+    requests: sources.filter((src) => src.msg === 'Received HTTP request').map(normalizeA2aRequest),
+    denials: sources.filter((src) => src.msg === 'A2A policy denied').map(normalizeA2aDenial),
+  };
+}
+
 /**
- * The gateway's lines between two instants (epoch ms), oldest first.
- * Resolves `{ state, guardrail, modelCalls, requests, denials, loginUrl?, error? }` where state is
- * `ready`, `needsAuth` (sign in to the door first) or `error`. Never rejects:
- * the record is evidence beside a run, not part of it. A door that is not
- * signed in is signed in silently first (`signIn`), and asked once more.
+ * The gateway's lines between two instants (epoch ms), oldest first, read through the gateway's own
+ * OpenSearch door. Resolves `{ state, guardrail, modelCalls, requests, denials, loginUrl?, error? }` where
+ * state is `ready`, `needsAuth` (sign in to the door first) or `error`. Never rejects: the record is
+ * evidence beside a run, not part of it. A door that is not signed in is signed in silently first
+ * (`signIn`), and asked once more.
  */
-export async function loadGatewayRecord({ since, until, fetchImpl = fetch, signIn = signInToGatewayDoorSilently } = {}) {
+export async function loadGatewayRecordViaDoor({ since, until, fetchImpl = fetch, signIn = signInToGatewayDoorSilently } = {}) {
   const empty = { guardrail: [], modelCalls: [], requests: [], denials: [] };
   try {
     const toolsRes = await fetchImpl(`${INSPECTOR_BASE}/tools?profile=${encodeURIComponent(PROFILE_ID)}`, { credentials: 'include' });
@@ -98,7 +114,7 @@ export async function loadGatewayRecord({ since, until, fetchImpl = fetch, signI
     const gate = authGate(toolsRes, toolsBody);
     if (gate && signIn && gate.loginUrl) {
       await signIn(gate.loginUrl);
-      return loadGatewayRecord({ since, until, fetchImpl, signIn: null });
+      return loadGatewayRecordViaDoor({ since, until, fetchImpl, signIn: null });
     }
     if (gate) return { state: 'needsAuth', loginUrl: gate.loginUrl, ...empty };
     if (!toolsRes.ok || toolsBody.error) throw new Error(toolsBody.reason || toolsBody.error || `HTTP ${toolsRes.status}`);
@@ -130,14 +146,27 @@ export async function loadGatewayRecord({ since, until, fetchImpl = fetch, signI
     if (!invokeRes.ok) throw new Error(invokeBody.error || `HTTP ${invokeRes.status}`);
 
     const sources = extractSearchHits(invokeBody).map((hit) => hit?._source || hit || {});
-    return {
-      state: 'ready',
-      guardrail: sources.filter((src) => src.msg === 'AIGuard').map(normalizeGuardrailEvent),
-      modelCalls: sources.filter((src) => src.msg === 'LLM request').map(normalizeModelCall),
-      requests: sources.filter((src) => src.msg === 'Received HTTP request').map(normalizeA2aRequest),
-      denials: sources.filter((src) => src.msg === 'A2A policy denied').map(normalizeA2aDenial),
-    };
+    return splitRecord(sources);
   } catch (error) {
     return { state: 'error', error: error?.message || String(error), ...empty };
   }
+}
+
+/**
+ * The gateway's lines between two instants (epoch ms), read by the app's server, which needs no door
+ * sign-in. Falls back to the door when the server cannot reach the store. Same shape and the same
+ * never-rejects promise as `loadGatewayRecordViaDoor`; `source` says which path answered.
+ */
+export async function loadGatewayRecord({ since, until, fetchImpl = fetch, signIn = signInToGatewayDoorSilently } = {}) {
+  try {
+    const params = new URLSearchParams({ since: String(Math.round(since)), until: String(Math.round(until)) });
+    const res = await fetchImpl(`${RECORD_URL}?${params}`, { credentials: 'include' });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.state === 'ready' && Array.isArray(body.hits)) {
+      return { ...splitRecord(body.hits), source: 'server' };
+    }
+  } catch {
+    // Not reachable from the server: read it through the door instead.
+  }
+  return { ...(await loadGatewayRecordViaDoor({ since, until, fetchImpl, signIn })), source: 'door' };
 }

@@ -224,23 +224,23 @@
 
 /* status — semantic, independent of the per-vertical accent */
 .tcnr-node--done { border-top-color: #16a34a; }
-.tcnr-node--done .tcnr-node-n { border-color: #16a34a; color: #15803d; }
+.tcnr-node--done .tcnr-node-n { border-color: #16a34a; color: #166534; }
 
 .tcnr-node--pending { border-top-color: #cdd1d4; }
 
 /* a hop still in flight - amber, and distinct from the selected node */
 .tcnr-node--active { border-top-color: #b45309; }
-.tcnr-node--active .tcnr-node-n { border-color: #b45309; color: #b45309; }
+.tcnr-node--active .tcnr-node-n { border-color: #b45309; color: #92400e; }
 .tcnr-node--active .tcnr-node-fact { color: #b45309; font-weight: 650; }
 
 .tcnr-node--notinpath { opacity: 0.62; }
 
 .tcnr-node--denied { border-top-color: #d20e0f; }
-.tcnr-node--denied .tcnr-node-n { border-color: #d20e0f; color: #d20e0f; }
+.tcnr-node--denied .tcnr-node-n { border-color: #d20e0f; color: #aa0005; }
 .tcnr-node--denied .tcnr-node-fact { color: #d20e0f; font-weight: 650; }
 
 .tcnr-node--error { border-top-color: #b45309; }
-.tcnr-node--error .tcnr-node-n { border-color: #b45309; color: #b45309; }
+.tcnr-node--error .tcnr-node-n { border-color: #b45309; color: #92400e; }
 .tcnr-node--error .tcnr-node-fact { color: #b45309; font-weight: 650; }
 
 .tcnr-node--sel {

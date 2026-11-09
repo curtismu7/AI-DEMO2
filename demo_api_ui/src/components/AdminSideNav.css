@@ -466,8 +466,9 @@
   position: relative;
 }
 
-/* Collapsed mode: the submenu becomes a hover/focus flyout so grouped items
-   stay reachable without expanding the rail. */
+/* Collapsed mode: the submenu becomes a hover flyout. It is NOT revealed by focus-within: display:none keeps
+   its links out of the tab order, so Tab does not walk 200+ links no one can see. Activating the group
+   button (Enter/Space/click) opens the rail with the group expanded (AdminSideNav.jsx). */
 .admin-side-nav--collapsed .admin-side-nav__submenu--flyout {
   display: none;
   position: absolute;
@@ -484,9 +485,6 @@
 }
 .admin-side-nav--collapsed
   .admin-side-nav__group:hover
-  .admin-side-nav__submenu--flyout,
-.admin-side-nav--collapsed
-  .admin-side-nav__group:focus-within
   .admin-side-nav__submenu--flyout {
   display: flex;
 }

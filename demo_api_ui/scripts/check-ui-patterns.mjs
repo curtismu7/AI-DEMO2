@@ -16,11 +16,19 @@
  *      `composes ... from` and import()/require(), and any <style> block or styled/css tagged template in it):
  *        P2   the simulation banner comes first: before the title band and before any section/card/button
  *        P9   exactly one primary button per view (a PrivilegeLiveCheck without buttonClassName is one)
- *        P7   every status chip has text (never a bare dot; {""}, {" "}, {null}, &nbsp; are not text)
+ *        P2   the banner has text (an empty <SimBanner> is no banner), and the banner and every button sit INSIDE the
+ *             <PingPage> root: a page with no <PingPage> fails, and so does a banner or button beside it in the
+ *             same `return` (JSX built into a variable, or in a child component, is not judged: the parent mounts it)
+ *        P9   a primary button inside a .map()/.flatMap()/.forEach()/Array.from() callback repeats per item, so it
+ *             is more than one primary (unless its class is conditional, e.g. the selected tab)
+ *        P7   every status chip has text (never a bare dot; {""}, {" "}, {null}, &nbsp;, a variable that is only ever
+ *             blank, and an icon/glyph/dot-named variable are not text)
  *        H3   no inline colour literal and no style={{ color/background/border/fontSize... }} on themeable
  *             props (camelCase, kebab-case and quoted keys, style={identifier} resolved in the file, style="..."
  *             strings, computed keys, el.style.x = ... assignments, inline --btn-accent* and --font-size-* overrides)
- *        P9   no violet/indigo/purple colour, and no vertical colour token, on a button rule in CSS
+ *        H3   also: el.setAttribute('style', ...) and a button whose style={{ ...spread }} cannot be read
+ *        P9   no violet/indigo/purple colour, and no vertical colour token, on a button rule in CSS, and no
+ *             violet/indigo utility class (bg-indigo-600, text-violet-500, bg-[#6d28d9]) on a button in JSX
  *        P9   a button colour that cannot be resolved (calc() that does not reduce, an unknown or undefined
  *             var(), attr()/env(), an OS-tinted system colour, an unsupported colour syntax) FAILS: unknown is
  *             drift, not a pass. Only recognised safe keywords (transparent, currentColor, inherit, initial,
@@ -1452,9 +1460,14 @@ function targetsButton(selector, ctx) {
   return splitTop(selector, ',').some((part) => partTargetsButton(part, ctx));
 }
 
-function checkBanner(jsx) {
+function checkBanner(jsx, scope = NO_SCOPE) {
   const banner = /<SimBanner\b|role=["']note["']|className=["'][^"']*[\w-]*banner\b/.exec(jsx);
   if (!banner) return drift('P2 banner first', 'no simulation banner (SimBanner or role="note" .pu-banner) found');
+  // A banner with nothing to read is no banner: <SimBanner></SimBanner>, <SimBanner />, {""}, an empty variable.
+  const bannerTag = readTag(jsx, banner[0] === '<SimBanner' ? banner.index : jsx.lastIndexOf('<', banner.index));
+  if (bannerTag && !(childrenPropHasText(bannerTag.attrs, scope) || (!bannerTag.selfClosing && hasVisibleText(readInner(jsx, bannerTag), scope)))) {
+    return drift('P2 banner first', `the banner (<${bannerTag.name}>) has no text`);
+  }
   const before = jsx.slice(0, banner.index);
   const title = /<PageHeader\b|<h1\b/.exec(before);
   if (title) return drift('P2 banner first', `the title band (${title[0]}) comes before the banner`);
@@ -1463,10 +1476,29 @@ function checkBanner(jsx) {
   return ok('P2 banner first');
 }
 
+/** The source of a tag's class / className / *ClassName attribute values (quoted text or {expression}). */
+function classAttrText(attrs) {
+  let out = '';
+  const re = /(?:^|\s)(?:class|className|[A-Za-z]*Class(?:Name|es)?)\s*=\s*/g;
+  for (let m = re.exec(attrs); m; m = re.exec(attrs)) {
+    const i = m.index + m[0].length;
+    if (attrs[i] === '"' || attrs[i] === "'") out += attrs.slice(i, attrs.indexOf(attrs[i], i + 1) + 1);
+    else if (attrs[i] === '{') out += attrs.slice(i, closeBracket(attrs, i));
+  }
+  return out;
+}
+
+/** [start, end) of every .map()/.flatMap()/.forEach()/Array.from() call: JSX written inside one renders once per item. */
+function loopRanges(src) {
+  return [...src.matchAll(/(?:\.\s*(?:map|flatMap|forEach)|\bArray\.from)\s*\(/g)].map((m) => [m.index, closeBracket(src, m.index + m[0].length - 1)]);
+}
+
 function checkPrimary(jsx, info2) {
   let primaries = 0;
   let anyButton = false;
-  eachTag(jsx, (t) => {
+  const loops = loopRanges(jsx);
+  const looped = [];
+  eachTag(jsx, (t, at) => {
     const isBtn = tagIsButton(t, info2.comps);
     if (isBtn) anyButton = true;
     const tokens = classTokens(t.attrs, info2.scope);
@@ -1478,12 +1510,57 @@ function checkPrimary(jsx, info2) {
       else if (classPrimary) primaries += 1;
       return;
     }
-    if (classPrimary || propPrimary) primaries += 1;
+    if (classPrimary || propPrimary) {
+      primaries += 1;
+      // A primary inside a loop repeats per item (more than one at runtime) unless its class is conditional (the selected tab).
+      if (!/\?|&&|\|\|/.test(classAttrText(t.attrs)) && loops.some(([a, b]) => at > a && at < b)) {
+        primaries += 1;
+        looped.push(jsx.slice(0, at).split('\n').length);
+      }
+    }
   });
+  if (looped.length) return drift('P9 one primary button', `a primary button is rendered inside a loop (line ${looped[0]}), so it repeats once per item (exactly one per view)`);
   if (primaries === 1) return ok('P9 one primary button');
   if (primaries > 1) return drift('P9 one primary button', `${primaries} primary buttons (exactly one per view)`);
   if (anyButton) return drift('P9 one primary button', 'has buttons but none is the primary');
   return info('P9 one primary button', 'no buttons on this page');
+}
+
+/** [start, end) of the inner source of every <PingPage> element. */
+function pingPageRanges(src) {
+  const out = [];
+  eachTag(src, (t) => {
+    if (t.name === 'PingPage' && !t.selfClosing) out.push([t.end, t.end + readInner(src, t).length]);
+  });
+  return out;
+}
+
+/**
+ * P2: the banner and every button sit inside the <PingPage> root. A page with no <PingPage> at all fails. In a
+ * page that has one, a banner or button is outside it when it sits in the same `return` as a <PingPage> but
+ * beside it, not inside. JSX built into a variable before the return, or in a child component, is not
+ * judged: the parent mounts it inside the root, and this check cannot follow where.
+ */
+function checkRoot(src, info2) {
+  const R = 'P2 content inside PingPage';
+  const ranges = pingPageRanges(src);
+  if (!ranges.length) return /\bpu-page\b/.test(src) ? ok(R) : drift(R, 'no <PingPage> root (the banner and buttons must sit inside it)');
+  // The element a `return` hands back, found by tag nesting (not by brackets: JSX text may hold a lone apostrophe).
+  const returns = [...src.matchAll(/\breturn\s*\(?\s*(?=<)/g)]
+    .map((m) => {
+      const t = readTag(src, m.index + m[0].length);
+      return t && !t.selfClosing ? [m.index, t.end + readInner(src, t).length] : null;
+    })
+    .filter(Boolean);
+  const inside = (i) => ranges.some(([a, b]) => i >= a && i < b);
+  const bad = [];
+  eachTag(src, (t, at) => {
+    const what = t.name === 'SimBanner' ? 'the banner' : tagIsButton(t, info2.comps) ? `<${t.name}>` : null;
+    if (!what || inside(at)) return;
+    const ret = returns.find(([a, b]) => at > a && at < b && ranges.some(([x]) => x > a && x < b));
+    if (ret) bad.push(`${what} (line ${src.slice(0, at).split('\n').length})`);
+  });
+  return bad.length ? drift(R, `${bad.slice(0, 3).join('; ')} sits beside <PingPage>, not inside it`) : ok(R);
 }
 
 const BLANKS = /[\s​-‍⁠﻿]/g;
@@ -1491,30 +1568,36 @@ const NBSP_ENTITY = /&(?:nbsp|ensp|emsp|thinsp|zwnj|zwj);|&#(?:160|8203|x[aA]0|x
 const BLANK_STRING = /^(["'`])(?:\s|\\u00a0|\\u200b|\\xa0|\\[nrt]|&nbsp;)*\1$/;
 
 /** Is a JSX expression `{...}` blank: "", " ", null, undefined, false, [] or a + of blank strings? */
-function blankExpression(expr) {
+function blankExpression(expr, scope = NO_SCOPE) {
   const e = expr.trim();
   if (/^(null|undefined|false|true|void 0)?$/.test(e) || /^\[\s*\]$/.test(e)) return true;
+  if (/^[A-Za-z_$][\w$]*$/.test(e)) {
+    // A variable whose every assignment in the file is blank, or one named for an icon/glyph/dot (no words in it).
+    const defs = scope.get(e);
+    if (defs && defs.length && defs.every((d) => blankExpression(d.trim().replace(/;$/, ''), NO_SCOPE))) return true;
+    return /^(?:\w*[Ii]con|\w*[Gg]lyph|\w*Dot|dot)$/.test(e);
+  }
   return e.split('+').every((p) => BLANK_STRING.test(p.trim()));
 }
 
 /** Does the inner source of a chip contain visible text? */
-function hasVisibleText(inner) {
+function hasVisibleText(inner, scope = NO_SCOPE) {
   let t = inner
     .replace(/<[A-Za-z][^>]*aria-hidden[^>]*\/>/g, '')
     .replace(/<([A-Za-z][\w.]*)[^>]*aria-hidden[^>]*>[\s\S]*?<\/\1>/g, '')
     .replace(/<[^>]*>/g, '');
   // Resolve {...} from the inside out: a blank expression vanishes, anything else counts as text.
   for (let guard = 0; guard < 20 && /\{[^{}]*\}/.test(t); guard += 1) {
-    t = t.replace(/\{([^{}]*)\}/g, (_, e) => (blankExpression(e) ? '' : '\u0001'));
+    t = t.replace(/\{([^{}]*)\}/g, (_, e) => (blankExpression(e, scope) ? '' : '\u0001'));
   }
   return t.replace(NBSP_ENTITY, '').replace(BLANKS, '').length > 0;
 }
 
 /** A chip can also carry its text as a children={...} / children="..." prop. */
-function childrenPropHasText(attrs) {
+function childrenPropHasText(attrs, scope = NO_SCOPE) {
   const m = /\bchildren\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\})/.exec(attrs);
   if (!m) return false;
-  if (m[3] !== undefined) return !blankExpression(m[3]);
+  if (m[3] !== undefined) return !blankExpression(m[3], scope);
   return (m[1] ?? m[2]).replace(NBSP_ENTITY, '').replace(BLANKS, '').length > 0;
 }
 
@@ -1525,7 +1608,7 @@ function checkChips(jsx, scope = NO_SCOPE) {
     const chipClass = tokens.some((k) => !k.includes('__') && /(^|-)(chip|pill)(--[\w-]+)?$/.test(k));
     if (!(t.name === 'StatusChip' || chipClass)) return;
     const line = jsx.slice(0, at).split('\n').length;
-    const text = childrenPropHasText(t.attrs) || (!t.selfClosing && hasVisibleText(readInner(jsx, t)));
+    const text = childrenPropHasText(t.attrs, scope) || (!t.selfClosing && hasVisibleText(readInner(jsx, t), scope));
     if (!text) bad.push(`line ${line}: <${t.name}> has no text`);
   });
   if (bad.length) return drift('P7 chips carry text', bad.slice(0, 3).join('; '));
@@ -1537,8 +1620,20 @@ const THEMEABLE_PROP =
 const kebab = (k) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
 /** Problems in the source of a style object literal (the text between its braces), or null. */
-function styleObjectProblem(obj) {
+function styleObjectProblem(obj, scope = NO_SCOPE, onButton = false, depth = 0) {
   if (/(?:^|[{,])\s*\[/.test(obj)) return 'computed style key (cannot be checked)';
+  if (onButton) {
+    // style={{ ...tint }} on a button: the colour comes from a value this check cannot read.
+    for (const m of obj.matchAll(/(?:^|[,{])\s*\.\.\.\s*([^,]+)/g)) {
+      const expr = m[1].trim();
+      const defs = /^[A-Za-z_$][\w$]*$/.test(expr) && depth < 3 ? scope.get(expr) : null;
+      if (!defs || !defs.length || !defs.every((d) => d.trim().startsWith('{'))) return `button style spreads ${short(expr)}, which the check cannot read`;
+      for (const d of defs) {
+        const inner = styleObjectProblem(d.trim().slice(1, -1), scope, true, depth + 1);
+        if (inner) return inner;
+      }
+    }
+  }
   for (const m of obj.matchAll(/(?:^|[,{])\s*(['"`]?)(-{0,2}[\w-]+)\1\s*:/g)) {
     const raw = m[2];
     const name = raw.startsWith('--') ? raw : kebab(raw);
@@ -1549,7 +1644,7 @@ function styleObjectProblem(obj) {
   return null;
 }
 
-function checkInlineColour(jsx, scope = NO_SCOPE) {
+function checkInlineColour(jsx, scope = NO_SCOPE, comps = new Set()) {
   const bad = [];
   eachTag(jsx, (t, at) => {
     const line = jsx.slice(0, at).split('\n').length;
@@ -1567,11 +1662,12 @@ function checkInlineColour(jsx, scope = NO_SCOPE) {
         if (!problem && COLOUR_LITERAL.test(text)) problem = 'colour literal in inline style';
       } else if (t.attrs[i] === '{') {
         const inner = t.attrs.slice(i + 1, closeBracket(t.attrs, i) - 1).trim();
-        if (inner.startsWith('{')) problem = styleObjectProblem(inner.slice(1, -1));
+        const onButton = tagIsButton(t, comps);
+        if (inner.startsWith('{')) problem = styleObjectProblem(inner.slice(1, -1), scope, onButton);
         else {
           const id = /^[A-Za-z_$][\w$]*$/.exec(inner);
           for (const rhs of id && scope.has(inner) ? scope.get(inner) : []) {
-            if (rhs.trim().startsWith('{')) problem = problem || styleObjectProblem(rhs.trim().slice(1, -1));
+            if (rhs.trim().startsWith('{')) problem = problem || styleObjectProblem(rhs.trim().slice(1, -1), scope, onButton);
           }
         }
       }
@@ -1582,6 +1678,9 @@ function checkInlineColour(jsx, scope = NO_SCOPE) {
   });
   for (const m of jsx.matchAll(/['"`]#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?['"`]/g)) {
     bad.push(`line ${jsx.slice(0, m.index).split('\n').length}: hex colour literal ${m[0]}`);
+  }
+  for (const m of jsx.matchAll(/\.setAttribute\s*\(\s*["'`]style["'`]/g)) {
+    bad.push(`line ${jsx.slice(0, m.index).split('\n').length}: element.setAttribute('style') (inline style set from script)`);
   }
   for (const m of jsx.matchAll(/\.style\s*(?:\.\s*(color|background\w*|border\w*|fontSize|fill|stroke|outline\w*|boxShadow|textShadow|cssText)\s*=(?!=)|\.\s*(setProperty|cssText)\b|\[)/g)) {
     bad.push(`line ${jsx.slice(0, m.index).split('\n').length}: element.style assignment (${m[1] || m[2] || 'computed'})`);
@@ -1691,20 +1790,35 @@ function checkCss(cssFiles, tokens, ctx, { allTokens = false } = {}) {
  * is the global custom-property Map (loadGlobalTokens); `buttonClasses` adds classes known to sit on buttons;
  * `unreadable` lists stylesheet imports (scss, less...) the check cannot read.
  */
+const VIOLET_UTILITY = /(?:^|[-:/])(?:indigo|violet|purple|fuchsia|magenta|rebeccapurple|blueviolet|darkviolet|mediumpurple|slateblue)(?:-\d{2,3}(?:\/\d+)?)?$/i;
+
+/** Utility classes (bg-indigo-600, text-violet-500, bg-[#6d28d9]) that the JSX puts on a button. */
+function violetButtonClasses(classes) {
+  return [...classes].filter((k) => VIOLET_UTILITY.test(k) || (/\[[^\]]+\]/.test(k) && violetLiterals(k.slice(k.indexOf('[') + 1, k.lastIndexOf(']'))).length));
+}
+
 export function checkPage({ jsx, css = [], tokens = new Map(), buttonClasses: extra = [], unreadable = [] }) {
   const src = stripJsComments(jsx);
   const page = analyse(src);
   const embedded = embeddedCss(src, page);
   const ctx = { btnClasses: mergeClassSets(page.classes, extra instanceof Set ? extra : new ClassSet(extra), new ClassSet(embedded.btn)), hasButton: page.hasButton };
   const sheets = [...css, ...embedded.blocks];
-  return [
-    checkBanner(src),
+  const results = [
+    checkBanner(src, page.scope),
+    checkRoot(src, page),
     checkPrimary(src, page),
     checkChips(src, page.scope),
-    checkInlineColour(src, page.scope),
+    checkInlineColour(src, page.scope, page.comps),
     ...checkCss(sheets, tokens, ctx),
     unreadable.length ? drift('stylesheets readable', `${unreadable.join(', ')} cannot be read by this check (use plain CSS)`) : ok('stylesheets readable'),
   ];
+  const utility = violetButtonClasses(page.classes);
+  if (utility.length) {
+    const i = results.findIndex((r) => r.rule === 'P9 no violet/indigo or vertical colour on buttons');
+    const detail = `button class ${utility.slice(0, 3).join(', ')} is a violet/indigo utility`;
+    results[i] = drift(results[i].rule, results[i].detail ? `${results[i].detail}; ${detail}` : detail);
+  }
+  return results;
 }
 
 // ---------- files, imports, tokens ----------
@@ -1749,19 +1863,101 @@ function importedCss(file, jsx, root, seen = new Set(), unreadable = []) {
   return out;
 }
 
-/** Map route path -> page file, read from the <Route path element> entries of App.js. */
+/** Default imports and `const X = lazyWithRetry(() => import("./..."))` bindings of a module: name -> relative specifier. */
+function moduleComps(src) {
+  const comps = {};
+  for (const m of src.matchAll(/const\s+(\w+)\s*=\s*lazyWithRetry\(\s*\(\)\s*=>\s*import\(\s*["'](\.[^"']+)["']\s*\)\s*\)/g)) comps[m[1]] = m[2];
+  for (const m of src.matchAll(/import\s+(\w+)\s+from\s+["'](\.[^"']+)["']/g)) comps[m[1]] = m[2];
+  return comps;
+}
+
+/** Named imports, `import { A, B as C } from "./..."`: local name -> relative specifier. */
+function namedImports(src) {
+  const named = {};
+  for (const m of src.matchAll(/import\s*(?:\w+\s*,\s*)?\{([^}]*)\}\s*from\s*["'](\.[^"']+)["']/g)) {
+    for (const part of m[1].split(',')) {
+      const [orig, alias] = part.trim().split(/\s+as\s+/);
+      if (orig) named[alias || orig] = { spec: m[2], orig };
+    }
+  }
+  return named;
+}
+
+/** Source of `export function Name` / `export const Name =` up to the next top-level export, or null. */
+function exportedBody(src, name) {
+  const head = new RegExp(`export\\s+(?:default\\s+)?(?:function\\s+${escapeRe(name)}\\b|const\\s+${escapeRe(name)}\\s*=)`).exec(src);
+  if (!head) return null;
+  const rest = src.slice(head.index + head[0].length);
+  const next = rest.search(/\n(?:export|function|const|class)\s/);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+// Where a real page lives. A component imported from anywhere else (routes/ wrappers, context providers, hooks)
+// is chrome around a page, never the page.
+const PAGE_DIR = /^(?:pages|components)\//;
+// Chrome and guards that wrap a page inside a routes/ wrapper (nav bar, sign-in prompt, provider-switch guard).
+const WRAPPER_CHROME = /^(?:AppShell|TopNav|SignInPrompt|ConfirmModal)$|(?:Guard|Provider)$/;
+
+/**
+ * The page file a wrapper component (a named export of a routes/ module, such as `IntentBindingLearningPageRoute`,
+ * which is AppShell + the page) renders: the first tag in its body that is a default import, a lazy import or a
+ * named import from pages/ or components/. Follows a wrapper that renders another wrapper of the same module.
+ */
+function wrapperPage(modFile, exportName, seen = new Set(), depth = 0) {
+  const key = `${modFile}#${exportName}`;
+  if (depth > 3 || seen.has(key) || !fs.existsSync(modFile)) return null;
+  seen.add(key);
+  const src = fs.readFileSync(modFile, 'utf8');
+  const body = exportedBody(src, exportName);
+  if (body == null) return null;
+  const comps = moduleComps(src);
+  const named = namedImports(src);
+  const dir = path.dirname(modFile);
+  for (const m of body.matchAll(/<([A-Z]\w*)/g)) {
+    const n = m[1];
+    if (WRAPPER_CHROME.test(n)) continue;
+    const spec = comps[n] || named[n]?.spec;
+    const f = spec && resolveFile(dir, spec);
+    if (f && PAGE_DIR.test(path.relative(path.dirname(dir), f).split(path.sep).join('/'))) {
+      return f;
+    } else if (!spec && exportedBody(src, n)) {
+      const inner = wrapperPage(modFile, n, seen, depth + 1);
+      if (inner) return inner;
+    }
+  }
+  return null;
+}
+
+/**
+ * Map route path -> page file, read from the <Route path element> entries of App.js. A page behind a named
+ * wrapper from src/routes/ (`<XPageRoute>` = AppShell + the page) resolves to the real page, also when the element
+ * is `user ? <XPageRoute/> : <SignInRequired/>` or sits inside `<RequireAdminLogin>`.
+ */
 export function loadRoutes(root = UI_ROOT) {
   const appFile = path.join(root, 'src', 'App.js');
   const app = fs.readFileSync(appFile, 'utf8');
-  const comps = {};
-  for (const m of app.matchAll(/const\s+(\w+)\s*=\s*lazyWithRetry\(\s*\(\)\s*=>\s*import\(\s*["'](\.[^"']+)["']\s*\)\s*\)/g)) comps[m[1]] = m[2];
-  for (const m of app.matchAll(/import\s+(\w+)\s+from\s+["'](\.[^"']+)["']/g)) comps[m[1]] = m[2];
+  const comps = moduleComps(app);
+  const named = namedImports(app);
   const routes = {};
   // element={<Wrapper><Page /></Wrapper>}: the page is the first component that is not a routes/ wrapper.
   for (const m of app.matchAll(/path=["'](\/[^"']*)["']\s*element=\{(?=((?:(?!<Route\b)[\s\S]){0,300}))/g)) {
-    const names = [...m[2].matchAll(/<([A-Z]\w*)/g)].map((x) => x[1]).filter((n) => comps[n]);
-    const name = names.find((n) => !/\/routes\//.test(comps[n])) || names[0];
-    const file = name && resolveFile(path.dirname(appFile), comps[name]);
+    const allNames = [...m[2].matchAll(/<([A-Z]\w*)/g)].map((x) => x[1]);
+    const names = allNames.filter((n) => comps[n]);
+    const name = names.find((n) => !/\/routes\//.test(comps[n]));
+    let file = name && resolveFile(path.dirname(appFile), comps[name]);
+    if (!file) {
+      // Only a routes/ file (SignInRequired, RequireAdminLogin, ...) or nothing resolved: follow a named wrapper to its page.
+      for (const n of allNames) {
+        const imp = named[n];
+        const mod = imp && /\/routes\//.test(imp.spec) && resolveFile(path.dirname(appFile), imp.spec);
+        const page = mod && wrapperPage(mod, imp.orig);
+        if (page) {
+          file = page;
+          break;
+        }
+      }
+    }
+    if (!file && names[0]) file = resolveFile(path.dirname(appFile), comps[names[0]]);
     if (file) routes[m[1]] = file;
   }
   return routes;

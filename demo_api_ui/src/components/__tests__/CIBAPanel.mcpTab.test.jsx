@@ -19,5 +19,5 @@ test('the CIBA + MCP step-up tab shows the CIBA + token exchange sequence diagra
   act(() => { window.dispatchEvent(new CustomEvent('education-open-ciba', { detail: { tab: 'what' } })); });
   fireEvent.click(screen.getByRole('button', { name: 'CIBA + MCP step-up' }));
   expect(await screen.findByText('CIBA + token exchange together')).toBeInTheDocument();
-  expect(screen.getByLabelText(/CIBA plus token exchange sequence diagram/i)).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: /CIBA plus token exchange sequence diagram/i })).toBeInTheDocument();
 });

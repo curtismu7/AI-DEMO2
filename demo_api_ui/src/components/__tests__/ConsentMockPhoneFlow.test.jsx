@@ -105,4 +105,32 @@ describe('ConsentMockPhoneFlow pingUi (the /transaction-consent page chrome)', (
     expect(document.querySelector('.pu-chip')).toBeNull();
     expect(screen.getByRole('button', { name: 'Cancel' }).className).toBe('cmp__back');
   });
+
+  it('F6: a failed answer shows Failed; the retry that succeeds clears it, so Approved (mock) is not next to a red card', async () => {
+    const { container } = render(<ConsentMockPhoneFlow pingUi scenario={scenario} onDone={vi.fn()} />);
+    await screen.findByTestId('consent-mock-phone');
+    apiClient.post.mockRejectedValueOnce(new Error('500'));
+    fireEvent.click(screen.getByText('Approve on mock phone'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The mock phone could not answer.');
+    apiClient.post.mockResolvedValueOnce({ data: { ...pendingView, state: 'approved' } });
+    fireEvent.click(screen.getByText('Approve on mock phone'));
+    expect((await screen.findByTestId('consent-outcome')).textContent).toMatch(/Approved/);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(container.textContent).not.toMatch(/could not answer/);
+    expect(container.querySelector('.pu-chip--danger')).toBeNull();
+    expect(container.querySelector('.pu-card--danger')).toBeNull();
+  });
+
+  it('F6: a second press while the first answer is in flight is ignored, not sent as a duplicate', async () => {
+    render(<ConsentMockPhoneFlow pingUi scenario={scenario} onDone={vi.fn()} />);
+    await screen.findByTestId('consent-mock-phone');
+    let release;
+    apiClient.post.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve({ data: { ...pendingView, state: 'approved' } }); }));
+    fireEvent.click(screen.getByText('Approve on mock phone'));
+    fireEvent.click(screen.getByText('Approve on mock phone'));
+    expect(apiClient.post.mock.calls.filter(([u]) => u.endsWith('/decision'))).toHaveLength(1);
+    release();
+    await screen.findByTestId('consent-outcome');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

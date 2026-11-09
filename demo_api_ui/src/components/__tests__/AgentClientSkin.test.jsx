@@ -12,6 +12,12 @@ const baseProps = {
 };
 
 describe('AgentClientSkin', () => {
+  it('names the message field and the send button (an icon-only button had no accessible name)', () => {
+    render(<AgentClientSkin {...baseProps} skin="privilege" />);
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeTruthy();
+  });
+
   it('renders Privilege skin with correct title', () => {
     render(<AgentClientSkin {...baseProps} skin="privilege" />);
     expect(screen.getByText('Privilege AI Agent')).toBeTruthy();

@@ -56,7 +56,7 @@ test('inactive branches start collapsed behind a toggle that expands and collaps
 
 test('Expand all and Collapse all inactive drive every branch, with the inactive count in the summary', () => {
   render(<PolicyDecisionTree policies={POLICIES} result={RESULT} />);
-  expect(screen.getByText('1 inactive node (not on execution path)')).toBeInTheDocument();
+  expect(screen.getByText('1 inactive node (not matched to a returned statement)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
   expect(card('Block high amount')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Collapse all inactive' }));
@@ -66,10 +66,11 @@ test('Expand all and Collapse all inactive drive every branch, with the inactive
 test('lists the returned statements and the legend; a statement with no rule is reported as unmapped', () => {
   const result = { ...RESULT, raw: { statements: [...RESULT.raw.statements, { name: 'Odd thing', code: 'zzz' }] } };
   const { container } = render(<PolicyDecisionTree policies={POLICIES} result={result} />);
-  expect(screen.getByText('Statements returned by PingOne (2)')).toBeInTheDocument();
+  expect(screen.getByText('Statements returned by the engine (not recorded) (2)')).toBeInTheDocument();
   expect(screen.getByText(/1 statement could not be mapped to a rule node/)).toBeInTheDocument();
   const legend = container.querySelector('.p1dt-legend');
-  expect(within(legend).getByText(/Execution path/)).toBeInTheDocument();
+  expect(within(legend).getByText(/Matched by name/)).toBeInTheDocument();
+  expect(within(legend).queryByText(/Execution path/)).toBeNull();
   expect(within(legend).getByText(/N\/A/)).toBeInTheDocument();
 });
 
@@ -94,4 +95,15 @@ test('renders nothing without a result or policies, and survives the props flipp
   expect(card('Standard approval')).toBeInTheDocument();
   expect(errors).not.toHaveBeenCalled();
   errors.mockRestore();
+});
+
+test('names the engine that returned the statements from the stored result, and never claims an executed path', () => {
+  const withEngine = (engine) => ({ ...RESULT, engine });
+  const { rerender } = render(<PolicyDecisionTree policies={POLICIES} result={withEngine('pingone')} />);
+  expect(screen.getByText('Statements returned by PingOne Authorize (1)')).toBeInTheDocument();
+  rerender(<PolicyDecisionTree policies={POLICIES} result={withEngine('mock_authz_server')} />);
+  expect(screen.getByText('Statements returned by Mock authorization server (1)')).toBeInTheDocument();
+  expect(screen.queryByText(/returned by PingOne/)).toBeNull();
+  expect(document.querySelector('.p1dt-path-label').textContent).toMatch(/matched to a returned statement/);
+  expect(document.body.textContent).not.toMatch(/Execution path|execution path/);
 });

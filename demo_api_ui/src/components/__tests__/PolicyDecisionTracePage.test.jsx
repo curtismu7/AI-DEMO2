@@ -211,3 +211,31 @@ test('keyboard: Dismiss takes focus when the saved-run modal opens, and closing 
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
   await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Back to PingOne Authorize' })).toHaveFocus());
 });
+
+test('the saved-run modal names the engine that answered, never PingOne for a mock or unrecorded run', () => {
+  const saved = (result) => localStorage.setItem(LAST_RUN_KEY, JSON.stringify({ policies: POLICIES, result, savedAt: 123 }));
+  saved({ ...RESULT, engine: 'mock_authz_server' });
+  const { unmount } = render(<PolicyDecisionTracePage />);
+  expect(screen.getByTestId('pdt-modal-text')).toHaveTextContent('from Mock authorization server, not from PingOne');
+  expect(screen.getByTestId('pdt-modal-text')).not.toHaveTextContent('from PingOne Authorize');
+  unmount();
+  sessionStorage.clear();
+  saved({ ...RESULT, engine: 'pingone' });
+  const second = render(<PolicyDecisionTracePage />);
+  expect(screen.getByTestId('pdt-modal-text')).toHaveTextContent('from PingOne Authorize');
+  second.unmount();
+  sessionStorage.clear();
+  saved(RESULT);
+  render(<PolicyDecisionTracePage />);
+  expect(screen.getByTestId('pdt-modal-text')).toHaveTextContent('does not say which engine produced it');
+  expect(screen.getByTestId('pdt-modal-text')).not.toHaveTextContent('PingOne Authorize');
+});
+
+test('the path lede says nodes are matched by name, not that this is the path the decision took', () => {
+  mockLocationState = { policies: POLICIES, result: { ...RESULT, engine: 'simulated' } };
+  render(<PolicyDecisionTracePage />);
+  const lede = document.body.textContent;
+  expect(lede).toMatch(/matched by name to a statement the engine returned/);
+  expect(lede).toMatch(/not a recorded path/);
+  expect(lede).not.toMatch(/path the decision took/);
+});

@@ -44,11 +44,14 @@ spec:
     spec:
       containers:
       - name: ping-mcpgw
-        # Pinned by digest (multi-arch manifest list) rather than a tag — no
-        # public tag-listing access to confirm a stable version tag exists, and
-        # this is the exact build verified against a live cluster (see header
-        # comment). Bump by re-pulling :latest and updating the digest.
-        image: public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d
+        # Pinned by digest (multi-arch manifest list) rather than a tag.
+        # 2026-11-09: moved from privilege-mcpgw (build 2026-07-30, sha256:0faad590…)
+        # to privilege-aigw v1.261106, the image the live agentless-mcpgw helm
+        # releases already run. Same /procyon/bin/mcpgw command. NOTE: this
+        # manifest targets namespace `ai-demo`, which does not exist on the US SE
+        # cluster today; nothing is deployed from it. Bump by re-pulling a newer
+        # dated tag and updating the digest.
+        image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce
         imagePullPolicy: Always
         command: ["/procyon/bin/mcpgw"]
         args:

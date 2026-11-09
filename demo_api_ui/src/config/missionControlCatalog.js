@@ -213,6 +213,7 @@ const definitions = [
     diagrams: [
       link('System Flow', '/monitoring/system-flow'),
       link('Token Chain Architecture', '/architecture/token-chain'),
+      link('Where Everything Runs', '/where-everything-runs'),
     ],
   },
 ].map((definition) => ({

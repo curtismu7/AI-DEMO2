@@ -53,7 +53,8 @@ describe('PrivilegePromptLogPage (standalone UI standard)', () => {
     fireEvent.change(screen.getByLabelText(/private key/i), { target: { value: 'k' } });
     fireEvent.click(screen.getByTestId('ppl-open'));
     expect(screen.getByTestId('ppl-plaintext')).toBeTruthy();
-    expect(screen.getByTestId('ppl-detail').textContent).toMatch(/Decrypted/);
+    expect(screen.getByTestId('ppl-detail').textContent).toMatch(/Sample opened/);
+    expect(screen.getByTestId('ppl-detail').textContent).not.toMatch(/Decrypted/);
     fireEvent.click(screen.getByText('Close and forget the key'));
     expect(screen.getByTestId('ppl-sealed')).toBeTruthy();
     expect(screen.getByLabelText(/private key/i).value).toBe('');
@@ -134,6 +135,30 @@ describe('PrivilegePromptLogPage (standalone UI standard)', () => {
     fireEvent.click(screen.getByTestId('ppl-open'));
     expect(screen.getByRole('alert').textContent).toMatch(/Enter the private key/);
     expect(screen.queryByTestId('ppl-plaintext')).toBeNull();
+  });
+
+  it('an opened sample is never shown as a green decryption: info chip, neutral card, honest heading and cell', () => {
+    render(<PrivilegePromptLogPage />);
+    fireEvent.change(screen.getByLabelText(/private key/i), { target: { value: 'x' } });
+    fireEvent.click(screen.getByTestId('ppl-open'));
+    const detail = screen.getByTestId('ppl-detail');
+    expect(detail.className).not.toContain('pu-card--ok');
+    expect(detail.querySelector('.pu-status-line .pu-chip--ok')).toBeNull();
+    expect(detail.querySelector('.pu-status-line .pu-chip--info').textContent).toBe('Sample opened');
+    expect(screen.getByTestId('ppl-plaintext').textContent).toContain('Sample plaintext (no decryption ran)');
+    const table = screen.getByTestId('ppl-records').textContent;
+    expect(table).toContain('sample opened');
+    expect(document.body.textContent).not.toMatch(/decrypted in (the )?browser/i);
+  });
+
+  it('the live check is titled as a call to a sample tool, not as the gateway log or a real record', () => {
+    render(<PrivilegePromptLogPage />);
+    expect(screen.getByRole('heading', { name: 'Call a tool through the gateway (sample data)' })).toBeTruthy();
+    const live = screen.getByTestId('privilege-live-check');
+    expect(within(live).getByRole('button').textContent).toBe('Call a sample tool through the gateway');
+    const text = document.body.textContent;
+    expect(text).not.toMatch(/gateway's own log|real record|for real/i);
+    expect(text).toMatch(/fictional sample/);
   });
 
   it('renders the live verdict with a chip that carries the word', async () => {
