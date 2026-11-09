@@ -25,6 +25,7 @@
 /settings
 /privilege-gateway-topologies
 /agent-lifecycle
+/aic-token-exchange
 /token-exchange-tester
 /demo-map
 /privilege-demo
