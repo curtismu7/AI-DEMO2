@@ -392,9 +392,9 @@ export const MORE_PAGE_GUIDES = {
       "Tools run through the BFF with the delegated Ping token, and API keys stay server-side.",
     ],
     walkthrough: steps([
-      ["Check the active brain", "The blue banner reads the current status so you can say which provider and model are answering, and whether a key is set.", "Read the Active brain / provider line, then click Change in Config to switch it."],
+      ["Check the configured brain", "The note at the top says what on the page is fixed text. The Configured brain card under it is read from the BFF and shows the provider, model and key flag it reports for this browser; signed out, that is the global configuration, not a choice made in your own session.", "Read the status chip, Provider and Model lines in the Configured brain card, then click Change in Config to switch it."],
       ["Walk the architecture", "The Architecture diagram and the LangGraph / LCEL pattern code block show the path Browser to AIAgent to BFF to langchain_agent and /internal/agent-tool to the MCP gateway and Ping Authorize.", "Point at the diagram, then at the create_react_agent code block and its tools coming through the BFF."],
-      ["Compare brains and frameworks", "Two tables separate the demo brains from the framework packages in the repo, so the audience sees that swapping one does not change the other.", "Find the row marked active in the Demo brains table, then the langchain_agent row marked this page in All agents we have. The page needs no sign-in."],
+      ["Compare brains and frameworks", "Two tables separate the demo brains from the framework packages in the repo, so the audience sees that swapping one does not change the other.", "Find the row marked Configured in the Demo brains table, then the langchain_agent row marked this page in All agents we have. The page needs no sign-in."],
     ]),
   },
   "/ungoverned-agent": {
