@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DraggableModal from "../components/DraggableModal";
 import ProtocolTrace from "../components/ProtocolTrace";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
-import { FeatureStatus, TraceSequenceDiagram } from "../components/pfAiAgent/shared";
+import { Card, KvList, PageFrame, PingPage, SimBanner, StatusChip } from "../components/pingUi";
+import { FeatureStatus, FlowSection, RunStatus, TraceSequenceDiagram, Unavailable } from "../components/pfAiAgent/shared";
+import { leadAction } from "../components/pfAiAgent/leadAction";
+import ProviderComparison from "../components/pfAiAgent/ProviderComparison";
 import PfDcrSection from "../components/pfAiAgent/PfDcrSection";
 import PfCimdTester from "../components/pfAiAgent/PfCimdTester";
 import PfPiFlowSection from "../components/pfAiAgent/PfPiFlowSection";
@@ -16,119 +19,6 @@ function statusLabel(provider) {
   if (provider === "pingone") return "PingOne";
   if (provider === "pingfederate") return "PingFederate";
   return "No signed-in session";
-}
-
-const PROVIDER_COMPARISONS = [
-  {
-    capability: "AI identity and lifecycle",
-    pingOne: (
-      <>
-        Agent IAM Core manages first-class agent identities, owners, credentials, lifecycle, and resource access. This is the P1 identity baseline. See{" "}
-        <a href="https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agents.html" target="_blank" rel="noreferrer">PingOne AI Agents</a>.
-      </>
-    ),
-    pingFederate: (
-      <>
-        This page identifies its OAuth client through CIMD. The BFF publishes the metadata document and PF retrieves it during authorization. It does not create an Agent IAM Core-managed identity or owner record.
-      </>
-    ),
-  },
-  {
-    capability: "Delegation and downstream access",
-    pingOne: (
-      <>
-        The P1 agent flow uses RFC 8693 delegation: a user subject and agent actor produce a scoped PingOne token. PingOne supports standard token exchange;{" "}
-        <a href="https://docs.pingidentity.com/pingone/use_cases/p1_oauth_2_token_exchange.html" target="_blank" rel="noreferrer">see the product flow</a>.
-      </>
-    ),
-    pingFederate: (
-      <>
-        The BFF sends the session token to PF for an ID-JAG, verifies its signature, issuer, audience, and scope, then redeems it at a third-party authorization server for that server&apos;s access token. Both hops stay server-side.
-      </>
-    ),
-  },
-  {
-    capability: "PAR and transaction intent (RAR)",
-    pingOne: (
-      <>
-        Agent IAM Core identities can require PAR. The separate P1 Intent Binding demo pushes RAR details with PAR; its Gateway checks the intent and PingOne Authorize supplies the live policy decision.{" "}
-        <a href="/intent-binding-learning">Open that P1 flow</a>.
-      </>
-    ),
-    pingFederate: (
-      <>
-        This path pushes <code>banking_transaction</code> details through PF PAR. The custom processor checks the user, requested action and scope, mapped accounts, currency, and transaction limit.
-      </>
-    ),
-  },
-  {
-    capability: "Human approval and agent audit",
-    pingOne: (
-      <>
-        Agent IAM Core supports CIBA for human approval and records AI agent identity changes and activity for audit. See{" "}
-        <a href="https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agents.html" target="_blank" rel="noreferrer">AI Agent capabilities</a> and{" "}
-        <a href="https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agent_logging.html" target="_blank" rel="noreferrer">AI agent auditing</a>.
-      </>
-    ),
-    pingFederate: (
-      <>
-        PF supports CIBA as a general OAuth flow, but this page does not connect CIBA to an AI-agent identity or approval step. See{" "}
-        <a href="https://docs.pingidentity.com/pingfederate/13.0/introduction_to_pingfederate/pf_ciba_by_ping.html" target="_blank" rel="noreferrer">PF CIBA</a>.
-      </>
-    ),
-  },
-];
-
-function ProviderComparison() {
-  return (
-    <section className="pf-ai-agent__comparison" aria-labelledby="pf-ai-agent-comparison-title">
-      <div className="pf-ai-agent__comparison-heading">
-        <div>
-          <p className="pf-ai-agent__eyebrow">Provider comparison</p>
-          <h2 id="pf-ai-agent-comparison-title">Product and implementation differences</h2>
-        </div>
-        <p>
-          PingOne Agent IAM Core is our P1 identity and delegation baseline. The P1 Intent Binding route is a separate demo; this page adds a separate PF path.
-        </p>
-      </div>
-
-      <div className="pf-ai-agent__comparison-grid" role="table" aria-label="Configured PingOne and PingFederate AI flow comparison">
-        <div className="pf-ai-agent__comparison-header" role="rowgroup">
-          <div role="row">
-            <span role="columnheader">Capability</span>
-            <span role="columnheader">PingOne / Agent IAM Core</span>
-            <span role="columnheader">PingFederate / this page</span>
-          </div>
-        </div>
-        <div role="rowgroup">
-          {PROVIDER_COMPARISONS.map((row) => (
-            <article className="pf-ai-agent__comparison-row" role="row" key={row.capability}>
-              <h3 role="rowheader">{row.capability}</h3>
-              <div className="pf-ai-agent__comparison-cell" role="cell">
-                <span className="pf-ai-agent__comparison-label">PingOne / Agent IAM Core</span>
-                <p>{row.pingOne}</p>
-              </div>
-              <div className="pf-ai-agent__comparison-cell pf-ai-agent__comparison-cell--pf" role="cell">
-                <span className="pf-ai-agent__comparison-label">PingFederate / this page</span>
-                <p>{row.pingFederate}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-
-      <aside className="pf-ai-agent__shared-note">
-        <strong>PAR and standard RFC 8693 token exchange are supported by PingOne too.</strong>{" "}
-        They are not PF-only product features. The implementation difference here is that PF issues an ID-JAG and a separate authorization server redeems it; PingOne&apos;s Agent IAM Core lane exchanges at PingOne. CIMD and the custom PF RAR processor are also part of this PF page.
-        <span>
-          <a href="https://docs.pingidentity.com/pingone/applications/p1_pushed_authorization_request.html" target="_blank" rel="noreferrer">PingOne PAR docs</a>
-          <a href="https://docs.pingidentity.com/pingone/ai_agents/p1_managing_ai_agents.html" target="_blank" rel="noreferrer">PingOne AI identity configuration</a>
-          <a href="https://docs.pingidentity.com/pingfederate/13.1/release_notes/pf_release_notes_131.html" target="_blank" rel="noreferrer">PF 13.1 AI-related OAuth features</a>
-          <a href="https://docs.pingidentity.com/pingfederate/13.0/administrators_reference_guide/pf_config_oauth_rar.html" target="_blank" rel="noreferrer">PF RAR processor setup</a>
-        </span>
-      </aside>
-    </section>
-  );
 }
 
 // What each captured step means, in plain words. The traffic itself comes from the BFF, with secrets replaced.
@@ -254,6 +144,24 @@ function cibaOutcome(state) {
   }
 }
 
+// What the banner may say about the approval step comes from the flags the BFF reported, never fixed text.
+function cibaBannerText(features, provider, cibaEnabled) {
+  const parts = [];
+  if (features.cibaWebApprover) parts.push("Human approval (CIBA) on PingFederate is answered by a stand-in web approver on this page, not by a person's own device.");
+  else if (features.cibaMock) parts.push("Human approval (CIBA) on PingFederate is answered on a mock phone on this page: no real device is contacted, so an approval proves the page flow only.");
+  else if (features.ciba) parts.push("Human approval (CIBA) is sent to PingFederate and answered outside this page.");
+  else if (!cibaEnabled) parts.push("Human approval (CIBA) is not configured.");
+  if (provider === "pingone") parts.push("A PingOne session sends CIBA to PingOne instead.");
+  if (features.cibaEmail) parts.push("The email channel uses a link sent through an in-process SMTP sink, not a real mailbox.");
+  return parts.join(" ");
+}
+
+const cibaTone = (state) => ({ approved: "ok", denied: "warn", expired: "neutral", error: "danger", pending: "info" }[state?.state] || "neutral");
+const cibaWord = (state) => {
+  if (state?.state === "approved") return state.trace?.[0]?.title?.includes("mock phone") ? "Approved on mock phone" : "Approved";
+  return { denied: "Denied", expired: "Expired", error: "Failed", pending: "Waiting" }[state?.state] || "";
+};
+
 export default function PingFederateAiAgentPage({ user }) {
   const [status, setStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -276,6 +184,9 @@ export default function PingFederateAiAgentPage({ user }) {
   const [phoneClosed, setPhoneClosed] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
+  const askRef = useRef(null);
+  const reopenRef = useRef(null);
+  const phoneRef = useRef(null);
 
   useEffect(() => {
     let current = true;
@@ -428,338 +339,402 @@ export default function PingFederateAiAgentPage({ user }) {
     }
   }
 
+  const statusKnown = !loadingStatus && status !== null;
+  const lead = leadAction({
+    loading: loadingStatus,
+    phoneOpen,
+    runnable: {
+      // Only a PingFederate token can start the exchange (a PingOne-only session is refused), so only that makes it the lead.
+      exchange: (provider === "pingfederate" || pfSignedIn) && Boolean(features.crossDomain),
+      rar: Boolean(features.rar && supportedSession && rarUserKeyValue),
+      ciba: Boolean(cibaEnabled && supportedSession && cibaUser.trim()),
+      dcr: Boolean(features.dcr),
+      delegation: provider === "pingfederate",
+      dpop: Boolean(features.rarDpop),
+    },
+  });
+
+  // The popup is a dialog: move focus into it when it opens and hand it back when it closes (DraggableModal does neither).
+  const wasPhoneOpen = useRef(false);
+  useEffect(() => {
+    if (phoneOpen && !wasPhoneOpen.current) {
+      const frame = window.requestAnimationFrame(() => phoneRef.current?.querySelector("button")?.focus());
+      wasPhoneOpen.current = true;
+      return () => window.cancelAnimationFrame(frame);
+    }
+    if (!phoneOpen && wasPhoneOpen.current) {
+      wasPhoneOpen.current = false;
+      (reopenRef.current || askRef.current)?.focus();
+    }
+    return undefined;
+  }, [phoneOpen]);
+
+  let banner;
+  if (loadingStatus) {
+    banner = <>Checking which PingFederate features this BFF has configured. Until that answers, nothing below is marked ready and no action is offered as the main one.</>;
+  } else if (!status) {
+    banner = <>The status check failed, so this page cannot tell which PingFederate flows are configured. Nothing here has been run, and actions that need the status are not offered.</>;
+  } else {
+    banner = (
+      <>
+        <strong>Live against PingFederate.</strong> A flow marked Ready sends real requests to the PingFederate this BFF is configured for, and each proof panel shows the traffic that came back, with secrets redacted by the BFF. A flow marked Not configured does not run.{" "}
+        {features.dcr ? "Dynamic client registration creates a real client at PingFederate and the same run deletes it. " : ""}
+        {cibaBannerText(features, provider, cibaEnabled)}
+      </>
+    );
+  }
+
+  const callbackWord = callbackResult === "success" ? "Done" : callbackResult === "denied" ? "Denied" : "Not completed";
+  const callbackTone = callbackResult === "success" ? "ok" : callbackResult === "denied" ? "warn" : "danger";
+  let callbackText = "";
+  if (queryStatus.get("cimd")) {
+    if (callbackResult !== "success") callbackText = "CIMD authorization did not complete.";
+    else if (loadingStatus) callbackText = "Returned from PingFederate. Checking the BFF session.";
+    else if (pfSignedIn) callbackText = "CIMD authorization completed. You are signed in at PingFederate; the token stays with the BFF and the third-party exchange below now uses it.";
+    else callbackText = "PingFederate returned success, but the BFF reports no PingFederate sign-in for this session, so the exchange below will not use it.";
+  } else {
+    callbackText = callbackResult === "success" ? "PF accepted the RAR request." : callbackResult === "denied" ? "PF denied the RAR request." : "RAR authorization did not complete.";
+  }
+
+  // Where the answer comes from is the channel the BFF reported, so a mock phone is never described as a real device.
+  const cibaWhere = cibaState?.provider === "pingone" ? "their device (PingOne CIBA)"
+    : phoneChannel === "mock" ? "the mock phone (no real device is contacted)"
+      : phoneChannel === "web" ? "the web approver"
+        : `their device (${cibaServerName(cibaState)} CIBA)`;
+  const cibaMessageText = cibaPending
+    ? `Waiting for ${cibaState.loginHint} to approve on ${cibaWhere}. Expires ${new Date(cibaState.expiresAt).toLocaleTimeString()}.`
+    : cibaOutcome(cibaState);
+  const exchangeNeedsPf = !pfSignedIn && provider !== "pingfederate";
+
   return (
-    <main className="pf-ai-agent" data-testid="pingfederate-ai-agent-page">
-      <PageHeader className="pf-ai-agent__hero" eyebrow="PingFederate · AI agent authorization" title="PingFederate AI Agent" summary={<>ID-JAG, CIMD, dynamic client registration, rich authorization, CIBA, DPoP, token exchange and the Authentication API, each run against PingFederate.
+    <PingPage className="pfai" data-testid="pingfederate-ai-agent-page">
+      <SimBanner data-testid="pfai-banner">{banner}</SimBanner>
+
+      <PageHeader className="pfai-hero" eyebrow="PingFederate · AI agent authorization" title="PingFederate AI Agent" summary={<>ID-JAG, CIMD, dynamic client registration, rich authorization, CIBA, DPoP, token exchange and the Authentication API, each run against PingFederate.
             Each request stays on the PingFederate path.</>}
-        actions={<>        <aside className="pf-ai-agent__session" aria-live="polite">
+        actions={<div className="pfai-session" aria-live="polite">
           <span>Current session</span>
-          <strong>{loadingStatus ? "Checking session" : statusLabel(provider)}</strong>
-          <p>{supportedSession
-            ? "The exchange uses this session's access token as its subject."
-            : "Sign in to the app to use a session token as the exchange subject."}</p>
-        </aside>
-        </>} />
+          <strong>{loadingStatus ? "Checking session" : status ? statusLabel(provider) : "Session unknown"}</strong>
+          <StatusChip tone={statusKnown && supportedSession ? "ok" : "neutral"}>
+            {loadingStatus ? "Checking" : !status ? "Unknown" : supportedSession ? "Signed in" : "Signed out"}
+          </StatusChip>
+          <p>{!status && !loadingStatus
+            ? "The status check failed, so the session could not be read."
+            : supportedSession
+              ? "The exchange uses this session's access token as its subject."
+              : "Sign in to the app to use a session token as the exchange subject."}</p>
+        </div>} />
 
-      {callbackResult && (
-        <div className={`pf-ai-agent__callback ${callbackResult === "success" || callbackResult === "denied" ? "is-complete" : "is-error"}`} role="status">
-          {queryStatus.get("cimd")
-            ? callbackResult === "success"
-              ? "CIMD authorization completed. You are signed in at PingFederate; the token stays with the BFF and the third-party exchange below now uses it."
-              : "CIMD authorization did not complete."
-            : callbackResult === "success" ? "PF accepted the RAR request." : callbackResult === "denied" ? "PF denied the RAR request." : "RAR authorization did not complete."}
-        </div>
-      )}
-      {queryStatus.get("rar") === "success" && rarResult?.tokenType && (
-        <p className="pf-ai-agent__token-line" data-testid="rar-token-line">
-          Access token type: <strong>{rarResult.tokenType}</strong>
-          {rarResult.dpopThumbprint
-            ? <> · bound to this app&apos;s key, thumbprint <code>{rarResult.dpopThumbprint}</code></>
-            : " · not bound to a key (a bearer token works for whoever holds it)"}
-        </p>
-      )}
-
-      <section className="pf-ai-agent__overview" aria-label="PF feature readiness">
-        <div><span>Client metadata</span><FeatureStatus ready={features.cimd} /></div>
-        <div><span>ID-JAG (third-party exchange)</span><FeatureStatus ready={idJagReady} /></div>
-        <div><span>Rich authorization</span><FeatureStatus ready={features.rar} /></div>
-        <div><span>Human approval (CIBA)</span><FeatureStatus ready={features.ciba} /></div>
-        <div><span>Client registration (DCR)</span><FeatureStatus ready={features.dcr} /></div>
-        <div><span>DPoP</span><FeatureStatus ready={features.rarDpop} /></div>
-        {status?.nativeIdJagPath && (
-          <a href={status.nativeIdJagPath}>Open the existing PF ID-JAG demo</a>
+      <PageFrame>
+        {callbackResult && (
+          <div className="pu-status-line pfai-callback" role="status">
+            <StatusChip tone={callbackTone}>{callbackWord}</StatusChip>
+            <span>{callbackText}</span>
+          </div>
         )}
-      </section>
+        {queryStatus.get("rar") === "success" && rarResult?.tokenType && (
+          <p className="pu-note" data-testid="rar-token-line">
+            Access token type: <strong>{rarResult.tokenType}</strong>
+            {rarResult.dpopThumbprint
+              ? <> · bound to this app&apos;s key, thumbprint <code>{rarResult.dpopThumbprint}</code></>
+              : " · not bound to a key (a bearer token works for whoever holds it)"}
+          </p>
+        )}
 
-      <ProviderComparison />
+        <FlowSection id="pf-ai-readiness-title" kicker="Readiness" title="What this PingFederate is set up for" lede="Read from the BFF's status check; a feature that is not configured does not run.">
+          <Card>
+            <KvList
+              items={[
+                { label: "Client metadata", value: <FeatureStatus ready={features.cimd} checked={statusKnown} /> },
+                { label: "ID-JAG (third-party exchange)", value: <FeatureStatus ready={idJagReady} checked={statusKnown} /> },
+                { label: "Rich authorization", value: <FeatureStatus ready={features.rar} checked={statusKnown} /> },
+                { label: "Human approval (CIBA)", value: <FeatureStatus ready={features.ciba} checked={statusKnown} /> },
+                { label: "Client registration (DCR)", value: <FeatureStatus ready={features.dcr} checked={statusKnown} /> },
+                { label: "DPoP", value: <FeatureStatus ready={features.rarDpop} checked={statusKnown} /> },
+              ]}
+            />
+            {status?.nativeIdJagPath && (
+              <div className="pu-actions"><a className="pu-btn" href={status.nativeIdJagPath}>Open the existing PF ID-JAG demo</a></div>
+            )}
+          </Card>
+        </FlowSection>
 
-      <section className="pf-ai-agent__flow pf-ai-agent__flow--cimd" aria-labelledby="pf-ai-cimd-title">
-        <div className="pf-ai-agent__flow-title">
-          <p className="pf-ai-agent__eyebrow">Client identity</p>
-          <h2 id="pf-ai-cimd-title">CIMD</h2>
-          <p>PingFederate fetches the client metadata document from this demo and uses it to resolve the public PKCE client.</p>
-          <FeatureStatus ready={features.cimd} />
-        </div>
-        <div className="pf-ai-agent__flow-body">
-          <dl className="pf-ai-agent__facts">
-            <div><dt>Client ID</dt><dd>Metadata document URL</dd></div>
-            <div><dt>Client authentication</dt><dd>None · PKCE S256</dd></div>
-            <div><dt>Token custody</dt><dd>BFF session only</dd></div>
-          </dl>
-          {features.cimd
-            ? <a className="pf-ai-agent__action" href="/api/pf-ai-agent/cimd/start">Start CIMD authorization</a>
-            : <span className="pf-ai-agent__disabled-action">Enable PF CIMD to start authorization</span>}
+        <ProviderComparison />
+
+        <FlowSection id="pf-ai-cimd-title" kicker="Client identity" title="CIMD" lede="PingFederate fetches the client metadata document from this demo and uses it to resolve the public PKCE client.">
+          <Card>
+            <div className="pu-status-line"><FeatureStatus ready={features.cimd} checked={statusKnown} /></div>
+            <KvList
+              items={[
+                { label: "Client ID", value: "Metadata document URL" },
+                { label: "Client authentication", value: "None · PKCE S256" },
+                { label: "Token custody", value: "BFF session only" },
+              ]}
+            />
+            <div className="pu-actions">
+              {features.cimd
+                ? <a className="pu-btn" href="/api/pf-ai-agent/cimd/start">Start CIMD authorization</a>
+                : <Unavailable checked={statusKnown}>Enable PF CIMD to start authorization</Unavailable>}
+            </div>
+          </Card>
           {cimdResult?.trace?.length > 0 && (
-            <div className="pf-ai-agent__proof" data-testid="cimd-proof">
-              <h3>Proof: what was sent and what came back</h3>
+            <Card tone="ok" title="Proof: what was sent and what came back" data-testid="cimd-proof">
+              <div className="pu-status-line"><StatusChip tone="ok">Captured</StatusChip></div>
               <TraceSequenceDiagram steps={cimdResult.trace} testId="cimd-sequence" />
-              <ul className="pf-ai-agent__proof-points">
+              <ul className="pfai-points">
                 <li>The client_id is a URL that serves its own metadata; nothing was registered in PingFederate beforehand.</li>
                 <li>The ID token says {cimdResult.subject} signed in at {cimdResult.issuer}.</li>
               </ul>
               <ProtocolTrace steps={cimdResult.trace} explain={CIMD_EXPLAIN} />
-            </div>
+            </Card>
           )}
-        </div>
-      </section>
+        </FlowSection>
 
-      <PfCimdTester ready={features.cimd} />
+        <PfCimdTester ready={features.cimd} checked={statusKnown} />
 
-      <section className="pf-ai-agent__flow pf-ai-agent__flow--exchange" aria-labelledby="pf-ai-exchange-title" id="id-jag">
-        <div className="pf-ai-agent__flow-title">
-          <p className="pf-ai-agent__eyebrow">Two explicit token hops</p>
-          <h2 id="pf-ai-exchange-title">ID-JAG: third-party token exchange</h2>
-          <p>PF issues the ID-JAG. The downstream authorization server redeems it for its own access token.</p>
-          <FeatureStatus ready={idJagReady} />
-        </div>
-        <div className="pf-ai-agent__flow-body">
-          {/* The ID-JAG demo runs on the online PingFederate servers: the SE PF issues, the Acme PF redeems. */}
-          <div className="pf-ai-agent__idjag-demo" data-testid="idjag-demo-links">
-            <p>
-              Run it in the PingFederate ID-JAG demo, with real PingFederate on both sides: one PingFederate issues
-              the ID-JAG, a second PingFederate redeems it. Every request and response is shown.
-            </p>
-            <a className="pf-ai-agent__action" href="/pingfederate-id-jag/playground?mode=pf-pf">Run ID-JAG: PingFederate → PingFederate</a>
-            <a className="pf-ai-agent__secondary-action" href="/pingfederate-id-jag">How ID-JAG works</a>
-          </div>
-          {features.crossDomain && (<>
-          <p className="pf-ai-agent__hint">Or run this page&apos;s own two-hop exchange against the third-party server configured here:</p>
-          <div className="pf-ai-agent__hops" aria-label="Token exchange hops">
-            <div className="pf-ai-agent__hop">
-              <span className="pf-ai-agent__hop-index">1</span>
-              <div>
-                <strong>{pfSignedIn && provider !== "pingfederate" ? "PingFederate sign-in (CIMD)" : `${statusLabel(provider)} session`}</strong>
-                <span>subject access token · BFF held</span>
+        <FlowSection anchor="id-jag" id="pf-ai-exchange-title" kicker="Two explicit token hops" title="ID-JAG: third-party token exchange" lede="PF issues the ID-JAG. The downstream authorization server redeems it for its own access token.">
+          <Card>
+            <div className="pu-status-line"><FeatureStatus ready={idJagReady} checked={statusKnown} /></div>
+            {/* The ID-JAG demo runs on the online PingFederate servers: the SE PF issues, the Acme PF redeems. */}
+            <div data-testid="idjag-demo-links">
+              <p className="pu-note">
+                Run it in the PingFederate ID-JAG demo, with real PingFederate on both sides: one PingFederate issues
+                the ID-JAG, a second PingFederate redeems it. Every request and response is shown.
+              </p>
+              <div className="pu-actions">
+                <a className="pu-btn" href="/pingfederate-id-jag/playground?mode=pf-pf">Run ID-JAG: PingFederate → PingFederate</a>
+                <a className="pu-btn" href="/pingfederate-id-jag">How ID-JAG works</a>
               </div>
-              <span className="pf-ai-agent__hop-arrow" aria-hidden="true">›</span>
-              <div><strong>PingFederate</strong><span>issues an audience-bound ID-JAG</span></div>
             </div>
-            <div className="pf-ai-agent__hop">
-              <span className="pf-ai-agent__hop-index">2</span>
-              <div><strong>PingFederate ID-JAG</strong><span>JWT bearer assertion · BFF held</span></div>
-              <span className="pf-ai-agent__hop-arrow" aria-hidden="true">›</span>
-              <div><strong>Third-party AS</strong><span>issues its own access token</span></div>
-            </div>
-          </div>
-          <button
-            className="pf-ai-agent__action"
-            type="button"
-            onClick={runCrossDomainExchange}
-            disabled={!canExchange}
-          >
-            {exchangeBusy ? "Exchanging tokens" : "Run third-party token exchange"}
-          </button>
-          {!pfSignedIn && provider !== "pingfederate" && (
-            <p className="pf-ai-agent__hint" data-testid="exchange-needs-pf">
-              PingFederate only accepts tokens it issued. Sign in at PingFederate with the CIMD card above first,
-              then run this; until then a PingOne session is refused.
-            </p>
-          )}
-          {pfSignedIn && provider !== "pingfederate" && (
-            <p className="pf-ai-agent__hint">Using your PingFederate sign-in from the CIMD card; your PingOne session is not sent.</p>
-          )}
-          </>)}
-          {exchangeError && (
-            <p className="pf-ai-agent__error" role="alert">
-              The exchange failed. Review the PF and downstream authorization server settings.
-              {typeof exchangeError === "string" && <> Reason: <code>{exchangeError}</code></>}
-              {exchangeDetail && <> {exchangeDetail}</>}
-              {EXCHANGE_HINTS[exchangeError] && <> {EXCHANGE_HINTS[exchangeError]}</>}
-            </p>
-          )}
+            {features.crossDomain && (<>
+              <p className="pu-note">Or run this page&apos;s own two-hop exchange against the third-party server configured here:</p>
+              <div className="pfai-hops" role="group" aria-label="Token exchange hops">
+                <div className="pfai-hop">
+                  <span className="pfai-hop__index">1</span>
+                  <div>
+                    <strong>{pfSignedIn && provider !== "pingfederate" ? "PingFederate sign-in (CIMD)" : `${statusLabel(provider)} session`}</strong>
+                    <span>subject access token · BFF held</span>
+                  </div>
+                  <span className="pfai-hop__arrow" aria-hidden="true">›</span>
+                  <div><strong>PingFederate</strong><span>issues an audience-bound ID-JAG</span></div>
+                </div>
+                <div className="pfai-hop">
+                  <span className="pfai-hop__index">2</span>
+                  <div><strong>PingFederate ID-JAG</strong><span>JWT bearer assertion · BFF held</span></div>
+                  <span className="pfai-hop__arrow" aria-hidden="true">›</span>
+                  <div><strong>Third-party AS</strong><span>issues its own access token</span></div>
+                </div>
+              </div>
+              <div className="pu-actions">
+                <PfButton lead={lead === "exchange"} onClick={runCrossDomainExchange} aria-disabled={canExchange ? undefined : "true"}>
+                  Run third-party token exchange
+                </PfButton>
+              </div>
+              <RunStatus tone={exchangeBusy ? "info" : "ok"} word={exchangeBusy ? "Running" : exchangeResult ? "Done" : ""}>
+                {exchangeBusy ? "Exchanging tokens at PingFederate and the third-party server." : "The third-party token exchange completed."}
+              </RunStatus>
+              {exchangeNeedsPf && (
+                <p className="pu-note" data-testid="exchange-needs-pf">
+                  PingFederate only accepts tokens it issued. Sign in at PingFederate with the CIMD card above first,
+                  then run this; until then a PingOne session is refused.
+                </p>
+              )}
+              {pfSignedIn && provider !== "pingfederate" && (
+                <p className="pu-note">Using your PingFederate sign-in from the CIMD card; your PingOne session is not sent.</p>
+              )}
+            </>)}
+            {exchangeError && (
+              <p className="pfai-error" role="alert">
+                The exchange failed. Review the PF and downstream authorization server settings.
+                {typeof exchangeError === "string" && <> Reason: <code>{exchangeError}</code></>}
+                {exchangeDetail && <> {exchangeDetail}</>}
+                {EXCHANGE_HINTS[exchangeError] && <> {EXCHANGE_HINTS[exchangeError]}</>}
+              </p>
+            )}
+          </Card>
           {exchangeResult && (
-            <div className="pf-ai-agent__result" role="status" aria-label="Sanitized exchange result">
-              <h3>Exchange completed</h3>
-              <dl>
-                <div><dt>Subject</dt><dd>{exchangeResult.subject || "Not returned"}</dd></div>
-                <div><dt>PF issuer</dt><dd>{exchangeResult.pfIssuer}</dd></div>
-                <div><dt>ID-JAG audience</dt><dd>{exchangeResult.assertionAudience}</dd></div>
-                <div><dt>Downstream resource</dt><dd>{exchangeResult.downstreamAudience}</dd></div>
-                <div><dt>Granted scope</dt><dd>{Array.isArray(exchangeResult.scope) ? exchangeResult.scope.join(" ") : "Not returned"}</dd></div>
-                <div><dt>Expires</dt><dd>{exchangeResult.expiresAt || "Not returned"}</dd></div>
-              </dl>
+            <Card tone="ok" title="Exchange completed" aria-label="Sanitized exchange result">
+              <div className="pu-status-line"><StatusChip tone="ok">Done</StatusChip></div>
+              <KvList
+                items={[
+                  { label: "Subject", value: exchangeResult.subject || "Not returned" },
+                  { label: "PF issuer", value: exchangeResult.pfIssuer },
+                  { label: "ID-JAG audience", value: exchangeResult.assertionAudience },
+                  { label: "Downstream resource", value: exchangeResult.downstreamAudience },
+                  { label: "Granted scope", value: Array.isArray(exchangeResult.scope) ? exchangeResult.scope.join(" ") : "Not returned" },
+                  { label: "Expires", value: exchangeResult.expiresAt || "Not returned" },
+                ]}
+              />
               {exchangeResult.hops?.length > 0 && (
-                <ol>{exchangeResult.hops.map((hop) => <li key={hop.step}>{hop.step}: {hop.issuer} · {hop.tokenType}</li>)}</ol>
+                <ol className="pfai-hoplist">{exchangeResult.hops.map((hop) => <li key={hop.step}>{hop.step}: {hop.issuer} · {hop.tokenType}</li>)}</ol>
               )}
               {exchangeResult.trace?.length > 0 && (
-                <div className="pf-ai-agent__proof" data-testid="exchange-proof">
-                  <h3>Proof: what was sent and what came back</h3>
+                <div className="pfai-proof" data-testid="exchange-proof">
+                  <h4 className="pfai-sub">Proof: what was sent and what came back</h4>
                   <TraceSequenceDiagram steps={exchangeResult.trace} selfCall testId="exchange-sequence" />
-                  <ul className="pf-ai-agent__proof-points">
+                  <ul className="pfai-points">
                     {exchangeProofPoints(exchangeResult).map((point) => <li key={point}>{point}</li>)}
                   </ul>
                   <ProtocolTrace steps={exchangeResult.trace} explain={EXCHANGE_EXPLAIN} />
                 </div>
               )}
-            </div>
+            </Card>
           )}
-        </div>
-      </section>
+        </FlowSection>
 
-      <section className="pf-ai-agent__flow pf-ai-agent__flow--rar" aria-labelledby="pf-ai-rar-title">
-        <div className="pf-ai-agent__flow-title">
-          <p className="pf-ai-agent__eyebrow">Fine-grained consent</p>
-          <h2 id="pf-ai-rar-title">Rich authorization request</h2>
-          <p>PF receives the authorization detail through PAR and applies the custom transaction policy.</p>
-          <details className="pf-ai-agent__explain" open>
-            <summary>What is RAR, and what does this run do?</summary>
-            <p>
-              Normally an agent asks for a broad scope such as <code>transactions:write</code>, which says nothing about
-              how much or to whom. Rich Authorization Requests (RFC 9396) let it send the exact action instead, as
-              <code> authorization_details</code>, and let the authorization server decide on that.
-            </p>
-            <p>
-              Run the <strong>allowed</strong> request: one transfer inside your accounts and limit. PingFederate checks it
-              and issues a token that records what was granted. Run the <strong>out-of-policy</strong> one: the same request
-              for more than your limit, which PingFederate refuses after you sign in. The decision lives in PingFederate,
-              not in the agent. The proof panel under the buttons shows every request and response.
-            </p>
-          </details>
-          <FeatureStatus ready={features.rar} />
-        </div>
-        <div className="pf-ai-agent__flow-body">
-          <label className="pf-ai-agent__user-key">
-            PF user key for this request
-            <input
-              value={rarUserKey}
-              onChange={(event) => setTypedUserKey(event.target.value)}
-              autoComplete="off"
-              maxLength={256}
-            />
-          </label>
-          <pre className="pf-ai-agent__detail-preview">{JSON.stringify({
-            type: "banking_transaction",
-            actions: ["transfer"],
-            source_account: "checking-100",
-            destination_account: "savings-200",
-            amount: 125,
-            currency: "USD",
-          }, null, 2)}</pre>
-          {features.rarDpop && (
-            <label className="pf-ai-agent__dpop-option">
-              <input type="checkbox" checked={bindDpop} onChange={(event) => setBindDpop(event.target.checked)} />
-              Bind the access token to this app&apos;s key with DPoP
+        <FlowSection id="pf-ai-rar-title" kicker="Fine-grained consent" title="Rich authorization request" lede="PF receives the authorization detail through PAR and applies the custom transaction policy.">
+          <Card>
+            <div className="pu-status-line"><FeatureStatus ready={features.rar} checked={statusKnown} /></div>
+            <details className="pfai-explain" open>
+              <summary>What is RAR, and what does this run do?</summary>
+              <p>
+                Normally an agent asks for a broad scope such as <code>transactions:write</code>, which says nothing about
+                how much or to whom. Rich Authorization Requests (RFC 9396) let it send the exact action instead, as
+                <code> authorization_details</code>, and let the authorization server decide on that.
+              </p>
+              <p>
+                Run the <strong>allowed</strong> request: one transfer inside your accounts and limit. PingFederate checks it
+                and issues a token that records what was granted. Run the <strong>out-of-policy</strong> one: the same request
+                for more than your limit, which PingFederate refuses after you sign in. The decision lives in PingFederate,
+                not in the agent. The proof panel under the buttons shows every request and response.
+              </p>
+            </details>
+            <label className="pfai-field">
+              <span>PF user key for this request</span>
+              <input
+                className="pu-select"
+                value={rarUserKey}
+                onChange={(event) => setTypedUserKey(event.target.value)}
+                autoComplete="off"
+                maxLength={256}
+              />
             </label>
-          )}
-          <div className="pf-ai-agent__rar-actions">
-            {features.rar && supportedSession && rarUserKeyValue
-              ? <>
-                <form method="post" action="/api/pf-ai-agent/rar/start">
-                  <input type="hidden" name="scenario" value="allowed" />
-                  <input type="hidden" name="userKey" value={rarUserKeyValue} />
-                  {features.rarDpop && bindDpop && <input type="hidden" name="dpop" value="1" />}
-                  <button className="pf-ai-agent__action" type="submit">Run allowed RAR request</button>
-                </form>
-                <form method="post" action="/api/pf-ai-agent/rar/start">
-                  <input type="hidden" name="scenario" value="denied" />
-                  <input type="hidden" name="userKey" value={rarUserKeyValue} />
-                  {features.rarDpop && bindDpop && <input type="hidden" name="dpop" value="1" />}
-                  <button className="pf-ai-agent__secondary-action" type="submit">Run out-of-policy RAR request</button>
-                </form>
-              </>
-              : <span className="pf-ai-agent__disabled-action">Configure RAR and sign in to start the request</span>}
-          </div>
+            <pre className="pfai-pre">{JSON.stringify({
+              type: "banking_transaction",
+              actions: ["transfer"],
+              source_account: "checking-100",
+              destination_account: "savings-200",
+              amount: 125,
+              currency: "USD",
+            }, null, 2)}</pre>
+            {features.rarDpop && (
+              <label className="pfai-check">
+                <input type="checkbox" checked={bindDpop} onChange={(event) => setBindDpop(event.target.checked)} />
+                Bind the access token to this app&apos;s key with DPoP
+              </label>
+            )}
+            <div className="pu-actions pfai-forms">
+              {features.rar && supportedSession && rarUserKeyValue
+                ? <>
+                  <form method="post" action="/api/pf-ai-agent/rar/start">
+                    <input type="hidden" name="scenario" value="allowed" />
+                    <input type="hidden" name="userKey" value={rarUserKeyValue} />
+                    {features.rarDpop && bindDpop && <input type="hidden" name="dpop" value="1" />}
+                    <PfButton lead={lead === "rar"} type="submit">Run allowed RAR request</PfButton>
+                  </form>
+                  <form method="post" action="/api/pf-ai-agent/rar/start">
+                    <input type="hidden" name="scenario" value="denied" />
+                    <input type="hidden" name="userKey" value={rarUserKeyValue} />
+                    {features.rarDpop && bindDpop && <input type="hidden" name="dpop" value="1" />}
+                    <PfButton type="submit">Run out-of-policy RAR request</PfButton>
+                  </form>
+                </>
+                : <Unavailable checked={statusKnown}>Configure RAR and sign in to start the request</Unavailable>}
+            </div>
+          </Card>
           {rarResult?.trace?.length > 0 && (
-            <div className="pf-ai-agent__proof" data-testid="rar-proof">
-              <h3>Proof: what was sent and what came back</h3>
+            <Card tone={rarResult.outcome === "denied" ? "warn" : "ok"} title="Proof: what was sent and what came back" data-testid="rar-proof">
+              <div className="pu-status-line">
+                <StatusChip tone={rarResult.outcome === "denied" ? "warn" : rarResult.outcome === "accepted" ? "ok" : "neutral"}>
+                  {rarResult.outcome === "denied" ? "Refused" : rarResult.outcome === "accepted" ? "Accepted" : "Captured"}
+                </StatusChip>
+              </div>
               <TraceSequenceDiagram steps={rarResult.trace} testId="rar-sequence" />
-              <ul className="pf-ai-agent__proof-points">
+              <ul className="pfai-points">
                 {rarProofPoints(rarResult).map((point) => <li key={point}>{point}</li>)}
               </ul>
               <ProtocolTrace steps={rarResult.trace} explain={RAR_EXPLAIN} />
-            </div>
+            </Card>
           )}
-        </div>
-      </section>
+        </FlowSection>
 
-      <section className="pf-ai-agent__flow pf-ai-agent__flow--ciba" aria-labelledby="pf-ai-ciba-title">
-        <div className="pf-ai-agent__flow-title">
-          <p className="pf-ai-agent__eyebrow">Human approval</p>
-          <h2 id="pf-ai-ciba-title">Ask a person to approve (CIBA)</h2>
-          <p>PingFederate asks the named user&apos;s PingOne MFA device to approve this request, and this page waits for the answer. The user needs an enrolled MFA device.</p>
-          <FeatureStatus ready={features.ciba} />
-        </div>
-        <div className="pf-ai-agent__flow-body">
-          <label className="pf-ai-agent__user-key">
-            User to ask (PingOne username)
-            <input
-              value={cibaUser}
-              onChange={(event) => setTypedCibaUser(event.target.value)}
-              autoComplete="off"
-              maxLength={256}
-            />
-          </label>
-          <label className="pf-ai-agent__user-key">
-            Message shown on their device (optional)
-            <input
-              value={cibaMessage}
-              onChange={(event) => setCibaMessage(event.target.value)}
-              autoComplete="off"
-              maxLength={20}
-            />
-          </label>
-          <div className="pf-ai-agent__rar-actions">
-            {cibaEnabled && supportedSession
-              ? <button
-                className="pf-ai-agent__action"
-                type="button"
-                onClick={askForApproval}
-                disabled={cibaBusy || cibaPending || !cibaUser.trim()}
-              >
-                {cibaBusy ? "Sending…" : "Ask for approval"}
-              </button>
-              : <span className="pf-ai-agent__disabled-action">Configure CIBA and sign in to ask for approval</span>}
-          </div>
-          {cibaError && <p className="pf-ai-agent__callback is-error" role="alert">{cibaError}</p>}
-          {emailPending && (
-            <div className="pf-ai-agent__rar-actions">
-              <button className="pf-ai-agent__action" type="button" onClick={sendApprovalEmail}>
-                Send approval email
-              </button>
-              {emailSent && (
-                <p className="pf-ai-agent__callback" role="status" data-testid="ciba-email-sent">
-                  Approval email sent to {cibaState.loginHint} over the in-process SMTP sink. Open the one-time link in the email to approve or deny — this page polls until it is answered.
-                </p>
+        <FlowSection id="pf-ai-ciba-title" kicker="Human approval" title="Ask a person to approve (CIBA)" lede="PingFederate asks the named user's PingOne MFA device to approve this request, and this page waits for the answer. The user needs an enrolled MFA device.">
+          <Card>
+            <div className="pu-status-line"><FeatureStatus ready={features.ciba} checked={statusKnown} /></div>
+            <label className="pfai-field">
+              <span>User to ask (PingOne username)</span>
+              <input
+                className="pu-select"
+                value={cibaUser}
+                onChange={(event) => setTypedCibaUser(event.target.value)}
+                autoComplete="off"
+                maxLength={256}
+              />
+            </label>
+            <label className="pfai-field">
+              <span>Message shown on their device (optional)</span>
+              <input
+                className="pu-select"
+                value={cibaMessage}
+                onChange={(event) => setCibaMessage(event.target.value)}
+                autoComplete="off"
+                maxLength={20}
+              />
+            </label>
+            <div className="pu-actions">
+              {cibaEnabled && supportedSession
+                ? <PfButton
+                  lead={lead === "ciba"}
+                  ref={askRef}
+                  onClick={askForApproval}
+                  aria-disabled={cibaBusy || cibaPending || !cibaUser.trim() ? "true" : undefined}
+                >
+                  Ask for approval
+                </PfButton>
+                : <Unavailable checked={statusKnown}>Configure CIBA and sign in to ask for approval</Unavailable>}
+              {cibaPending && phoneChannel && phoneClosed && cibaState?.provider !== "pingone" && (
+                <PfButton ref={reopenRef} onClick={() => setPhoneClosed(false)}>Open mock phone</PfButton>
               )}
+              {emailPending && <PfButton onClick={sendApprovalEmail}>Send approval email</PfButton>}
             </div>
-          )}
-          {cibaPending && (
-            <p className="pf-ai-agent__callback" role="status" data-testid="ciba-pending">
-              Waiting for {cibaState.loginHint} to approve on their device ({cibaServerName(cibaState)} CIBA). Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
-            </p>
-          )}
-          {cibaPending && phoneChannel && phoneClosed && cibaState?.provider !== "pingone" && (
-            <button className="pf-ai-agent__secondary-action" type="button" onClick={() => setPhoneClosed(false)}>Open mock phone</button>
-          )}
-          {cibaOutcome(cibaState) && (
-            <p
-              className={`pf-ai-agent__callback ${cibaState.state === "approved" || cibaState.state === "denied" ? "is-complete" : "is-error"}`}
-              role="status"
-              data-testid="ciba-outcome"
+            <RunStatus
+              tone={cibaBusy ? "info" : cibaTone(cibaState)}
+              word={cibaBusy ? "Sending" : cibaMessageText ? cibaWord(cibaState) : ""}
+              testId={cibaPending ? "ciba-pending" : cibaOutcome(cibaState) ? "ciba-outcome" : undefined}
             >
-              {cibaOutcome(cibaState)}
-            </p>
-          )}
+              {cibaBusy ? "Sending the approval request." : cibaMessageText}
+            </RunStatus>
+            {emailPending && emailSent && (
+              <p className="pu-note" data-testid="ciba-email-sent">
+                Approval email sent to {cibaState.loginHint} over the in-process SMTP sink. Open the one-time link in the email to approve or deny — this page polls until it is answered.
+              </p>
+            )}
+            {cibaError && <p className="pfai-error" role="alert">{cibaError}</p>}
+          </Card>
           {cibaState?.trace?.length > 0 && (
-            <div className="pf-ai-agent__proof" data-testid="ciba-proof">
-              <h3>Proof: what was sent and what came back</h3>
+            <Card tone={cibaState.state === "approved" ? "ok" : cibaState.state === "pending" ? "live" : "neutral"} title="Proof: what was sent and what came back" data-testid="ciba-proof">
+              <div className="pu-status-line"><StatusChip tone={cibaTone(cibaState)}>{cibaWord(cibaState) || "Captured"}</StatusChip></div>
               <TraceSequenceDiagram steps={cibaState.trace} testId="ciba-sequence" />
-              <ul className="pf-ai-agent__proof-points">
+              <ul className="pfai-points">
                 {cibaProofPoints(cibaState).map((point) => <li key={point}>{point}</li>)}
               </ul>
               <ProtocolTrace steps={cibaState.trace} explain={CIBA_EXPLAIN} />
-            </div>
+            </Card>
           )}
-        </div>
-      </section>
+        </FlowSection>
 
-      <PfDcrSection ready={features.dcr} />
+        <PfDcrSection ready={features.dcr} checked={statusKnown} lead={lead === "dcr"} />
 
-      <PfTokenExchangeSection provider={provider} />
+        <PfTokenExchangeSection provider={provider} lead={lead === "delegation"} />
 
-      <PfDpopSection ready={features.rarDpop} result={rarResult} />
+        <PfDpopSection ready={features.rarDpop} result={rarResult} checked={statusKnown} lead={lead === "dpop"} />
 
-      <PfPiFlowSection />
+        <PfPiFlowSection lead={lead === "piflow"} />
+
+        <Card tone="neutral" className="pfai-note">
+          <p><strong>OAuth and JWT only.</strong> Browser responses contain status and safe provenance. Access tokens, ID-JAGs, codes, and PKCE verifiers remain in the BFF or PingFederate.</p>
+        </Card>
+      </PageFrame>
 
       <DraggableModal
         isOpen={phoneOpen}
@@ -770,37 +745,38 @@ export default function PingFederateAiAgentPage({ user }) {
         storageKey="pf-ai-agent-mock-phone"
       >
         {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
-        <div className="dm-scroll pf-ai-agent__phone-wrap" data-testid={phoneChannel === "web" ? "ciba-web-approver" : "ciba-mock-phone"}>
-          <div className="pf-ai-agent__phone">
-            <div className="pf-ai-agent__phone-screen">
-              <div className="pf-ai-agent__phone-island" aria-hidden="true" />
-              <div className="pf-ai-agent__phone-clock" aria-hidden="true">
-                <span className="pf-ai-agent__phone-date">Lock screen</span>
-                <span className="pf-ai-agent__phone-time">9:41</span>
+        <div ref={phoneRef} className="dm-scroll pfai-phone-wrap" data-testid={phoneChannel === "web" ? "ciba-web-approver" : "ciba-mock-phone"}>
+          <div className="pfai-phone">
+            <div className="pfai-phone__screen">
+              <div className="pfai-phone__island" aria-hidden="true" />
+              <div className="pfai-phone__clock" aria-hidden="true">
+                <span className="pfai-phone__date">Lock screen</span>
+                <span className="pfai-phone__time">9:41</span>
               </div>
-              <div className="pf-ai-agent__phone-card">
-                <p className="pf-ai-agent__phone-app">
-                  <span className="pf-ai-agent__phone-icon" aria-hidden="true">P</span>
+              <div className="pfai-phone__card">
+                <p className="pfai-phone__app">
+                  <span className="pfai-phone__icon" aria-hidden="true">P</span>
                   PingOne MFA (mock)
-                  <span className="pf-ai-agent__phone-now">now</span>
+                  <span className="pfai-phone__now">now</span>
                 </p>
                 <h3>Approve this request?</h3>
                 <p>An AI agent is asking {cibaState?.loginHint} to approve it.</p>
-                {cibaState?.bindingMessage && <p className="pf-ai-agent__phone-message">{cibaState.bindingMessage}</p>}
+                {cibaState?.bindingMessage && <p className="pfai-phone__message">{cibaState.bindingMessage}</p>}
               </div>
-              <div className="pf-ai-agent__phone-actions">
-                <button className="pf-ai-agent__action" type="button" onClick={() => answerOnPhone("approve")}>{phoneLabel("approve")}</button>
-                <button className="pf-ai-agent__secondary-action" type="button" onClick={() => answerOnPhone("deny")}>{phoneLabel("deny")}</button>
+              <div className="pfai-phone__actions">
+                <button className="pfai-phone__btn pfai-phone__btn--approve" type="button" onClick={() => answerOnPhone("approve")}>{phoneLabel("approve")}</button>
+                <button className="pfai-phone__btn" type="button" onClick={() => answerOnPhone("deny")}>{phoneLabel("deny")}</button>
               </div>
-              <div className="pf-ai-agent__phone-home" aria-hidden="true" />
+              <div className="pfai-phone__home" aria-hidden="true" />
             </div>
           </div>
         </div>
       </DraggableModal>
-
-      <footer className="pf-ai-agent__note">
-        <strong>OAuth and JWT only.</strong> Browser responses contain status and safe provenance. Access tokens, ID-JAGs, codes, and PKCE verifiers remain in the BFF or PingFederate.
-      </footer>
-    </main>
+    </PingPage>
   );
+}
+
+// One button element carries the primary class, so the pattern check counts exactly one primary on this page.
+function PfButton({ lead, ...rest }) {
+  return <button className={lead ? "pu-btn pu-btn--primary" : "pu-btn"} type="button" {...rest} />;
 }

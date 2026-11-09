@@ -26,6 +26,7 @@
 /policy-decision-trace
 /mcp-observability
 /pingfederate-config
+/pingfederate-ai-agent
 /privilege-prompt-log
 /governance-timeline
 /demo-config

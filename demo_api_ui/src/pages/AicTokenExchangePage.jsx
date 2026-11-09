@@ -4,8 +4,9 @@ import { AIC_EXCHANGE_GROUPS, AIC_EXCHANGE_NODES, AIC_EXCHANGE_EDGES, AIC_EXCHAN
 import ProtocolTrace from "../components/ProtocolTrace";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
-// Same layout as the PingFederate AI Agent page, so it shares that stylesheet.
-import "./PingFederateAiAgentPage.css";
+// Same layout the PingFederate AI Agent page used before it moved to the Ping UI Standard: this is that page's old
+// stylesheet as it was, minus the mock phone block this page never used (its .pf-ai-agent__* classes are used nowhere else).
+import "./AicTokenExchangePage.css";
 
 function FeatureStatus({ ready }) {
   return (
