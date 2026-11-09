@@ -30,6 +30,7 @@
 /governance-timeline
 /demo-config
 /davinci-ciba-flows
+/secret-rotation
 /privilege-pf-token
 /ping-products/verify-recognize
 /autonomous-agents

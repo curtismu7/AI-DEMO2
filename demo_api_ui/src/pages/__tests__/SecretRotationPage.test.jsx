@@ -217,3 +217,161 @@ describe('SecretRotationPage', () => {
     expect(screen.queryByText(/every PingOne-dependent request in the demo fails/i)).not.toBeInTheDocument();
   });
 });
+
+// Ping UI Standard conversion: banner, cards, chips, one primary per state, focus and honest status.
+describe('SecretRotationPage on the Ping UI Standard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    arm({ status: 'running', lines: [] });
+  });
+
+  const primaries = () => document.querySelectorAll('.pu-btn--primary');
+
+  test('banner is the first child of the page, a note, and says the operation is live', async () => {
+    renderPage(<SecretRotationPage />);
+    await screen.findByText('Demo App');
+    const page = document.querySelector('.pu-page.srot-page');
+    expect(page.firstElementChild).toHaveClass('pu-banner-wrap');
+    const banner = screen.getByTestId('sr-banner');
+    expect(banner).toHaveAttribute('role', 'note');
+    expect(banner).toHaveTextContent(/LIVE OPERATION/);
+    expect(banner).toHaveTextContent(/nothing here is simulated/);
+    expect(banner).toHaveTextContent(/signed-in session/);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  test('exactly one primary per view state: none, the page button, then the dialog control', async () => {
+    renderPage(<SecretRotationPage />);
+    await screen.findByText('Demo App');
+    expect(primaries()).toHaveLength(0); // nothing selected, no action
+
+    await userEvent.click(screen.getByText('Demo App'));
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0]).toHaveTextContent('Rotate secret');
+
+    await userEvent.click(screen.getByRole('button', { name: /rotate secret/i }));
+    expect(primaries()).toHaveLength(0); // the page button steps down to a secondary
+    expect(document.querySelectorAll('.srot-modal-btn--confirm')).toHaveLength(1);
+  });
+
+  test('the confirm dialog takes focus on the reason field and gives it back to Rotate secret after submit', async () => {
+    renderPage(<SecretRotationPage />);
+    await userEvent.click(await screen.findByText('Demo App'));
+    const rotateBtn = screen.getByRole('button', { name: /rotate secret/i });
+    await userEvent.click(rotateBtn);
+    await waitFor(() => expect(screen.getByLabelText(/reason/i)).toHaveFocus());
+
+    await userEvent.type(screen.getByLabelText(/reason/i), 'rotating a leaked credential');
+    await userEvent.click(screen.getByRole('button', { name: /arm rotation/i }));
+    const yes = screen.getByRole('button', { name: /yes, rotate/i });
+    await userEvent.click(yes);
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /rotate secret/i })).toHaveFocus();
+  });
+
+  test('while a run is going Rotate secret is aria-disabled (still focusable), refuses a click and explains why', async () => {
+    renderPage(<SecretRotationPage />);
+    await rotate(userEvent, 'Demo App');
+    const btn = await screen.findByRole('button', { name: /rotate secret/i });
+    await waitFor(() => expect(btn).toHaveAttribute('aria-disabled', 'true'));
+    expect(btn).not.toBeDisabled();
+    expect(btn).toHaveAttribute('aria-describedby', 'sr-run-status');
+    expect(screen.getByTestId('sr-run-status')).toHaveTextContent(/second run is blocked/i);
+
+    await userEvent.click(btn);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('the run status region exists before the run and carries a chip word that follows the status', async () => {
+    arm({ status: 'done', lines: ['[rotate] rotated. fingerprint=deadbeef', '[rotate] DONE ok'] });
+    renderPage(<SecretRotationPage />);
+    await userEvent.click(await screen.findByText('Demo App'));
+    const region = screen.getByTestId('sr-run-status');
+    expect(region).toHaveAttribute('role', 'status');
+    expect(region).toHaveTextContent('Not run');
+    expect(screen.getByTestId('sr-run-card')).toHaveClass('pu-card--neutral');
+
+    await userEvent.click(screen.getByRole('button', { name: /rotate secret/i }));
+    await userEvent.type(screen.getByLabelText(/reason/i), 'why');
+    await userEvent.click(screen.getByRole('button', { name: /arm rotation/i }));
+    await userEvent.click(screen.getByRole('button', { name: /yes, rotate/i }));
+    await waitFor(() => expect(screen.getByTestId('sr-run-status')).toHaveTextContent('Rotated'));
+    expect(screen.getByTestId('sr-run-card')).toHaveClass('pu-card--ok');
+  });
+
+  test.each([
+    ['aborted', ['[rotate] DONE aborted: refused'], 'Refused', 'pu-card--warn'],
+    ['failed', ['[rotate] DONE failed: boom'], 'Failed', 'pu-card--danger'],
+  ])('a %s run shows the %s chip, no secret mask, and no claim that is not known', async (status, lines, word, card) => {
+    arm({ status, lines });
+    renderPage(<SecretRotationPage />);
+    await rotate(userEvent, 'Demo App');
+    await waitFor(() => expect(screen.getByTestId('sr-run-status')).toHaveTextContent(word));
+    expect(screen.getByTestId('sr-run-card')).toHaveClass(card);
+    expect(screen.queryByText('••••••••')).not.toBeInTheDocument();
+    if (status === 'failed') {
+      expect(screen.getByTestId('sr-run-status')).toHaveTextContent(/may already have been rotated/i);
+      expect(screen.getByTestId('sr-run-status')).not.toHaveTextContent(/after the secret was rotated/i);
+    }
+  });
+
+  test('a failed application list says so instead of reading as an empty list', async () => {
+    apiClient.get.mockImplementation(() => Promise.reject(new Error('Request failed with status code 502')));
+    renderPage(<SecretRotationPage />);
+    expect(await screen.findByText(/application list could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no application has a rotatable vault entry/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Application list unavailable')).toBeInTheDocument();
+  });
+
+  test('an empty list is reported as empty, and the count reads from what was loaded', async () => {
+    apiClient.get.mockImplementation(() => Promise.resolve({ data: { apps: [] } }));
+    renderPage(<SecretRotationPage />);
+    expect(await screen.findByText(/no application has a rotatable vault entry/i)).toBeInTheDocument();
+    expect(screen.getByText('0 rotatable applications')).toBeInTheDocument();
+  });
+
+  test('with nothing selected the middle column says what to do', async () => {
+    renderPage(<SecretRotationPage />);
+    await screen.findByText('Demo App');
+    expect(screen.getByText(/select an application to rotate/i)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /rotation log/i })).toHaveAttribute('tabindex', '0');
+  });
+
+  test('choosing the application that is already selected does not wipe its run', async () => {
+    arm({ status: 'done', lines: ['[rotate] rotated. fingerprint=deadbeef', '[rotate] DONE ok'] });
+    renderPage(<SecretRotationPage />);
+    await rotate(userEvent, 'Demo App');
+    expect(await screen.findByText('deadbeef')).toBeInTheDocument();
+
+    // The row, its radio and its name button all select: re-choosing must be a no-op.
+    await userEvent.click(screen.getByRole('radio', { name: /select demo app/i }));
+    await userEvent.click(screen.getAllByText('Demo App')[0]);
+    expect(screen.getByText('deadbeef')).toBeInTheDocument();
+  });
+
+  // Wave 4 lesson 4: one shared result state leaked across steps. A POST that lands after another application was chosen
+  // must not put its fingerprint under the new one.
+  test('a run that starts after another application was selected does not leak into it', async () => {
+    let release;
+    arm({ status: 'done', lines: ['[rotate] rotated. fingerprint=deadbeef', '[rotate] DONE ok'] });
+    apiClient.post.mockImplementation(() => new Promise((res) => { release = () => res({ data: { runId: '11111111-1111-1111-1111-111111111111' } }); }));
+
+    renderPage(<SecretRotationPage />);
+    await rotate(userEvent, 'Demo App');
+    await userEvent.click(screen.getByText('Other App'));
+    release();
+    await new Promise((r) => { setTimeout(r, 50); });
+
+    expect(screen.queryByText('deadbeef')).not.toBeInTheDocument();
+    expect(screen.getByTestId('sr-run-status')).toHaveTextContent('Not run');
+    const polls = apiClient.get.mock.calls.filter(([u]) => u.includes('/runs/'));
+    expect(polls).toHaveLength(0);
+  });
+
+  test('a worker credential is marked with a chip, not by colour alone', async () => {
+    renderPage(<SecretRotationPage />);
+    await userEvent.click(await screen.findByText('Demo AI App - Introspection Worker'));
+    expect(screen.getByText('Worker credential')).toHaveClass('pu-chip');
+  });
+});
