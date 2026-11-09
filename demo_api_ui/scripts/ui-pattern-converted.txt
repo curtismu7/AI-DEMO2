@@ -19,6 +19,7 @@
 /settings
 /privilege-gateway-topologies
 /agent-lifecycle
+/token-exchange-tester
 /demo-map
 /privilege-demo
 /agent-builder
