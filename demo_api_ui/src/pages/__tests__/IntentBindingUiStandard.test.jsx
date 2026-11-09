@@ -172,3 +172,131 @@ describe("reel controls", () => {
     expect(reel).toHaveTextContent("2 / 2");
   });
 });
+
+// Skeptic findings on PR 3516.
+const PAR_ERROR = {
+  sim: "par-error", status: 403, errorCode: "par_push_failed", reason: "invalid_client", live: true,
+  parRequest: { method: "POST", url: "https://auth.example/par", form: {} },
+  parResponse: { error: "par_push_failed", error_description: "invalid_client" },
+  tokenChainEvents: [{ id: "par-push", label: "PAR Endpoint Push", status: "error" }],
+};
+const LIVE_PERMIT = {
+  sim: "par-permit", status: 200, errorCode: null, reason: "PERMIT", live: true, requestUri: "urn:x",
+  parRequest: { method: "POST", url: "https://auth.example/par", form: {} },
+  parResponse: { request_uri: "urn:x", expires_in: 60 },
+  tokenChainEvents: [
+    { id: "par-push", label: "PAR Endpoint Push", status: "active" },
+    { id: "p1az-permit", label: "PingOne Authorize — PERMIT", status: "active" },
+  ],
+};
+
+describe("a failed live PAR push is an error, not a policy DENY", () => {
+  test("shows PAR push failed and No decision made, never DENY or a success engine chip", async () => {
+    global.fetch.mockResolvedValueOnce(ok(PAR_ERROR));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /run drift/i }));
+    const result = screen.getByTestId("ib-result-drift");
+    await within(result).findByText("PAR push failed");
+    expect(within(result).getByText("No decision made")).toBeInTheDocument();
+    expect(result).toHaveTextContent(/par_push_failed — invalid_client/);
+    expect(result).not.toHaveTextContent(/DENY/);
+    expect(within(result).queryByText("Live PAR push")).toBeNull();
+    expect(result.querySelector(".ib-status--error")).toBeTruthy();
+  });
+
+  test("the reel has no Decision frame and the failed run does not advance the primary Run", async () => {
+    global.fetch.mockResolvedValueOnce(ok(PAR_ERROR));
+    const { container } = renderPage();
+    fireEvent.click(runButton("permit"));
+    const reel = await screen.findByTestId("ib-reel-permit");
+    expect(reel).toHaveTextContent("1 / 2");
+    expect(within(reel).queryByRole("button", { name: /decision/i })).toBeNull();
+    expect(reel).not.toHaveTextContent(/Decision — DENY/);
+    expect(primaries(container)).toEqual([runButton("permit")]);
+  });
+});
+
+describe("tone follows what was checked", () => {
+  test("Expected chips and card edges are neutral before a run, then follow the outcome", async () => {
+    global.fetch.mockResolvedValueOnce(ok(PERMIT));
+    renderPage();
+    for (const kind of ["permit", "drift"]) {
+      const col = screen.getByTestId(`ib-col-${kind}`);
+      expect(col.className).not.toMatch(/pu-card--(ok|danger)/);
+      expect(within(col).getByText(/^Expected: /).className).toContain("pu-chip--neutral");
+    }
+    fireEvent.click(runButton("permit"));
+    await screen.findByText("PERMIT");
+    expect(screen.getByTestId("ib-col-permit").className).toMatch(/pu-card--ok/);
+    expect(screen.getByTestId("ib-col-drift").className).not.toMatch(/pu-card--(ok|danger)/);
+  });
+});
+
+describe("wording follows the engine in use", () => {
+  test("Simulated mode says the PAR push and request_uri do not happen; Live says what it does", () => {
+    renderPage();
+    expect(screen.getByTestId("ib-step-3")).toHaveTextContent(/PingOne returns a reference URI/);
+    expect(screen.getByTestId("ib-col-permit")).toHaveTextContent(/PingOne stores the pushed request without checking the amount/);
+    expect(screen.getByTestId("ib-col-permit")).not.toHaveTextContent(/Steps 3-4 complete/);
+    expect(screen.getByTestId("ib-flow")).not.toHaveTextContent(/via Agent Gateway/);
+    fireEvent.click(screen.getByTestId("ib-live-toggle"));
+    expect(screen.getByTestId("ib-step-2")).toHaveTextContent(/Not made in Simulated mode/);
+    expect(screen.getByTestId("ib-step-3")).toHaveTextContent(/Not issued in Simulated mode/);
+    expect(screen.getByTestId("ib-step-3")).not.toHaveTextContent(/PingOne returns a reference URI/);
+    expect(screen.getByTestId("ib-flow")).toHaveTextContent(/not issued: Simulated/);
+    expect(screen.getByTestId("ib-col-drift")).toHaveTextContent(/The simulated run denies it/);
+    expect(screen.getByTestId("ib-col-drift")).not.toHaveTextContent(/PingOne still stores/);
+  });
+
+  test("a live run does not credit PingOne Authorize with the amount check", async () => {
+    global.fetch.mockResolvedValueOnce(ok(LIVE_PERMIT));
+    renderPage();
+    fireEvent.click(runButton("permit"));
+    const result = screen.getByTestId("ib-result-permit");
+    await within(result).findByText("PERMIT");
+    expect(result).not.toHaveTextContent(/PingOne Authorize/);
+    expect(result).toHaveTextContent(/Amount check — PERMIT \(made by this app's backend\)/);
+  });
+});
+
+describe("notices do not leak across modes or columns", () => {
+  test("a 401 on both columns shows one sign-in strip", async () => {
+    renderPage();
+    const unauth = { ok: false, status: 401, json: async () => ({ error: "authentication_required" }) };
+    global.fetch.mockResolvedValueOnce(unauth).mockResolvedValueOnce(unauth);
+    fireEvent.click(runButton("permit"));
+    await screen.findByRole("alert");
+    fireEvent.click(runButton("drift"));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    await screen.findByRole("alert");
+    expect(screen.getAllByRole("button", { name: /^sign in$/i })).toHaveLength(1);
+  });
+
+  test("flipping the mode clears an earlier error and the sign-in strip", async () => {
+    renderPage();
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: "demo_execution_failed" }) });
+    fireEvent.click(runButton("permit"));
+    await within(screen.getByTestId("ib-result-permit")).findByText("Error");
+    fireEvent.click(screen.getByTestId("ib-live-toggle"));
+    expect(within(screen.getByTestId("ib-result-permit")).queryByText("Error")).toBeNull();
+
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) });
+    fireEvent.click(runButton("drift"));
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByTestId("ib-live-toggle"));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("page-scoped CSS", () => {
+  test("every ib- selector in the sheet starts at .pu-page.intent-binding-page", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const css = fs.readFileSync(path.join(__dirname, "..", "IntentBindingLearningPage.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    const selectors = css.split("}").map((b) => b.split("{")[0]).join(",").split(",").map((x) => x.trim()).filter((x) => x && !x.startsWith("@") && /\.ib-/.test(x));
+    expect(selectors.length).toBeGreaterThan(20);
+    const bad = selectors.filter((x) => !x.startsWith(".pu-page.intent-binding-page"));
+    expect(bad).toEqual([]);
+  });
+});

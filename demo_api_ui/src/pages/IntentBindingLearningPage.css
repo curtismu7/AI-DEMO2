@@ -160,6 +160,11 @@
   padding: 10px 12px;
   border-radius: var(--radius-lg);
   font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.pu-page.intent-binding-page .ib-status-reason {
+  margin: 6px 0 0;
 }
 
 .pu-page.intent-binding-page .ib-status--permit {
@@ -259,7 +264,7 @@
 }
 
 /* Reel buttons are compact secondaries (the shared .pu-btn is 40px tall). */
-.pu-page .ib-reel .pu-btn {
+.pu-page.intent-binding-page .ib-reel .pu-btn {
   min-height: 32px;
   padding: 4px 12px;
   font-size: var(--font-size-xs);
@@ -274,12 +279,12 @@
   padding: 0;
 }
 
-.pu-page .ib-reel-strip .pu-btn {
+.pu-page.intent-binding-page .ib-reel-strip .pu-btn {
   border-radius: var(--radius-pill);
 }
 
 /* The current frame: a Ping Red edge, fixed under every vertical (not a fill). */
-.pu-page .ib-reel-strip .pu-btn[aria-current='true'] {
+.pu-page.intent-binding-page .ib-reel-strip .pu-btn[aria-current='true'] {
   border-color: var(--btn-accent);
   box-shadow: inset 0 0 0 1px var(--btn-accent);
 }

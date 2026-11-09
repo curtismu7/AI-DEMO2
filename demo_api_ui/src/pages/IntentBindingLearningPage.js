@@ -34,12 +34,41 @@ import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } fro
 const PAR_CAP = 100;
 const PAR_PAYLOAD = { type: "banking_transaction", tool: "create_transfer", amount: PAR_CAP, payee: "acme-utilities" };
 
+// `detail` is the lesson and the Live run. `sim` is what the card says while Live mode is off: the lesson stays,
+// but a step the Simulated run never makes says so instead of describing PingOne work that did not happen.
 const PIPELINE_STEPS = [
   { num: 1, title: "Declare intent", detail: "Customer authorizes: pay Acme Utilities, up to $100." },
-  { num: 2, title: "Push to PAR endpoint", detail: "Authorization details pre-submitted to PingOne via RFC 9126." },
-  { num: 3, title: "Receive request_uri", detail: "PingOne returns a reference URI for this authorization context." },
-  { num: 4, title: "Token exchange with request_uri", detail: "Agent uses request_uri in token exchange; the requested amount is checked against the declared cap." },
+  {
+    num: 2,
+    title: "Push to PAR endpoint",
+    detail: "Authorization details pre-submitted to PingOne via RFC 9126.",
+    sim: "Not made in Simulated mode: the payload stays in this app. Turn Live mode on to push it to PingOne (RFC 9126).",
+  },
+  {
+    num: 3,
+    title: "Receive request_uri",
+    detail: "PingOne returns a reference URI for this authorization context.",
+    sim: "Not issued in Simulated mode: with no PAR push, PingOne returns no request_uri.",
+  },
+  {
+    num: 4,
+    title: "Token exchange with request_uri",
+    detail: "In the full flow the agent presents the request_uri in a token exchange. A Live run stops after the push: this app's backend checks the requested amount against the declared cap.",
+    sim: "The requested amount is checked against the declared cap. No request_uri is presented in Simulated mode.",
+  },
 ];
+
+/** A live run whose PAR push failed (routes/intentBinding.js answers HTTP 200 with sim 'par-error'): nothing was decided. */
+export function parPushFailed(result) {
+  return Boolean(result && (result.sim === "par-error" || (result.parResponse && result.parResponse.error)));
+}
+
+/** Server event labels, corrected where the label names an engine that did not make the decision. */
+function eventLabel(ev, result) {
+  // A live run answers 'PingOne Authorize — PERMIT', but PingOne only stores the pushed request: the cap check is this app's.
+  if (result.live === true && ev.id === "p1az-permit") return "Amount check — PERMIT (made by this app's backend)";
+  return ev.label;
+}
 
 function useColumnRun(action, defaultAmount) {
   const [amount, setAmount] = useState(defaultAmount);
@@ -93,7 +122,12 @@ function useColumnRun(action, defaultAmount) {
     }
   };
 
-  return { amount, setAmount, loading, result, ran, error, needsAuth, run };
+  const clearNotices = () => {
+    setError(null);
+    setNeedsAuth(false);
+  };
+
+  return { amount, setAmount, loading, result, ran, error, needsAuth, run, clearNotices };
 }
 
 const REEL_FRAME_MS = 1400;
@@ -106,6 +140,7 @@ const REEL_FRAME_MS = 1400;
 export function buildReelFrames(result, sentBody) {
   if (!result) return [];
   const permit = result.status === 200;
+  const failed = parPushFailed(result);
   if (!result.parRequest) {
     return [
       {
@@ -124,8 +159,7 @@ export function buildReelFrames(result, sentBody) {
       },
     ];
   }
-  const failed = Boolean(result.parResponse && result.parResponse.error);
-  return [
+  const frames = [
     {
       chip: "Request",
       side: "request",
@@ -142,22 +176,28 @@ export function buildReelFrames(result, sentBody) {
         : "PingOne stored the request and returned a reference to it. The amount is not checked here.",
       body: result.parResponse,
     },
-    {
+  ];
+  // A rejected push decides nothing, so there is no Decision frame to replay.
+  if (!failed) {
+    frames.push({
       chip: "Decision",
       side: permit ? "permit" : "deny",
       title: permit ? "Decision — PERMIT" : `Decision — DENY (${result.errorCode})`,
       caption: result.reason || "",
       body: { status: result.status, errorCode: result.errorCode, requestUri: result.requestUri },
-    },
-  ];
+    });
+  }
+  return frames;
 }
 
+// sub is [Live, Simulated]: the Simulated run makes no PAR push and gets no request_uri; the Live run does not
+// exchange the request_uri or go through the Agent Gateway (it stops after the push and the backend's cap check).
 const FLOW_STEPS = [
-  { key: "user", tone: "info", title: "User declares", sub: "Intent: $100" },
-  { key: "par", tone: "neutral", title: "Push to PAR endpoint", sub: "(auth payload)" },
-  { key: "uri", tone: "neutral", title: "Receive request_uri", sub: "(reference ID)" },
-  { key: "exchange", tone: "ok", title: "Token exchange with request_uri", sub: "(via Agent Gateway)" },
-  { key: "decide", tone: "warn", title: "Amount check", sub: "Compares the amount to the declared cap → PERMIT / DENY" },
+  { key: "user", tone: "info", title: "User declares", sub: ["Intent: $100", "Intent: $100"] },
+  { key: "par", tone: "neutral", title: "Push to PAR endpoint", sub: ["(auth payload)", "(not made: Simulated)"] },
+  { key: "uri", tone: "neutral", title: "Receive request_uri", sub: ["(reference ID)", "(not issued: Simulated)"] },
+  { key: "exchange", tone: "ok", title: "Token exchange with request_uri", sub: ["(not made in a Live run)", "(via Agent Gateway)"] },
+  { key: "decide", tone: "warn", title: "Amount check", sub: ["Compares the amount to the declared cap → PERMIT / DENY", "Compares the amount to the declared cap → PERMIT / DENY"] },
 ];
 
 export default function IntentBindingLearningPage() {
@@ -169,10 +209,19 @@ export default function IntentBindingLearningPage() {
   const driftCol = useColumnRun("drift", 500);
   const edu = useEducationUIOptional();
 
+  // Flipping the mode drops the notices of the other mode (an error, the sign-in strip). Finished results stay: they
+  // carry their own engine chip and the reel keeps what they were sent with.
+  const switchMode = (next) => {
+    setLive(next);
+    permitCol.clearNotices();
+    driftCol.clearNotices();
+  };
+
   // P9 primary, one per state (see the header comment). A 401 hands the one action to the sign-in strip.
   const signInOffered = permitCol.needsAuth || driftCol.needsAuth;
-  const permitDone = Boolean(permitCol.result);
-  const driftDone = Boolean(driftCol.result);
+  // A run whose PAR push failed decided nothing, so it does not advance the lesson: its Run stays the primary.
+  const permitDone = Boolean(permitCol.result) && !parPushFailed(permitCol.result);
+  const driftDone = Boolean(driftCol.result) && !parPushFailed(driftCol.result);
   let nextKind = null;
   if (!signInOffered) nextKind = permitDone && !driftDone ? "drift" : "permit";
 
@@ -208,7 +257,7 @@ export default function IntentBindingLearningPage() {
           <div className="pu-card-grid ib-pipeline">
             {PIPELINE_STEPS.map((step) => (
               <Card key={step.num} title={`Step ${step.num} · ${step.title}`} className="ib-step" data-testid={`ib-step-${step.num}`}>
-                <p className="pu-note">{step.detail}</p>
+                <p className="pu-note">{!live && step.sim ? step.sim : step.detail}</p>
               </Card>
             ))}
           </div>
@@ -231,7 +280,7 @@ export default function IntentBindingLearningPage() {
                 {FLOW_STEPS.map((hop) => (
                   <li key={hop.key} className={`ib-flow-box ib-flow-box--${hop.tone}`}>
                     <strong>{hop.title}</strong>
-                    <span>{hop.sub}</span>
+                    <span>{hop.sub[live ? 0 : 1]}</span>
                   </li>
                 ))}
               </ol>
@@ -257,10 +306,18 @@ export default function IntentBindingLearningPage() {
                   : "Run uses the local simulator and makes no call to PingOne PAR."}
               </p>
               <label className="ib-live-toggle">
-                <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} data-testid="ib-live-toggle" />
+                <input type="checkbox" checked={live} onChange={(e) => switchMode(e.target.checked)} data-testid="ib-live-toggle" />
                 Live mode — push the authorization details to PingOne&apos;s PAR endpoint instead of using the simulator
               </label>
             </Card>
+            {signInOffered ? (
+              <SignInPrompt
+                variant="strip"
+                message={live
+                  ? "Running the live decision needs a signed-in session — the PAR push is made on your behalf."
+                  : "Running the simulated decision needs a signed-in session."}
+              />
+            ) : null}
             <div className="pu-card-grid ib-split">
               <IntentBindingColumn
                 kind="permit"
@@ -407,24 +464,35 @@ function runEngine(result) {
 function IntentBindingColumn({ kind, title, expected, col, live, isNext }) {
   const amount = Number(col.amount);
   const within = amount <= PAR_CAP;
-  const permit = col.result && col.result.status === 200;
+  const failed = parPushFailed(col.result);
+  const permit = Boolean(col.result) && !failed && col.result.status === 200;
   const run = () => col.run(live);
+  let rationale;
+  if (live) {
+    rationale = within
+      ? `$${col.amount} is within the $${PAR_CAP} cap. PingOne stores the pushed request without checking the amount; this app's backend permits it.`
+      : `$${col.amount} exceeds the $${PAR_CAP} cap. PingOne still stores the pushed request; this app's backend denies it, so no transfer is made.`;
+  } else {
+    rationale = within
+      ? `$${col.amount} is within the $${PAR_CAP} cap. The simulated run permits it; no PAR push is made.`
+      : `$${col.amount} exceeds the $${PAR_CAP} cap. The simulated run denies it, so no transfer is made.`;
+  }
+  // Neutral until something was checked: the card's edge and the Expected chip are not a verdict.
+  let tone = "neutral";
+  if (col.error || failed) tone = "danger";
+  else if (col.result) tone = permit ? "ok" : "danger";
   return (
     <Card
-      tone={kind === "permit" ? "ok" : "danger"}
+      tone={tone}
       className={`ib-col ib-col--${kind}`}
       data-testid={`ib-col-${kind}`}
     >
       <div className="ib-col-head">
         <h3 className="pu-h3">{title}</h3>
-        <StatusChip tone={kind === "permit" ? "ok" : "danger"}>{`Expected: ${expected}`}</StatusChip>
+        <StatusChip tone="neutral">{`Expected: ${expected}`}</StatusChip>
       </div>
       <KvList items={[{ label: "Requested", value: `$${col.amount}` }]} />
-      <p className="ib-rationale">
-        {within
-          ? `$${col.amount} is within the $${PAR_CAP} cap. Steps 3-4 complete and the request matches the declared intent.`
-          : `$${col.amount} exceeds the $${PAR_CAP} cap. Step 4 stops the chain — the transfer never reaches the account.`}
-      </p>
+      <p className="ib-rationale">{rationale}</p>
       <div className="ib-controls">
         <label className="ib-amount-field">
           <span className="pu-label">Amount</span>
@@ -447,14 +515,6 @@ function IntentBindingColumn({ kind, title, expected, col, live, isNext }) {
           {col.loading ? "Running…" : "Run"}
         </button>
       </div>
-      {col.needsAuth ? (
-        <SignInPrompt
-          variant="strip"
-          message={live
-            ? "Running the live decision needs a signed-in session — the PAR push is made on your behalf."
-            : "Running the simulated decision needs a signed-in session."}
-        />
-      ) : null}
       {/* One persistent live region per column: a run's outcome is announced where focus already is (the Run button). */}
       <div className="ib-result" role="status" data-testid={`ib-result-${kind}`}>
         {col.loading ? <p className="pu-status-line"><StatusChip>Running</StatusChip>Waiting for the decision.</p> : null}
@@ -463,7 +523,25 @@ function IntentBindingColumn({ kind, title, expected, col, live, isNext }) {
             <p className="pu-status-line"><StatusChip tone="danger">Error</StatusChip>{col.error}</p>
           </div>
         ) : null}
-        {col.result ? (
+        {col.result && failed ? (
+          // The BFF answers a failed PAR push with HTTP 200 and status 403. Nothing was decided, so this is an error,
+          // not a DENY, and it says so.
+          <div className="ib-status ib-status--error">
+            <p className="pu-status-line">
+              <StatusChip tone="danger">PAR push failed</StatusChip>
+              <StatusChip tone="neutral">No decision made</StatusChip>
+            </p>
+            <p className="ib-status-reason">{col.result.errorCode}{col.result.reason ? ` — ${col.result.reason}` : ""}</p>
+            <ul>
+              {(col.result.tokenChainEvents || []).map((ev) => (
+                <li key={ev.id}>
+                  <strong>{eventLabel(ev, col.result)}</strong> — {ev.status}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {col.result && !failed ? (
           <div className={`ib-status ib-status--${permit ? "permit" : "deny"}`}>
             <p className="pu-status-line">
               <StatusChip tone={permit ? "ok" : "danger"}>{permit ? "PERMIT" : `DENY (${col.result.errorCode})`}</StatusChip>
@@ -472,7 +550,7 @@ function IntentBindingColumn({ kind, title, expected, col, live, isNext }) {
             <ul>
               {(col.result.tokenChainEvents || []).map((ev) => (
                 <li key={ev.id}>
-                  <strong>{ev.label}</strong> — {ev.status}
+                  <strong>{eventLabel(ev, col.result)}</strong> — {ev.status}
                 </li>
               ))}
             </ul>
