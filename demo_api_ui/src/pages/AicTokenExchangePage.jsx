@@ -43,6 +43,18 @@ const ACTOR_EXPLAIN = {
 };
 
 /**
+ * Why a click on a step failed, naming the party that actually answered. The BFF only returns a message when it got as
+ * far as AIC (or knew the step was off); a 401 means the app session ended before any request reached AIC.
+ */
+function failureMessage(error) {
+  const response = error?.response;
+  if (!response) return "The BFF did not answer, so it is not known whether AIC was asked.";
+  if (response.status === 401) return "Your app session has ended, so nothing was sent to AIC. Sign in to the app again.";
+  if (response.data?.message) return response.data.message;
+  return `The BFF failed with HTTP ${response.status} and gave no reason.`;
+}
+
+/**
  * AIC token exchange: an RFC 8693 delegation exchange at PingOne Advanced
  * Identity Cloud. The user token comes from a direct AIC sign-in, the actor token
  * from client credentials, and the exchange turns the pair into a delegated token.
@@ -80,6 +92,17 @@ export default function AicTokenExchangePage() {
     }
   }, [outcome]);
 
+  // After a failed click, ask the BFF what it holds now. A failed actor request discards the earlier exchange there,
+  // and the page must not keep showing it. Quiet: the cards stay mounted (no loading state) so focus is not dropped.
+  async function resyncStatus() {
+    try {
+      const response = await apiClient.get("/api/aic-demo/status");
+      setStatus(response.data);
+    } catch {
+      // Keep what is shown; the failed step already says it failed.
+    }
+  }
+
   async function getActorToken() {
     if (busy) return;
     setBusy(true);
@@ -91,9 +114,10 @@ export default function AicTokenExchangePage() {
       setRuns((previous) => ({ ...previous, actor: { state: "done" } }));
       notifySuccess("Actor token issued by AIC.");
     } catch (error) {
-      const message = error?.response?.data?.message || "AIC did not issue an actor token.";
+      const message = failureMessage(error);
       setRuns((previous) => ({ ...previous, actor: { state: "failed", message } }));
       notifyError(message);
+      await resyncStatus();
     } finally {
       setBusy(false);
     }
@@ -109,9 +133,10 @@ export default function AicTokenExchangePage() {
       setRuns((previous) => ({ ...previous, exchange: { state: "done" } }));
       notifySuccess("AIC issued the delegated token.");
     } catch (error) {
-      const message = error?.response?.data?.message || "AIC refused the token exchange.";
+      const message = failureMessage(error);
       setRuns((previous) => ({ ...previous, exchange: { state: "failed", message } }));
       notifyError(message);
+      await resyncStatus();
     } finally {
       setBusy(false);
     }
@@ -127,6 +152,11 @@ export default function AicTokenExchangePage() {
   const actorReady = Boolean(status?.actorReady);
   const canExchange = userSignedIn && actorReady;
   const nothingConfigured = !unknown && !features.login && !features.actor;
+
+  // The exchange needs both tokens. A token that is not held and whose step is off on this BFF can never arrive.
+  const exchangeOff = [];
+  if (!unknown && !userSignedIn && !features.login) exchangeOff.push("the user token");
+  if (!unknown && !actorReady && !features.actor) exchangeOff.push("the actor token");
 
   let next = null;
   if (!unknown) {
@@ -161,6 +191,7 @@ export default function AicTokenExchangePage() {
   else if (exchangeRun?.state === "failed") exchangeStatus = { tone: "danger", word: "Failed", text: exchangeRun.message };
   else if (exchangeResult?.trace?.length > 0) exchangeStatus = { tone: "ok", word: "Issued", text: "AIC issued the delegated token." };
   else if (canExchange) exchangeStatus = { tone: "info", word: "Ready", text: "Both tokens are held. The exchange has not run yet." };
+  else if (exchangeOff.length > 0) exchangeStatus = { tone: "warn", word: "Not configured", text: `This BFF cannot get ${exchangeOff.join(" or ")}, so the exchange cannot run here.` };
   else exchangeStatus = { tone: "neutral", word: "Waiting", text: "Needs the user token and the actor token." };
 
   let banner;
@@ -252,7 +283,7 @@ export default function AicTokenExchangePage() {
                 </div>
               )
               : <p className="pu-note">Set AIC_ACTOR_CLIENT_ID and AIC_ACTOR_CLIENT_SECRET to get an actor token</p>)}
-            {actorResult?.trace?.length > 0 && (
+            {actorResult?.trace?.length > 0 && actorRun?.state !== "failed" && (
               <Proof
                 testId="aic-actor-proof"
                 steps={actorResult.trace}
@@ -284,8 +315,8 @@ export default function AicTokenExchangePage() {
                   <StepAction isNext={next === "exchange"} busy={busy} onClick={exchange}>Exchange tokens</StepAction>
                 </div>
               )
-              : <p className="pu-note">Get the user token and the actor token first</p>)}
-            {exchangeResult?.trace?.length > 0 && (
+              : <p className="pu-note">{exchangeOff.length > 0 ? "Turn on the step marked Not configured above to enable the exchange" : "Get the user token and the actor token first"}</p>)}
+            {exchangeResult?.trace?.length > 0 && exchangeRun?.state !== "failed" && (
               <Proof
                 testId="aic-exchange-proof"
                 steps={exchangeResult.trace}

@@ -189,6 +189,79 @@ describe("AicTokenExchangePage", () => {
       expect(screen.getByTestId("aic-user-status")).not.toHaveTextContent("AIC said no");
     });
 
+    it("names the party that answered: an ended app session never blames AIC", async () => {
+      get.mockResolvedValue({ data: { ...STATUS, userSignedIn: true, userResult: USER } });
+      post.mockRejectedValue({ response: { status: 401, data: { error: "application_session_required" } } });
+      render(<AicTokenExchangePage />);
+      fireEvent.click(await screen.findByRole("button", { name: "Get actor token" }));
+      const status = screen.getByTestId("aic-actor-status");
+      await waitFor(() => expect(status).toHaveTextContent("Failed"));
+      expect(status).toHaveTextContent("Your app session has ended, so nothing was sent to AIC");
+      expect(status).not.toHaveTextContent("AIC did not");
+    });
+
+    it("says the BFF failed, not AIC, when it gave no reason or did not answer", async () => {
+      get.mockResolvedValue({ data: { ...STATUS, userSignedIn: true, userResult: USER } });
+      post.mockRejectedValueOnce({ response: { status: 500, data: { error: "AIC_SESSION_SAVE_FAILED" } } });
+      render(<AicTokenExchangePage />);
+      const status = screen.getByTestId("aic-actor-status");
+      fireEvent.click(await screen.findByRole("button", { name: "Get actor token" }));
+      await waitFor(() => expect(status).toHaveTextContent("The BFF failed with HTTP 500 and gave no reason."));
+      post.mockRejectedValueOnce(new Error("Network Error"));
+      fireEvent.click(screen.getByRole("button", { name: "Get actor token" }));
+      await waitFor(() => expect(status).toHaveTextContent("The BFF did not answer"));
+      expect(status).not.toHaveTextContent("AIC did not");
+    });
+
+    it("calls the exchange Not configured when a missing token can never arrive on this BFF", async () => {
+      get.mockResolvedValue({ data: { ...STATUS, features: { login: true, actor: false }, userSignedIn: true, userResult: USER } });
+      render(<AicTokenExchangePage />);
+      const status = await screen.findByTestId("aic-exchange-status");
+      await waitFor(() => expect(status).toHaveTextContent("Not configured"));
+      expect(status).toHaveTextContent("cannot get the actor token");
+      expect(status).not.toHaveTextContent("Waiting");
+      expect(screen.queryByRole("button", { name: "Exchange tokens" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the exchange 'Waiting' when the missing token can still be fetched", async () => {
+      get.mockResolvedValue({ data: STATUS });
+      render(<AicTokenExchangePage />);
+      const status = await screen.findByTestId("aic-exchange-status");
+      await waitFor(() => expect(status).toHaveTextContent("Waiting"));
+    });
+
+    it("re-reads what the BFF holds after a failed actor request, so a discarded exchange is not shown", async () => {
+      const EXCHANGE = { subject: "alice", scope: "repair", act: { sub: "agent" }, trace: [{ id: "exchange", title: "Exchange", request: { method: "POST", url: "u" } }] };
+      get.mockResolvedValueOnce({ data: { ...STATUS, userSignedIn: true, actorReady: true, userResult: USER, actorResult: ACTOR, exchangeResult: EXCHANGE } });
+      // The BFF discarded the exchange before the actor request failed.
+      get.mockResolvedValueOnce({ data: { ...STATUS, userSignedIn: true, actorReady: true, userResult: USER, actorResult: ACTOR, exchangeResult: null } });
+      post.mockRejectedValue({ response: { status: 502, data: { message: "AIC rejected the client credentials request" } } });
+      render(<AicTokenExchangePage />);
+      expect(await screen.findByTestId("aic-exchange-proof")).toBeInTheDocument();
+      const button = screen.getByRole("button", { name: "Get actor token" });
+      button.focus();
+      fireEvent.click(button);
+      await waitFor(() => expect(screen.queryByTestId("aic-exchange-proof")).not.toBeInTheDocument());
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("aic-exchange-status")).toHaveTextContent("Ready");
+      // The cards stayed mounted (no loading state), so focus is where it was.
+      expect(screen.getByRole("button", { name: "Get actor token" })).toBe(button);
+      expect(document.activeElement).toBe(button);
+      // The earlier actor trace is not shown under a Failed step.
+      expect(screen.getByTestId("aic-actor-status")).toHaveTextContent("Failed");
+    });
+
+    it("does not show an earlier exchange trace under a failed exchange", async () => {
+      const EXCHANGE = { subject: "alice", scope: "repair", trace: [{ id: "exchange", title: "Exchange", request: { method: "POST", url: "u" } }] };
+      get.mockResolvedValue({ data: { ...STATUS, userSignedIn: true, actorReady: true, userResult: USER, actorResult: ACTOR, exchangeResult: EXCHANGE } });
+      post.mockRejectedValue({ response: { status: 502, data: { message: "AIC rejected the token exchange" } } });
+      render(<AicTokenExchangePage />);
+      await screen.findByTestId("aic-exchange-proof");
+      fireEvent.click(screen.getByRole("button", { name: "Exchange tokens" }));
+      await waitFor(() => expect(screen.getByTestId("aic-exchange-status")).toHaveTextContent("Failed"));
+      expect(screen.queryByTestId("aic-exchange-proof")).not.toBeInTheDocument();
+    });
+
     it("gives the sign-in error a word, not just colour", async () => {
       get.mockResolvedValue({ data: { ...STATUS, lastError: { message: "access_denied" } } });
       window.history.replaceState(null, "", "/aic-token-exchange?aic=error");
