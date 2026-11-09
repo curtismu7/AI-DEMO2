@@ -128,6 +128,11 @@ TransactionType: '12345678-0002-4321-abcd-000000000002',
   // bridged) is the inert side for the mismatch rule and the DENY side for the
   // missing-consent rule, which is the fail-closed direction.
   MayActSub: '12345678-0033-4321-abcd-000000000033',
+  // Airline booking rules (Muse -> Agent Gateway -> P1AZ demo). Both are sent by
+  // PingGateway for book_airline_flight only (p1az-decision.groovy); the defaults
+  // make every other caller inert-safe (not premium; the user's agent limit is 500).
+  AgentSpendLimit: '12345678-0034-4321-abcd-000000000034',
+  MemberTier: '12345678-0035-4321-abcd-000000000035',
 };
 // The accepted gateway identities (step 0) are DERIVED from the SoT: every
 // resource marked `"role": "mcp-gateway"`. These are the same identities the
@@ -213,6 +218,9 @@ const COND = {
   // consent, exactly as the mock does.
   UserConsentMissing: '23456789-0032-4321-abcd-000000000032',
   UserConsentMismatch: '23456789-0033-4321-abcd-000000000033',
+  // Airline booking rules (Muse -> Agent Gateway -> P1AZ demo); ids continue after -0033.
+  AgentBookingOverUserLimit: '23456789-0034-4321-abcd-000000000034',   // RULE A (user preference)
+  PremiumOnlyBookingOver750: '23456789-0035-4321-abcd-000000000035',   // RULE B (airline control)
 };
 const STMT = {
   a2aDelegationRequired: '34567890-0010-4321-abcd-000000000010',   // code mcp-invalid-a2a-generalist (shared)
@@ -239,6 +247,8 @@ const STMT = {
   // exactly — the BFF surfaces them as deny_reason, same as rar_amount_exceeded.
   noUserConsent: '34567890-0032-4321-abcd-000000000032',
   consentMismatch: '34567890-0033-4321-abcd-000000000033',
+  airlineAgentSpendLimit: '34567890-0034-4321-abcd-000000000034', // mcp-airline-agent-spend-limit (DENY)
+  airlinePremiumOnly: '34567890-0035-4321-abcd-000000000035',     // mcp-airline-premium-only (DENY)
 };
 const RULE = {
   mcpHitl: '45678901-0008-4321-abcd-000000000008',          // existing (generalized)
@@ -263,7 +273,32 @@ const RULE = {
   // Per-user consent denies (mock Rule 2.6, may_act re-architecture).
   mcpDenyNoUserConsent: '45678901-0032-4321-abcd-000000000032',
   mcpDenyConsentMismatch: '45678901-0033-4321-abcd-000000000033',
+  mcpDenyAirlineAgentSpendLimit: '45678901-0034-4321-abcd-000000000034',
+  mcpDenyAirlinePremiumOnly: '45678901-0035-4321-abcd-000000000035',
 };
+// Airline booking rules. RULE A (the user's preference): an AI agent may not buy a
+// ticket over the user's AgentSpendLimit (default 500). RULE B (the airline's
+// control): only premium members can book over AIRLINE_PREMIUM_THRESHOLD. Both are
+// strict `>`: exactly 500 / exactly 750 pass. Mirrored by the mock engine
+// (demo_authz_server/routes/decision.js Rule 3-airline) and the simulated engine.
+const AIRLINE_BOOKING_TOOL = 'book_airline_flight';
+const AIRLINE_AGENT_LIMIT_DEFAULT = 500;
+const AIRLINE_PREMIUM_THRESHOLD = '750';
+// The member tier is a custom attribute on the PingOne USER (user schema, STRING). Authorize reads
+// it; the gateway never sends a tier. Missing / empty / any value outside premiumTiers = NOT premium.
+const AIRLINE_TIER_USER_ATTRIBUTE = 'airlineMemberTier';
+// The premium tier set is data, not code: one file read by the resource server
+// (fares), PingGateway (synced copy) and this generator.
+const AIRLINE_BOOKING_DATA = path.join(REPO, 'demo_mcp_resource_server', 'seed', 'airline-booking-policy-data.json');
+function loadAirlinePremiumTiers() {
+  const tiers = JSON.parse(fs.readFileSync(AIRLINE_BOOKING_DATA, 'utf8')).premiumTiers;
+  // An empty list would make NOT(OR[]) match everyone's complement wrongly (the same
+  // trap as the workload-agent carve-out): refuse to emit the rule instead.
+  if (!Array.isArray(tiers) || tiers.length === 0 || tiers.some((t) => typeof t !== 'string' || !t)) {
+    throw new Error(`${AIRLINE_BOOKING_DATA}: premiumTiers must be a non-empty list of tier names - refusing to emit the premium-only rule`);
+  }
+  return tiers;
+}
 const POLICY = { transaction: '56789012-0001-4321-abcd-000000000001', mcp: '56789012-0002-4321-abcd-000000000002' };
 const CONFIRM_USD = '250';
 
@@ -322,6 +357,37 @@ const contentGroup = (content) => crypto.createHash('sha256')
  * group segment carrying a short hash of the object's content.
  */
 const ver = (prefix, id, content) => `${prefix}-${id.slice(9, 13)}-${contentGroup(content)}-${id.slice(19)}`;
+
+/**
+ * A STRING attribute resolved by PingOne Authorize from a custom attribute on the PingOne USER
+ * (the "PingOne User" resolver), keyed on the UserId request attribute (the token sub) with a
+ * JSONPath on the returned user object.
+ *
+ * UNVERIFIED, and the ONLY such object in this file: no PingOne-user resolver exists anywhere in
+ * the repo or its skills, so the snapshot-file token and field names below (`user`, `userId`,
+ * `valueProcessor`) are a best reading of the console wording, NOT copied from an export. The
+ * console is the source of truth: create MemberTier once in the console (PingOne User resolver,
+ * user id = UserId, path $['airlineMemberTier'], default none), export, and merge-airline-
+ * booking-rules.js keeps that same-name attribute exactly as exported. See
+ * docs/airline-booking-rules-import.md. If the console shows a different shape, change ONLY
+ * this function (snapshots/airlineBookingRules.test.js pins the semantics, not the token).
+ */
+function pingOneUserAttr(id, name, userAttribute, userIdAttrId, defaultValue, description) {
+  const resolver = {
+    attributeResolverType: 'user', condition: { empty: {} },
+    userId: { attribute: { id: userIdAttrId } },
+    valueProcessor: { processorType: 'JSON_PATH', expression: `$['${userAttribute}']` },
+    name: null,
+  };
+  return {
+    objectType: 'AttributeDefinition', id,
+    version: ver('aaaaaaaa', id, { name, valueType: 'STRING', defaultValue, description, resolver }), type: 'ATTRIBUTE',
+    name, fullName: name, description, parentId: null, numberOfChildren: null,
+    valueProcessor: null, valueType: 'STRING',
+    resolvers: [resolver],
+    defaultValue, repetitionSource: null, valueSchema: null,
+  };
+}
 
 /** A STRING/NUMBER/BOOLEAN attribute resolved from the decision request. */
 function requestAttr(id, name, valueType, defaultValue, description) {
@@ -1232,10 +1298,73 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     'Mirrors mock Rule 2.6 mismatch branch.',
     COND.UserConsentMismatch, STMT.consentMismatch), beforeFirstPolicyIdx);
 
+  // 8h) Airline booking rules: two rules from two owners, both DENY, both in the
+  // MCP Delegation policy (DenyOverrides) so each beats the unconditional-permit
+  // consent obligation (UNVERIFIED against a live engine until imported).
+  // PingGateway overwrites Amount with the catalogue fare and adds AgentSpendLimit from one
+  // data file before it asks (p1az-decision.groovy), so the caller cannot understate the fare.
+  // MemberTier is not sent at all: Authorize reads airlineMemberTier off the PingOne user, so
+  // nobody on the request path can claim a tier. Strict GreaterThan on the
+  // string constant / attribute (the proven forms: IsConsentTransaction, and
+  // RarAmountExceeded for attribute-to-attribute), so exactly 500 / 750 pass.
+  const ph = (id) => '{{' + id + '}}';
+  const premiumTiers = loadAirlinePremiumTiers();
+  upsert(requestAttr(ATTR.AgentSpendLimit, 'AgentSpendLimit', 'NUMBER', AIRLINE_AGENT_LIMIT_DEFAULT,
+    "The USER's cap, in dollars, for a ticket bought by an AI agent. Default 500. Sent by PingGateway for " +
+    'book_airline_flight from the member record (the user\'s preference), never by the caller.'), afterLastAttrIdx);
+  upsert(pingOneUserAttr(ATTR.MemberTier, 'MemberTier', AIRLINE_TIER_USER_ATTRIBUTE, ATTR.UserId, 'none',
+    `Airline loyalty tier of the passenger, READ BY PINGONE AUTHORIZE from the PingOne user's custom attribute ${AIRLINE_TIER_USER_ATTRIBUTE} ` +
+    '(PingOne User resolver keyed on UserId, the token sub). Default none, which is NOT premium; an empty or missing value is not premium either. ' +
+    'Neither the caller nor PingGateway supplies it. UNVERIFIED until imported: the resolver shape is a best reading, see docs/airline-booking-rules-import.md.'), afterLastAttrIdx);
+
+  // RULE A - USER PREFERENCE: no tickets bought by an AI agent over the user's limit.
+  upsert(conditionDef(COND.AgentBookingOverUserLimit, 'AgentBookingOverUserLimit',
+    `ToolName is ${AIRLINE_BOOKING_TOOL} AND an agent is acting (ActClientId is not empty) AND Amount > AgentSpendLimit ` +
+    "(the user's own limit, default 500; strict: exactly the limit passes). A direct caller (no agent) is never denied by this rule. " +
+    'UNVERIFIED against a live PingOne Authorize until imported.',
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.ToolName } }, op: 'Equals', right: { constant: { value: AIRLINE_BOOKING_TOOL } } } },
+      { not: { condition: { comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: '' } } } } } },
+      { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { attribute: { id: ATTR.AgentSpendLimit } } } },
+    ] } }), beforeSepIdx);
+  upsert(denyStatement(STMT.airlineAgentSpendLimit, 'MCP Denied — Agent Booking Over User Limit', 'mcp-airline-agent-spend-limit',
+    "User preference (airline_agent_spend_limit): an AI agent tried to buy a ticket over the user's agent spend limit. " +
+    'Mirrors mock Rule 3-airline and the simulated engine.',
+    '{"denied": true, "reason": "agent_spend_limit", "message": "Booking denied: an AI agent cannot buy a ticket over your limit of $' + ph(ATTR.AgentSpendLimit) +
+    ". Fare $" + ph(ATTR.Amount) + " on '" + ph(ATTR.ToolName) + "'.\", \"amount\": \"" + ph(ATTR.Amount) + '", "limit": "' + ph(ATTR.AgentSpendLimit) + '"}'), beforeFirstPolicyIdx);
+  upsert(denyRule(RULE.mcpDenyAirlineAgentSpendLimit, 'MCP Deny — Agent Booking Over User Limit',
+    "RULE A (owner: the user): No tickets bought by an AI agent over $500 (the user's AgentSpendLimit). DENY when " +
+    `ToolName is ${AIRLINE_BOOKING_TOOL}, an agent is acting and Amount > AgentSpendLimit. DenyOverrides makes it win over the consent obligation.`,
+    COND.AgentBookingOverUserLimit, STMT.airlineAgentSpendLimit), beforeFirstPolicyIdx);
+
+  // RULE B - AIRLINE CONTROL: only premium members can book over 750 (everyone, agent or not).
+  upsert(conditionDef(COND.PremiumOnlyBookingOver750, 'PremiumOnlyBookingOver750',
+    `ToolName is ${AIRLINE_BOOKING_TOOL} AND Amount > ${AIRLINE_PREMIUM_THRESHOLD} AND MemberTier is not one of the premium tiers (${premiumTiers.join(', ')}). ` +
+    'Applies to every caller, agent or not. Strict: exactly 750 passes. MemberTier is read from the PingOne user\'s ' +
+    `${AIRLINE_TIER_USER_ATTRIBUTE}; a missing or empty value is not premium. The premium set comes from ` +
+    'demo_mcp_resource_server/seed/airline-booking-policy-data.json (ASSUMPTION: Premier Gold only - owner to confirm). ' +
+    'UNVERIFIED against a live PingOne Authorize until imported.',
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.ToolName } }, op: 'Equals', right: { constant: { value: AIRLINE_BOOKING_TOOL } } } },
+      { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { constant: { value: AIRLINE_PREMIUM_THRESHOLD } } } },
+      { not: { condition: { or: { conditions: premiumTiers.map((t) => ({
+        comparison: { left: { attribute: { id: ATTR.MemberTier } }, op: 'Equals', right: { constant: { value: t } } },
+      })) } } } },
+    ] } }), beforeSepIdx);
+  upsert(denyStatement(STMT.airlinePremiumOnly, 'MCP Denied — Airline Premium-Only Over $750', 'mcp-airline-premium-only',
+    'Airline control (airline_premium_only): a non-premium member tried to book a fare over $750. Mirrors mock Rule 3-airline and the simulated engine.',
+    '{"denied": true, "reason": "premium_only", "message": "Booking denied: fares over $750 are for premium members only. Fare $' + ph(ATTR.Amount) +
+    ", member tier '" + ph(ATTR.MemberTier) + "'.\", \"amount\": \"" + ph(ATTR.Amount) + '", "tier": "' + ph(ATTR.MemberTier) + '"}'), beforeFirstPolicyIdx);
+  upsert(denyRule(RULE.mcpDenyAirlinePremiumOnly, 'MCP Deny — Airline Premium-Only Over $750',
+    'RULE B (owner: the airline): Only premium members can book over $750. DENY when ' +
+    `ToolName is ${AIRLINE_BOOKING_TOOL}, Amount > ${AIRLINE_PREMIUM_THRESHOLD} and MemberTier is not premium. Applies to agent and direct callers alike.`,
+    COND.PremiumOnlyBookingOver750, STMT.airlinePremiumOnly), beforeFirstPolicyIdx);
+
   for (const ruleId of [
     RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
     RULE.mcpDenyInvalidKid, RULE.mcpDenyNoUserConsent, RULE.mcpDenyConsentMismatch,
+    RULE.mcpDenyAirlineAgentSpendLimit, RULE.mcpDenyAirlinePremiumOnly,
   ]) {
     addChild(POLICY.mcp, ruleId, RULE.mcpPermitValid);
   }
