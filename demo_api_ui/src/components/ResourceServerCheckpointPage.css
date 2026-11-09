@@ -63,6 +63,7 @@
 .rsc-page .rsc-sc[aria-pressed='true'] {
   border-color: var(--btn-accent);
   background: var(--th-bg-inset);
+  color: var(--th-text);
   box-shadow: inset 0 -3px 0 var(--btn-accent);
 }
 .rsc-page .rsc-sc[aria-pressed='true'] > .rsc-sc-check {
