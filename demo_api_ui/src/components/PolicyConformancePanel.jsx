@@ -54,7 +54,14 @@ export default function PolicyConformancePanel({ vertical }) {
             the outcome.
           </p>
         </div>
-        <button type="button" className="pcp__run" onClick={run} disabled={state === 'running'}>
+        {/* A secondary: the one primary on /use-cases/live is the selected card's Run button. The panel is
+            mounted only by that page, and `pu-btn` takes effect inside its PingPage root. */}
+        <button
+          type="button"
+          className="pcp__run pu-btn"
+          onClick={() => { if (state !== 'running') run(); }}
+          aria-disabled={state === 'running' || undefined}
+        >
           {state === 'running' ? 'Running…' : 'Run all policies'}
         </button>
       </header>

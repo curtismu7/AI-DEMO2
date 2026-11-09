@@ -5,6 +5,7 @@ import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
+import pageCss from "../components/WhereEverythingRunsPage.css?raw";
 import WhereEverythingRunsPage, { ENV_MAP_URL } from "../components/WhereEverythingRunsPage";
 import { WHERE_RUNS_SAMPLE } from "../config/whereRunsSample";
 import { MISSION_CONTROL_CATALOG } from "../config/missionControlCatalog";
@@ -66,6 +67,154 @@ describe("WhereEverythingRunsPage", () => {
   it("has a Reset layout button (the drag-and-reset behaviour is in WhereEverythingRunsPage.reset.test.jsx)", () => {
     renderPage();
     expect(screen.getByRole("button", { name: "Reset layout" })).toBeTruthy();
+  });
+});
+
+describe("WhereEverythingRunsPage Ping UI Standard", () => {
+  it("puts the banner first (role=note), then the title, and says nothing was checked", () => {
+    const { container } = renderPage();
+    const banner = screen.getByTestId("wr-banner");
+    expect(banner.getAttribute("role")).toBe("note");
+    expect(banner.textContent).toMatch(/nothing here was checked/i);
+    const page = container.querySelector(".pu-page.wr-page");
+    expect(page).toBeTruthy();
+    expect(page.firstElementChild.contains(banner)).toBe(true);
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("has exactly one primary button (Reset layout) in the Today and After states", () => {
+    const { container } = renderPage();
+    const primaries = () => [...container.querySelectorAll("button.pu-btn--primary")].map((b) => b.textContent);
+    expect(primaries()).toEqual(["Reset layout"]);
+    fireEvent.click(screen.getByTestId("wr-view-after"));
+    expect(primaries()).toEqual(["Reset layout"]);
+  });
+
+  it("names the two sections and keeps the arrangement toggle pressed-state in sync", () => {
+    renderPage();
+    expect(screen.getByRole("region", { name: "Today or After" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Boxes and links" })).toBeTruthy();
+    const today = screen.getByTestId("wr-view-today");
+    const after = screen.getByTestId("wr-view-after");
+    expect([today.getAttribute("aria-pressed"), after.getAttribute("aria-pressed")]).toEqual(["true", "false"]);
+    fireEvent.click(after);
+    expect([today.getAttribute("aria-pressed"), after.getAttribute("aria-pressed")]).toEqual(["false", "true"]);
+  });
+
+  it("keeps the After note in a live region that is mounted before the note appears", () => {
+    renderPage();
+    const note = () => screen.queryByTestId("wr-after-note");
+    expect(note()).toBeNull();
+    const live = screen.getByTestId("wr-stamp").nextElementSibling;
+    expect(live.getAttribute("role")).toBe("status");
+    fireEvent.click(screen.getByTestId("wr-view-after"));
+    expect(screen.getByTestId("wr-stamp").nextElementSibling).toBe(live);
+    expect(live.contains(note())).toBe(true);
+  });
+
+  it("every card has a keyboard control with a stable name; picking opens the panel, announces once, and focus stays on it", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('[data-testid="wr-pick-mac::g-web-front-ends"]')).toBeTruthy());
+    const picks = [...container.querySelectorAll('[data-testid^="wr-pick-"]')];
+    expect(picks.length).toBe(cardIds(container).length);
+    expect(picks.every((b) => b.tagName === "BUTTON" && b.getAttribute("aria-label"))).toBe(true);
+    const pick = screen.getByTestId("wr-pick-mac::g-web-front-ends");
+    const name = pick.getAttribute("aria-label");
+    expect(name).toMatch(/^Web front ends, \d+ workloads?$/);
+    const status = screen.getByTestId("wr-selection-status");
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.textContent).toBe("");
+    pick.focus();
+    fireEvent.click(pick);
+    await waitFor(() => expect(screen.getByTestId("wr-side-title").textContent).toBe("Web front ends"));
+    expect(status.textContent).toBe(`Showing ${name}.`);
+    expect(screen.getByTestId("wr-selection-status")).toBe(status);
+    expect(document.activeElement).toBe(screen.getByTestId("wr-pick-mac::g-web-front-ends"));
+    expect(screen.getByTestId("wr-pick-mac::g-web-front-ends").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("wr-pick-mac::g-web-front-ends").getAttribute("aria-label")).toBe(name);
+  });
+
+  it("the detail panel is a named card, not a live region, and its chips are neutral recorded states", async () => {
+    const { container } = renderPage();
+    const side = screen.getByTestId("wr-side");
+    expect(side.classList.contains("pu-card")).toBe(true);
+    expect(side.getAttribute("aria-label")).toBe("Box details");
+    expect(side.getAttribute("aria-live")).toBeNull();
+    await waitFor(() => expect(container.querySelector('[data-testid="wr-card-mac::g-web-front-ends"]')).toBeTruthy());
+    fireEvent.click(screen.getByTestId("wr-card-mac::g-web-front-ends"));
+    await waitFor(() => expect(screen.getByTestId("wr-side-title")).toBeTruthy());
+    const chips = [...screen.getByTestId("wr-side-list").querySelectorAll(".pu-chip")];
+    expect(chips.length).toBeGreaterThan(0);
+    expect(chips.every((c) => c.textContent.trim().length > 0)).toBe(true);
+    expect(chips.some((c) => c.classList.contains("pu-chip--ok"))).toBe(false);
+  });
+
+  it("no chip on the map claims success: the card chips are neutral and carry a word", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(cardIds(container).length).toBeGreaterThan(5));
+    const chips = [...container.querySelectorAll('[data-testid^="wr-card-"] .pu-chip')];
+    expect(chips.length).toBeGreaterThan(0);
+    for (const c of chips) {
+      expect(c.classList.contains("pu-chip--neutral")).toBe(true);
+      expect(c.textContent.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("shows the What changes counts as a key-value list on After", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("wr-view-after"));
+    const dl = await screen.findByTestId("wr-changes");
+    expect(dl.tagName).toBe("DL");
+    expect(dl.classList.contains("pu-kv")).toBe(true);
+    expect(screen.getByTestId("wr-change-toDeploy").tagName).toBe("DD");
+    expect(Number(screen.getByTestId("wr-change-toDeploy").textContent)).toBeGreaterThan(0);
+    expect(dl.querySelectorAll("dt").length).toBe(dl.querySelectorAll("dd").length);
+  });
+
+  it("lets a mouse press on a box title reach the box so it can still be dragged (the pick button ignores pointer events)", () => {
+    const css = pageCss;
+    const rule = /\.wr-page \.wr-card__pick\s*\{([^}]*)\}/.exec(css);
+    expect(rule).toBeTruthy();
+    expect(rule[1]).toMatch(/pointer-events:\s*none/);
+  });
+
+  it("announces when a pick is cleared by Reset layout, in the same status region, and not before anything was picked", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('[data-testid="wr-pick-mac::g-web-front-ends"]')).toBeTruthy());
+    const status = screen.getByTestId("wr-selection-status");
+    fireEvent.click(screen.getByTestId("wr-reset"));
+    expect(status.textContent).toBe("");
+    fireEvent.click(screen.getByTestId("wr-pick-mac::g-web-front-ends"));
+    await waitFor(() => expect(status.textContent).toMatch(/^Showing Web front ends/));
+    const reset = screen.getByTestId("wr-reset");
+    reset.focus();
+    fireEvent.click(reset);
+    await waitFor(() => expect(status.textContent).toBe("Selection cleared."));
+    expect(screen.getByTestId("wr-selection-status")).toBe(status);
+    expect(document.activeElement).toBe(reset);
+    fireEvent.click(screen.getByTestId("wr-pick-mac::g-web-front-ends"));
+    await waitFor(() => expect(status.textContent).toMatch(/^Showing Web front ends/));
+  });
+
+  it("in After, a box of workloads moved to the Mac does not claim they are running, and the panel labels their state as today's", async () => {
+    const { container } = renderPage();
+    fireEvent.click(screen.getByTestId("wr-view-after"));
+    await waitFor(() => expect(container.querySelector('[data-testid^="wr-card-mac::moved"]')).toBeTruthy());
+    const moved = container.querySelector('[data-testid^="wr-card-mac::moved"]');
+    const chip = moved.querySelector(".pu-chip");
+    expect(chip.textContent).toMatch(/^\d+ moved$/);
+    expect(chip.textContent).not.toMatch(/running|up/);
+    fireEvent.click(moved);
+    await waitFor(() => expect(screen.getByTestId("wr-side-title").textContent).toMatch(/moved from/));
+    const chips = [...screen.getByTestId("wr-side-list").querySelectorAll(".pu-chip")].map((c) => c.textContent);
+    expect(chips.some((t) => /^today /.test(t))).toBe(true);
+    expect(chips.every((t) => !/^(up|at 0|down|partly up) /.test(t))).toBe(true);
+  });
+
+  it("the map is a labelled region", () => {
+    renderPage();
+    expect(screen.getByRole("region", { name: "Diagram of where everything runs" })).toBeTruthy();
   });
 });
 

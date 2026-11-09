@@ -151,3 +151,14 @@ exporting `dispatch<Vertical>Tool`), plus:
 - Use a data-backed vertical (e.g. sporting-goods) as the template, not
   invest — invest is the `dispatch()` fallthrough and carries a
   proxy-vs-SQLite switch you don't need.
+
+## Airline booking fares (`book_airline_flight`)
+
+The fare a booking is judged at comes from `seed/airline-booking-policy-data.json` (catalogue
+fares by flight number, premium tiers, default agent spend limit), never from the caller. `bookFlight`
+refuses a quote that differs from the catalogue fare (`reason: fare_mismatch`) and a flight with no
+fare (`reason: no_fare`). PingGateway reads a synced copy of the same file
+(`node scripts/sync-airline-booking-data.js`) and puts the fare and the user's agent spend limit in
+the PingOne Authorize request. The member tier is not in that file: Authorize reads it from the
+PingOne user's `airlineMemberTier` attribute. The two rules that use them, and the owner-run
+import (UNVERIFIED until imported), are in `docs/airline-booking-rules-import.md`.
