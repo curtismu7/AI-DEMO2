@@ -1,36 +1,131 @@
-/* Authorization Flow: a dark visualiser, Ping Core Dark with Ping Red for refusals. Fixed palette so it reads the same in both themes. */
-.af-page { padding: 1rem 1.5rem 2rem; color: var(--th-text); }
-.af-page__head h1 { margin: 0 0 0.4rem; font-size: var(--font-size-h1); font-weight: var(--font-weight-bold); }
-.af-page__head p { margin: 0 0 1rem; max-width: 80ch; line-height: 1.5; color: var(--th-text-muted); }
+/* Authorization Flow. Layout, cards, chips, key-values and buttons come from the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). This sheet keeps only what is specific to the page:
+   the pick controls, the story and detail layout, and the ReactFlow lane diagram (P8, page-local).
+   Every rule that sets a ground sets its own ink in the same rule. */
 
-.af-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-.af-chip { cursor: pointer; padding: 0.45rem 0.9rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); background: var(--th-bg-card); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
-.af-chip span { font-weight: var(--font-weight-bold); color: var(--color-accent); margin-right: 0.25rem; }
-.af-chip:hover { border-color: var(--color-accent); }
-.af-chip--on { background: #051727; border-color: #051727; color: #fff; }
-.af-chip--on span { color: #ff6b6b; }
-.af-chip:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
+/* ---- Pick: vertical, moment and the one primary ---- */
+.pu-page .af-pick .pu-select { max-width: 22rem; }
+.pu-page .af-pick__moments { margin-top: 12px; }
+.pu-page .af-chip span { font-weight: var(--font-weight-bold); }
 
-.af-toggles { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0 0; }
-.af-main { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
-.af-grid { display: grid; grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
-@media (max-width: 1000px) { .af-grid { grid-template-columns: 1fr; } }
+/* A chosen moment or a pressed toggle: heavier edge, inset ground and the same ink, so it never relies on colour alone
+   (a check mark is added to a chosen moment). */
+.pu-page .af-chip[aria-pressed='true'],
+.pu-page .af-theme[aria-pressed='true'] {
+  padding: 7px 15px;
+  border: 2px solid var(--th-text);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-weight: var(--font-weight-bold);
+}
+.pu-page .af-chip[aria-pressed='true']::before { content: '\2713\00a0'; }
 
-.af-chat, .af-vis { border: 1px solid var(--th-border); border-top: 3px solid var(--color-accent); border-radius: var(--radius-lg); background: var(--th-bg-card); padding: 0.75rem 1rem; box-shadow: var(--shadow-sm); }
-.af-chat h2 { margin: 0 0 0.25rem; font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
-.af-chat__prompt { margin: 0 0 0.75rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
-.af-chat__log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; min-height: 12rem; }
-.af-chat__empty { color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.af-bubble { max-width: 90%; padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); font-size: var(--font-size-sm); line-height: 1.4; }
-.af-bubble--user { align-self: flex-end; background: #051727; color: #fff; }
-.af-bubble--assistant { align-self: flex-start; background: var(--th-bg-inset); color: var(--th-text); }
+/* ---- Walk it: diagram card, with the detail beside it when asked ---- */
+/* The 11-lane diagram is 1518px of drawing. In the 1100px frame it scales to 0.59 (lane sub-titles about 7px on screen),
+   so the walk-it grid grows past the frame, centred, to the page width less 32px or 1800px. It is sized from the page's
+   own width (100cqw), not from vw: the app zooms the whole page (1.125 by default) and vw ignores that zoom. Never
+   narrower than the frame, so on a phone or a narrow window nothing changes. */
+.pu-page.af-page { container-type: inline-size; }
+.af-grid {
+  --af-grid-w: max(100%, min(calc(100cqw - 32px), 1800px));
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start;
+  width: var(--af-grid-w); max-width: none;
+  margin-inline: calc((100% - var(--af-grid-w)) / 2);
+}
+.af-grid > .pu-card { margin: 0; }
+.af-grid--side { grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem); }
+@media (max-width: 1000px) { .af-grid--side { grid-template-columns: minmax(0, 1fr); } }
 
-.af-canvas { height: 26rem; margin: 0.5rem 0; border-radius: var(--radius-md); background: var(--af-bg); overflow: hidden; }
+.af-toggles { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.pu-page .af-theme { min-height: 32px; padding: 4px 14px; font-size: var(--font-size-sm); }
+.pu-page .af-theme[aria-pressed='true'] { padding: 3px 13px; }
+
+.af-proves { margin: 4px 0; }
+.af-outcome-slot:empty { display: none; }
+.af-outcome { margin: 8px 0 0; font-weight: var(--font-weight-semibold); }
+
+/* ---- Follow along: conversation and steps ---- */
+.af-story { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.af-story > .pu-card { margin: 0; }
+@media (max-width: 800px) { .af-story { grid-template-columns: minmax(0, 1fr); } }
+
+.af-chat__prompt { margin: 0 0 12px; font-size: var(--font-size-xs); }
+.af-chat__log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-height: 12rem; }
+.af-chat__empty { color: var(--th-text-body); font-size: var(--font-size-sm); }
+.pu-page .af-bubble { max-width: 90%; padding: 8px 12px; border: 1px solid var(--control-border); border-radius: var(--radius-lg); font-size: var(--font-size-sm); line-height: 1.4; color: var(--th-text); }
+.pu-page .af-bubble::before { content: attr(data-who); display: block; font-size: var(--font-size-2xs); font-weight: var(--font-weight-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--th-text-muted); }
+.pu-page .af-bubble--user { align-self: flex-end; background: var(--th-bg-inset); }
+.pu-page .af-bubble--assistant { align-self: flex-start; background: var(--th-bg-card); }
+
+/* Step list: click a step to jump to it. Each row is a secondary .pu-btn, laid out as number + two lines. */
+.afd-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 24rem; overflow: auto; }
+.pu-page .afd-steps .pu-btn { width: 100%; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 6px; align-items: start; text-align: left; min-height: 0; padding: 4px 8px; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.afd-steps small { display: block; font-size: var(--font-size-2xs); font-weight: var(--font-weight-normal); color: var(--th-text-muted); }
+.afd-steps__n { color: var(--th-text-muted); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+.pu-page .afd-steps .afd-steps__cur { padding: 3px 7px; border: 2px solid var(--th-text); background: var(--th-bg-inset); color: var(--th-text); }
+/* A step not yet reached reads in muted ink (a token, so contrast holds); no opacity, which would lower it further. */
+.pu-page .afd-steps .afd-steps__future { color: var(--th-text-muted); }
+.pu-page .afd-steps .afd-steps__no .afd-steps__n { color: var(--th-status-error-text); }
+
+/* ---- Detail: what is really happening at the current step ---- */
+.pu-page .afd { display: flex; flex-direction: column; gap: 14px; }
+.afd__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.pu-page .afd__title { margin: 0; font-size: var(--font-size-xl); }
+.afd__kicker { font-size: var(--font-size-2xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--th-text-muted); }
+.pu-page .afd__route { padding: 2px 10px; border-radius: var(--radius-pill); background: var(--th-bg-inset); color: var(--th-text); font-size: var(--font-size-xs); overflow-wrap: anywhere; }
+.afd__route i { font-style: normal; color: var(--th-text-muted); margin: 0 4px; }
+.pu-page .afd .pu-label { margin-bottom: 4px; }
+.pu-page .afd .pu-kv { margin: 0 0 4px; }
+.pu-page .afd__idle { margin: 0; max-width: 70ch; line-height: 1.5; }
+
+.afd__two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .afd__two { grid-template-columns: minmax(0, 1fr); } }
+.af-grid--side .afd__two { grid-template-columns: minmax(0, 1fr); }
+.afd__two--one { grid-template-columns: minmax(0, 1fr); }
+.afd__say { border-left: 3px solid var(--th-status-info); padding: 2px 0 2px 12px; font-size: var(--font-size-sm); line-height: 1.5; }
+.afd__say--why { border-left-color: var(--control-border); }
+.afd__say b { display: block; margin-bottom: 2px; font-size: var(--font-size-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--th-text-muted); }
+
+.afd-code { min-width: 0; }
+.pu-page .afd-label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.afd-label__copy { display: inline-flex; align-items: center; gap: 8px; letter-spacing: 0; text-transform: none; }
+.afd-copied { font-size: var(--font-size-xs); color: var(--th-text-body); }
+.pu-page .afd-copy { min-height: 32px; padding: 2px 12px; font-size: var(--font-size-xs); }
+/* The block scrolls sideways inside itself and never widens the page; the PingOne skin's word-wrap on code is switched
+   off here so a long line scrolls instead of breaking mid-token. */
+.pu-page.af-page .afd-code pre { margin: 0; padding: 10px 12px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-inset); color: var(--th-text); font-family: var(--font-mono); font-size: var(--font-size-2xs); line-height: 1.55; overflow-x: auto; white-space: pre; overflow-wrap: normal; word-wrap: normal; word-break: normal; }
+.pu-page.af-page .afd-code pre:focus-visible { outline: 3px solid var(--th-focus-ring); outline-offset: 2px; }
+
+/* Claims table. Under 600px each row stacks, with the column name from data-label in front of each cell. */
+.pu-page.af-page .afd__claims { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+.pu-page.af-page .afd__claims th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--th-border-strong); font-size: var(--font-size-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--th-text-muted); }
+.pu-page.af-page .afd__claims td { padding: 6px 8px; border-bottom: 1px solid var(--th-border); vertical-align: top; overflow-wrap: anywhere; }
+.pu-page.af-page .afd__claims td:first-child { font-family: var(--font-mono); font-weight: var(--font-weight-semibold); }
+.pu-page.af-page .afd__claims td:nth-child(2) { font-family: var(--font-mono); word-break: break-all; }
+.pu-page.af-page .afd__claims .afd__key { background: var(--th-bg-inset); color: var(--th-text); }
+.pu-page.af-page .afd__claims .afd__key td:first-child { font-weight: var(--font-weight-bold); }
+@media (max-width: 600px) {
+  .pu-page.af-page .afd__claims thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pu-page.af-page .afd__claims tr,
+  .pu-page.af-page .afd__claims td { display: block; }
+  .pu-page.af-page .afd__claims tr { padding: 6px 0; border-bottom: 1px solid var(--th-border-strong); }
+  .pu-page.af-page .afd__claims td { padding: 2px 8px; border-bottom: 0; }
+  .pu-page.af-page .afd__claims td::before { content: attr(data-label); display: block; font-size: var(--font-size-2xs); font-weight: var(--font-weight-bold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--th-text-muted); }
+}
+
+.afd__checks { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: var(--font-size-sm); }
+.afd__checks li::before { content: '\2713'; color: var(--th-text); margin-right: 8px; font-weight: var(--font-weight-bold); }
+.afd__checks--no li::before { content: '\2717'; }
+
+/* ---- Lane diagram (P8, page-local). The canvas has its own dark/light palette so the diagram reads the same in
+   either app theme; the Dark diagram toggle switches it. These literals are the diagram's fixed palette: they are
+   read only inside .af-canvas and no button takes them. ---- */
+/* Tall enough that the fit is set by the width, not the height: 40% of the page width, between 26rem and 44rem. */
+.af-canvas { position: relative; height: clamp(26rem, 40cqw, 44rem); margin: 8px 0; border-radius: var(--radius-md); background: var(--af-bg); overflow: hidden; }
+.af-pan-hint { position: absolute; top: 8px; right: 8px; z-index: 5; margin: 0; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--af-head-bg); color: var(--af-head-tx); border: 1px solid var(--af-head-bd); font-size: var(--font-size-2xs); pointer-events: none; }
 .af-canvas .react-flow { background: var(--af-bg); }
 .af-canvas .react-flow__controls-button { background: var(--af-ctl-bg); color: var(--af-head-tx); border-color: var(--af-head-bd); }
 .af-canvas .react-flow__background { opacity: 0.35; }
-
-/* Dark by default (the reference demo is dark); the light palette keeps Ping Red for refusals. */
 .af-canvas {
   --af-bg: #051727; --af-head-bg: #0b2a47; --af-head-bd: #3b6ea5; --af-head-tx: #e8eef7; --af-head-sub: #9db4d0; --af-line: #3b6ea5;
   --af-arrow: #7fb2e6; --af-ok: #3ddc97; --af-block: #ff7b7b; --af-label: #e8eef7;
@@ -41,8 +136,6 @@
   --af-arrow: #12538d; --af-ok: #0a7a4a; --af-block: #c40d0f; --af-label: #051727;
   --af-red-bg: #fdeaea; --af-red-bd: #d20e0f; --af-green-bg: #e6f7ee; --af-green-bd: #2f8f5b; --af-ctl-bg: #fff;
 }
-.af-theme { cursor: pointer; padding: 0.3rem 0.8rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); background: var(--th-bg); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
-.af-theme:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
 .af-lane { width: 100%; position: relative; }
 .af-lane__head { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 70px; padding: 4px; box-sizing: border-box; text-align: center; border: 1px solid var(--af-head-bd); border-radius: var(--radius-md); background: var(--af-head-bg); color: var(--af-head-tx); cursor: grab; }
 .af-lane__head strong { font-size: var(--font-size-sm); }
@@ -60,74 +153,4 @@
 .af-msg.af-edge--ok { color: var(--af-ok); }
 .af-msg.af-edge--block { color: var(--af-block); }
 @keyframes af-flow { to { stroke-dashoffset: -16; } }
-
-.af-proves { margin: 0.25rem 0; font-size: var(--font-size-sm); color: var(--th-text-muted); }
-.af-proves strong { color: var(--color-accent); }
-.af-outcome { margin: 0.5rem 0 0; padding: 0.6rem 0.9rem; border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
-.af-outcome--ok { background: #e6f7ee; color: #14532d; border: 1px solid #3ddc97; }
-.af-outcome--block { background: #fdeaea; color: #8a0b0c; border: 1px solid #d20e0f; }
-
-.af-vertical { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0 0 0.75rem; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
-.af-vertical select { padding: 0.35rem 0.6rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); font: inherit; }
-.af-vertical select:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
-
-.af-grid--side { grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr) minmax(20rem, 26rem); }
-@media (max-width: 1280px) { .af-grid--side { grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr); } .af-grid--side > .afd { grid-column: 1 / -1; } }
-@media (max-width: 1000px) { .af-grid--side { grid-template-columns: 1fr; } }
-.af-chat__steps { margin: 1rem 0 0.35rem; font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
-
-/* Step list: click a step to jump to it. */
-.afd-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 22rem; overflow: auto; }
-.afd-steps button { width: 100%; display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.4rem; align-items: start; text-align: left; padding: 0.3rem 0.5rem; border: 1px solid transparent; border-radius: var(--radius-md); background: none; color: var(--th-text); font: inherit; font-size: var(--font-size-2xs); cursor: pointer; }
-.afd-steps button:hover { background: var(--th-bg-inset); }
-.afd-steps button:focus-visible { outline: 2px solid var(--color-info); outline-offset: 1px; }
-.afd-steps small { display: block; color: var(--th-text-muted); font-size: var(--font-size-3xs); }
-.afd-steps__n { color: var(--th-text-muted); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
-.afd-steps .afd-steps__cur { background: var(--th-bg-inset); border-color: var(--color-info); }
-.afd-steps .afd-steps__future { opacity: 0.5; }
-.afd-steps .afd-steps__no .afd-steps__n { color: var(--color-accent); }
-
-/* The new region: what is really happening at the current step. */
-.afd { display: flex; flex-direction: column; gap: 0.9rem; border: 1px solid var(--th-border); border-top: 3px solid var(--color-accent); border-radius: var(--radius-lg); background: var(--th-bg-card); padding: 0.9rem 1.1rem; box-shadow: var(--shadow-sm); min-width: 0; }
-.afd__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem; }
-.afd__head h2 { margin: 0; font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
-.afd__kicker { font-size: var(--font-size-2xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--th-text-muted); }
-.afd__route { font-size: var(--font-size-2xs); padding: 0.15rem 0.6rem; border-radius: var(--radius-pill); background: var(--th-bg-inset); }
-.afd__route i { font-style: normal; color: var(--color-accent); margin: 0 0.2rem; }
-.afd__pill { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); padding: 0.1rem 0.55rem; border-radius: var(--radius-pill); }
-.afd__pill--ok { background: #e6f7ee; color: #14532d; }
-.afd__pill--no { background: #fdeaea; color: #8a0b0c; }
-.afd__pill--info { background: #e4eef8; color: #12538d; }
-.afd-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--th-text-muted); }
-.afd-label button { cursor: pointer; padding: 0 0.5rem; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; font-size: var(--font-size-xs); letter-spacing: 0; text-transform: none; }
-.afd__tokens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
-@media (max-width: 700px) { .afd__tokens { grid-template-columns: 1fr; } }
-.afd__tok { padding: 0.45rem 0.7rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-inset); font-size: var(--font-size-2xs); opacity: 0.6; }
-.afd__tok strong { display: block; }
-.afd__tok span { color: var(--th-text-muted); }
-.afd__tok--live { opacity: 1; border-color: var(--color-info); border-width: 2px; background: var(--th-bg-card); }
-.afd__tok--live span { color: var(--th-text); }
-.afd__tokline { margin: 0.4rem 0 0; font-size: var(--font-size-sm); color: var(--th-text-muted); }
-.afd__idle { margin: 0; color: var(--th-text-muted); max-width: 70ch; line-height: 1.5; }
-.afd__two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
-@media (max-width: 900px) { .afd__two { grid-template-columns: 1fr; } }
-.af-grid--side .afd__two { grid-template-columns: 1fr; }
-.afd__say { border-left: 3px solid var(--color-info); padding: 0.1rem 0 0.1rem 0.8rem; font-size: var(--font-size-sm); line-height: 1.5; }
-.afd__say--why { border-color: var(--color-accent); }
-.afd__say b { display: block; margin-bottom: 0.15rem; font-size: var(--font-size-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--th-text-muted); }
-.afd-code { min-width: 0; }
-.afd-code pre { margin: 0; padding: 0.6rem 0.75rem; border-radius: var(--radius-md); background: #0b1f33; color: #e6eef8; font-family: var(--font-mono); font-size: var(--font-size-2xs); line-height: 1.55; overflow-x: auto; white-space: pre; }
-.afd__scroll { overflow-x: auto; }
-.afd__claims { width: 100%; border-collapse: collapse; font-size: var(--font-size-2xs); }
-.afd__claims th { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--th-border); font-size: var(--font-size-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--th-text-muted); }
-.afd__claims td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--th-border); vertical-align: top; }
-.afd__claims td:first-child { font-family: var(--font-mono); font-weight: var(--font-weight-semibold); white-space: nowrap; }
-.afd__claims td:nth-child(2) { font-family: var(--font-mono); word-break: break-all; }
-.afd__claims .afd__key td:first-child { color: var(--color-accent); }
-.afd__claims .afd__key { background: var(--th-bg-inset); }
-.afd__checks { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.25rem; font-size: var(--font-size-sm); }
-.afd__checks li::before { content: "\2713"; color: #0a7a4a; margin-right: 0.5rem; font-weight: var(--font-weight-bold); }
-.afd__checks--no li::before { content: "\2717"; color: var(--color-accent); }
-.afd__two--one { grid-template-columns: 1fr; }
-.af-grid--side .afd__tokens { grid-template-columns: 1fr; }
-.afd__tokline { margin-bottom: 0.25rem; }
+@media (prefers-reduced-motion: reduce) { .af-edge--hot .react-flow__edge-path { animation: none; } }

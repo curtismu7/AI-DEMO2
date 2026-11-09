@@ -73,7 +73,8 @@ test("running the drift column posts action:'drift' and shows DENY", async () =>
   expect(await screen.findByText(/^DENY \(rar_amount_exceeded\)/i)).toBeInTheDocument();
 });
 
-test("status boxes use permit green / deny red by column kind", async () => {
+test("a failed run shows a red Error status in its own column, whichever column it was", async () => {
+  // Used to be styled permit green in the permit column, so a PAR config error read as a pass.
   const reason = "PingOne PAR (RFC 9126) is enabled by default. Configure: pingone_par_endpoint";
   global.fetch
     .mockResolvedValueOnce({ ok: false, json: async () => ({ reason }) })
@@ -88,9 +89,11 @@ test("status boxes use permit green / deny red by column kind", async () => {
   fireEvent.click(screen.getByRole("button", { name: /run drift/i }));
 
   await waitFor(() => {
-    expect(container.querySelector(".ib-col--permit .ib-status--permit")).toBeTruthy();
-    expect(container.querySelector(".ib-col--drift .ib-status--deny")).toBeTruthy();
+    expect(container.querySelector(".ib-col--permit .ib-status--error")).toBeTruthy();
+    expect(container.querySelector(".ib-col--drift .ib-status--error")).toBeTruthy();
   });
+  expect(container.querySelector(".ib-col--permit .ib-status--permit")).toBeNull();
+  expect(screen.getAllByText("Error")).toHaveLength(2);
 });
 
 // The page is declared `public` in auth-requirements.json, but

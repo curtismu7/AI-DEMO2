@@ -211,7 +211,7 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     fireEvent.click(screen.getByRole('button', { name: /run.*check/i }));
     await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('DENY'));
 
-    fireEvent.click(screen.getByRole('button', { name: /add to/i }));
+    fireEvent.click(screen.getByRole('button', { name: /flip membership in/i }));
     await waitFor(() => expect(toggles.length).toBe(1));
     expect(toggles[0].body).toEqual({ inGroup: true, username: 'demoDelegate', verticalId: 'banking' });
 
@@ -257,7 +257,7 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     fireEvent.click(screen.getByRole('button', { name: /run.*check/i }));
     await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('PERMIT'));
 
-    fireEvent.click(screen.getByRole('button', { name: /remove from/i }));
+    fireEvent.click(screen.getByRole('button', { name: /flip membership in/i }));
     await waitFor(() => expect(toggles.length).toBe(1));
     expect(toggles[0]).toEqual({ inGroup: false, username: 'demoDelegate', verticalId: 'banking' });
     // The check re-ran after the write.
