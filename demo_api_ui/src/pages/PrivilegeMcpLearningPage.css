@@ -1,9 +1,6 @@
-.plp-page {
-  min-height: 100vh;
-  background: var(--th-bg-page);
-  color: var(--th-text-body);
-  font-family: var(--font-primary);
-}
+/* AI Agent Gateway guide. Page chrome (ground, banner, frame, sections, cards, chips, kv, buttons) comes from the Ping UI
+   primitives (src/styles/ping-ui.css); this file keeps only what is specific to a two-pane written guide:
+   the section nav, long-form prose, code blocks and data tables. Tokens only. */
 
 .plp-back:hover {
   background: var(--th-bg-hover);
@@ -12,18 +9,23 @@
 
 .plp-layout {
   display: flex;
-  min-height: calc(100vh - 140px);
+  align-items: flex-start;
+  gap: 0;
+  margin-top: 16px;
 }
 
+/* Section nav. Sticky beside the prose on a wide screen; a wrapping row of buttons above it on a phone. */
 .plp-sidebar {
   width: var(--plp-nav-w, 220px);
-  padding: 1.5rem 1rem;
-  border-right: 1px solid var(--th-border);
+  padding: 12px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-xl);
   background: var(--th-bg-inset);
   color: var(--th-text);
   position: sticky;
-  top: 0;
-  height: 100vh;
+  /* below the app's fixed top bar (--topnav-height is 60px; the bar measures 70px at the larger text size) */
+  top: calc(var(--topnav-height, 60px) + 28px);
+  max-height: calc(100vh - var(--topnav-height, 60px) - 44px);
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -33,12 +35,13 @@
   align-items: center;
   gap: 0.6rem;
   width: 100%;
-  padding: 0.6rem 0.8rem;
+  min-height: 36px;
+  padding: 0.5rem 0.7rem;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: var(--th-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   cursor: pointer;
   text-align: left;
   margin-bottom: 2px;
@@ -50,66 +53,102 @@
 .plp-nav-item--active {
   background: var(--th-status-info-bg);
   color: var(--th-status-info-text);
-  font-weight: 500;
+  font-weight: var(--font-weight-semibold);
+}
+.plp-nav-item:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
 }
 
 .plp-nav-icon {
-  font-size: 1rem;
+  font-size: var(--font-size-md);
   width: 1.4rem;
   text-align: center;
 }
 
+.plp-divider {
+  flex-shrink: 0;
+}
+
 .plp-content {
   flex: 1;
-  padding: 2rem 3rem;
-  max-width: 900px;
-  overflow-y: auto;
+  min-width: 0;
+  padding: 0 0 0 24px;
 }
 
-.plp-section {
-  margin-bottom: 3rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid var(--th-border);
+/* Prose. Wrapping is scoped under the page's own classes: the PingOne end-user-nano skin sets word-wrap: break-word on
+   code and lists with a selector that beats a bare class. */
+.pu-page.plp-page .plp-content section {
+  margin-bottom: 40px;
 }
 
-.plp-section-title {
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--th-text);
-  margin: 0 0 1.2rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid var(--th-status-info);
-  display: inline-block;
+.pu-page.plp-page .plp-content h2 {
+  scroll-margin-top: calc(var(--topnav-height, 60px) + 28px);
 }
 
-.plp-section h3 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--th-text);
-  margin: 1.5rem 0 0.6rem;
+.pu-page.plp-page .plp-content h2:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 4px;
 }
 
-.plp-section p {
-  line-height: 1.6;
+.pu-page.plp-page .plp-content h3.pu-h3 {
+  margin: 20px 0 8px;
+}
+
+.pu-page.plp-page .plp-note h3.pu-h3,
+.pu-page.plp-page .plp-content .pu-card > h3.pu-h3 {
+  margin-top: 0;
+}
+
+.pu-page.plp-page .plp-content p,
+.pu-page.plp-page .plp-content li {
+  line-height: var(--line-height-relaxed, 1.6);
+  overflow-wrap: anywhere;
+}
+
+.pu-page.plp-page .plp-content p {
   margin: 0.5rem 0;
 }
 
-.plp-section ul, .plp-section ol {
+.pu-page.plp-page .plp-content ul,
+.pu-page.plp-page .plp-content ol {
   padding-left: 1.5rem;
   line-height: 1.8;
 }
 
-.plp-section li {
+.pu-page.plp-page .plp-content li {
   margin-bottom: 0.3rem;
 }
 
-.plp-section code {
+.pu-page.plp-page .plp-content code {
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border: 1px solid var(--th-border);
-  padding: 0.15rem 0.4rem;
+  padding: 0.1rem 0.35rem;
   border-radius: var(--radius-sm);
   font-size: 0.85em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pu-page.plp-page .plp-content a {
+  color: var(--th-status-info-text);
+  text-decoration: underline;
+}
+
+/* A note card holds a chip, a title and a paragraph or list: keep its text tight. */
+.pu-page.plp-page .plp-note ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.plp-run {
+  align-items: center;
+  margin-top: 20px;
+}
+
+.plp-run .pu-note {
+  margin: 0;
 }
 
 /* Code blocks */
@@ -123,11 +162,13 @@
 }
 .plp-code-title {
   padding: 0.5rem 1rem;
+  /* leave room for the Copy button on the right */
+  padding-right: 6rem;
   background: var(--th-bg-inset);
   color: var(--th-text-muted);
   border-bottom: 1px solid var(--th-border);
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
 }
 .plp-code pre {
   margin: 0;
@@ -136,29 +177,34 @@
   color: var(--th-code-text);
   overflow-x: auto;
 }
-.plp-code code {
+.pu-page.plp-page .plp-code code {
   background: none;
   border: none;
   padding: 0;
-  font-size: 0.82rem;
+  font-size: var(--font-size-xs);
   color: var(--th-code-text);
   line-height: 1.5;
+  overflow-wrap: normal;
+  word-break: normal;
 }
-.plp-code-copy {
+/* The Copy button is a pu-btn secondary, made small and pinned over the title bar. */
+.pu-page .plp-code .plp-code-copy {
   position: absolute;
-  top: 0.5rem;
+  top: 0.3rem;
   right: 0.5rem;
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border-strong);
-  color: var(--th-text);
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.72rem;
-  cursor: pointer;
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: var(--font-size-xs);
 }
-.plp-code-copy:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+
+/* Visually hidden live region for the Copy result. */
+.plp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* Tables */
@@ -166,62 +212,113 @@
   overflow-x: auto;
   margin: 1rem 0;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--th-border);
+  border: 1px solid var(--th-border-strong);
   color: var(--th-text);
 }
 .plp-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
 }
 .plp-table th {
   background: var(--th-bg-inset);
   padding: 0.6rem 1rem;
   text-align: left;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--th-text);
-  border-bottom: 1px solid var(--th-border);
+  border-bottom: 1px solid var(--th-border-strong);
 }
 .plp-table td {
   padding: 0.6rem 1rem;
+  vertical-align: top;
   border-bottom: 1px solid var(--th-border);
   color: var(--th-text-body);
+  overflow-wrap: anywhere;
 }
 .plp-table tr:last-child td {
   border-bottom: none;
 }
 .plp-table tr:hover td {
   background: var(--th-bg-hover);
-  color: var(--th-text-body);
+  color: var(--th-text);
 }
 
-/* Callouts */
-.plp-callout {
-  margin: 1rem 0;
-  padding: 1rem 1.2rem;
-  border-radius: var(--radius-lg);
-  border-left: 4px solid;
-  line-height: 1.5;
-}
-.plp-callout--info {
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-  border-color: var(--th-status-info-border);
-}
-.plp-callout--warn {
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-  border-color: var(--th-status-warning-border);
-}
-.plp-callout strong {
-  display: block;
-  margin-bottom: 0.4rem;
-  color: inherit;
-}
-.plp-callout ul {
-  margin: 0.5rem 0 0;
-  padding-left: 1.2rem;
+/* Phone: nav becomes a one-row strip (it scrolls inside itself) above the prose, tables stack one cell per line with their column name. */
+@media (max-width: 800px) {
+  .plp-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .plp-sidebar {
+    position: static;
+    width: 100%;
+    max-height: none;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    box-sizing: border-box;
+  }
+
+  .plp-nav-item {
+    flex: 0 0 auto;
+    width: auto;
+    margin-bottom: 0;
+    padding: 0.4rem 0.7rem;
+    border-color: var(--th-border-strong);
+    white-space: nowrap;
+  }
+
+  .plp-divider {
+    display: none;
+  }
+
+  .plp-content {
+    padding: 0;
+  }
 }
 
-/* Flow diagram */
+@media (max-width: 600px) {
+  .plp-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
 
+  .plp-table,
+  .plp-table tbody,
+  .plp-table tr,
+  .plp-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .plp-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .plp-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .plp-table td {
+    padding: 2px 12px;
+    border-bottom: 0;
+  }
+
+  .plp-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
