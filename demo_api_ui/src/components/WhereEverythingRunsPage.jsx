@@ -69,6 +69,8 @@ function Canvas({ view, viewName, resetNonce }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(flow.edges);
   const [sel, setSel] = useState(null);
+  const [cleared, setCleared] = useState(false);
+  const prevSel = useRef(null);
   const [zoom, setZoom] = useState(null);
   const { fitView, getViewport, setViewport } = useReactFlow();
   const timer = useRef(null);
@@ -94,12 +96,19 @@ function Canvas({ view, viewName, resetNonce }) {
     setNodes(flow.nodes); setSel(null); bigStart();
   }, [resetNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A pick that goes away (Reset layout, a click on the empty map) is said once, in the same status line that announced it.
+  useEffect(() => {
+    if (sel) setCleared(false);
+    else if (prevSel.current) setCleared(true);
+    prevSel.current = sel;
+  }, [sel]);
+
   const shown = useMemo(() => nodes.map((n) => (n.type === "card" ? { ...n, selected: n.id === sel } : n)), [nodes, sel]);
   const info = sel ? flow.cardInfo.get(sel) : null;
   return (
     <div className="wr-stage" data-testid="wr-stage" data-view={viewName} data-zoom={zoom === null ? "" : zoom.toFixed(3)}>
       {/* Mounted with the canvas, before any text lands in it, so the pick is announced once. */}
-      <p className="wr-sr" role="status" data-testid="wr-selection-status">{info ? `Showing ${info.card.title}, ${workloadCount(info.card.count)}.` : ""}</p>
+      <p className="wr-sr" role="status" data-testid="wr-selection-status">{info ? `Showing ${info.card.title}, ${workloadCount(info.card.count)}.` : cleared ? "Selection cleared." : ""}</p>
       <div className="wr-canvas" role="region" aria-label="Diagram of where everything runs">
         <ReactFlow
           nodes={shown} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
@@ -206,7 +215,7 @@ function SidePanel({ info, view }) {
           <li key={w.name}>
             <span className="pu-mono">{w.name}</span>
             <span className="wr-tags">
-              <StatusChip tone="neutral">{STATE_WORD[w.state]}{w.state === "na" ? "" : ` ${w.ready}/${w.want}`}</StatusChip>
+              <StatusChip tone="neutral">{w.plan ? "today " : ""}{STATE_WORD[w.state]}{w.state === "na" ? "" : ` ${w.ready}/${w.want}`}</StatusChip>
               <StatusChip tone="neutral">{ROLE_WORD[w.role]}</StatusChip>
               {w.plan === "deploy" && <StatusChip tone="info">to deploy, from {w.movedFrom}</StatusChip>}
               {w.plan === "scaleup" && <StatusChip tone="info">to scale up</StatusChip>}

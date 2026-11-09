@@ -179,6 +179,39 @@ describe("WhereEverythingRunsPage Ping UI Standard", () => {
     expect(rule[1]).toMatch(/pointer-events:\s*none/);
   });
 
+  it("announces when a pick is cleared by Reset layout, in the same status region, and not before anything was picked", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('[data-testid="wr-pick-mac::g-web-front-ends"]')).toBeTruthy());
+    const status = screen.getByTestId("wr-selection-status");
+    fireEvent.click(screen.getByTestId("wr-reset"));
+    expect(status.textContent).toBe("");
+    fireEvent.click(screen.getByTestId("wr-pick-mac::g-web-front-ends"));
+    await waitFor(() => expect(status.textContent).toMatch(/^Showing Web front ends/));
+    const reset = screen.getByTestId("wr-reset");
+    reset.focus();
+    fireEvent.click(reset);
+    await waitFor(() => expect(status.textContent).toBe("Selection cleared."));
+    expect(screen.getByTestId("wr-selection-status")).toBe(status);
+    expect(document.activeElement).toBe(reset);
+    fireEvent.click(screen.getByTestId("wr-pick-mac::g-web-front-ends"));
+    await waitFor(() => expect(status.textContent).toMatch(/^Showing Web front ends/));
+  });
+
+  it("in After, a box of workloads moved to the Mac does not claim they are running, and the panel labels their state as today's", async () => {
+    const { container } = renderPage();
+    fireEvent.click(screen.getByTestId("wr-view-after"));
+    await waitFor(() => expect(container.querySelector('[data-testid^="wr-card-mac::moved"]')).toBeTruthy());
+    const moved = container.querySelector('[data-testid^="wr-card-mac::moved"]');
+    const chip = moved.querySelector(".pu-chip");
+    expect(chip.textContent).toMatch(/^\d+ moved$/);
+    expect(chip.textContent).not.toMatch(/running|up/);
+    fireEvent.click(moved);
+    await waitFor(() => expect(screen.getByTestId("wr-side-title").textContent).toMatch(/moved from/));
+    const chips = [...screen.getByTestId("wr-side-list").querySelectorAll(".pu-chip")].map((c) => c.textContent);
+    expect(chips.some((t) => /^today /.test(t))).toBe(true);
+    expect(chips.every((t) => !/^(up|at 0|down|partly up) /.test(t))).toBe(true);
+  });
+
   it("the map is a labelled region", () => {
     renderPage();
     expect(screen.getByRole("region", { name: "Diagram of where everything runs" })).toBeTruthy();
