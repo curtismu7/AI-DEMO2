@@ -583,7 +583,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>
       ) : view === 'obo' ? (
         <div className="pas-c-view">
-          {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
+          {user ? <OboDemoPage embedded /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
         </div>
       ) : (<>
       {/* Content area */}
