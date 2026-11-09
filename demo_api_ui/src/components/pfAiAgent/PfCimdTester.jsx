@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ProtocolTrace from "../ProtocolTrace";
 import apiClient from "../../services/apiClient";
+import { Card, StatusChip } from "../pingUi";
+import { FlowSection, RunStatus, Unavailable } from "./shared";
 
 // CIMD tester after client.dev (stytchauth/client.dev, MIT): the same two sides, run against PingFederate.
 // Server: does PingFederate say it takes CIMD clients, and does it sign one in (the CIMD card above runs that).
@@ -9,34 +11,55 @@ import apiClient from "../../services/apiClient";
 
 function Findings({ result }) {
   if (!result) return null;
+  const items = [...result.errors.map((e) => ({ ...e, kind: "Error" })), ...result.warnings.map((w) => ({ ...w, kind: "Warning" }))];
   return (
-    <div className="pf-ai-agent__result" role="status" data-testid="cimd-tester-findings">
-      <h3>{result.valid ? "Valid client ID metadata document" : "Not a valid client ID metadata document"}</h3>
-      <p className="pf-ai-agent__hint">Checked: {result.source === "pasted" ? "the pasted document" : result.source}</p>
-      {[...result.errors.map((e) => ({ ...e, kind: "Error" })), ...result.warnings.map((w) => ({ ...w, kind: "Warning" }))].length > 0 && (
-        <ul className="pf-ai-agent__proof-points">
+    <Card tone={result.valid ? "ok" : "danger"} title={result.valid ? "Valid client ID metadata document" : "Not a valid client ID metadata document"} data-testid="cimd-tester-findings">
+      <div className="pu-status-line">
+        <StatusChip tone={result.valid ? "ok" : "danger"}>{result.valid ? "Valid" : "Invalid"}</StatusChip>
+        <span>Checked: {result.source === "pasted" ? "the pasted document" : result.source}</span>
+      </div>
+      {items.length > 0 && (
+        <ul className="pfai-points">
           {result.errors.map((e) => <li key={`e-${e.path}-${e.message}`}><strong>Error</strong> <code>{e.path}</code> {e.message}</li>)}
           {result.warnings.map((w) => <li key={`w-${w.path}-${w.message}`}><strong>Warning</strong> <code>{w.path}</code> {w.message}</li>)}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
 
-export default function PfCimdTester({ ready }) {
+const TABS = [["server", "Test PingFederate (server)"], ["client", "Test a document (client)"]];
+
+// Every button here is a secondary: the page's one primary lives on the first runnable flow (see the page).
+// A busy button takes aria-disabled so keyboard focus stays on it while the call runs.
+export default function PfCimdTester({ ready, checked = true }) {
   const [tab, setTab] = useState("server");
   const [busy, setBusy] = useState("");
+  const [done, setDone] = useState("");
   const [error, setError] = useState(null);
   const [server, setServer] = useState(null);
   const [client, setClient] = useState(null);
   const [probe, setProbe] = useState(null);
   const [pasted, setPasted] = useState("");
+  const tabRefs = useRef({});
 
-  async function call(label, path, body, set) {
+  // Arrow keys, Home and End move between the two tabs and select the one focused.
+  function onTabKeyDown(event, index) {
+    const next = { ArrowRight: (index + 1) % TABS.length, ArrowLeft: (index + TABS.length - 1) % TABS.length, Home: 0, End: TABS.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    setTab(TABS[next][0]);
+    tabRefs.current[TABS[next][0]]?.focus();
+  }
+
+  async function call(label, path, body, set, finished) {
+    if (busy) return;
     setBusy(label);
+    setDone("");
     setError(null);
     try {
       set((await apiClient.post(`/api/pf-ai-agent/cimd/tester/${path}`, body)).data);
+      setDone(finished);
     } catch (failure) {
       setError({ code: failure?.response?.data?.error || "pf_ai_cimd_tester_failed", detail: failure?.response?.data?.detail || "" });
     } finally {
@@ -44,99 +67,136 @@ export default function PfCimdTester({ ready }) {
     }
   }
 
+  const disabled = (extra = false) => (busy || extra ? "true" : undefined);
+
   return (
-    <section className="pf-ai-agent__flow pf-ai-agent__flow--cimd-tester" aria-labelledby="pf-ai-cimd-tester-title" id="cimd-tester">
-      <div className="pf-ai-agent__flow-title">
-        <p className="pf-ai-agent__eyebrow">Client identity · tester</p>
-        <h2 id="pf-ai-cimd-tester-title">CIMD tester</h2>
-        <p>
-          Both sides of client ID metadata documents, against PingFederate. After{" "}
-          <a href="https://client.dev" target="_blank" rel="noopener noreferrer">client.dev</a> (MIT).
-        </p>
-      </div>
-      <div className="pf-ai-agent__flow-body">
-        <div className="pf-ai-agent__tabs" role="tablist" aria-label="CIMD tester side">
-          {[["server", "Test PingFederate (server)"], ["client", "Test a document (client)"]].map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>
+    <FlowSection
+      anchor="cimd-tester"
+      id="pf-ai-cimd-tester-title"
+      kicker="Client identity · tester"
+      title="CIMD tester"
+      lede={<>Both sides of client ID metadata documents, against PingFederate. After <a href="https://client.dev" target="_blank" rel="noopener noreferrer">client.dev</a> (MIT).</>}
+    >
+      <Card>
+        <div className="pfai-tabs" role="tablist" aria-label="CIMD tester side">
+          {TABS.map(([id, label], index) => (
+            <button
+              key={id}
+              ref={(node) => { tabRefs.current[id] = node; }}
+              id={`pfai-tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={ready && tab === id ? `pfai-tabpanel-${id}` : undefined}
+              tabIndex={tab === id ? 0 : -1}
+              className="pu-btn pfai-tab"
+              onClick={() => setTab(id)}
+              onKeyDown={(event) => onTabKeyDown(event, index)}
+            >
               {label}
             </button>
           ))}
         </div>
 
-        {!ready && <span className="pf-ai-agent__disabled-action">Enable PF CIMD to run the tester</span>}
+        {!ready && <Unavailable checked={checked}>Enable PF CIMD to run the tester</Unavailable>}
 
         {ready && tab === "server" && (
-          <div role="tabpanel" aria-label="Test PingFederate">
-            <p className="pf-ai-agent__hint">
+          <div role="tabpanel" id="pfai-tabpanel-server" aria-labelledby="pfai-tab-server">
+            <p className="pu-note">
               Step 1 reads PingFederate&apos;s discovery document. Step 2 is a real sign-in with this app&apos;s document URL as
               the client_id: authorization code with PKCE, no client secret (the CIMD card above).
             </p>
-            <button className="pf-ai-agent__action" type="button" disabled={Boolean(busy)} onClick={() => call("Reading discovery", "server", {}, setServer)}>
-              {busy === "Reading discovery" ? busy : "1. Check PingFederate discovery"}
-            </button>
-            <a className="pf-ai-agent__secondary-action" href="/api/pf-ai-agent/cimd/start">2. Sign in with CIMD</a>
-            {server && (
-              <div className="pf-ai-agent__result" role="status" data-testid="cimd-tester-server">
-                <h3>PingFederate at {server.issuer}</h3>
-                <ul className="pf-ai-agent__proof-points">
-                  {server.checks.map((c) => (
-                    <li key={c.name}><strong>{c.ok ? "Pass" : "Fail"}</strong> {c.name} <code>{JSON.stringify(c.value)}</code></li>
-                  ))}
-                </ul>
-                <ProtocolTrace steps={server.trace} />
-              </div>
-            )}
+            <div className="pu-actions">
+              <button className="pu-btn" type="button" aria-disabled={disabled()} onClick={() => call("Reading discovery", "server", {}, setServer, "Read PingFederate's discovery document.")}>
+                1. Check PingFederate discovery
+              </button>
+              <a className="pu-btn" href="/api/pf-ai-agent/cimd/start">2. Sign in with CIMD</a>
+            </div>
           </div>
         )}
 
         {ready && tab === "client" && (
-          <div role="tabpanel" aria-label="Test a document">
-            <button className="pf-ai-agent__action" type="button" disabled={Boolean(busy)} onClick={() => call("Checking", "client", {}, setClient)}>
-              Check this app&apos;s document
-            </button>
-            <label className="pf-ai-agent__field">
+          <div role="tabpanel" id="pfai-tabpanel-client" aria-labelledby="pfai-tab-client">
+            <div className="pu-actions">
+              <button className="pu-btn" type="button" aria-disabled={disabled()} onClick={() => call("Checking", "client", {}, setClient, "Checked this app's document.")}>
+                Check this app&apos;s document
+              </button>
+            </div>
+            <label className="pfai-field">
               <span>Or paste a document (JSON, nothing is fetched)</span>
               <textarea rows={6} value={pasted} onChange={(event) => setPasted(event.target.value)} spellCheck={false} />
             </label>
-            <button className="pf-ai-agent__secondary-action" type="button" disabled={Boolean(busy) || !pasted.trim()} onClick={() => call("Checking", "client", { document: pasted }, setClient)}>
-              Check the pasted document
-            </button>
-            <Findings result={client} />
-            <h3>What does PingFederate say?</h3>
-            <p className="pf-ai-agent__hint">
+            <div className="pu-actions">
+              <button className="pu-btn" type="button" aria-disabled={disabled(!pasted.trim())} onClick={() => { if (pasted.trim()) call("Checking", "client", { document: pasted }, setClient, "Checked the pasted document."); }}>
+                Check the pasted document
+              </button>
+            </div>
+            {!pasted.trim() && <p className="pu-note">Paste a document above to check it.</p>}
+            <h3 className="pu-h3 pfai-sub">What does PingFederate say?</h3>
+            <p className="pu-note">
               The BFF sends PingFederate one authorization request per case and reads back its answer: its sign-in page,
               or its error. The bad documents are served by this app at URLs PingFederate&apos;s CIMD policies allow.
             </p>
-            <button className="pf-ai-agent__action" type="button" disabled={Boolean(busy)} onClick={() => call("Asking PingFederate", "probe", {}, setProbe)}>
-              {busy === "Asking PingFederate" ? busy : "Ask PingFederate about good and bad documents"}
-            </button>
-            {probe && (
-              <div className="pf-ai-agent__proof" data-testid="cimd-tester-probe">
-                <table className="pf-ai-agent__probe-table">
-                  <thead><tr><th>Case</th><th>Expected</th><th>PingFederate said</th><th>As expected</th></tr></thead>
-                  <tbody>
-                    {probe.results.map((r) => (
-                      <tr key={r.id}>
-                        <td>{r.title}</td>
-                        <td>{r.expect === "accept" ? "Accept" : "Refuse"}</td>
-                        <td>{r.pfSays}</td>
-                        <td>{r.asExpected ? "Yes" : "No"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <ProtocolTrace steps={probe.results.map((r) => r.trace)} />
-              </div>
-            )}
+            <div className="pu-actions">
+              <button className="pu-btn" type="button" aria-disabled={disabled()} onClick={() => call("Asking PingFederate", "probe", {}, setProbe, "PingFederate answered each case.")}>
+                Ask PingFederate about good and bad documents
+              </button>
+            </div>
           </div>
         )}
 
+        <RunStatus tone={busy ? "info" : "ok"} word={busy ? "Running" : done ? "Done" : ""}>
+          {busy ? `${busy}.` : done}
+        </RunStatus>
+
         {error && (
-          <p className="pf-ai-agent__error" role="alert">
+          <p className="pfai-error" role="alert">
             The tester stopped. Reason: <code>{error.code}</code>{error.detail && <> {error.detail}</>}
           </p>
         )}
-      </div>
-    </section>
+      </Card>
+
+      {ready && tab === "server" && server && (
+        <Card tone={server.checks.every((c) => c.ok) ? "ok" : "warn"} title={`PingFederate at ${server.issuer}`} data-testid="cimd-tester-server">
+          <div className="pu-status-line">
+            <StatusChip tone={server.checks.every((c) => c.ok) ? "ok" : "warn"}>{server.checks.every((c) => c.ok) ? "All checks passed" : "Some checks failed"}</StatusChip>
+          </div>
+          <ul className="pfai-points">
+            {server.checks.map((c) => (
+              <li key={c.name}><strong>{c.ok ? "Pass" : "Fail"}</strong> {c.name} <code>{JSON.stringify(c.value)}</code></li>
+            ))}
+          </ul>
+          <ProtocolTrace steps={server.trace} />
+        </Card>
+      )}
+
+      {ready && tab === "client" && <Findings result={client} />}
+
+      {ready && tab === "client" && probe && (
+        <Card tone={probe.results.every((r) => r.asExpected) ? "ok" : "warn"} title="What PingFederate said, case by case" data-testid="cimd-tester-probe">
+          <div className="pu-status-line">
+            <StatusChip tone={probe.results.every((r) => r.asExpected) ? "ok" : "warn"}>
+              {probe.results.every((r) => r.asExpected) ? "All as expected" : "Some not as expected"}
+            </StatusChip>
+          </div>
+          <div className="pfai-table-wrap">
+            <table className="pfai-probe-table">
+              <thead><tr><th>Case</th><th>Expected</th><th>PingFederate said</th><th>As expected</th></tr></thead>
+              <tbody>
+                {probe.results.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.title}</td>
+                    <td>{r.expect === "accept" ? "Accept" : "Refuse"}</td>
+                    <td>{r.pfSays}</td>
+                    <td>{r.asExpected ? "Yes" : "No"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ProtocolTrace steps={probe.results.map((r) => r.trace)} />
+        </Card>
+      )}
+    </FlowSection>
   );
 }

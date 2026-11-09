@@ -1,62 +1,81 @@
-.obo-demo { max-width: 100rem; padding: 1.5rem; color: var(--th-text); }
-.obo-demo__title { font-size: 1.4rem; margin: 0 0 0.75rem; }
-.obo-demo__lede { color: var(--th-text-muted); line-height: 1.5; max-width: 52rem; }
-.obo-demo__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 1rem; align-items: start; }
-@media (max-width: 80rem) { .obo-demo__workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-@media (max-width: 55rem) { .obo-demo__workspace { grid-template-columns: 1fr; } }
-.obo-demo__card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 1rem; margin-bottom: 1rem; }
-.obo-demo__h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--th-text-muted); margin: 0 0 0.75rem; }
-.obo-demo__who { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.75rem; margin: 0 0 0.75rem; font-size: 0.85rem; }
-.obo-demo__who dt { color: var(--th-text-muted); }
-.obo-demo__who dd { margin: 0; overflow-wrap: anywhere; }
-.obo-demo__run { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-.obo-demo__button {
-  padding: 0.5rem 1rem; border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-radius: var(--radius-md); cursor: pointer;
+/* Personal Agent User delegation (OBO): only what is specific to this page, the trace rows, the delta table and
+   the code blocks. The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Every rule sits under .pu-page.obo-demo: the PingOne
+   end-user-nano skin sets word-wrap on code and lists with a single-class selector, so ours must be more specific.
+   Surfaces, lines and ink are --th-* only (H1); a rule that sets a ground sets its own ink; type comes from the
+   --font-size-* scale (H2); no inline styles (H3). */
+
+/* Embedded in the Personal Agent Studio tab: the studio's own shell scrolls, so no 100vh floor of our own. */
+.pu-page.obo-demo.obo-demo--embedded { min-height: 0; }
+
+/* Left column of the run grid: the run, then the details of the chosen hop, so a click on a trace line changes
+   something beside it. The shared grid zeroes the margin of its direct .pu-card children only. */
+.pu-page.obo-demo .obo-demo__col { display: grid; gap: 12px; min-width: 0; }
+.pu-page.obo-demo .obo-demo__col > .pu-card { margin: 0; }
+
+/* Text for assistive technology only: the short "Showing step N" announcement. Mounted before it changes. */
+.pu-page.obo-demo .obo-demo__sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
 }
-.obo-demo__button:disabled { opacity: 0.6; cursor: not-allowed; }
-/* Reset: a tinted fill (the text colour mixed into the card colour) so it stands apart from the card in both
-   themes, instead of repeating the card background. ~9:1 text contrast in dark, ~12:1 in light. */
-.obo-demo__button--secondary { background: color-mix(in srgb, var(--th-text) 20%, var(--th-bg-card)); color: var(--th-text); }
-.obo-demo__button--secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--th-text) 28%, var(--th-bg-card)); }
-.obo-demo__status { color: var(--th-text-muted); font-size: 0.85rem; }
-.obo-demo__error { color: var(--th-status-error-text); }
-.obo-demo__verdict { margin-top: 0.75rem; padding: 0.6rem 0.8rem; border-radius: var(--radius-md); font-weight: 600; border: 1px solid var(--th-border); }
-.obo-demo__verdict--pass { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
-.obo-demo__verdict--fail { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
-.obo-demo__checks { list-style: none; padding: 0.25rem 0.5rem; margin: 0.75rem 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem 1.5rem; font-size: 0.85rem; line-height: 1.5; }
-.obo-demo__checks li { display: flex; gap: 0.75rem; align-items: flex-start; min-width: 0; }
-.obo-demo__chip { flex: none; font-size: 0.7rem; line-height: 1.4; font-weight: 700; padding: 0 0.4rem; border-radius: var(--radius-sm); border: 1px solid var(--th-border); }
-.obo-demo__chip--pass { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
-.obo-demo__chip--fail { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
-.obo-demo__trace { list-style: none; padding: 0; margin: 0; }
-.obo-demo__line {
-  display: grid; grid-template-columns: 1.6rem 1fr max-content; gap: 0.6rem; align-items: center; width: 100%;
-  text-align: left; padding: 0.55rem 0.5rem; border: 1px solid transparent; border-bottom-color: var(--th-border);
-  background: transparent; color: var(--th-text); cursor: pointer; font: inherit;
+
+.pu-page.obo-demo .obo-demo__status { margin: 16px 0 0; }
+.pu-page.obo-demo .obo-demo__error { margin: 8px 0 0; color: var(--th-status-error-text); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+
+/* Delegation checks: a PASS/FAIL chip and the check's label, wrapping at phone width. */
+.pu-page.obo-demo .obo-demo__checks { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; font-size: var(--font-size-sm); }
+.pu-page.obo-demo .obo-demo__checks li { display: flex; gap: 8px; align-items: flex-start; min-width: 0; }
+.pu-page.obo-demo .obo-demo__checks li > .pu-chip { flex: none; }
+.pu-page.obo-demo .obo-demo__checks li > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+
+/* Trace: one row per hop. The row is a button that selects the hop; the chosen row is marked by aria-current
+   (a filled row and a heavier edge), never by colour alone. */
+.pu-page.obo-demo .obo-demo__trace { list-style: none; padding: 0; margin: 0 0 8px; }
+.pu-page.obo-demo .obo-demo__line {
+  display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) max-content; gap: 8px; align-items: center; width: 100%;
+  text-align: left; padding: 8px; border: 1px solid transparent; border-bottom-color: var(--th-border);
+  background: transparent; color: var(--th-text); cursor: pointer; font: inherit; font-size: var(--font-size-sm);
 }
-.obo-demo__line:hover { background: var(--th-bg-hover); }
-.obo-demo__line[aria-current="true"] { background: var(--th-bg-inset); border-color: var(--th-border-strong); border-radius: var(--radius-md); }
-.obo-demo__num { font-weight: 700; color: var(--th-text-muted); }
-.obo-demo__line-title { display: block; font-weight: 600; }
-.obo-demo__line-route { display: block; font-size: 0.75rem; color: var(--th-text-muted); }
-.obo-demo__meta { display: flex; flex-direction: column; align-items: flex-end; font-size: 0.75rem; color: var(--th-text-muted); }
-.obo-demo__st--pass { color: var(--th-status-success-text); font-weight: 600; }
-.obo-demo__st--fail { color: var(--th-status-error-text); font-weight: 600; }
-.obo-demo__st--skip, .obo-demo__st--idle { color: var(--th-text-muted); }
-.obo-demo__legend { font-size: 0.75rem; color: var(--th-text-muted); margin: 0.75rem 0 0; }
-.obo-demo__step-title { margin: 0 0 0.25rem; font-size: 1rem; }
-.obo-demo__route { font-size: 0.75rem; color: var(--th-text-muted); margin-bottom: 0.5rem; }
-.obo-demo__empty { color: var(--th-text-muted); font-size: 0.9rem; }
-.obo-demo__why { padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border-radius: var(--radius-md); background: var(--th-status-error-bg); border: 1px solid var(--th-status-error-border); color: var(--th-status-error-text); }
-.obo-demo__table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-.obo-demo__table th, .obo-demo__table td { text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--th-border); vertical-align: top; overflow-wrap: anywhere; }
-.obo-demo__table th[scope="row"] { color: var(--th-text-muted); font-weight: 600; width: 9rem; }
-.obo-demo__diff { color: var(--th-status-info-text); }
-.obo-demo__good { color: var(--th-status-success-text); }
-.obo-demo__bad { color: var(--th-status-error-text); }
-.obo-demo__hint { color: var(--th-text-muted); font-size: 0.85rem; margin: 0 0 0.5rem; }
-.obo-demo__steps { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.5; }
-.obo-demo__steps li { margin-bottom: 0.5rem; }
-.obo-demo__code { margin: 0.3rem 0 0; padding: 0.5rem 0.6rem; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
-.obo-demo__limits { color: var(--th-text-muted); margin-top: 1.5rem; font-size: var(--font-size-sm); }
+.pu-page.obo-demo .obo-demo__line:hover { background: var(--th-bg-hover); color: var(--th-text); }
+.pu-page.obo-demo .obo-demo__line[aria-current="true"] {
+  background: var(--th-bg-inset); color: var(--th-text); border-color: var(--th-border-strong); border-radius: var(--radius-md);
+}
+.pu-page.obo-demo .obo-demo__line:focus-visible { outline: 3px solid var(--th-focus-ring); outline-offset: 2px; }
+.pu-page.obo-demo .obo-demo__num { font-weight: var(--font-weight-bold); color: var(--th-text-muted); }
+.pu-page.obo-demo .obo-demo__line-title { display: block; font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
+.pu-page.obo-demo .obo-demo__line-route { display: block; font-size: var(--font-size-xs); color: var(--th-text-muted); overflow-wrap: anywhere; }
+.pu-page.obo-demo .obo-demo__meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: var(--font-size-xs); color: var(--th-text-muted); }
+@media (max-width: 480px) {
+  .pu-page.obo-demo .obo-demo__line { grid-template-columns: 1.6rem minmax(0, 1fr); }
+  .pu-page.obo-demo .obo-demo__meta { grid-column: 2; flex-direction: row; align-items: center; gap: 8px; }
+}
+
+/* A refused hop: the reason, in the status colours. */
+.pu-page.obo-demo .obo-demo__why {
+  padding: 8px 12px; margin-bottom: 8px; border-radius: var(--radius-md); font-size: var(--font-size-sm);
+  background: var(--th-status-error-bg); border: 1px solid var(--th-status-error-border); color: var(--th-status-error-text);
+}
+
+/* What changed at the exchange: a three-column table that wraps long values instead of scrolling. */
+.pu-page.obo-demo .obo-demo__table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--font-size-sm); margin: 8px 0; }
+.pu-page.obo-demo .obo-demo__table th,
+.pu-page.obo-demo .obo-demo__table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--th-border); vertical-align: top; overflow-wrap: anywhere; word-break: break-word; color: var(--th-text); }
+.pu-page.obo-demo .obo-demo__table th[scope="row"] { color: var(--th-text-muted); font-weight: var(--font-weight-semibold); width: 4.5rem; }
+.pu-page.obo-demo .obo-demo__table td.obo-demo__diff { color: var(--th-status-info-text); }
+.pu-page.obo-demo .obo-demo__table td.obo-demo__good { color: var(--th-status-success-text); }
+.pu-page.obo-demo .obo-demo__table td.obo-demo__bad { color: var(--th-status-error-text); }
+
+/* Claude Code steps and the commands to copy. */
+.pu-page.obo-demo .obo-demo__steps { margin: 8px 0 0; padding-left: 1.2rem; font-size: var(--font-size-sm); line-height: 1.5; }
+.pu-page.obo-demo .obo-demo__steps li { margin-bottom: 8px; }
+.pu-page.obo-demo .obo-demo__code {
+  margin: 4px 0 0; padding: 8px 10px; background: var(--th-bg-inset); color: var(--th-text); border: 1px solid var(--th-border);
+  border-radius: var(--radius-md); font-size: var(--font-size-sm); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+}
+/* The PingOne skin paints inline code in the vertical's pink (4.2:1 light, 3.8:1 dark), and links in a blue under
+   4.5:1. Page ink instead; a link is marked by its underline, not by colour alone (the info-text token is the body
+   ink in light mode). */
+.pu-page.obo-demo code { overflow-wrap: anywhere; word-break: break-word; color: var(--th-text); }
+.pu-page.obo-demo .pu-lede a {
+  color: var(--th-status-info-text); text-decoration: underline; text-underline-offset: 3px;
+}

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor, act, within } from "@testing-library/react";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import OboDemoPage from "../OboDemoPage";
 import { VerticalContext } from "../../vertical/VerticalProvider";
 
@@ -47,14 +49,25 @@ describe("OboDemoPage", () => {
     expect(screen.queryByRole("list", { name: /delegation checks/i })).toBeNull();
   });
 
-  it("disables the button while the run is in flight", async () => {
+  it("marks the button aria-disabled (not disabled, so focus stays) while the run is in flight", async () => {
     let resolve;
     post.mockReturnValue(new Promise((r) => { resolve = r; }));
     render(<OboDemoPage />);
-    fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
-    expect(await screen.findByRole("button", { name: /running/i })).toBeDisabled();
+    const button = screen.getByRole("button", { name: /run the delegation/i });
+    button.focus();
+    fireEvent.click(button);
+    expect(await screen.findByText("Running the exchange…")).toBeInTheDocument();
+    // The name is stable (the status region announces the change) and the button keeps focus.
+    expect(screen.getByRole("button", { name: /run the delegation/i })).toBe(button);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveFocus();
+    // A second press while running is ignored.
+    fireEvent.click(button);
+    expect(post).toHaveBeenCalledTimes(1);
     resolve({ data: { checks: [] } });
-    await waitFor(() => expect(screen.getByRole("button", { name: /run the delegation/i })).toBeEnabled());
+    await waitFor(() => expect(button).not.toHaveAttribute("aria-disabled"));
+    expect(button).toHaveFocus();
   });
 
   const okSteps = [1, 2, 3, 4, 5, 6, 7].map((id) => ({ id, status: "pass", ms: 10, facts:
@@ -67,7 +80,7 @@ describe("OboDemoPage", () => {
     post.mockResolvedValue({ data: { steps: okSteps, checks: [{ id: "a", label: "ok", pass: true }] } });
     render(<OboDemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
-    expect(await screen.findByRole("status")).toHaveTextContent("1 of 1 checks passed");
+    expect(await screen.findByTestId("obo-status")).toHaveTextContent("1 of 1 checks passed");
     fireEvent.click(screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ }));
     expect(screen.getByRole("heading", { name: /3\. Token exchange/ })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/eyJ/);
@@ -83,7 +96,7 @@ describe("OboDemoPage", () => {
     post.mockRejectedValueOnce(Object.assign(new Error("502"), { response: { status: 502, data: { error: "OBO exchange failed.", failedStep: 3, steps } } }));
     render(<OboDemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
-    expect(await screen.findByRole("status")).toHaveTextContent("failed at step 3");
+    expect(await screen.findByTestId("obo-status")).toHaveTextContent("failed at step 3");
     expect(screen.getByText("invalid_request")).toBeInTheDocument();
     expect(screen.getAllByText("skipped")).toHaveLength(4);
   });
@@ -138,7 +151,7 @@ describe("OboDemoPage step wire detail", () => {
     post.mockResolvedValue({ data: { steps: withWire(baseSteps), checks: [{ id: "a", label: "ok", pass: true }] } });
     render(<OboDemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
-    await screen.findByRole("status");
+    await screen.findByTestId("obo-status");
     fireEvent.click(screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ }));
     expect(screen.getByRole("region", { name: "Request" })).toHaveTextContent("POST https://auth.pingone.com/env/as/token");
     expect(screen.getByRole("region", { name: "Delegated token" })).toHaveTextContent("H.P.S");
@@ -148,7 +161,7 @@ describe("OboDemoPage step wire detail", () => {
     post.mockResolvedValue({ data: { steps: baseSteps, checks: [{ id: "a", label: "ok", pass: true }] } });
     render(<OboDemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
-    await screen.findByRole("status");
+    await screen.findByTestId("obo-status");
     fireEvent.click(screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ }));
     expect(screen.queryByRole("region", { name: "Request" })).toBeNull();
   });
@@ -173,21 +186,37 @@ describe("OboDemoPage reset", () => {
     post.mockResolvedValue(okRun);
     render(<OboDemoPage />);
     clickRun();
-    await screen.findByRole("status");
+    await screen.findByTestId("obo-status");
     expect(screen.getByRole("heading", { name: /4\. Delegated token/ })).toBeInTheDocument();
     clickReset();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByTestId("obo-status")).not.toHaveTextContent(/verified|checks passed/);
     expect(screen.queryByRole("heading", { name: /4\. Delegated token/ })).toBeNull();
     expect(screen.getByText("Not run yet")).toBeInTheDocument();
   });
 
-  it("Reset is disabled when there is nothing to clear and enabled after a run", async () => {
+  it("Reset is aria-disabled (with a reason) when there is nothing to clear, and active after a run", async () => {
     post.mockResolvedValue(okRun);
     render(<OboDemoPage />);
-    expect(screen.getByRole("button", { name: /^reset$/i })).toBeDisabled();
+    const reset = screen.getByRole("button", { name: /^reset$/i });
+    expect(reset).toHaveAttribute("aria-disabled", "true");
+    expect(reset).not.toBeDisabled();
+    expect(reset).toHaveAccessibleDescription(/available after a run/i);
+    clickReset(); // ignored: nothing happens
     clickRun();
-    await screen.findByRole("status");
-    expect(screen.getByRole("button", { name: /^reset$/i })).toBeEnabled();
+    await screen.findByText(/checks passed/);
+    expect(screen.getByRole("button", { name: /^reset$/i })).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("Reset keeps keyboard focus when it becomes inactive after clearing", async () => {
+    post.mockResolvedValue(okRun);
+    render(<OboDemoPage />);
+    clickRun();
+    await screen.findByText(/checks passed/);
+    const reset = screen.getByRole("button", { name: /^reset$/i });
+    reset.focus();
+    fireEvent.click(reset);
+    expect(reset).toHaveAttribute("aria-disabled", "true");
+    expect(reset).toHaveFocus();
   });
 
   it("a response that arrives after Reset is discarded and the page stays usable", async () => {
@@ -195,11 +224,12 @@ describe("OboDemoPage reset", () => {
     post.mockReturnValue(new Promise((r) => { resolve = r; }));
     render(<OboDemoPage />);
     clickRun();
-    await screen.findByRole("button", { name: /running/i });
+    await screen.findByText("Running the exchange…");
     clickReset();
     await act(async () => { resolve(okRun); });
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.getByRole("button", { name: /run the delegation/i })).toBeEnabled();
+    expect(screen.getByTestId("obo-status")).not.toHaveTextContent(/verified|checks passed/);
+    expect(screen.getByTestId("obo-status")).toHaveTextContent("Not run yet");
+    expect(screen.getByRole("button", { name: /run the delegation/i })).not.toHaveAttribute("aria-disabled");
   });
 
   it("Reset hides the live calls already shown, and a newer call still appears", async () => {
@@ -219,11 +249,11 @@ describe("OboDemoPage reset", () => {
     const tree = (id) => (<VerticalContext.Provider value={{ activeId: id }}><OboDemoPage /></VerticalContext.Provider>);
     const { rerender } = render(tree("healthcare"));
     clickRun();
-    await screen.findByRole("status");
+    await screen.findByTestId("obo-status");
     rerender(tree("healthcare"));
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByTestId("obo-status")).toBeInTheDocument();
     rerender(tree("retail"));
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByTestId("obo-status")).not.toHaveTextContent(/verified|checks passed/);
     expect(screen.getByText("Not run yet")).toBeInTheDocument();
   });
 });
@@ -232,5 +262,256 @@ describe("OboDemoPage title", () => {
   it("is titled Personal Agent User delegation (OBO)", () => {
     render(<OboDemoPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Personal Agent User delegation (OBO)" })).toBeInTheDocument();
+  });
+});
+
+describe("OboDemoPage Ping UI Standard", () => {
+  const steps = [1, 2, 3, 4, 5, 6, 7].map((id) => ({ id, status: "pass", ms: 5, facts: {} }));
+  const run = () => fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
+  const primaries = () => document.querySelectorAll(".pu-btn--primary");
+
+  it("opens with the banner (role=note) ahead of the title, and says nothing here is simulated", () => {
+    render(<OboDemoPage />);
+    const banner = screen.getByTestId("obo-banner");
+    expect(banner).toHaveAttribute("role", "note");
+    expect(banner).toHaveTextContent(/nothing on this page is simulated/i);
+    expect(banner).toHaveTextContent(/no mock mode/i);
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("has exactly one primary button in every state, and it is Run the delegation", async () => {
+    let resolve;
+    post.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    render(<OboDemoPage />);
+    const check = () => {
+      expect(primaries()).toHaveLength(1);
+      expect(primaries()[0]).toHaveTextContent("Run the delegation");
+    };
+    check(); // idle
+    run();
+    await screen.findByText("Running the exchange…");
+    check(); // running
+    await act(async () => { resolve({ data: { steps, checks: [{ id: "a", label: "ok", pass: true }] } }); });
+    await screen.findByText(/checks passed/);
+    check(); // verified
+    post.mockRejectedValueOnce(Object.assign(new Error("x"), { response: { status: 503, data: { error: "not configured" } } }));
+    run();
+    await screen.findByRole("alert");
+    check(); // error
+    fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+    check(); // after Reset
+  });
+
+  it("keeps the status region mounted while idle, so the first change is announced", () => {
+    render(<OboDemoPage />);
+    const status = screen.getByTestId("obo-status");
+    expect(status).toHaveTextContent("Not run");
+    expect(status.querySelector(".pu-chip--neutral")).not.toBeNull();
+  });
+
+  it("is green (Verified) only when every check passed; a failed check is danger; no checks is neutral", async () => {
+    post.mockResolvedValueOnce({ data: { steps, checks: [{ id: "a", label: "a", pass: true }, { id: "b", label: "b", pass: true }] } });
+    const { unmount } = render(<OboDemoPage />);
+    run();
+    await screen.findByText(/2 of 2 checks passed/);
+    expect(screen.getByTestId("obo-status").querySelector(".pu-chip--ok")).toHaveTextContent("Verified");
+    unmount();
+
+    post.mockResolvedValueOnce({ data: { steps, checks: [{ id: "a", label: "a", pass: true }, { id: "b", label: "b", pass: false }] } });
+    const second = render(<OboDemoPage />);
+    run();
+    await screen.findByText(/1 of 2 checks passed/);
+    expect(screen.getByTestId("obo-status").querySelector(".pu-chip--danger")).toHaveTextContent("Not verified");
+    expect(screen.getByTestId("obo-status")).not.toHaveTextContent(/delegation verified/i);
+    second.unmount();
+
+    post.mockResolvedValueOnce({ data: { steps, checks: [] } });
+    render(<OboDemoPage />);
+    run();
+    await screen.findByText(/no checks to count/i);
+    expect(screen.getByTestId("obo-status").querySelector(".pu-chip--neutral")).toHaveTextContent("No checks");
+  });
+
+  it("shows a failed run and an errored run as Failed (danger), never as a pass", async () => {
+    post.mockRejectedValueOnce(Object.assign(new Error("502"), { response: { status: 502, data: { failedStep: 3, steps: [
+      { id: 1, status: "pass", facts: {} }, { id: 2, status: "pass", facts: {} },
+      { id: 3, status: "fail", facts: { error: "invalid_request" } }, ...[4, 5, 6, 7].map((id) => ({ id, status: "skip", facts: {} })),
+    ] } } }));
+    const { unmount } = render(<OboDemoPage />);
+    run();
+    await screen.findByText(/failed at step 3/);
+    expect(screen.getByTestId("obo-status").querySelector(".pu-chip--danger")).toHaveTextContent("Failed");
+    unmount();
+
+    post.mockRejectedValueOnce(Object.assign(new Error("503"), { response: { status: 503, data: { error: "OBO demo is not configured on this environment." } } }));
+    render(<OboDemoPage />);
+    run();
+    await screen.findByRole("alert");
+    expect(screen.getByTestId("obo-status")).toHaveTextContent("The run did not complete.");
+    expect(screen.getByTestId("obo-status").querySelector(".pu-chip--danger")).toHaveTextContent("Failed");
+  });
+
+  it("gives every trace line a word chip, and shows 'running' on each line while the run is in flight", async () => {
+    let resolve;
+    post.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    render(<OboDemoPage />);
+    const trace = screen.getByRole("list", { name: "Delegation trace" });
+    expect(within(trace).getAllByText("not run")).toHaveLength(7);
+    run();
+    await screen.findByText("Running the exchange…");
+    expect(within(trace).getAllByText("running")).toHaveLength(7);
+    await act(async () => { resolve({ data: { steps, checks: [] } }); });
+    expect(within(trace).getAllByText("ok")).toHaveLength(7);
+  });
+
+  it("marks the selected trace line with aria-current and moves details without moving focus", async () => {
+    post.mockResolvedValueOnce({ data: { steps, checks: [{ id: "a", label: "a", pass: true }] } });
+    render(<OboDemoPage />);
+    run();
+    await screen.findByText(/checks passed/);
+    const line = screen.getByRole("button", { name: /Downstream refuses your own token/ });
+    line.focus();
+    fireEvent.click(line);
+    expect(line).toHaveAttribute("aria-current", "true");
+    expect(line).toHaveFocus();
+    expect(screen.getByRole("heading", { name: /6\. Downstream refuses/ })).toBeInTheDocument();
+  });
+
+  it("Live from Claude: a short status line is the live region, mounted before the first event; the evidence card is not read out again", () => {
+    render(<OboDemoPage />);
+    const card = screen.getByTestId("obo-live");
+    const line = screen.getByTestId("obo-live-status");
+    expect(card).not.toHaveAttribute("aria-live");
+    expect(line).toHaveAttribute("role", "status");
+    expect(line).toHaveTextContent("Waiting");
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", ts: "2026-10-14T20:00:00Z", checks: [{ id: "x", label: "live check", pass: true }] }) }); });
+    expect(screen.getByTestId("obo-live")).toBe(card);
+    expect(screen.getByTestId("obo-live-status")).toBe(line);
+    expect(line).toHaveTextContent("Received");
+    expect(line).not.toHaveTextContent("live check");
+    expect(card).toHaveTextContent("live check");
+    expect(card.querySelector("[aria-live]")).toBeNull();
+    expect(card).toHaveClass("pu-card--live");
+  });
+
+  it("step details sit beside the trace in the same grid (not in a separate section below), and are not a live region", () => {
+    render(<OboDemoPage />);
+    const details = screen.getByTestId("obo-details");
+    const grid = screen.getByTestId("obo-trace-card").parentElement;
+    expect(grid).toHaveClass("pu-card-grid");
+    expect(grid.contains(details)).toBe(true);
+    expect(details).not.toHaveAttribute("aria-live");
+    expect(details.querySelector("[aria-live]")).toBeNull();
+    expect(screen.queryByRole("region", { name: /step details/i })).toBeNull();
+    expect(screen.getByRole("heading", { level: 3, name: "Step details" })).toBeInTheDocument();
+  });
+
+  it("choosing a trace line announces one short line from a status region mounted beforehand, scrolls the details into view and keeps focus; the automatic selection after a run does not announce", async () => {
+    const scroll = vi.fn();
+    const original = HTMLElement.prototype.scrollIntoView; // setupTests.js installs a global mock
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      post.mockResolvedValueOnce({ data: { steps, checks: [{ id: "a", label: "a", pass: true }] } });
+      render(<OboDemoPage />);
+      const picked = screen.getByTestId("obo-picked");
+      expect(picked).toHaveAttribute("role", "status");
+      expect(picked).toHaveTextContent("");
+      run();
+      await screen.findByText(/checks passed/);
+      expect(screen.getByTestId("obo-picked")).toBe(picked);
+      expect(picked).toHaveTextContent("");
+      expect(scroll).not.toHaveBeenCalled();
+      const line = screen.getByRole("button", { name: /Downstream refuses your own token/ });
+      line.focus();
+      fireEvent.click(line);
+      expect(picked).toHaveTextContent("Showing step 6: Downstream refuses your own token");
+      expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+      expect(line).toHaveFocus();
+      expect(screen.getByRole("button", { name: /Downstream refuses your own token/ })).toBe(line);
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(picked).toHaveTextContent("");
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("names who refused a failed hop from the step itself, not always PingOne", async () => {
+    const failAt = async (id, facts) => {
+      post.mockRejectedValueOnce(Object.assign(new Error("502"), { response: { status: 502, data: { failedStep: id, steps: [1, 2, 3, 4, 5, 6, 7].map((n) => (
+        n < id ? { id: n, status: "pass", facts: {} } : n === id ? { id: n, status: "fail", facts } : { id: n, status: "skip", facts: {} })) } } }));
+      const view = render(<OboDemoPage />);
+      run();
+      await screen.findByText(new RegExp(`failed at step ${id}`));
+      const why = view.container.querySelector(".obo-demo__why");
+      const text = why.textContent;
+      view.unmount();
+      return text;
+    };
+    expect(await failAt(5, { error: "http_401", httpStatus: 401 })).toMatch(/The downstream API refused this step/);
+    expect(await failAt(5, { error: "http_401", httpStatus: 401 })).not.toMatch(/PingOne/);
+    expect(await failAt(2, { error: "invalid_client", httpStatus: 401 })).toMatch(/PingOne refused this step/);
+    const one = await failAt(1, { error: "no_session" });
+    expect(one).toMatch(/This step failed/);
+    expect(one).not.toMatch(/PingOne/);
+    expect(await failAt(3, { error: "invalid_request", description: "bad subject_token" })).toMatch(/PingOne refused this step\..*signed-in token/);
+    expect(await failAt(2, { error: "invalid_client", description: "bad subject_token" })).not.toMatch(/signed-in token/);
+  });
+
+  it("keeps the trace buttons and the Run button mounted through run, failure and reset (focus is never dropped)", async () => {
+    post.mockRejectedValueOnce(Object.assign(new Error("502"), { response: { status: 502, data: { failedStep: 3, steps: [
+      { id: 1, status: "pass", facts: {} }, { id: 2, status: "pass", facts: {} }, { id: 3, status: "fail", facts: { error: "x" } },
+      ...[4, 5, 6, 7].map((id) => ({ id, status: "skip", facts: {} })) ] } } }));
+    render(<OboDemoPage />);
+    const runBtn = screen.getByRole("button", { name: /run the delegation/i });
+    const lineBtn = screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ });
+    lineBtn.focus();
+    run();
+    await screen.findByText(/failed at step 3/);
+    expect(screen.getByRole("button", { name: /run the delegation/i })).toBe(runBtn);
+    expect(screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ })).toBe(lineBtn);
+    expect(lineBtn).toHaveFocus();
+  });
+
+  it("embedded in the Personal Agent Studio tab it drops the title band (no second h1) and the 100vh floor class hook, and keeps the banner and the one primary", () => {
+    const { container } = render(<OboDemoPage embedded />);
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(screen.getByTestId("obo-banner")).toHaveAttribute("role", "note");
+    expect(container.querySelector(".pu-page")).toHaveClass("obo-demo--embedded");
+    expect(document.querySelectorAll(".pu-btn--primary")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /run the delegation/i })).toBeInTheDocument();
+  });
+});
+
+describe("OboDemoPage stylesheet", () => {
+  const css = readFileSync(resolve(__dirname, "../OboDemoPage.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  it("scopes every rule under .pu-page.obo-demo", () => {
+    const selectors = [...css.matchAll(/(?:^|\})\s*([^{}@]+)\{/g)].map((m) => m[1]).flatMap((list) => list.split(",")).map((x) => x.trim()).filter(Boolean);
+    expect(selectors.length).toBeGreaterThan(10);
+    expect(selectors.filter((sel) => !sel.startsWith(".pu-page.obo-demo"))).toEqual([]);
+  });
+
+  it("paints inline code and the lede link in page ink, not the vertical's pink or the skin's blue (4.5:1)", () => {
+    expect(css).toMatch(/\.pu-page\.obo-demo code\s*\{[^}]*color:\s*var\(--th-text\)/);
+    expect(css).toMatch(/\.pu-page\.obo-demo \.pu-lede a\s*\{[^}]*color:\s*var\(--th-status-info-text\)[^}]*text-decoration:\s*underline/);
+  });
+
+  it("the hidden announcement text and the details column are styled", () => {
+    expect(css).toMatch(/\.obo-demo__sr\s*\{[^}]*clip-path/);
+    expect(css).toMatch(/\.obo-demo__col\s*>\s*\.pu-card\s*\{[^}]*margin:\s*0/);
+  });
+
+  it("the obo-demo__ prefix is used by no other stylesheet", () => {
+    const root = resolve(__dirname, "../..");
+    const hits = [];
+    const walk = (dir) => {
+      for (const name of readdirSync(dir)) {
+        const full = resolve(dir, name);
+        if (statSync(full).isDirectory()) { if (name !== "node_modules" && name !== "__tests__") walk(full); } else if (name.endsWith(".css") && name !== "OboDemoPage.css" && readFileSync(full, "utf8").includes("obo-demo__")) hits.push(full);
+      }
+    };
+    walk(root);
+    expect(hits).toEqual([]);
   });
 });

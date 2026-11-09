@@ -1,8 +1,14 @@
-/* ── Live Use-Case Workbench (A5.2 + Mock A chrome) ─────────────────────── */
-/* Subtract TopNav (~72px) so the stage is the remaining viewport, not 100vh under the shell */
-.luw {
+/* ── Live Use-Case Workbench (A5.2 + Mock A chrome) ───────────────────────
+   Page-specific layout only. The banner, cards, chips and buttons come from the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md): the root is a PingPage, the use-case cards are
+   .pu-card, the Run buttons are .pu-btn (the selected card's is .pu-btn--primary), chips are .pu-chip.
+   Surfaces, lines and ink are --th-* so the page is correct in both themes with no dark block. */
+
+/* The root is PingPage (.pu-page, min-height 100vh) and the grid: banner, topbar, body. The banner and the
+   TopNav above it are subtracted so the stage is the remaining viewport, not 100vh under the shell. */
+.pu-page.luw {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   min-height: calc(100vh - var(--stack-fab-top-base, 72px));
   min-width: 0;
 }
@@ -10,8 +16,9 @@
 .luw-topbar {
   display: flex; align-items: center; gap: 0.15rem;
   flex-wrap: wrap;
-  padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e0e2e4);
+  padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 /* Host for the agent's hoisted header control row. Takes the full remaining
@@ -25,21 +32,21 @@
   min-width: 0;
 }
 .luw-topbar__agent-tools:empty { display: none; }
-.luw-topbar__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
-.luw-topbar__crumb { font-size: 0.8rem; color: var(--th-text-muted); }
+.pu-page .luw-topbar__title { font-size: var(--font-size-base); font-weight: var(--font-weight-bold); margin: 0; color: var(--th-text); }
+.luw-topbar__crumb { font-size: var(--font-size-sm); color: var(--th-text-muted); }
 .luw-topbar__vertical { margin-left: 0.75rem; }
 
 .luw-body {
   position: relative;
   display: grid;
-  grid-template-columns: var(--luw-drawer-w, 336px) 7px 1fr;
+  grid-template-columns: var(--luw-drawer-w, 336px) 7px minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
 }
 
 /* Slide-over: closed is the default demo posture. The drawer leaves the grid
    entirely so the agent spans the full width and never resizes mid-run. */
-.luw-body--drawer-closed { grid-template-columns: 1fr; }
+.luw-body--drawer-closed { grid-template-columns: minmax(0, 1fr); }
 /* With one column, .luw-resize--drawer (the drawer-width drag handle) is the
    only other in-flow grid item and stretches to the full row width — an
    invisible full-width drag hitbox sitting over the closed page. There is
@@ -65,13 +72,20 @@
   content: '';
   position: absolute;
   inset: 0 3px;
-  background: #cdd1d4;
+  background: var(--control-border);
 }
-.luw-resize:hover::before,
-.luw-resize:focus-visible::before {
-  background: #12538d;
+.luw-resize:hover::before {
+  background: var(--th-focus-ring);
+  color: var(--th-bg-card); /* the bar carries no text; this ink contrasts with the ring-coloured ground */
 }
+/* Keyboard focus widens the handle to 5px in the focus-ring colour (a 1px line changing colour was not a
+   visible focus indicator). */
 .luw-resize:focus-visible { outline: none; }
+.luw-resize:focus-visible::before {
+  inset: 0 1px;
+  background: var(--th-focus-ring);
+  color: var(--th-bg-card);
+}
 body.luw-resizing,
 body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
@@ -81,14 +95,21 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   width: 336px;
   z-index: 3;
   border-right: 1px solid var(--th-border);
-  background: var(--brand-light-gray, #f7f8f8);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   display: flex;
   flex-direction: column;
   min-height: 0;
   transform: translateX(0);
-  transition: transform 180ms ease;
+  transition: transform 180ms ease, visibility 0s;
 }
-.luw-body--drawer-closed .luw-drawer { transform: translateX(-100%); }
+/* Closed: off-canvas AND out of the tab order and the accessibility tree. visibility flips after the slide
+   so the drawer stays visible while it moves. The 860px block below makes the drawer an in-flow panel again. */
+.luw-body--drawer-closed .luw-drawer {
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 180ms ease, visibility 0s linear 180ms;
+}
 
 /* No modal scrim: the drawer is docked in its own grid column, so it never
    covers .luw-main. A full-body scrim only dimmed the agent + Token Chain and
@@ -104,18 +125,18 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   gap: 8px;
   writing-mode: vertical-rl;
   padding: 12px 6px;
-  border: 1px solid #12538d;
+  border: 1px solid var(--control-border);
   border-left: 0;
-  border-radius: 0 8px 8px 0;
-  background: #f0fdfa;
-  color: #051727;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   cursor: pointer;
   font: inherit;
-  font-size: 0.74rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  box-shadow: 2px 0 6px rgba(5, 23, 39, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 .luw-body--drawer-closed .luw-drawer-tab { display: flex; }
 
@@ -123,204 +144,207 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   position: absolute;
   top: 0.55rem;
   right: 0.5rem;
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--th-border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text-body);
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   line-height: 1;
   cursor: pointer;
 }
-.luw-drawer__toggle:hover { border-color: var(--th-border-strong); color: var(--th-text); }
+.luw-drawer__toggle:hover { border-color: var(--th-focus-ring); color: var(--th-text); }
+
+/* Keyboard focus ring on the page's own controls (.pu-btn carries its own). */
+.pu-page .luw-drawer-tab:focus-visible,
+.pu-page .luw-drawer__toggle:focus-visible,
+.pu-page .luw-card__title:focus-visible,
+.pu-page .luw-track > summary:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+.pu-page .luw-drawer__search input:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 1px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .luw-drawer { transition: none; }
+  .luw-drawer,
+  .luw-body--drawer-closed .luw-drawer { transition: none; }
 }
 
 .luw-drawer__head {
   position: relative;
   padding: 1rem 0.9rem 0.55rem;
 }
-.luw-drawer__title {
+.pu-page .luw-drawer__title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   letter-spacing: -0.03em;
   color: var(--th-text);
 }
 .luw-drawer__sub {
   margin: 0.35rem 0 0;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   line-height: 1.35;
 }
 .luw-drawer__search { padding: 0.5rem 0.85rem 0.6rem; border-bottom: 1px solid var(--th-border); }
 .luw-drawer__search input {
-  width: 100%; padding: 0.45rem 0.6rem; border: 1px solid var(--th-border-strong); border-radius: 7px;
-  background: var(--th-bg-card); font-size: 0.82rem;
+  width: 100%; padding: 0.45rem 0.6rem; border: 1px solid var(--control-border); border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
 }
 .luw-drawer__scroll { overflow-y: auto; padding: 0.65rem 0.75rem 1rem; flex: 1; min-height: 0; }
-.luw-drawer__empty { padding: 1.2rem 0.75rem; color: var(--th-text-muted); font-size: 0.8rem; font-style: italic; }
+.luw-drawer__empty { margin: 0 0 0.55rem; font-size: var(--font-size-sm); }
 
-/* Mock A cards */
-.luw-card {
+/* A long unbroken id, title, audience or error has no space to break at, and the PingOne end-user-nano skin's
+   word-wrap: break-word on bare elements beats single-class rules and does not lower min-content, so a 100-character
+   value pushed the whole drawer and stage past a 375px phone. Scoped under the page root so no other page changes. */
+.pu-page.luw :is(
+  .luw-card__title, .luw-card__meta, .luw-card__what, .luw-card__expected, .luw-card__hint,
+  .luw-drawer__sub, .luw-drawer__title, .luw-drawer__empty, .luw-glance__label, .luw-glance__value,
+  .luw-rail-verdict, .luw-topbar__title, .luw-topbar__crumb, .luw-track > summary
+) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pu-page.luw .luw-card__meta > * { min-width: 0; }
+
+/* Use-case cards: .pu-card (vertical accent top edge, surface, edge, shadow) made compact for the drawer. */
+.pu-page .luw-card {
+  margin: 0 0 0.55rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  cursor: pointer;
+}
+.pu-page .luw-card:hover { border-color: var(--th-focus-ring); }
+.pu-page .luw-card.is-active {
+  border-color: var(--th-focus-ring);
+  box-shadow: 0 0 0 1px var(--th-focus-ring);
+}
+/* The title is the card's real keyboard control (aria-pressed marks the selected one). */
+.pu-page .luw-card__title {
   display: block;
   width: 100%;
-  text-align: left;
-  padding: 0.85rem 0.95rem;
-  margin-bottom: 0.55rem;
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  cursor: pointer;
-  font: inherit;
-  -webkit-appearance: none;
-  appearance: none;
-}
-.luw-card:hover { border-color: var(--th-border-strong); }
-.luw-card.is-active {
-  border-color: #12538d;
-  border-width: 2px;
-  padding: calc(0.85rem - 1px) calc(0.95rem - 1px);
-}
-.luw-card__title {
   margin: 0;
-  font-size: 0.92rem;
-  font-weight: 700;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
   line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
-.luw-card__meta {
+.pu-page .luw-card__meta {
   margin: 0.25rem 0 0;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   line-height: 1.3;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
-.luw-card__rs-badge {
-  font-size: 0.68rem;
-  font-weight: 600;
+.pu-page .luw-card__rs-badge {
   font-family: var(--font-mono);
-  border-radius: 3px;
-  padding: 1px 5px;
-  white-space: nowrap;
-}
-.luw-card__rs-badge[data-rs="olb"] {
-  color: #12538d;
-  background: #e0e2e4;
-}
-.luw-card__rs-badge[data-rs="invest"] {
-  color: #047857;
-  background: #d1fae5;
-}
-.luw-card__rs-badge[data-rs="apikey"] {
-  color: #92400e;
-  background: #fef3c7;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
 }
 /* 15-Min Security Demo cards only: what the step does + what to expect,
    sourced from the teleprompter beats (components/demoScript.js). */
-.luw-card__what {
+.pu-page .luw-card__what {
   margin: 0.4rem 0 0;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   color: var(--th-text-body);
   line-height: 1.35;
 }
-.luw-card__expected {
+.pu-page .luw-card__expected {
   margin: 0.35rem 0 0;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   color: var(--th-text);
   line-height: 1.35;
 }
 .luw-card__expected-label {
   display: inline-block;
   margin-right: 0.4rem;
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #12538d;
+  color: var(--th-status-info-text);
 }
-.luw-card__run {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 0.65rem;
-  border: 0;
-  border-radius: var(--radius-lg);
-  padding: 0.5rem 0.9rem;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--th-text-invert);
-  background: #12538d;
-  cursor: pointer;
-}
-.luw-card__run:disabled { opacity: 0.55; cursor: not-allowed; }
-.luw-card__run:not(:disabled):hover { filter: brightness(1.05); }
-.luw-card__hint {
+.pu-page .luw-card__run { margin-top: 0.65rem; }
+.pu-page .luw-card__hint {
   margin: 0.55rem 0 0;
-  font-size: 0.72rem;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
 }
 
 .luw-track { margin: 0.5rem 0 0.35rem; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
-  padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
+  padding: 0.55rem 0.4rem; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--th-text-body); border-radius: var(--radius-md);
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
-.luw-track > summary:hover { background: var(--th-bg-card); }
-.luw-track__count { margin-left: auto; font-weight: 600; color: var(--th-text-faint); }
+.luw-track > summary:hover {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.luw-track__count { margin-left: auto; font-weight: var(--font-weight-semibold); color: var(--th-text-body); }
 
 /* 15-Min Security Demo: bordered box marks exactly which tiles the 15-minute
    script runs, so the presenter sees the demo scope at a glance. */
 .luw-track--security {
-  border: 2px solid #12538d;
-  border-radius: 10px;
-  background: #f0fdfa;
+  border: 2px solid var(--th-focus-ring);
+  border-radius: var(--radius-xl);
+  background: var(--th-bg-page);
+  color: var(--th-text);
   padding: 0.15rem 0.55rem 0.5rem;
   margin: 0.5rem 0 0.85rem;
 }
-.luw-track--security > summary { color: #12538d; }
-.luw-track--security > summary:hover { background: #ccfbf1; }
-.luw-track--security .luw-track__count { color: #12538d; }
+.luw-track--security > summary { color: var(--th-status-info-text); }
+.luw-track--security > summary:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-status-info-text);
+}
+.luw-track--security .luw-track__count { color: var(--th-status-info-text); }
 
-/* Color-code each group title so the tracks read apart at a glance. */
-.luw-track--foundations > summary { color: #12538d; }
-.luw-track--controls > summary    { color: #b45309; }
-.luw-track--hitl > summary        { color: #d20e0f; }
-.luw-track--attacks > summary     { color: #d20e0f; }
-/* Those hues are tuned for a white card; on the dark card they measured 2.3 to 3.1:1.
-   Same hues, lighter stops. No --th-* token carries these hues. */
-:root[data-theme="dark"] .luw-card__expected-label,
-:root[data-theme="dark"] .luw-track--security > summary,
-:root[data-theme="dark"] .luw-track--security .luw-track__count { color: #12538d; }
-:root[data-theme="dark"] .luw-track--security { background: var(--th-bg-inset); }
-:root[data-theme="dark"] .luw-track--security > summary:hover { background: var(--th-bg-hover); }
-:root[data-theme="dark"] .luw-track--foundations > summary { color: #93c5fd; }
-:root[data-theme="dark"] .luw-track--controls > summary    { color: #fbbf24; }
-:root[data-theme="dark"] .luw-track--hitl > summary        { color: #fca5a5; }
-:root[data-theme="dark"] .luw-track--attacks > summary     { color: #fca5a5; }
+/* The tracks read apart at a glance by the status ink: info, warning, error. */
+.luw-track--foundations > summary { color: var(--th-status-info-text); }
+.luw-track--controls > summary    { color: var(--th-status-warning-text); }
+.luw-track--hitl > summary        { color: var(--th-status-error-text); }
+.luw-track--attacks > summary     { color: var(--th-status-error-text); }
 
 /* Coupa/NIQ gap-closure demo — carved out of the controls track on this
    page only (see COUPA_NIQ_ID_SET in LiveUseCaseWorkbenchPage.js). */
 .luw-track--gap-closure {
-  border: 2px solid #d20e0f;
-  border-radius: 10px;
-  background: #fee2e2;
+  border: 2px solid var(--th-status-error);
+  border-radius: var(--radius-xl);
+  background: var(--th-status-error-bg);
+  color: var(--th-text);
   padding: 0.15rem 0.55rem 0.5rem;
   margin: 0.5rem 0 0.85rem;
 }
-.luw-track--gap-closure > summary { color: #d20e0f; }
-.luw-track--gap-closure > summary:hover { background: #fecaca; }
-.luw-track--gap-closure .luw-track__count { color: #d20e0f; }
+.luw-track--gap-closure > summary { color: var(--th-status-error-text); }
+.luw-track--gap-closure > summary:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-status-error-text);
+}
+.luw-track--gap-closure .luw-track__count { color: var(--th-status-error-text); }
 
 /* Main: agent + token chain + glance */
 .luw-main {
@@ -341,7 +365,8 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   container-name: luw-main;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  background: #eef1f4;
+  background: var(--th-bg-page);
+  color: var(--th-text);
 }
 .luw-main__stage {
   min-height: 0;
@@ -434,10 +459,11 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 .luw-glance {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   border-top: 1px solid var(--th-border);
   background: var(--th-bg-inset);
-  font-size: 0.75rem;
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
 }
 .luw-glance__cell {
   padding: 0.65rem 1rem;
@@ -445,19 +471,24 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
 }
 .luw-glance__cell:last-child { border-right: 0; }
 .luw-glance__label {
-  font-size: 0.65rem;
-  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-3xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--th-text-muted);
 }
 .luw-glance__value {
   color: var(--th-text-body);
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
   font-variant-numeric: tabular-nums;
 }
 
@@ -473,7 +504,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
    early instead of letting grow do the work. Emphasis comes from grow (2.2). */
 .luw-run-layout--rail-focus .luw-rail-host {
   flex: 2.2 1 320px;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.28);
+  box-shadow: 0 0 0 3px var(--th-focus-ring);
 }
 
 /* Sticky so it stays readable while the presenter scrolls the chain — it must
@@ -483,9 +514,9 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   top: 0;
   z-index: 1;
   padding: 8px 12px;
-  border-bottom: 2px solid #12538d;
-  font-size: 1.05rem;
-  font-weight: 900;
+  border-bottom: 2px solid var(--th-focus-ring);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.03em;
   color: var(--th-text);
   background: var(--th-bg-card);
@@ -493,9 +524,9 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 /* One-shot pulse on the step that decided the outcome. */
 @keyframes luwStepPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.55); }
-  70%  { box-shadow: 0 0 0 12px rgba(20, 184, 166, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+  0%   { box-shadow: 0 0 0 0 var(--th-focus-ring); }
+  70%  { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 .luw-step-pulse { animation: luwStepPulse 1100ms ease-out 2; }
 
@@ -547,7 +578,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 @media (max-width: 860px) {
   .luw-body,
   .luw-body--drawer-closed {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   /* One column here, and the drawer is back in flow (position:static below) —
      both stack as rows in column 1. Stated explicitly rather than relying on
@@ -563,10 +594,21 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
     position: static;
     width: auto;
     transform: none;
+    visibility: visible;
   }
   .luw-drawer-tab { display: none; }
-  .luw-body--drawer-closed { grid-template-columns: 1fr; }
+  .luw-body--drawer-closed { grid-template-columns: minmax(0, 1fr); }
   .luw-drawer__scroll {
     overflow-y: visible;
   }
+}
+
+/* Phone: the three glance cells (balance, verdict pair, recent) stack instead of squeezing the verdict chips past the edge. */
+@media (max-width: 600px) {
+  .luw-glance { grid-template-columns: minmax(0, 1fr); }
+  .luw-glance__cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--th-border);
+  }
+  .luw-glance__cell:last-child { border-bottom: 0; }
 }

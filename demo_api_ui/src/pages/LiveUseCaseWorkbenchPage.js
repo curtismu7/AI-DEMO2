@@ -3,6 +3,22 @@
 // /use-cases/live — A5.2 + Mock A chrome: demo cards + banking glance,
 // catalog drawer + real Token Chain, single <AIAgent> in the host column
 // (see App.js onLiveWorkbenchRoute).
+//
+// Layout follows the standalone Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P4 cards, P7 chips, P9 buttons. Skipped on purpose:
+// P3 frame/Section (a three-pane workbench needs the full width, not a 1100px column), P5 kv (the
+// glance strip is a horizontal label/value row, not a list) and a PageHeader band (the topbar is the
+// title band and hosts the vertical switcher and the agent's toolbar portal).
+// P9 "one primary per view state": the primary is the Run button of the selected card, and only one
+// button is primary even when a use case is listed in two groups.
+//   - use cases loading / failed / none match: no run button exists, so no primary here;
+//   - a runnable card is selected (the default once loaded): its Run button is the primary, every
+//     other card's Run button is a secondary;
+//   - the selected card is not runnable ("Not runnable in live workbench"): no primary;
+//   - a run is in flight: the running card's primary and every other Run button take aria-disabled
+//     (not disabled), so keyboard focus stays on the button that was pressed;
+//   - the Demo script drawer is closed: the cards are hidden, so the agent's own send control (outside
+//     this page's files) is the action.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
@@ -28,6 +44,7 @@ import { DEMO_SCRIPT_BEAT_BY_UC_ID } from '../components/demoScript';
 import { attackSimVerdict } from '../utils/attackSimVerdict';
 import './LiveUseCaseWorkbenchPage.css';
 import InlineSpinner from '../components/shared/InlineSpinner';
+import { PingPage, SimBanner, Card, StatusChip } from '../components/pingUi';
 
 const RUNNABLE_SIMS = [
   'insufficient-scope', 'wrong-aud', 'cross-owner-account', 'replayed-token',
@@ -78,7 +95,7 @@ const TRACK_LABELS = {
   foundations: 'Foundations — delegation lifecycle',
   controls: 'Controls — policy governs the agent',
   hitl: 'Human-in-the-Loop — approval & step-up',
-  attacks: 'Attacks — blocked by PingOne',
+  attacks: 'Attacks — expected to be denied',
 };
 
 const DRAWER_CLOSED_KEY = 'luw_demo_script_collapsed';
@@ -127,6 +144,17 @@ function policyLabel(outcome) {
 }
 
 /**
+ * Can the live workbench run this use case (a chip, a runnable attack sim, or a link)?
+ * @param {object} uc
+ */
+function isRunnable(uc) {
+  const t = uc.trigger;
+  return t?.type === 'chip'
+    || (t?.type === 'attack' && RUNNABLE_SIMS.includes(t.sim))
+    || (t?.type === 'link' && !!t.path);
+}
+
+/**
  * Live use-case workbench: Mock A cards + glance, Token Chain unchanged.
  */
 export default function LiveUseCaseWorkbenchPage() {
@@ -142,6 +170,11 @@ export default function LiveUseCaseWorkbenchPage() {
   const [glanceRecent, setGlanceRecent] = useState('—');
   const { verdict } = useProofOfEnforcement();
   const [authorizeSeen, setAuthorizeSeen] = useState(null);
+  // A reload (the vertical provider names the vertical a moment after first paint) keeps the cards that are
+  // already on screen: unmounting them would drop keyboard focus to <body> mid-press. Their Run buttons are
+  // aria-disabled until the new list lands.
+  const refreshing = loading && useCases.length > 0;
+  const showCards = !error && (!loading || refreshing);
   const selectedUc = useCases.find((u) => u.id === selectedId) || null;
   // The global trace store (and the verdict derived from it) isn't scoped to
   // a selection — switching to a DIFFERENT card must not keep showing the
@@ -163,9 +196,18 @@ export default function LiveUseCaseWorkbenchPage() {
   // run starts. Emphasis is visual only — DOM focus is never moved.
   const railFocus = !running && Boolean(verdictForSelection?.state);
   const verdictMatched = verdictForSelection?.state === 'verified' || verdictForSelection?.state === 'denied-as-expected';
-  const announcement = railFocus
-    ? `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`
-    : '';
+  // One polite live region, mounted from the first render so each change below is announced. It carries the
+  // progress the card chip and the button label show silently (Running, request returned) and the settled
+  // verdict. A failure is not repeated here: the drawer's role="alert" already carries its message.
+  const runTitle = useCases.find((u) => u.id === runState?.id)?.title || runState?.id;
+  let announcement = '';
+  if (railFocus) {
+    announcement = `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`;
+  } else if (running) {
+    announcement = `Running ${runTitle}.`;
+  } else if (runState?.state === 'done') {
+    announcement = `${runTitle}: run request returned.`;
+  }
 
   // Bring the authorize decision into view and pulse it — the rail is the proof,
   // so the eye should land on the step that decided the outcome. Purely additive:
@@ -199,16 +241,16 @@ export default function LiveUseCaseWorkbenchPage() {
   const edgeTabRef = useRef(null);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  // Return focus to the edge tab whenever the drawer closes, but not on the
-  // initial mount (a persisted closed preference shouldn't steal focus from
-  // wherever the page load put it).
-  const skipFocusReturnRef = useRef(true);
+  // Return focus to the edge tab whenever the drawer closes, and move it to the close button when the
+  // drawer opens (the edge tab it was pressed on disappears, which dropped focus to the page body). Not
+  // on the initial mount: a persisted preference shouldn't steal focus from wherever the page load put it.
+  const closeBtnRef = useRef(null);
+  const prevDrawerOpenRef = useRef(drawerOpen);
   useEffect(() => {
-    if (skipFocusReturnRef.current) {
-      skipFocusReturnRef.current = false;
-      return;
-    }
-    if (!drawerOpen) edgeTabRef.current?.focus();
+    if (prevDrawerOpenRef.current === drawerOpen) return;
+    prevDrawerOpenRef.current = drawerOpen;
+    if (drawerOpen) closeBtnRef.current?.focus();
+    else edgeTabRef.current?.focus();
   }, [drawerOpen]);
 
   // Escape closes the slide-over, matching the ← toggle.
@@ -487,97 +529,46 @@ export default function LiveUseCaseWorkbenchPage() {
     return () => channel.close();
   }, [selectedId]);
 
+  // One primary Run button per view: the first selected, runnable card in document order. A use case that
+  // is listed in two groups (the security script and its track) would otherwise show two.
+  let primaryAssigned = false;
+
   /**
-   * Render a Mock A–style use-case card.
+   * Render a Mock A–style use-case card (see UseCaseCard below).
    * @param {object} uc
    * @param {number} [stepNumber]
    * @param {boolean} [withScriptDetail] show the 15-Min Security Demo script's
    *   what/expected copy under the title (security group only).
    */
   function renderCard(uc, stepNumber, withScriptDetail) {
-    const isChip = uc.trigger?.type === 'chip';
-    const isRunnableAttack = uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim);
-    const isLink = uc.trigger?.type === 'link' && !!uc.trigger.path;
-    const canRun = isChip || isRunnableAttack || isLink;
-    const isSelected = selectedId === uc.id;
-    const isRunning = runState?.id === uc.id && runState.state === 'running';
-    const isDone = runState?.id === uc.id && runState.state === 'done';
-    const title = stepNumber
-      ? `${stepNumber} · ${uc.title}`
-      : `${uc.id} · ${uc.title}`;
-    let meta = uc.id;
-    if (isDone) meta = `${uc.id} · Done`;
-    else if (isRunning) meta = `${uc.id} · Running`;
-    else if (isSelected) meta = `${uc.id} · Ready`;
-    else if (uc.expectedOutcome) meta = `${uc.id} · ${uc.expectedOutcome}`;
-    const beat = withScriptDetail ? DEMO_SCRIPT_BEAT_BY_UC_ID[uc.id] : null;
-
+    const isPrimary = selectedId === uc.id && isRunnable(uc) && !primaryAssigned;
+    if (isPrimary) primaryAssigned = true;
     return (
-      <div
+      <UseCaseCard
         key={uc.id}
-        className={
-          'luw-card'
-          + (isSelected ? ' is-active' : '')
-          + (isDone ? ' is-done' : '')
-          + (isRunning ? ' is-running' : '')
-        }
-        role="button"
-        tabIndex={0}
-        onClick={() => setSelectedId(uc.id)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setSelectedId(uc.id);
-          }
-        }}
-      >
-        <p className="luw-card__title">{title}</p>
-        <p className="luw-card__meta">
-          {meta}
-          {uc.resourceServer && (
-            <span
-              className="luw-card__rs-badge"
-              data-rs={uc.resourceServer.id}
-              title={`${uc.resourceServer.name} :${uc.resourceServer.port}`}
-            >
-              {uc.resourceServer.name} :{uc.resourceServer.port}
-            </span>
-          )}
-        </p>
-        {beat?.what && (
-          <p className="luw-card__what">{beat.what}</p>
-        )}
-        {beat?.expected && (
-          <p className="luw-card__expected">
-            <span className="luw-card__expected-label">Expect</span>
-            {beat.expected}
-          </p>
-        )}
-        {canRun && (
-          <button
-            type="button"
-            className="luw-card__run"
-            disabled={runState?.state === 'running'}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedId(uc.id);
-              handleRunSelected(uc);
-            }}
-          >
-            {isRunnableAttack ? 'Run sim →' : isLink ? 'Open page →' : isDone ? 'Run again →' : 'Run in agent →'}
-          </button>
-        )}
-        {!canRun && (
-          <p className="luw-card__hint">Not runnable in live workbench</p>
-        )}
-      </div>
+        uc={uc}
+        stepNumber={stepNumber}
+        withScriptDetail={withScriptDetail}
+        selectedId={selectedId}
+        runState={runState}
+        isPrimary={isPrimary}
+        refreshing={refreshing}
+        onSelect={setSelectedId}
+        onRun={handleRunSelected}
+      />
     );
   }
 
   return (
-    <div className="luw">
+    <PingPage className="luw">
+      <SimBanner data-testid="luw-banner">
+        <strong>Workbench</strong> — Run a card to send its prompt to the agent, fire an attack sim or open a
+        learning page. The agent&apos;s toolbar sets its engine, and the rail labels each run&apos;s source. A run
+        shows Failed when its request errors; the Verdict strip compares the observed decision with the expected one.
+        Account figures are samples this page keeps itself, never read from an account.
+      </SimBanner>
       <div className="luw-topbar">
-        <p className="luw-topbar__title">Use Cases</p>
+        <h1 className="luw-topbar__title">Use Cases</h1>
         <span className="luw-topbar__crumb">/ Live Workbench</span>
         <div className="luw-topbar__vertical"><VerticalSwitcher /></div>
         <div className="luw-topbar__agent-tools" ref={toolbarHostRef} />
@@ -602,6 +593,7 @@ export default function LiveUseCaseWorkbenchPage() {
           <div className="luw-drawer__head">
             <button
               type="button"
+              ref={closeBtnRef}
               className="luw-drawer__toggle"
               onClick={closeDrawer}
               aria-expanded={drawerOpen}
@@ -610,7 +602,7 @@ export default function LiveUseCaseWorkbenchPage() {
             >
               ←
             </button>
-            <h1 className="luw-drawer__title">Demo script</h1>
+            <h2 className="luw-drawer__title">Demo script</h2>
             <p className="luw-drawer__sub">Pick a step — agent runs on the right</p>
           </div>
           <div className="luw-drawer__search">
@@ -623,16 +615,16 @@ export default function LiveUseCaseWorkbenchPage() {
             />
           </div>
           {runState?.state === 'error' && (
-            <p className="luw-drawer__empty">{runState.msg}</p>
+            <p className="luw-drawer__empty pu-note pu-empty" role="alert">{runState.msg}</p>
           )}
-          <div className="luw-drawer__scroll">
-            {loading && <p className="luw-drawer__empty"><InlineSpinner label="Loading…" /></p>}
-            {error && <p className="luw-drawer__empty">{error}</p>}
+          <div className="luw-drawer__scroll" aria-busy={refreshing || undefined}>
+            {loading && <p className="luw-drawer__empty pu-note"><InlineSpinner label="Loading…" /></p>}
+            {error && <p className="luw-drawer__empty pu-note pu-empty" role="alert">{error}</p>}
             {!loading && !error && primaryDemo.length === 0 && advancedDemo.length === 0 && groupedOther.length === 0 && coupaNiqDemo.length === 0 && (
-              <p className="luw-drawer__empty">No use cases match “{query}”.</p>
+              <p className="luw-drawer__empty pu-note pu-empty" role="status">No use cases match “{query}”.</p>
             )}
 
-            {!loading && !error && securityDemo.length > 0 && (
+            {showCards && securityDemo.length > 0 && (
               <details className="luw-track luw-track--security" open>
                 <summary>
                   15-Min Security Demo
@@ -642,9 +634,9 @@ export default function LiveUseCaseWorkbenchPage() {
               </details>
             )}
 
-            {!loading && !error && primaryDemo.map((uc, i) => renderCard(uc, i + 1))}
+            {showCards && primaryDemo.map((uc, i) => renderCard(uc, i + 1))}
 
-            {!loading && !error && advancedDemo.length > 0 && (
+            {showCards && advancedDemo.length > 0 && (
               <details className="luw-track luw-track--more">
                 <summary>
                   More demos
@@ -654,7 +646,7 @@ export default function LiveUseCaseWorkbenchPage() {
               </details>
             )}
 
-            {!loading && !error && groupedOther.map(({ track, items }) => (
+            {showCards && groupedOther.map(({ track, items }) => (
               <details key={track} className={`luw-track luw-track--${track}`} open={track === 'attacks'}>
                 <summary>
                   {TRACK_LABELS[track]}
@@ -664,7 +656,7 @@ export default function LiveUseCaseWorkbenchPage() {
               </details>
             ))}
 
-            {!loading && !error && coupaNiqDemo.length > 0 && (
+            {showCards && coupaNiqDemo.length > 0 && (
               <details className="luw-track luw-track--gap-closure" open>
                 <summary>
                   Identity for AI — Coupa/NIQ gap closure
@@ -702,7 +694,7 @@ export default function LiveUseCaseWorkbenchPage() {
                 token-chain evidence for ONE selected use case; this compares the
                 declared vs actual CONTROL across all of them at once. */}
             <PolicyConformancePanel vertical={vertical} />
-            <p className="luw-sr-only" aria-live="polite">{announcement}</p>
+            <p className="luw-sr-only" role="status" aria-live="polite">{announcement}</p>
             <div
               className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}
               ref={runLayoutRef}
@@ -745,7 +737,7 @@ export default function LiveUseCaseWorkbenchPage() {
           </div>
           <div className="luw-glance" aria-label="Banking glance">
             <div className="luw-glance__cell">
-              <span className="luw-glance__label">Checking</span>
+              <span className="luw-glance__label">Checking <StatusChip>Sample</StatusChip></span>
               <span className="luw-glance__value">{glanceChecking}</span>
             </div>
             <div className="luw-glance__cell">
@@ -758,12 +750,114 @@ export default function LiveUseCaseWorkbenchPage() {
               />
             </div>
             <div className="luw-glance__cell">
-              <span className="luw-glance__label">Recent</span>
+              <span className="luw-glance__label">Recent <StatusChip>Sample</StatusChip></span>
               <span className="luw-glance__value">{glanceRecent}</span>
             </div>
           </div>
         </section>
       </div>
-    </div>
+    </PingPage>
+  );
+}
+
+
+/**
+ * One use-case card in the Demo script drawer: the .pu-card container, a title button that selects it, a
+ * status chip, and the Run button (the primary when `isPrimary`, which the parent decides so exactly one
+ * shows per view).
+ */
+function UseCaseCard({ uc, stepNumber, withScriptDetail, selectedId, runState, isPrimary, refreshing, onSelect, onRun }) {
+  const isRunnableAttack = uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim);
+  const isLink = uc.trigger?.type === 'link' && !!uc.trigger.path;
+  const canRun = isRunnable(uc);
+  const running = runState?.state === 'running';
+  const isSelected = selectedId === uc.id;
+  const isRunning = runState?.id === uc.id && running;
+  const isDone = runState?.id === uc.id && runState.state === 'done';
+  const isFailed = runState?.id === uc.id && runState.state === 'error';
+  const title = stepNumber
+    ? `${stepNumber} · ${uc.title}`
+    : `${uc.id} · ${uc.title}`;
+  // The word on the chip says what the page knows. "Done" means the run request returned, not that the
+  // outcome matched: that verdict is the glance strip's job, so no chip here is green.
+  let status = null;
+  if (isFailed) status = { tone: 'danger', word: 'Failed' };
+  else if (isDone) status = { tone: 'neutral', word: 'Done' };
+  else if (isRunning) status = { tone: 'info', word: 'Running' };
+  else if (isSelected) status = { tone: 'neutral', word: 'Ready' };
+  const beat = withScriptDetail ? DEMO_SCRIPT_BEAT_BY_UC_ID[uc.id] : null;
+  const runLabel = isRunning
+    ? 'Running…'
+    : isRunnableAttack ? 'Run sim →' : isLink ? 'Open page →' : isDone ? 'Run again →' : 'Run in agent →';
+
+  // The card itself is a plain container (a click on its text still selects, for the mouse); the title is
+  // the real keyboard control, so there is no button nested inside a role="button".
+  return (
+    <Card
+      className={
+        'luw-card'
+        + (isSelected ? ' is-active' : '')
+        + (isDone ? ' is-done' : '')
+        + (isRunning ? ' is-running' : '')
+      }
+      onClick={() => onSelect(uc.id)}
+    >
+      <button
+        type="button"
+        className="luw-card__title"
+        aria-pressed={isSelected}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(uc.id);
+        }}
+      >
+        {title}
+      </button>
+      <p className="luw-card__meta">
+        <span>{uc.id}</span>
+        <span aria-hidden="true">·</span>
+        {status ? (
+          <StatusChip tone={status.tone}>{status.word}</StatusChip>
+        ) : (
+          uc.expectedOutcome && <span>{uc.expectedOutcome}</span>
+        )}
+        {uc.resourceServer && (
+          <span
+            className="pu-chip pu-chip--neutral luw-card__rs-badge"
+            data-rs={uc.resourceServer.id}
+            title={`${uc.resourceServer.name} :${uc.resourceServer.port}`}
+          >
+            {uc.resourceServer.name} :{uc.resourceServer.port}
+          </span>
+        )}
+      </p>
+      {beat?.what && (
+        <p className="luw-card__what">{beat.what}</p>
+      )}
+      {beat?.expected && (
+        <p className="luw-card__expected">
+          <span className="luw-card__expected-label">Expect</span>
+          {beat.expected}
+        </p>
+      )}
+      {canRun && (
+        <button
+          type="button"
+          className={`luw-card__run pu-btn${isPrimary ? ' pu-btn--primary' : ''}`}
+          aria-disabled={running || refreshing || undefined}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (running || refreshing) return; // aria-disabled keeps keyboard focus here; the click is ignored
+            onSelect(uc.id);
+            onRun(uc);
+          }}
+        >
+          {runLabel}
+        </button>
+      )}
+      {!canRun && (
+        <p className="luw-card__hint">Not runnable in live workbench</p>
+      )}
+    </Card>
   );
 }

@@ -12,7 +12,7 @@ const verticalState = { activeId: null, pageManifest: null };
 vi.mock('../../vertical/useVertical', () => ({ useVertical: () => verticalState }));
 vi.mock('../../components/VerticalSwitcher', () => ({ default: () => <div data-testid="vertical-switcher" /> }));
 
-vi.mock('../OboDemoPage', () => ({ default: () => <div data-testid="obo-page" /> }));
+vi.mock('../OboDemoPage', () => ({ default: ({ embedded }) => <div data-testid="obo-page" data-embedded={String(Boolean(embedded))} /> }));
 vi.mock('../../components/SignInPrompt', () => ({ default: ({ message }) => <div data-testid="signin">{message}</div> }));
 
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
@@ -179,6 +179,8 @@ describe('PersonalAgentStudioPage', () => {
     expect(screen.queryByTestId('obo-page')).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: /Delegation proof/ }));
     expect(screen.getByTestId('obo-page')).toBeTruthy();
+    // The studio owns the title and the page scroll, so it mounts the inspector without its own title band.
+    expect(screen.getByTestId('obo-page')).toHaveAttribute('data-embedded', 'true');
     expect(screen.queryByText('Privilege')).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Agent' }));
     expect(screen.getByText('Privilege')).toBeTruthy();

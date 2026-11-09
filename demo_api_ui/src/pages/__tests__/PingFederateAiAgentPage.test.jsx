@@ -187,7 +187,8 @@ describe("PingFederate AI Agent page", () => {
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/start", {
         loginHint: "demouser", bindingMessage: "Approve-125",
       });
-      expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeDisabled();
+      // aria-disabled, not disabled: a pending request must not drop keyboard focus from the button.
+      expect(screen.getByRole("button", { name: /Ask for approval/i })).toHaveAttribute("aria-disabled", "true");
     });
 
     it("shows the mock phone only when it is on, and answers through it", async () => {
@@ -202,7 +203,10 @@ describe("PingFederate AI Agent page", () => {
       fireEvent.click(await ask());
       fireEvent.click(await screen.findByRole("button", { name: /Approve on mock phone/i }));
 
-      expect(await screen.findByTestId("ciba-outcome")).toHaveTextContent("Approved by demouser through PingFederate CIBA.");
+      // A simulated approval is never described as a PingFederate one.
+      const outcome = await screen.findByTestId("ciba-outcome");
+      expect(outcome).toHaveTextContent("Approved by demouser on the mock phone. No real device was contacted and no token was issued.");
+      expect(outcome).not.toHaveTextContent(/through PingFederate CIBA/);
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/mock-decision", { decision: "approve" });
     });
 
@@ -231,9 +235,10 @@ describe("PingFederate AI Agent page", () => {
       expect(screen.getByText("Approve-125")).toBeInTheDocument();
     });
 
-    it("the popup defines its own accent: it renders outside the page root, where the page's variable does not reach", () => {
-      // Without this the Approve button had white text on no background, so only Deny was visible.
-      expect(pageCss).toMatch(/\.pf-ai-agent__phone\s*\{[^}]*--pf-ai-accent:/);
+    it("the popup renders outside the page root, so its Approve button carries the fixed Ping Red tokens itself", () => {
+      // The popup is a portal: no .pu-page rule reaches it. Approve takes the fixed tokens, never a vertical colour.
+      expect(pageCss).toMatch(/\.pfai-phone__btn--approve\s*\{[^}]*var\(--btn-accent-gradient\)/);
+      expect(pageCss).not.toMatch(/\.pfai-phone[^{]*\{[^}]*(--app-primary-red|--theme-accent|--brand-)/);
     });
 
     it("a PingOne session uses PingOne CIBA: no mock phone, and the answer says PingOne", async () => {
@@ -350,9 +355,11 @@ describe("PingFederate AI Agent page", () => {
     it("needs a user to ask", async () => {
       routeGets();
       render(<PingFederateAiAgentPage user={null} />);
-      expect(await ask()).toBeDisabled();
+      expect(await ask()).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(await ask());
+      expect(apiClient.post).not.toHaveBeenCalled();
       fireEvent.change(screen.getByLabelText(/User to ask/i), { target: { value: "someone" } });
-      expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeEnabled();
+      expect(screen.getByRole("button", { name: /Ask for approval/i })).not.toHaveAttribute("aria-disabled");
     });
   });
 
@@ -519,7 +526,8 @@ describe("PingFederate AI Agent page", () => {
     render(<PingFederateAiAgentPage />);
 
     const exchange = await screen.findByRole("button", { name: /Run third-party token exchange/i });
-    expect(exchange).toBeDisabled();
+    expect(exchange).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(exchange);
     expect(apiClient.post).not.toHaveBeenCalled();
     expect(notifyError).not.toHaveBeenCalled();
   });
