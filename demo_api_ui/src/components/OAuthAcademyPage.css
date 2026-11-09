@@ -1,51 +1,56 @@
 @import './HeroSection.css';
 
-/* OAuth Academy page — layout mirrors Code Explorer, recolored to the
-   oauth-teaching indigo theme. All selectors are scoped under
-   .oauth-academy-page so they never collide with CodeExplorerPage.css. */
+/* OAuth Academy page on the Ping UI primitives (banner, frame, cards, chips, kv, buttons come from
+   styles/ping-ui.css). Only what is specific to a chat stays here, scoped under .oauth-academy-page so it never
+   collides with CodeExplorerPage.css, whose bare .starter-chip rules are global. Buttons are .pu-btn: the page
+   sets no button colour of its own. */
 
-/* ── Layout ──────────────────────────────────────────────────────────────── */
 .oauth-academy-page {
   --oa-accent: #d20e0f;
-  --oa-accent-hover: #aa0005;
-  --oa-accent-muted: rgba(210, 14, 15, 0.1);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  background: var(--th-bg-page);
-  color: var(--th-text);
 }
 
-.oauth-academy-page .oa-theme-toggle {
-  align-self: flex-end;
-  flex-shrink: 0;
-  margin: 10px 1.5rem 0;
-  padding: 6px 14px;
+.oa-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.oauth-academy-page .oa-theme-row {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 16px 0;
+  box-sizing: border-box;
+}
+
+.pu-page.oauth-academy-page .oa-theme-toggle {
+  min-height: 32px;
+  padding: 4px 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.oauth-academy-page .oa-theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+  font-size: var(--font-size-sm);
 }
 
-/* ── Messages — scrollable, fills all available space ───────────────────── */
+/* ── Messages: a scrollable log inside the chat card ─────────────────────── */
 .oauth-academy-page .messages-container {
-  flex: 1;
-  min-height: 0;
-  overflow-y: scroll;
-  padding: 1.25rem 0 0.5rem;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: 0.25rem 0.25rem 0.75rem 0;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
   scrollbar-width: thin;
   scrollbar-color: var(--th-border-strong) transparent;
+}
+
+.oauth-academy-page .messages-container:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
 }
 
 .oauth-academy-page .messages-container::-webkit-scrollbar {
@@ -61,10 +66,7 @@
 .oauth-academy-page .message-row {
   display: flex;
   gap: 0.75rem;
-  max-width: 780px;
   width: 100%;
-  margin: 0 auto;
-  padding: 0 1.5rem;
   box-sizing: border-box;
 }
 
@@ -93,6 +95,7 @@
 }
 
 .oauth-academy-page .message-bubble {
+  min-width: 0;
   padding: 0.75rem 1rem;
   border-radius: var(--v2-r-lg, 12px);
   white-space: pre-wrap;
@@ -104,10 +107,9 @@
 }
 
 .oauth-academy-page .message-row.assistant .message-bubble {
-  background: var(--th-bg-card);
+  background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   border-top-left-radius: var(--v2-r-sm, 4px);
 }
 
@@ -115,6 +117,12 @@
   background: var(--oa-accent);
   color: #ffffff;
   border-top-right-radius: var(--v2-r-sm, 4px);
+}
+
+/* The PingOne end-user-nano skin sets word-wrap: break-word on code and lists and beats single-class rules, so a
+   long unbroken value (a token, a URL) is wrapped here under the page's own class. */
+.pu-page.oauth-academy-page .message-bubble :is(code, li, p, td, th) {
+  overflow-wrap: anywhere;
 }
 
 /* MarkdownContent block styles (bold/list/heading/table rendering of teaching answers). */
@@ -175,7 +183,7 @@
   font-weight: 600;
 }
 
-/* Real code snippets from the app, embedded in teaching answers. */
+/* Real code snippets from the app, embedded in teaching answers. Long lines scroll inside the block. */
 .oauth-academy-page .message-bubble .msg-code {
   margin: 0.5rem 0;
   padding: 0.65rem 0.85rem;
@@ -188,18 +196,22 @@
   white-space: pre;
 }
 
+.oauth-academy-page .message-bubble .msg-code:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
 /* ── Typing indicator ────────────────────────────────────────────────────── */
 .oauth-academy-page .typing-indicator {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0.7rem 1rem;
-  background: var(--th-bg-card);
+  background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--v2-r-lg, 12px);
   border-top-left-radius: var(--v2-r-sm, 4px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   max-width: calc(100% - 44px);
 }
 
@@ -230,207 +242,108 @@
   }
 }
 
-/* ── Input area ──────────────────────────────────────────────────────────── */
-.oauth-academy-page .input-wrapper {
-  padding: 0.75rem 1.5rem 0.5rem;
-  max-width: 780px;
-  width: 100%;
-  margin: 0 auto;
-  box-sizing: border-box;
-  flex-shrink: 0;
-}
-
+/* ── Input row ───────────────────────────────────────────────────────────── */
 .oauth-academy-page .input-area {
   display: flex;
   align-items: center;
-  gap: 0;
-  background: var(--th-bg-card);
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  background: var(--th-bg-page);
   color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--v2-r-xl, 16px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
 }
 
+.oauth-academy-page .messages-container + .input-area {
+  margin-top: 8px;
+}
+
+/* The input has no outline of its own: the whole row takes the page focus ring. */
 .oauth-academy-page .input-area:focus-within {
-  border-color: var(--oa-accent);
-  box-shadow:
-    0 0 0 3px var(--oa-accent-muted),
-    0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
 }
 
 .oauth-academy-page .input-area input {
   flex: 1;
-  padding: 0.85rem 1.1rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 4px;
   border: none;
   background: transparent;
-  font-size: 0.9rem;
+  font-size: var(--font-size-body);
   font-family: var(--font-primary);
   color: var(--th-text);
   outline: none;
-  min-width: 0;
 }
 
 .oauth-academy-page .input-area input::placeholder {
-  color: var(--th-text-faint);
-}
-
-.oauth-academy-page .input-area input:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.oauth-academy-page .clear-btn {
-  flex-shrink: 0;
-  margin: 6px 0 6px 0;
-  padding: 0 0.85rem;
-  height: 36px;
-  border-radius: var(--v2-r-lg, 12px);
-  background: var(--oa-accent);
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: var(--font-primary);
-  letter-spacing: 0.02em;
-  transition: background 0.12s;
-}
-
-.oauth-academy-page .clear-btn:hover {
-  background: var(--oa-accent-hover);
-}
-
-.oauth-academy-page .send-btn {
-  flex-shrink: 0;
-  margin: 6px;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--v2-r-lg, 12px);
-  background: var(--oa-accent);
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background 0.12s,
-    transform 0.1s;
-}
-
-.oauth-academy-page .send-btn:hover:not(:disabled) {
-  background: var(--oa-accent-hover);
-  transform: scale(1.05);
-}
-
-.oauth-academy-page .send-btn:disabled {
-  background: var(--th-bg-inset);
-  color: var(--th-text-faint);
-  cursor: not-allowed;
-  transform: none;
-}
-
-.oauth-academy-page .stop-btn {
-  background: var(--v2-negative, #a33020);
-}
-
-.oauth-academy-page .stop-btn:hover {
-  background: #7f2518;
-  transform: scale(1.05);
-}
-
-/* ── Starter chips ───────────────────────────────────────────────────────── */
-.oauth-academy-page .starter-chips {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  padding: 0 1.5rem 1.25rem;
-  max-width: 780px;
-  width: 100%;
-  margin: 0 auto;
-  box-sizing: border-box;
-  flex-shrink: 0;
-}
-
-.oauth-academy-page .starter-chip {
-  padding: 0.55rem 0.85rem;
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--v2-r-md, 8px);
-  cursor: pointer;
-  text-align: left;
-  font-size: 0.78rem;
-  font-family: var(--font-primary);
   color: var(--th-text-muted);
-  line-height: 1.4;
-  transition:
-    background 0.12s,
-    border-color 0.12s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.oauth-academy-page .starter-chip:hover:not(:disabled) {
-  background: var(--oa-accent-muted);
-  border-color: var(--oa-accent);
-  color: var(--oa-accent);
+.oauth-academy-page .input-area input[readonly] {
+  opacity: 0.7;
 }
 
-.oauth-academy-page .starter-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.pu-page.oauth-academy-page .oa-send-btn {
+  min-width: 72px;
 }
 
-/* ── Token chain ─────────────────────────────────────────────────────────── */
-.oauth-academy-page .oa-token-chain-wrapper {
-  max-width: 780px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 1.25rem 1.5rem;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  border-top: 1px solid var(--th-status-success-border);
-  background: var(--th-status-success-bg);
-  color: var(--th-text);
+/* The shared inactive primary is 0.88 opacity, which puts the white label at 4.47:1 on the Ping Red fill. Send is
+   inactive whenever the box is empty, so it stays just above 4.5:1 here. */
+.pu-page.oauth-academy-page button.pu-btn.oa-send-btn[aria-disabled='true'] {
+  opacity: 0.93;
 }
 
-.oauth-academy-page .oa-token-chain-label {
+/* ── Starter questions ───────────────────────────────────────────────────── */
+.oauth-academy-page .oa-topics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.pu-page.oauth-academy-page .oa-topic {
+  text-align: left;
+  justify-content: flex-start;
+  font-weight: var(--font-weight-normal, 400);
   font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: #14532d;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
-.oauth-academy-page .oa-token-chain-wrapper .tctr {
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-status-success-border);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  color: var(--th-text);
+/* The token rail titles its run with the question as typed, in a flex summary. An unbroken 100-character question held
+   the summary at its full width and ran past the card on a phone; anywhere-wrapping lets it shrink to the column. */
+.pu-page.oauth-academy-page .tctr,
+.pu-page.oauth-academy-page .tctr summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.oauth-academy-page .oa-signin-btn {
+/* In-bubble Sign in sits under the text. */
+.pu-page.oauth-academy-page .oa-signin-btn {
   display: block;
   margin-top: 0.5rem;
-  padding: 0.35rem 1rem;
-  border: none;
-  border-radius: var(--radius-md);
-  background: #051727;
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
 }
 
-.oauth-academy-page .oa-signin-btn:hover {
-  background: #12538d;
-}
+@media (max-width: 600px) {
+  .oauth-academy-page .oa-topics {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-:root[data-theme="dark"] .oauth-academy-page .oa-token-chain-label { color: var(--th-status-success-text); }
+  .oauth-academy-page .input-area {
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+
+  .oauth-academy-page .input-area input {
+    flex: 1 1 100%;
+    padding: 0 4px;
+  }
+
+  .oauth-academy-page .message-bubble {
+    padding: 0.6rem 0.75rem;
+  }
+}
 
 /* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
 :root:not([data-theme="dark"]) .oauth-academy-page .typing-dot {

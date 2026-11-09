@@ -9,6 +9,15 @@ import AgentConsentModal from "./AgentConsentModal";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { MarkdownContent } from "./shared/MarkdownText";
 import { useThemeOptional } from "../context/ThemeContext";
+import {
+  Card,
+  KvList,
+  PageFrame,
+  PingPage,
+  Section,
+  SimBanner,
+  StatusChip,
+} from "./pingUi";
 
 // OAuth Academy is its own page (modeled on Code Explorer) but its agent IS the
 // real `oauth-teaching` vertical: every message is pinned to that vertical via the
@@ -54,7 +63,16 @@ const renderBubbleContent = (content) => {
   if (!text.includes("```")) return <MarkdownContent text={text} />;
   return text.split("```").map((part, i) =>
     i % 2 === 1 ? (
-      <pre className="msg-code" key={i}>
+      // biome-ignore lint/a11y/useSemanticElements: a <pre> cannot be a <section>; the region role names the code block
+      <pre
+        className="msg-code"
+        key={i}
+        // A code block scrolls sideways, so the keyboard must be able to reach it.
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable region, reachable by keyboard
+        tabIndex={0}
+        role="region"
+        aria-label="Code example"
+      >
         {part.replace(/^\n/, "")}
       </pre>
     ) : (
@@ -70,7 +88,10 @@ const OAuthAcademyPage = () => {
   const [isSending, setIsSending] = useState(false);
   // Pending HITL approval raised by a demonstrate tool: { challengeId, tool, reason, prompt }.
   const [hitlPending, setHitlPending] = useState(null);
+  // Token events the BFF returned with the last answer that carried any (the rail below renders them).
+  const [tokenEventCount, setTokenEventCount] = useState(0);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const abortRef = useRef(null);
   // Monotonic id for stable React keys — messages are append-only, never reordered.
   const nextIdRef = useRef(0);
@@ -114,6 +135,9 @@ const OAuthAcademyPage = () => {
       tokenChain
     ) {
       tokenChain.setTokenEvents("oauth-academy", data.tokenEvents);
+    }
+    if (Array.isArray(data?.tokenEvents) && data.tokenEvents.length > 0) {
+      setTokenEventCount(data.tokenEvents.length);
     }
   };
 
@@ -179,12 +203,16 @@ const OAuthAcademyPage = () => {
               ? "Timed out waiting for the OAuth Academy agent. Try a starter chip, or ask again."
               : "Stopped — ask again whenever you are ready.",
           pending: false,
+          ...(err.name === "TimeoutError"
+            ? { failed: true }
+            : { status: "Stopped" }),
         });
       } else {
         setLastAssistant({
           content:
             "Failed to reach the OAuth Academy agent. Is the BFF agent running?",
           pending: false,
+          failed: true,
         });
       }
     } finally {
@@ -234,6 +262,7 @@ const OAuthAcademyPage = () => {
       setLastAssistant({
         content: `Failed to approve: ${err.message}`,
         pending: false,
+        failed: true,
       });
     } finally {
       setIsSending(false);
@@ -247,8 +276,17 @@ const OAuthAcademyPage = () => {
       mkMsg(
         "assistant",
         "Approval cancelled — no money moved. Ask again any time to retry the demonstration.",
+        { status: "Approval cancelled" },
       ),
     ]);
+  };
+
+  const handleClear = () => {
+    if (isSending) return;
+    setMessages([]);
+    setTokenEventCount(0);
+    // The Clear button unmounts with the conversation; keep the keyboard in the page.
+    inputRef.current?.focus();
   };
 
   const handleStop = () => {
@@ -268,18 +306,47 @@ const OAuthAcademyPage = () => {
   };
 
   const isEmpty = messages.length === 0;
+  const last = messages[messages.length - 1];
+  const busy = isSending || !!hitlPending;
+
+  // One primary per view state (P9): Send, which becomes Stop on the same element while the agent works;
+  // Sign in while the last answer asked for it; none on the page while the approval dialog is open (the
+  // dialog's own Agree & Continue is the only primary then).
+  const signInPrimary = !!last?.needAuth && !isSending && !hitlPending;
+  const sendPrimary = !hitlPending && !signInPrimary;
+  const cannotSend = !isSending && (!input.trim() || !!hitlPending);
+
+  // The chip says only what this page observed: it has no sign-in check of its own, so Ready is neutral.
+  let chip = { tone: "neutral", word: "Ready" };
+  if (hitlPending) chip = { tone: "warn", word: "Approval needed" };
+  else if (isSending) chip = { tone: "info", word: "Waiting for the agent" };
+  else if (last?.needAuth) chip = { tone: "warn", word: "Sign-in needed" };
+  else if (last?.failed) chip = { tone: "danger", word: "Last request failed" };
+  else if (last?.status) chip = { tone: "neutral", word: last.status };
+  else if (last?.role === "assistant") chip = { tone: "neutral", word: "Answered" };
 
   return (
-    <div className="oauth-academy-page">
-      <button
-        type="button"
-        onClick={toggleDarkMode}
-        className="oa-theme-toggle"
-        title="Switch this page between light and dark"
-        aria-pressed={darkMode}
-      >
-        {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
-      </button>
+    <PingPage className="oauth-academy-page">
+      <SimBanner data-testid="oa-banner">
+        <strong>Live agent, taught answers.</strong> Every message goes to this app&apos;s own agent
+        (<span className="pu-mono">/api/agent/invoke</span>), pinned to the{" "}
+        <span className="pu-mono">{PINNED_VERTICAL}</span> teacher. Explanations are written by that agent: its
+        lesson tools or the model the server is set to use, and this page does not know which. The three
+        demonstrations (token exchange, scope denial, approval) call the real banking pipeline and need you signed
+        in; signed out, the agent asks you to sign in and nothing runs. Approving the human-in-the-loop prompt lets a
+        real over-threshold transfer between your demo accounts go through.
+      </SimBanner>
+
+      <div className="oa-theme-row">
+        <OaButton
+          onClick={toggleDarkMode}
+          className="oa-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </OaButton>
+      </div>
       <HeroSection
         avatar="OA"
         title="OAuth Academy"
@@ -288,133 +355,187 @@ const OAuthAcademyPage = () => {
         backgroundColor={HERO_VARIANTS['oauth-academy'].backgroundColor}
       />
 
-      {/* Messages */}
-      {!isEmpty && (
-        <div className="messages-container">
-          {messages.map((msg, idx) => {
-            const isLastAssistant =
-              msg.role === "assistant" && idx === messages.length - 1;
-            const showTyping =
-              isLastAssistant && msg.pending && msg.content === "";
+      <PageFrame>
+        <Section
+          id="oa-ask"
+          kicker="1 · Ask"
+          title="Ask the teacher"
+          lede="Type a question, or start from a topic below."
+        >
+          <Card tone="neutral" data-testid="oa-chat-card">
+            <div className="pu-status-line" role="status" data-testid="oa-status">
+              <StatusChip tone={chip.tone}>{chip.word}</StatusChip>
+            </div>
 
-            if (showTyping) {
-              return (
-                <div key={msg.id} className="message-row assistant">
-                  <div className="msg-avatar">OA</div>
-                  <div className="typing-indicator">
-                    <div className="typing-dot" />
-                    <div className="typing-dot" />
-                    <div className="typing-dot" />
-                  </div>
-                </div>
-              );
-            }
+            {/* Messages */}
+            {!isEmpty && (
+              <div
+                className="messages-container"
+                role="log"
+                aria-label="Conversation with the OAuth teacher"
+                aria-live="polite"
+                // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable log must be reachable by keyboard
+                tabIndex={0}
+              >
+                {messages.map((msg, idx) => {
+                  const isLastAssistant =
+                    msg.role === "assistant" && idx === messages.length - 1;
+                  const showTyping =
+                    isLastAssistant && msg.pending && msg.content === "";
 
-            return (
-              <div key={msg.id} className={`message-row ${msg.role}`}>
-                <div className="msg-avatar">
-                  {msg.role === "user" ? "You" : "OA"}
-                </div>
-                <div className="message-bubble">
-                  {renderBubbleContent(msg.content)}
-                  {msg.needAuth && (
-                    <button
-                      type="button"
-                      className="oa-signin-btn"
-                      onClick={() => navigateToCustomerOAuthLogin('/oauth-academy')}
-                    >
-                      Sign in
-                    </button>
-                  )}
-                </div>
+                  if (showTyping) {
+                    return (
+                      <div key={msg.id} className="message-row assistant">
+                        <div className="msg-avatar" aria-hidden="true">OA</div>
+                        <div className="typing-indicator">
+                          <div className="typing-dot" />
+                          <div className="typing-dot" />
+                          <div className="typing-dot" />
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={msg.id} className={`message-row ${msg.role}`}>
+                      <div className="msg-avatar" aria-hidden="true">
+                        {msg.role === "user" ? "You" : "OA"}
+                      </div>
+                      <div className="message-bubble">
+                        <span className="oa-sr-only">
+                          {msg.role === "user" ? "You: " : "Teacher: "}
+                        </span>
+                        {renderBubbleContent(msg.content)}
+                        {msg.needAuth && (
+                          <OaButton
+                            main={idx === messages.length - 1 && signInPrimary}
+                            className="oa-signin-btn"
+                            onClick={() => navigateToCustomerOAuthLogin('/oauth-academy')}
+                          >
+                            Sign in
+                          </OaButton>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
               </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-      )}
+            )}
 
-      {/* Input */}
-      <div className="input-wrapper">
-        <form className="input-area" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about OAuth, OIDC, scopes, token exchange…"
-            disabled={isSending}
-          />
-          {!isEmpty && (
-            <button
-              type="button"
-              className="clear-btn"
-              onClick={() => setMessages([])}
-            >
-              Clear
-            </button>
-          )}
-          {isSending ? (
-            <button
-              type="button"
-              className="send-btn stop-btn"
-              onClick={handleStop}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="currentColor"
-                role="img"
-                aria-label="Stop"
+            {/* Input */}
+            <form className="input-area" onSubmit={handleSubmit}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about OAuth, OIDC, scopes, token exchange…"
+                aria-label="Ask the OAuth teacher a question"
+                readOnly={isSending}
+                aria-busy={isSending || undefined}
+              />
+              {!isEmpty && (
+                <OaButton
+                  className="oa-clear-btn"
+                  aria-disabled={isSending || undefined}
+                  onClick={handleClear}
+                >
+                  Clear
+                </OaButton>
+              )}
+              <OaButton
+                main={sendPrimary}
+                type={isSending ? "button" : "submit"}
+                className="oa-send-btn"
+                aria-disabled={cannotSend || undefined}
+                onClick={(e) => {
+                  if (isSending) {
+                    handleStop();
+                    return;
+                  }
+                  if (cannotSend) e.preventDefault();
+                }}
               >
-                <title>Stop</title>
-                <rect x="2" y="2" width="10" height="10" rx="2" />
-              </svg>
-            </button>
-          ) : (
-            <button type="submit" className="send-btn" disabled={!input.trim()}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                role="img"
-                aria-label="Send"
-              >
-                <title>Send</title>
-                <line x1="8" y1="13" x2="8" y2="3" />
-                <polyline points="4,7 8,3 12,7" />
-              </svg>
-            </button>
+                {isSending ? "Stop" : "Send"}
+              </OaButton>
+            </form>
+          </Card>
+        </Section>
+
+        <Section
+          id="oa-topics"
+          kicker="2 · Topics"
+          title="Starter questions"
+          lede="Each one sends the question to the teacher. The last two run real calls and need a signed-in session."
+        >
+          {busy && (
+            <p className="pu-note" data-testid="oa-topics-paused">
+              {hitlPending
+                ? "Starter questions are paused until you answer the approval dialog."
+                : "Starter questions are paused while the agent answers."}
+            </p>
           )}
-        </form>
-      </div>
+          <div className="oa-topics">
+            {STARTER_CHIPS.map((chipText) => (
+              <OaButton
+                key={chipText}
+                className="oa-topic"
+                aria-disabled={busy || undefined}
+                onClick={() => sendQuestion(chipText)}
+              >
+                {chipText}
+              </OaButton>
+            ))}
+          </div>
+        </Section>
 
-      {/* Chips */}
-      <div className="starter-chips">
-        {STARTER_CHIPS.map((chip) => (
-          <button
-            type="button"
-            key={chip}
-            className="starter-chip"
-            onClick={() => sendQuestion(chip)}
-            disabled={isSending}
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
+        <Section
+          id="oa-token-flow"
+          kicker="3 · Evidence"
+          title="Live token flow"
+          lede="Hops appear here when an answer comes back with token events, as the demonstrations do."
+        >
+          {/* Token chain — shows live RFC 8693 token flow during demonstrations */}
+          <Card tone="neutral" data-testid="oa-token-chain">
+            <div className="pu-status-line" role="status">
+              <StatusChip>
+                {tokenEventCount > 0
+                  ? `${tokenEventCount} token events received`
+                  : "Waiting for a demonstration"}
+              </StatusChip>
+            </div>
+            <TokenChainTraceRail />
+          </Card>
+        </Section>
 
-      {/* Token chain — shows live RFC 8693 token flow during demonstrations */}
-      <div className="oa-token-chain-wrapper">
-        <div className="oa-token-chain-label">Live Token Flow</div>
-        <TokenChainTraceRail />
-      </div>
+        <Section
+          id="oa-wiring"
+          kicker="4 · Wiring"
+          title="What this page calls"
+        >
+          <Card tone="neutral" data-testid="oa-wiring">
+            <KvList
+              items={[
+                { label: "Endpoint", value: "POST /api/agent/invoke", mono: true },
+                { label: "Pinned vertical", value: PINNED_VERTICAL, mono: true },
+                {
+                  label: "Demonstrations",
+                  value:
+                    "demonstrate_token_exchange, demonstrate_scope_denial, demonstrate_hitl",
+                  mono: true,
+                },
+                {
+                  label: "Starter questions",
+                  value:
+                    "Matching phrasings run the teacher's own tools directly; other text goes to the agent as typed.",
+                },
+              ]}
+            />
+          </Card>
+        </Section>
+      </PageFrame>
 
       {/* HITL approve-and-retry modal — same component the dashboard agent uses. */}
       {hitlPending && (
@@ -424,8 +545,20 @@ const OAuthAcademyPage = () => {
           onDismiss={handleHitlDismiss}
         />
       )}
-    </div>
+    </PingPage>
   );
 };
+
+// The page's buttons. `main` is the view state's one primary (see "One primary per view state" in the component).
+// A function declaration, so it is hoisted and the page's banner stays the first element in the file's JSX.
+function OaButton({ main, className = "", ...rest }) {
+  return (
+    <button
+      type="button"
+      className={`${main ? "pu-btn pu-btn--primary" : "pu-btn"} ${className}`.trim()}
+      {...rest}
+    />
+  );
+}
 
 export default OAuthAcademyPage;
