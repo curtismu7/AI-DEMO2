@@ -108,6 +108,18 @@ export default function GroupPolicyBoardPage() {
   const [checkError, setCheckError] = useState(null);
   const [toggling, setToggling] = useState(false);
   const [toggleNote, setToggleNote] = useState(null);
+  // The Result card's write button unmounts when a check fails (there is no answer to offer it for). If it had focus,
+  // focus is handed to Run check, the control that asks again, instead of dropping to the page body.
+  const runBtnRef = useRef(null);
+  const resultToggleRef = useRef(null);
+  const handFocusToRunRef = useRef(false);
+
+  // A different user or vertical is a different question: the previous answer, error and note belong to the old one.
+  const clearAnswer = useCallback(() => {
+    setCheckResult(null);
+    setCheckError(null);
+    setToggleNote(null);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +141,14 @@ export default function GroupPolicyBoardPage() {
   }, [checkVertical]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Runs after the render that removed the Result card's write button (a failed re-check cleared the answer).
+  useEffect(() => {
+    if (checkResult === null && handFocusToRunRef.current) {
+      handFocusToRunRef.current = false;
+      runBtnRef.current?.focus();
+    }
+  }, [checkResult]);
 
   // The picker's options: the demo's vertical list (ids + display names), the
   // same source the VerticalSwitcher uses. Fetched once.
@@ -152,6 +172,8 @@ export default function GroupPolicyBoardPage() {
       setCheckResult(body);
       return body;
     } catch (err) {
+      // The Result card's write button is about to unmount; if it holds focus, hand it to Run check (effect below).
+      handFocusToRunRef.current = document.activeElement === resultToggleRef.current;
       setCheckResult(null);
       setCheckError(err.message);
       return null;
@@ -201,7 +223,8 @@ export default function GroupPolicyBoardPage() {
 
   const anyManifestRow = Boolean(data?.rows?.some((r) => r.source === "manifest"));
   const liveLookupReady = Boolean(data?.liveLookupReady);
-  const boardName = rows[0]?.displayName
+  // While a different vertical loads, the rows on screen are still the previous vertical's: never name the new one by them.
+  const boardName = (rows[0]?.verticalId === checkVertical ? rows[0]?.displayName : null)
     || verticals?.find((v) => v.id === checkVertical)?.displayName
     || checkVertical;
 
@@ -210,6 +233,7 @@ export default function GroupPolicyBoardPage() {
   let mode;
   if (error) mode = "unavailable";
   else if (!data) mode = "loading";
+  else if (rows.length === 0) mode = "empty";
   else if (!liveLookupReady) mode = "manifest";
   else if (anyManifestRow) mode = "partial";
   else mode = "live";
@@ -217,11 +241,14 @@ export default function GroupPolicyBoardPage() {
   const BANNER = {
     loading: ["READING THE BOARD", "No decision has come back yet, so nothing on this page has been checked."],
     unavailable: ["BOARD UNAVAILABLE", "The decision board could not be read, so no verdicts are shown. That does not mean access is allowed or denied."],
-    manifest: ["DECISIONS REAL, MEMBERSHIP DECLARED", "PingOne worker credentials are not configured, so membership comes from the vertical's manifest, which is declared intent and not directory truth. The Add and Remove controls write to the directory, which these decisions do not read."],
+    empty: ["NO DECISION TO SHOW", "The board came back with no group-gated tool for this vertical, so there is nothing to decide here."],
+    manifest: ["MEMBERSHIP DECLARED", "PingOne worker credentials are not configured, so membership comes from the vertical's manifest, which is declared intent and not directory truth. The Add and Remove controls write to the directory, which these decisions do not read."],
     partial: ["PARTLY LIVE", "At least one row fell back to manifest membership because its live lookup failed; treat those rows as unverified. The other rows read the PingOne directory."],
     live: ["LIVE DECISIONS", "Membership is read from the PingOne directory, and the Add and Remove controls write to it."],
   };
   const [bannerWord, bannerText] = BANNER[mode];
+  // The claim about where verdicts come from is only made once verdicts have come back.
+  const verdictsShown = rows.some((r) => r.decision === "PERMIT" || r.decision === "DENY");
 
   // The board status line: always mounted, so a screen reader hears each change of state.
   let boardStatus;
@@ -247,16 +274,18 @@ export default function GroupPolicyBoardPage() {
   return (
     <PingPage className="gpb-page">
       <SimBanner data-testid="gpb-banner">
-        <strong>{bannerWord}</strong> — Each verdict comes from the same decision endpoint the tool gate calls; this
-        page does not compute or simulate one. {bannerText} Opening this page switches {GROUP_POLICY_FLAG} on if it
+        <strong>{bannerWord}</strong> — {verdictsShown
+          ? "Each verdict shown comes from the same decision endpoint the tool gate calls; this page does not compute or simulate one. "
+          : ""}{bannerText} Opening this page switches {GROUP_POLICY_FLAG} on if it
         was off (admin access only) and restores it when you leave.
         {data && data.policyEnabled === false ? ` ${GROUP_POLICY_FLAG} is OFF right now, so group membership decides nothing.` : ""}
       </SimBanner>
       <PageHeader
-        eyebrow="LIVE AUTHORIZATION EXPLAINER"
+        eyebrow="AUTHORIZATION EXPLAINER"
         title="Group policy — live decisions"
-        summary={<>This page makes one boundary visible: scopes are not entitlements. PingOne
-          directory membership is re-read for each group-gated tool call, then the
+        summary={<>This page makes one boundary visible: scopes are not entitlements. Group
+          membership is looked up for each group-gated tool call (the banner says whether
+          it came from the PingOne directory or from a manifest), then the
           resulting decision is shown for the picked vertical. Switch verticals with
           the picker to see the same group rule enforced in each business.</>}
         actions={(
@@ -307,7 +336,7 @@ export default function GroupPolicyBoardPage() {
           id="gpb-check-h"
           kicker="3 · Ask about anyone"
           title="Run a group check"
-          lede="The board below can only ask about you. This runs the same live decision for any demo user: pick one, pick a vertical, run it. Add or remove them from the group and the very next check flips: the directory changed, the token did not."
+          lede="The board below can only ask about you. This runs the same live decision for any demo user: pick one, pick a vertical, run it. Add or remove them from the group and, when membership is read from the directory, the very next check flips: the directory changed, the token did not."
         >
           <CardGrid>
             <Card title="Pick a user and a vertical" data-testid="gpb-check">
@@ -317,8 +346,8 @@ export default function GroupPolicyBoardPage() {
                   <select
                     className="pu-select"
                     value={checkUser}
-                    onChange={(e) => setCheckUser(e.target.value)}
-                    disabled={checking}
+                    onChange={(e) => { setCheckUser(e.target.value); clearAnswer(); }}
+                    disabled={checking || toggling}
                   >
                     <option value="demoUser">demoUser</option>
                     <option value="demoAdmin">demoAdmin</option>
@@ -330,8 +359,8 @@ export default function GroupPolicyBoardPage() {
                   <select
                     className="pu-select"
                     value={checkVertical}
-                    onChange={(e) => setCheckVertical(e.target.value)}
-                    disabled={checking}
+                    onChange={(e) => { setCheckVertical(e.target.value); clearAnswer(); }}
+                    disabled={checking || toggling}
                   >
                     {(verticals || [{ id: "banking", displayName: "Banking" }]).map((v) => (
                       <option key={v.id} value={v.id}>{v.displayName}</option>
@@ -343,8 +372,9 @@ export default function GroupPolicyBoardPage() {
                 <button
                   type="button"
                   className="pu-btn pu-btn--primary"
-                  onClick={() => { if (!checking) runCheck(); }}
-                  aria-disabled={checking ? "true" : undefined}
+                  ref={runBtnRef}
+                  onClick={() => { if (!checking && !toggling) runCheck(); }}
+                  aria-disabled={checking || toggling ? "true" : undefined}
                   data-testid="gpb-run-check"
                 >
                   Run check
@@ -391,7 +421,11 @@ export default function GroupPolicyBoardPage() {
                     ) : null}
                   </>
                 ) : (
-                  <p className="pu-note pu-empty">No check has run yet. Pick a user and a vertical, then Run check.</p>
+                  <p className="pu-note pu-empty">
+                    {checkError
+                      ? "The last check did not return a decision, so nothing is known about this user's access right now. Run check to ask again."
+                      : "No check has run yet. Pick a user and a vertical, then Run check."}
+                  </p>
                 )}
                 {toggling ? <p className="pu-note">Applying the change in PingOne…</p> : null}
                 {toggleNote ? <p className="pu-note">{toggleNote}</p> : null}
@@ -404,13 +438,13 @@ export default function GroupPolicyBoardPage() {
                     <button
                       type="button"
                       className="pu-btn"
+                      ref={resultToggleRef}
                       onClick={() => toggleMembership(!checkResult.inRequiredGroup)}
                       aria-disabled={toggling || checking ? "true" : undefined}
                       data-testid="gpb-check-toggle"
                     >
-                      {checkResult.inRequiredGroup
-                        ? `Remove from ${checkResult.requiredGroup}`
-                        : `Add to ${checkResult.requiredGroup}`}
+                      {/* A stable name: the answer above (and the status line) says which way it will flip. */}
+                      {`Flip membership in ${checkResult.requiredGroup || "the group"}`}
                     </button>
                   </div>
                   {!checkResult.policyEnabled ? (
@@ -469,8 +503,8 @@ export default function GroupPolicyBoardPage() {
             </p>
             {data && rows.length > 0 ? (
               <p className="pu-status-line">
-                <StatusChip tone="ok">{permits} permit</StatusChip>
-                <StatusChip tone="danger">{denies} deny</StatusChip>
+                <StatusChip tone={permits > 0 ? "ok" : "neutral"}>{permits} permit</StatusChip>
+                <StatusChip tone={denies > 0 ? "danger" : "neutral"}>{denies} deny</StatusChip>
                 {unknown > 0 ? <StatusChip tone="warn">{unknown} unknown</StatusChip> : null}
               </p>
             ) : null}

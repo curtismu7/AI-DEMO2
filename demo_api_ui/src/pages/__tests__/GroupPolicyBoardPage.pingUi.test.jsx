@@ -25,10 +25,10 @@ function json(body, ok = true, status = 200) {
   return Promise.resolve({ ok, status, json: async () => body });
 }
 
-function setup({ board = () => json(BOARD), check = () => json(CHECK), toggle = () => json({}) } = {}) {
+function setup({ board = () => json(BOARD), check = () => json(CHECK), toggle = () => json({}), verticals = [{ id: 'banking', displayName: 'Banking' }] } = {}) {
   global.fetch = vi.fn((url) => {
     const u = String(url);
-    if (u.startsWith('/api/verticals/list')) return json([{ id: 'banking', displayName: 'Banking' }]);
+    if (u.startsWith('/api/verticals/list')) return json(verticals);
     if (u.startsWith('/api/groups/check/toggle')) return toggle(u);
     if (u.startsWith('/api/groups/check')) return check(u);
     if (u.startsWith('/api/groups/decision-board')) return board(u);
@@ -158,20 +158,21 @@ describe('GroupPolicyBoardPage — Ping UI Standard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run check' }));
     await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('DENY'));
 
-    const add = screen.getByRole('button', { name: /add to banking_premiumtier/i });
+    const add = screen.getByRole('button', { name: 'Flip membership in Banking_PremiumTier' });
     add.focus();
     fireEvent.click(add);
     await waitFor(() => expect(add.getAttribute('aria-disabled')).toBe('true'));
     expect(document.activeElement).toBe(add);
-    expect(add).toHaveTextContent('Add to Banking_PremiumTier'); // label does not change while applying
+    expect(add).toHaveTextContent('Flip membership in Banking_PremiumTier'); // label does not change while applying
     expect(screen.getByText(/Applying the change in PingOne/)).toBeTruthy();
     fireEvent.click(add);
     expect(toggle).toHaveBeenCalledTimes(1);
 
     await act(async () => { release(); });
     await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('PERMIT'));
-    const same = screen.getByRole('button', { name: /remove from banking_premiumtier/i });
-    expect(same).toBe(add); // same element, so focus was never dropped
+    const same = screen.getByRole('button', { name: 'Flip membership in Banking_PremiumTier' });
+    expect(same).toBe(add); // same element and the same name, so the answer is announced once, by the status region
+    expect(screen.getByTestId('gpb-check-toggle').closest('[role="status"]')).toBeNull();
     expect(document.activeElement).toBe(add);
   });
 
@@ -200,5 +201,118 @@ describe('GroupPolicyBoardPage — Ping UI Standard', () => {
     expect(t.className).not.toMatch(/primary/);
     expect(t).toHaveTextContent('Dark mode');
     expect(t.getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
+describe('GroupPolicyBoardPage — skeptic fixes', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('makes no claim about where verdicts come from while loading, after a failed read, or with no rows', async () => {
+    const claim = /decision endpoint the tool gate calls/;
+    let release;
+    const loading = setup({ board: () => new Promise((r) => { release = () => r({ ok: true, status: 200, json: async () => BOARD }); }) });
+    expect(screen.getByTestId('gpb-banner').textContent).not.toMatch(claim);
+    await act(async () => { release(); });
+    await waitFor(() => expect(screen.getByTestId('gpb-banner').textContent).toMatch(claim));
+    loading.unmount();
+
+    const failed = setup({ board: () => json({}, false, 500) });
+    await waitFor(() => expect(screen.getByTestId('gpb-banner')).toHaveTextContent(/BOARD UNAVAILABLE/));
+    expect(screen.getByTestId('gpb-banner').textContent).not.toMatch(claim);
+    failed.unmount();
+
+    setup({ board: () => json({ ...BOARD, rows: [] }) });
+    await waitFor(() => expect(screen.getByTestId('gpb-banner')).toHaveTextContent(/NO DECISION TO SHOW/));
+    expect(screen.getByTestId('gpb-banner').textContent).not.toMatch(/LIVE DECISIONS|read from the PingOne directory/);
+    expect(screen.getByTestId('gpb-banner').textContent).not.toMatch(claim);
+  });
+
+  it('does not call the manifest headline "decisions real", and the page header does not promise a directory read', async () => {
+    const { container } = setup({ board: () => json({ ...BOARD, liveLookupReady: false, rows: [{ ...ROW, source: 'manifest' }] }) });
+    await waitFor(() => expect(screen.getByTestId('gpb-banner')).toHaveTextContent(/MEMBERSHIP DECLARED/));
+    expect(screen.getByTestId('gpb-banner').textContent).not.toMatch(/DECISIONS REAL/);
+    expect(container.textContent).not.toMatch(/LIVE AUTHORIZATION EXPLAINER/);
+    expect(container.textContent).not.toMatch(/directory membership is re-read/i);
+  });
+
+  it('gives a count chip a verdict tone only when the count is above zero', async () => {
+    const { container } = setup(); // one PERMIT, no DENY
+    await waitFor(() => expect(screen.getByTestId('gpb-board-status')).toHaveTextContent(/Loaded/));
+    const chip = (re) => [...container.querySelectorAll('.pu-chip')].find((c) => re.test(c.textContent));
+    expect(chip(/1 permit/).className).toMatch(/pu-chip--ok/);
+    expect(chip(/0 deny/).className).not.toMatch(/pu-chip--danger/);
+    expect(chip(/0 deny/).className).toMatch(/pu-chip--neutral/);
+  });
+
+  it('after a failed re-check that followed a write, hands focus to Run check and says the check failed', async () => {
+    const check = vi.fn();
+    check.mockImplementationOnce(() => json(CHECK)).mockImplementation(() => json({ message: 'boom' }, false, 500));
+    const toggle = vi.fn(() => json({ username: 'demoDelegate', groupName: 'Banking_PremiumTier', requested: true, inGroup: true, verified: true }));
+    setup({ check, toggle });
+    await waitFor(() => expect(screen.getByTestId('gpb-board-status')).toHaveTextContent(/Loaded/));
+    fireEvent.click(screen.getByRole('button', { name: 'Run check' }));
+    await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('DENY'));
+
+    const flip = screen.getByTestId('gpb-check-toggle');
+    flip.focus();
+    fireEvent.click(flip);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/boom/));
+    expect(screen.queryByTestId('gpb-check-toggle')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Run check' }));
+    const result = screen.getByTestId('gpb-result');
+    expect(result.textContent).not.toMatch(/No check has run yet/);
+    expect(result).toHaveTextContent(/did not return a decision/);
+    expect(result).toHaveTextContent(/demoDelegate is now in Banking_PremiumTier/); // the write itself did succeed
+    expect(result.className).toMatch(/neutral/);
+  });
+
+  it('ignores Run check while a membership write is in flight', async () => {
+    let release;
+    const check = vi.fn(() => json(CHECK));
+    const toggle = vi.fn(() => new Promise((r) => {
+      release = () => r({ ok: true, status: 200, json: async () => ({ username: 'demoDelegate', groupName: 'Banking_PremiumTier', requested: true, inGroup: true, verified: true }) });
+    }));
+    setup({ check, toggle });
+    await waitFor(() => expect(screen.getByTestId('gpb-board-status')).toHaveTextContent(/Loaded/));
+    fireEvent.click(screen.getByRole('button', { name: 'Run check' }));
+    await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('DENY'));
+    expect(check).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId('gpb-check-toggle'));
+    const run = screen.getByRole('button', { name: 'Run check' });
+    await waitFor(() => expect(run.getAttribute('aria-disabled')).toBe('true'));
+    fireEvent.click(run);
+    expect(check).toHaveBeenCalledTimes(1);
+    await act(async () => { release(); });
+    await waitFor(() => expect(check).toHaveBeenCalledTimes(2)); // only the re-check that follows the write
+  });
+
+  it('clears the previous answer and error when the user or the vertical changes', async () => {
+    const check = vi.fn(() => json(CHECK));
+    setup({ check });
+    await waitFor(() => expect(screen.getByTestId('gpb-board-status')).toHaveTextContent(/Loaded/));
+    fireEvent.click(screen.getByRole('button', { name: 'Run check' }));
+    await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('DENY'));
+
+    fireEvent.change(screen.getByLabelText('User'), { target: { value: 'demoAdmin' } });
+    expect(screen.queryByTestId('check-decision')).toBeNull();
+    expect(screen.getByTestId('gpb-result')).toHaveTextContent(/No check has run yet/);
+
+    check.mockImplementation(() => json({ message: 'boom' }, false, 500));
+    fireEvent.click(screen.getByRole('button', { name: 'Run check' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/boom/));
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'banking' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('names the board by the vertical being loaded, not by the previous vertical\'s rows', async () => {
+    const board = vi.fn((u) => (String(u).includes('verticalId=healthcare') ? new Promise(() => {}) : json(BOARD)));
+    setup({ board, verticals: [{ id: 'banking', displayName: 'Banking' }, { id: 'healthcare', displayName: 'Healthcare' }] });
+    await waitFor(() => expect(screen.getByTestId('gpb-board-status')).toHaveTextContent(/Loaded/));
+    await waitFor(() => expect(screen.getByLabelText('Vertical').querySelectorAll('option').length).toBe(2));
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
+    await waitFor(() => expect(screen.getByTestId('gpb-board-status')).toHaveTextContent(/Refreshing/));
+    expect(screen.getByRole('heading', { name: /Decisions — Healthcare/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Decisions/ }).textContent).not.toMatch(/Banking/);
   });
 });

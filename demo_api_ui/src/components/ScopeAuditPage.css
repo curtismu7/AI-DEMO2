@@ -1,387 +1,155 @@
-/* banking_api_ui/src/components/ScopeAuditPage.css
- * PingOne Scope Audit page — aligned with FeatureFlagsPage / DemoDataPage 2026.
- * Themed with --th-* per THEMING.md. The var(--text-primary, #051727) style
- * fallbacks below were fictional: --text-primary, --text-muted, the
- * --surface- and --border- families were never defined at any scope this
- * page inherits, so every one of them always fell through to its light
- * literal fallback in both themes. */
+/* ScopeAuditPage.css: only what the shared Ping UI primitives (styles/ping-ui.css) do not cover.
+ * Prefix scopeaudit-: the old scope-table / scope-resource-card names collided with the global
+ * .scope-table rules in Configuration/UnifiedConfigurationPage.css, so they are gone.
+ * Tokens only (THEMING.md); buttons are .pu-btn and never take a vertical's colour. */
 
-.scope-audit-page {
-  max-width: min(1400px, 100%);
-  margin: 0 auto;
-  padding: 1.5rem 2rem 3rem;
-  box-sizing: border-box;
-  color: var(--th-text);
+/* The PingOne end-user skin sets word-wrap: break-word on code and lists and beats single-class rules,
+ * so the wrapping rules sit under .pu-page. The page runs standalone (the root is the .pu-page) and
+ * embedded in /pingone-authorize (the root is a .scope-audit-page div inside that page's .pu-page). */
+.pu-page.scope-audit-page code,
+.pu-page .scope-audit-page code,
+.pu-page .scopeaudit-table td,
+.pu-page .scopeaudit-error,
+.pu-page .scopeaudit-toggle__name {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.scope-audit-page__theme-toggle {
-  float: right;
-  padding: 5px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  font-size: var(--font-size-sm, 13px);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.scope-audit-page__theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.scope-audit-page h1 {
-  font-size: var(--font-size-2xl, 24px);
-  font-weight: 700;
-  margin: 0 0 0.25rem;
-  color: var(--th-text);
-}
-
-.scope-audit-page__subtitle {
-  font-size: var(--font-size-base, 15px);
-  color: var(--th-text-muted);
-  margin: 0 0 1.5rem;
-}
-
-/* ── Summary bar ── */
-.scope-audit-page__summary {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.scope-audit-page__stat {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base, 15px);
-  font-weight: 600;
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  color: var(--th-text);
-}
-
-.scope-audit-page__stat--ok {
-  border-color: var(--th-status-success-border);
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-}
-
-.scope-audit-page__stat--warn {
-  border-color: var(--th-status-warning-border);
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-}
-
-.scope-audit-page__stat--error {
-  border-color: var(--th-status-error-border);
-  background: var(--th-status-error-bg);
+.pu-page .scopeaudit-error {
+  margin: 8px 0 0;
   color: var(--th-status-error-text);
+  white-space: pre-wrap;
 }
 
-.scope-audit-page__stat--info {
-  border-color: var(--th-status-info-border);
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-}
-
-/* ── Toolbar ── */
-.scope-audit-page__toolbar {
+.pu-page .scopeaudit-chips {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
 }
 
-.scope-audit-page__toolbar-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* ── Resource cards ── */
-.scope-audit-page__resources {
+/* Resource list: full-width cards (a scope table does not fit a 340px column). */
+.pu-page .scopeaudit-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 14px;
 }
 
-.scope-resource-card {
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  overflow: hidden;
-  transition: box-shadow 0.15s;
-}
-
-.scope-resource-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.scope-resource-card--ok {
-  border-left: 4px solid var(--th-status-success);
-}
-
-.scope-resource-card--warn {
-  border-left: 4px solid var(--th-status-warning);
-}
-
-.scope-resource-card--error {
-  border-left: 4px solid var(--th-status-error);
-}
-
-.scope-resource-card--neutral {
-  border-left: 4px solid var(--th-border-strong);
-}
-
-.scope-resource-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.scope-resource-card__header:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.scope-resource-card__title-group {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.scope-resource-card__name {
-  font-size: var(--font-size-md, 16px);
-  font-weight: 600;
-  color: var(--th-text);
-}
-
-.scope-resource-card__scope-count {
-  font-size: var(--font-size-sm, 13px);
-  color: var(--th-text-muted);
-}
-
-.scope-resource-card__badge {
-  font-size: var(--font-size-2xs, 12px);
-  font-weight: 600;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.scope-resource-card__badge--ok {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-}
-
-.scope-resource-card__badge--warn {
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-}
-
-.scope-resource-card__badge--error {
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-}
-
-.scope-resource-card__badge--neutral {
-  background: var(--th-bg-inset);
-  color: var(--th-text-muted);
-}
-
-.scope-resource-card__chevron {
-  font-size: var(--font-size-md, 16px);
-  color: var(--th-text-muted);
-  transition: transform 0.15s;
-}
-
-.scope-resource-card__chevron--open {
-  transform: rotate(90deg);
-}
-
-.scope-resource-card__body {
-  padding: 0 1rem 1rem;
-  border-top: 1px solid var(--th-border);
-}
-
-.scope-resource-card__meta {
+/* The header of a resource card is a real button, laid out as a row. */
+.pu-page .scopeaudit-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  padding: 0.5rem 0;
-  font-size: var(--font-size-sm, 13px);
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.pu-page .scopeaudit-toggle__name {
+  font-weight: var(--font-weight-semibold);
+  min-width: 0;
+}
+
+.pu-page .scopeaudit-toggle__count {
   color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal, 400);
 }
 
-.scope-resource-card__meta code {
-  font-family: inherit;
-  font-size: var(--font-size-xs, 11px);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  padding: 0.1rem 0.35rem;
-  border-radius: var(--radius-sm);
+.pu-page .scopeaudit-toggle__cue {
+  margin-left: auto;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-/* ── Scope table ── */
-.scope-table {
+.pu-page .scopeaudit-body {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--th-border-strong);
+}
+
+/* Scope table: scrolls inside its own wrapper if it must, stacks as labelled rows at phone width. */
+.pu-page .scopeaudit-table-wrap {
+  overflow-x: auto;
+}
+
+.pu-page .scopeaudit-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-base, 15px);
-  margin-top: 0.5rem;
+  font-size: var(--font-size-sm);
 }
 
-.scope-table th {
+.pu-page .scopeaudit-table th,
+.pu-page .scopeaudit-table td {
   text-align: left;
-  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border-strong);
+  color: var(--th-text);
+  vertical-align: middle;
+}
+
+.pu-page .scopeaudit-table th {
   color: var(--th-text-muted);
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--th-border);
-  font-size: var(--font-size-2xs, 12px);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.scope-table td {
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--th-border);
-  vertical-align: middle;
-  color: var(--th-text);
-}
-
-.scope-table tr:last-child td {
-  border-bottom: none;
-}
-
-.scope-table__name {
-  font-family: inherit;
-  font-size: var(--font-size-sm, 13px);
-  font-weight: 500;
-}
-
-.scope-table__resource {
-  font-size: var(--font-size-sm, 13px);
-  color: var(--th-text-muted);
-}
-
-.scope-table__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: var(--font-size-sm, 13px);
-  font-weight: 500;
-}
-
-.scope-table__status--present {
-  color: var(--th-status-success-text);
-}
-
-.scope-table__status--missing {
-  color: var(--th-status-error-text);
-}
-
-.scope-table__status--optional {
-  color: var(--th-status-warning-text);
-}
-
-.scope-table__status-icon {
-  font-size: var(--font-size-base, 15px);
-}
-
-.scope-table__empty {
+.pu-page .scopeaudit-table__empty {
   text-align: center;
   color: var(--th-text-muted);
-  padding: 1rem;
 }
 
-/* ── Action buttons ── */
-.scope-audit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.75rem;
-  font-size: var(--font-size-sm, 13px);
-  font-weight: 600;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+@media (max-width: 600px) {
+  .pu-page .scopeaudit-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .pu-page .scopeaudit-table,
+  .pu-page .scopeaudit-table tbody,
+  .pu-page .scopeaudit-table tr,
+  .pu-page .scopeaudit-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .pu-page .scopeaudit-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .pu-page .scopeaudit-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  /* A row with nothing to do has an empty Action cell: no label for nothing. */
+  .pu-page .scopeaudit-table td:empty {
+    display: none;
+  }
+
+  .pu-page .scopeaudit-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
-.scope-audit-btn:hover {
-  background: var(--th-bg-hover);
-  border-color: var(--th-border-strong);
-  color: var(--th-text);
-}
-
-.scope-audit-btn--primary {
-  background: var(--btn-accent);
-  color: var(--btn-accent-text); /* white on Super Sports orange was 1.3:1 in dark (the fill is light there) */
-  border-color: var(--btn-accent);
-}
-
-.scope-audit-btn--primary:hover {
-  background: var(--btn-accent-hover);
-  border-color: var(--btn-accent-hover);
-}
-
-.scope-audit-btn--sm {
-  padding: 0.2rem 0.5rem;
-  font-size: var(--font-size-xs, 11px);
-}
-
-.scope-audit-btn--lg {
-  padding: 0.75rem 2rem;
-  font-size: var(--font-size-lg, 17px);
-}
-
-.scope-audit-page__start {
-  display: flex;
-  justify-content: center;
-  margin-top: 3rem;
-}
-
-.scope-audit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ── Loading / error states ── */
-.scope-audit-page__loading,
-.scope-audit-page__error {
-  text-align: center;
-  padding: 3rem 1rem;
-  font-size: var(--font-size-body, 14px);
-  color: var(--th-text-muted);
-}
-
-.scope-audit-page__error {
-  color: var(--th-status-error-text);
-}
-
-.scope-audit-page__error-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.scope-audit-page__error-detail {
-  font-size: var(--font-size-sm, 13px);
-  font-family: inherit;
-  background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
-  padding: 0.75rem;
-  border-radius: var(--radius-md);
-  margin-top: 0.75rem;
-  text-align: left;
-  white-space: pre-wrap;
+/* Shared PageHeader at phone width: its row turns to a column, but the copy keeps flex: 1 1 360px, so the
+ * 360px basis becomes a 360px HEIGHT and the band is mostly empty. Let the copy size to its text here.
+ * (Root cause is in common/PageHeader.css, a shared file: reported in the PR, not edited.) */
+@media (max-width: 640px) {
+  .pu-page.scope-audit-page .ping-page-header__copy {
+    flex: 0 0 auto;
+  }
 }
