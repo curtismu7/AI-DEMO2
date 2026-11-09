@@ -18,7 +18,7 @@
 .jev-big { margin: 0 0 8px; font-size: var(--font-size-2xl); font-weight: 600; color: var(--th-text); }
 .jev-explain { margin: 0 0 8px; color: var(--th-text-body); font-size: var(--font-size-md); }
 
-.jev-tabs, .jev-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.jev-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .jev-tab, .jev-chip {
   padding: 6px 12px; border-radius: var(--radius-md); cursor: pointer;
   border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text);
@@ -27,12 +27,6 @@
 .jev-tab--on { border-color: var(--th-text); font-weight: 600; }
 .jev-chip { text-align: left; }
 .jev-chip:hover, .jev-tab:hover { background: var(--th-bg-hover); color: var(--th-text); }
-
-.jev-input {
-  width: 100%; min-height: 72px; padding: 10px; margin: 0 0 10px; box-sizing: border-box;
-  border: 1px solid var(--th-border-strong); border-radius: var(--radius-md);
-  background: var(--th-bg-inset); color: var(--th-text); font-size: var(--font-size-body);
-}
 
 .jev-error { margin: 10px 0 0; color: var(--th-status-error-text); }
 
@@ -48,14 +42,10 @@
 .jev-badge--live { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
 .jev-badge--sim { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
 .jev-badge--rec { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border-strong); }
-.jev-page .jev-recorded { margin: 12px 0; padding-left: 12px; border-left: 3px solid var(--th-status-info); }
 
 .jev-slider { display: block; margin: 0 0 10px; color: var(--th-text-body); }
 .jev-slider input { display: block; width: 100%; max-width: 420px; }
 
-.jev-outcomes { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
-.jev-outcome { padding: 10px 12px; border: 1px solid var(--th-border); border-radius: var(--radius-md); color: var(--th-text-muted); }
-.jev-outcome--on { color: var(--th-text); border-color: var(--th-text); background: var(--th-bg-inset); }
 
 .jev-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: var(--font-size-sm); }
 .jev-table th, .jev-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--th-border); color: var(--th-text); }
@@ -76,25 +66,15 @@
 .jev-page .jev-card { padding: 24px 28px; margin: 0 0 24px; }
 .jev-page .jev-h2 { line-height: var(--line-height-tight); font-weight: 700; margin: 0 0 8px; }
 .jev-page .jev-lead { margin: 0 0 16px; }
-.jev-page .jev-tabs, .jev-page .jev-examples { gap: 10px; margin: 0 0 16px; }
+.jev-page .jev-tabs { gap: 10px; margin: 0 0 16px; }
 .jev-page .jev-tab, .jev-page .jev-chip { padding: 8px 14px; line-height: 1.3; }
-.jev-page .jev-input { min-height: 88px; margin: 8px 0 16px; line-height: var(--line-height-body); }
 .jev-page .jev-table th, .jev-page .jev-table td { padding: 10px 12px; }
 .jev-page .jev-table thead th { color: var(--th-text-muted); border-bottom: 2px solid var(--th-border-strong); }
 
 /* three sliders: one block each, label above, full-width track */
 .jev-page .jev-slider { display: block; width: 100%; max-width: 520px; margin: 0 0 18px; }
 .jev-page .jev-slider input[type="range"] { display: block; width: 100%; max-width: none; margin: 8px 0 0; }
-.jev-page .jev-outcomes { margin: 20px 0; padding: 0; }
-.jev-page .jev-outcome { padding: 12px 16px; }
 
-/* Interactive affordance: numbered steps, and tabs/chips that visibly respond. */
-.jev-page .jev-step { display: flex; align-items: center; gap: 10px; margin: 18px 0 10px; font-size: var(--font-size-base); font-weight: 600; color: var(--th-text); }
-.jev-page .jev-step-n {
-  display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 24px; height: 24px; border-radius: var(--radius-pill); font-size: var(--font-size-xs);
-  border: 1px solid var(--th-text); color: var(--th-text);
-}
 .jev-page .jev-tab, .jev-page .jev-chip {
   cursor: pointer; font-size: var(--font-size-base);
   transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s;
@@ -112,17 +92,281 @@
   background: var(--th-bg-hover); border-color: var(--th-status-info-text); box-shadow: 0 3px 8px var(--th-border-strong);
 }
 .jev-page .jev-chip:hover { transform: translateY(-1px); }
-.jev-page .jev-tab:focus-visible, .jev-page .jev-chip:focus-visible, .jev-page .jev-input:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
+.jev-page .jev-tab:focus-visible, .jev-page .jev-chip:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
 .jev-page .jev-tab--on { border-width: 2px; padding: 7px 13px; background: var(--th-bg-card); }
-.jev-page .jev-input:focus { border-color: var(--th-text); }
 
-/* Plain-language readout under each bake-off score. */
-.jev-page .jev-readout { margin: 16px 0 0; padding: 16px 20px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); }
-.jev-page .jev-readout .jev-h3 { margin: 0 0 8px; }
-.jev-page .jev-readout-list { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 10px; color: var(--th-text-body); font-size: var(--font-size-md); line-height: var(--line-height-body); }
-.jev-page .jev-readout-list strong { color: var(--th-text); }
-.jev-page .jev-readout .jev-explain { margin: 0; }
 
+/* Everything above this line, down to the gallery marker, is still used by JevDemoGalleryPage (.jev-page); the
+   /jev-learning page itself now uses the jevl- rules at the end of this file. */
 /* Gallery additions (JevDemoGalleryPage) */
 .jev-chip--on { border-color: var(--th-text); font-weight: 600; }
 a.jev-tab { display: inline-block; }
+
+/* ---------------------------------------------------------------------------------------------------------------
+   /jev-learning on the Ping UI primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md).
+   The banner, frame, sections, cards, key-value lists, chips and buttons are shared; this is only what is specific
+   to the lesson. Every rule is scoped under .jevl-page (a unique prefix: grep before adding another) and sets its own
+   ink with every --th-* ground (H1); type comes from the --font-size-* scale (H2); no inline styles (H3).
+   --------------------------------------------------------------------------------------------------------------- */
+
+/* The end-user-nano skin sets word-wrap: break-word on bare elements and beats single-class rules, so the wrapping
+   rule starts at .pu-page.jevl-page. A long unbroken value (an API error, a message) wraps inside its card. */
+.pu-page.jevl-page :is(td, th, li, p, .jevl-example, .jevl-big, .jevl-status) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Scenario tabs and example buttons: secondary .pu-btn. The chosen one is marked by aria-selected / aria-pressed,
+   never by colour alone: heavier weight plus a 3px bar under the label, in the fixed button accent (not the vertical). */
+.jevl-page .jevl-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.jevl-page .jevl-choices .pu-btn[aria-selected='true'],
+.jevl-page .jevl-choices .pu-btn[aria-pressed='true'] {
+  border-color: var(--btn-accent);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  box-shadow: inset 0 -3px 0 var(--btn-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.jevl-page .jevl-example {
+  text-align: left;
+}
+
+/* The numbered steps above the controls. */
+.jevl-page .jevl-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 8px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+}
+
+.jevl-page .pu-card > .jevl-step:first-child {
+  margin-top: 0;
+}
+
+.jevl-page .jevl-step-n {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--th-text);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-2xs);
+  color: var(--th-text);
+}
+
+.jevl-page .jevl-input {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  box-sizing: border-box;
+  margin: 4px 0 8px;
+  padding: 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.jevl-page .jevl-input:focus-visible,
+.jevl-page .jevl-slider input:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Progress region: always mounted so its words are read when they change; empty while idle. */
+.jevl-page .jevl-status .pu-status-line {
+  margin: 10px 0 0;
+}
+
+.jevl-page .jevl-error {
+  color: var(--th-status-error-text);
+}
+
+.jevl-page .jevl-big {
+  margin: 0 0 8px;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+}
+
+.jevl-page .jevl-recorded {
+  padding-left: 12px;
+  border-left: 3px solid var(--th-status-info);
+}
+
+/* A chip inside a card title sits beside the name. */
+.jevl-page .pu-h3 .pu-chip {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Threshold sliders and the three outcome rows. */
+.jevl-page .jevl-slider {
+  display: block;
+  max-width: 520px;
+  margin: 0 0 16px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.jevl-page .jevl-slider strong {
+  color: var(--th-text);
+}
+
+.jevl-page .jevl-slider input[type='range'] {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+}
+
+.jevl-page .jevl-outcomes {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jevl-page .jevl-outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* The current outcome is named by a chip ("Current outcome") as well as the heavier edge and ink. */
+.jevl-page .jevl-outcome--on {
+  padding: 9px 13px;
+  border-width: 2px;
+  border-color: var(--th-text);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.jevl-page .jevl-readout-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding-left: 20px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.jevl-page .jevl-readout-list strong {
+  color: var(--th-text);
+}
+
+/* Comparison and bake-off tables: ordinary table on desktop, labelled stacked rows at phone width. */
+.jevl-page .jevl-table {
+  width: 100%;
+  margin: 12px 0;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.jevl-page .jevl-table th,
+.jevl-page .jevl-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--th-border-strong);
+  text-align: left;
+  vertical-align: top;
+  color: var(--th-text);
+}
+
+.jevl-page .jevl-table thead th {
+  border-bottom-width: 2px;
+  color: var(--th-text-muted);
+}
+
+/* Right and wrong are never colour alone: a mark in front of the verdict and a hidden word for screen readers. */
+.jevl-page .jevl-table td.jevl-right {
+  color: var(--th-status-success-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.jevl-page .jevl-table td.jevl-wrong {
+  color: var(--th-status-error-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.jevl-page .jevl-mark {
+  margin-right: 6px;
+}
+
+.jevl-page .jevl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .jevl-page .jevl-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .jevl-page .jevl-table,
+  .jevl-page .jevl-table tbody,
+  .jevl-page .jevl-table tr,
+  .jevl-page .jevl-table th,
+  .jevl-page .jevl-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .jevl-page .jevl-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .jevl-page .jevl-table th,
+  .jevl-page .jevl-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .jevl-page .jevl-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .jevl-page .jevl-outcome {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
