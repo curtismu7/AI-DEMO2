@@ -47,6 +47,7 @@
 /ping-products/verify-recognize
 /autonomous-agents
 /p1-third-party-exchange
+/where-everything-runs
 /resource-server-checkpoint
 /privilege-shelf
 /personal-agent
