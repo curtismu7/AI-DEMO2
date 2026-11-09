@@ -84,7 +84,9 @@ describe("AuthorizationFlowPage", () => {
     expect(screen.getAllByRole("tab")).toHaveLength(6);
     expect(screen.getByTestId("flow").dataset.nodes).toBe(String(LANES.length));
     expect(screen.getByTestId("flow").dataset.edges).toBe("0");
-    expect(screen.getByText(/scripted walkthrough/)).toBeTruthy();
+    expect(screen.getByTestId("af-banner").getAttribute("role")).toBe("note");
+    expect(screen.getByTestId("af-banner").textContent).toMatch(/scripted walkthrough/);
+    expect(screen.getByTestId("af-banner").textContent).toMatch(/no check runs/);
   });
 
   it("reveals one arrow per step and fills the conversation and outcome as it walks", () => {
@@ -115,9 +117,12 @@ describe("AuthorizationFlowPage theme", () => {
     const { container } = render(<AuthorizationFlowPage />);
     const canvas = () => container.querySelector(".af-canvas");
     expect(canvas().dataset.afTheme).toBe("light");
-    fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
+    const toggle = screen.getByRole("button", { name: "Dark diagram" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
     expect(canvas().dataset.afTheme).toBe("dark");
-    fireEvent.click(screen.getByRole("button", { name: "Light mode" }));
+    expect(screen.getByRole("button", { name: "Dark diagram" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Dark diagram" }));
     expect(canvas().dataset.afTheme).toBe("light");
   });
 
@@ -209,7 +214,9 @@ describe("step detail", () => {
     const detail = screen.getByLabelText("Step detail");
     expect(detail.textContent).toContain("Step 5 of 13");
     expect(detail.textContent).toContain("Delegated token");
-    expect(detail.querySelector(".afd__tok--live").textContent).toContain("Delegated token");
+    const inUse = within(detail).getByText("In use at this step");
+    expect(inUse.closest("dd").previousElementSibling.textContent).toContain("Delegated token");
+    expect(within(detail).getAllByText("In use at this step")).toHaveLength(1);
     expect(detail.querySelectorAll(".afd__claims tbody tr").length).toBeGreaterThan(3);
   });
 
@@ -228,7 +235,125 @@ describe("step detail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Detail on the side" }));
     expect(container.querySelector(".af-grid--side")).toBeTruthy();
     expect(container.querySelector(".af-grid--side > .afd")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Detail below" }));
+    expect(screen.getByRole("button", { name: "Detail on the side" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Detail on the side" }));
     expect(container.querySelector(".af-grid--side")).toBeNull();
+  });
+});
+
+describe("AuthorizationFlowPage on the Ping UI Standard", () => {
+  it("puts the banner first, inside the page root, before the title band", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    const root = container.querySelector(".pu-page.af-page");
+    expect(root).toBeTruthy();
+    const first = root.firstElementChild;
+    expect(first.querySelector("[role='note']")).toBe(screen.getByTestId("af-banner"));
+    expect(root.querySelector("h1")).toBeTruthy();
+    expect(first.compareDocumentPosition(root.querySelector("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("names the chosen vertical's business in the banner, and follows a change of vertical", () => {
+    render(<AuthorizationFlowPage />);
+    expect(screen.getByTestId("af-banner").textContent).toContain(profileFor(DEFAULT_VERTICAL).org);
+    fireEvent.change(screen.getByLabelText("Vertical"), { target: { value: "healthcare" } });
+    expect(screen.getByTestId("af-banner").textContent).toContain("CareConnect");
+  });
+
+  it("has exactly one primary button in every state: idle, running, paused, jumped to a step, done", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    const primaries = () => container.querySelectorAll(".pu-btn--primary");
+    const bar = () => within(screen.getByTestId("af-step-bar"));
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe("Simulate this moment");
+    fireEvent.click(primaries()[0]);
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe("Restart this moment");
+    fireEvent.click(bar().getByText("Pause"));
+    expect(primaries()).toHaveLength(1);
+    fireEvent.click(within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button")[3]);
+    expect(primaries()).toHaveLength(1);
+    fireEvent.click(bar().getByText("Stop"));
+    expect(primaries()).toHaveLength(1);
+    expect(primaries()[0].textContent).toBe("Simulate this moment");
+    // no other button wears a primary look: the shared step bar stays secondary
+    expect(container.querySelectorAll("[class*='primary']")).toHaveLength(1);
+  });
+
+  it("keeps keyboard focus on the primary after it is pressed", () => {
+    render(<AuthorizationFlowPage />);
+    const go = screen.getByTestId("af-simulate");
+    go.focus();
+    fireEvent.click(go);
+    expect(document.activeElement).toBe(screen.getByTestId("af-simulate"));
+    expect(screen.getByTestId("af-simulate").textContent).toBe("Restart this moment");
+  });
+
+  it("restarts the walkthrough from the first message", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByTestId("af-simulate"));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Pause"));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText(/Next/));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText(/Next/));
+    expect(screen.getByTestId("flow").dataset.edges).toBe("3");
+    fireEvent.click(screen.getByTestId("af-simulate"));
+    expect(screen.getByTestId("flow").dataset.edges).toBe("1");
+  });
+
+  it("marks the selected moment with aria-selected and the toggles with aria-pressed", () => {
+    render(<AuthorizationFlowPage />);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.filter((t) => t.getAttribute("aria-selected") === "true")).toHaveLength(1);
+    fireEvent.click(tabs[3]);
+    expect(screen.getAllByRole("tab")[3].getAttribute("aria-selected")).toBe("true");
+    for (const name of ["Detail on the side", "Dark diagram"]) {
+      expect(screen.getByRole("button", { name }).getAttribute("aria-pressed")).toBe("false");
+    }
+  });
+
+  it("gives every chip a word, and never calls a scripted outcome a real result", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Pay \$60/ }));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    fireEvent.click(steps[6]);
+    const chips = [...container.querySelectorAll(".pu-chip")];
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip.textContent.trim().length, chip.outerHTML).toBeGreaterThan(0);
+      expect(chip.className).toContain("pu-chip--neutral");
+    }
+    expect(screen.getByLabelText("Step detail").textContent).toContain("Refused (scripted)");
+    for (let i = 7; i < steps.length; i += 1) fireEvent.click(steps[i]);
+    expect(screen.getByRole("status").textContent).toContain("Refused (scripted)");
+  });
+
+  it("labels the conversation speakers in text, and the step list marks the current step and refusals", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Pay \$60/ }));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    fireEvent.click(steps[2]);
+    expect(container.querySelector(".af-bubble--user").getAttribute("data-who")).toBe("You");
+    expect(steps[2].getAttribute("aria-current")).toBe("step");
+    expect(steps.filter((s) => s.getAttribute("aria-current")).length).toBe(1);
+    expect(steps.some((s) => /· refusal/.test(s.textContent))).toBe(true);
+  });
+
+  it("names every claim cell for the stacked phone layout and lets a long code block scroll by keyboard", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Read balance/ }));
+    fireEvent.click(within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button")[4]);
+    const cells = [...container.querySelectorAll(".afd__claims tbody td")];
+    expect(cells.length).toBeGreaterThan(9);
+    expect(cells.every((c) => ["Claim", "Value", "What it means"].includes(c.getAttribute("data-label")))).toBe(true);
+    const pre = container.querySelector(".afd-code pre");
+    expect(pre.getAttribute("tabindex")).toBe("0");
+    expect(pre.getAttribute("aria-label")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^Copy (request|response)$/ }).length).toBeGreaterThan(0);
+  });
+
+  it("has no inline colour or hex literal in the page markup", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    for (const el of container.querySelectorAll("[style]")) {
+      expect(el.getAttribute("style"), el.outerHTML.slice(0, 80)).not.toMatch(/#[0-9a-f]{3,8}\b|rgb|hsl|color|background/i);
+    }
   });
 });
