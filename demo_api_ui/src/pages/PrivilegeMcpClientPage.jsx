@@ -1778,7 +1778,7 @@ export default function PrivilegeMcpClientPage() {
         defaultHeight={720}
         storageKey="privilege-guide-modal"
       >
-        <PrivilegeMcpLearningPage />
+        <PrivilegeMcpLearningPage embedded />
       </DraggableModal>
 
       {/* Settings Modal */}

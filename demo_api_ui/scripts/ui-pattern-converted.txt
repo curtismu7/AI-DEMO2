@@ -10,6 +10,7 @@
 /brave-mcp
 /a2a-protocol-learning
 /demo-track
+/privilege-mcp-learning
 /privilege-coding-agents
 /delegated-commerce
 /demo-summary
