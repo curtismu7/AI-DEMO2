@@ -1,30 +1,20 @@
-/* GatewayStatsPage.css — sits on the shared app-page-shell (hero title, lead, body); this file adds only the
-   stats frame and the sign-in / error note. */
-.gws-page__body {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
+/* GatewayStatsPage.css — the banner, frame, cards, chips, kv list and button come from the shared Ping UI
+   primitives (styles/ping-ui.css); this file adds only the stats frame and keeps long values inside the card. */
+
+/* The end-user-nano skin sets word-wrap on code and beats single-class rules, so the wrapping rule is scoped under
+   the page's own class. */
+.pu-page.gws-page code,
+.pu-page.gws-page .pu-mono {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
-.gws-page__frame {
+
+.pu-page.gws-page .gws-page__frame {
+  display: block;
   width: 100%;
   height: calc(100vh - 260px);
   min-height: 480px;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
-}
-.gws-page__note {
-  max-width: 40rem;
-  margin: 0;
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--th-border-strong);
-  border-left: 4px solid var(--brand-navy, #12538d);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  line-height: 1.55;
-}
-.gws-page__note p {
-  margin: 0.4rem 0 0.9rem;
-  color: var(--th-text-body);
 }

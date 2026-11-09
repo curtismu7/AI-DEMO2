@@ -1,0 +1,27 @@
+/* React Flow, app-wide: the keyboard focus ring and the zoom / fit controls, in tokens.
+   The library ships `outline: none` on a focused node and edge (style.css), so a tab stop showed nothing, and a white
+   controls block (--xy-controls-button-background-color-default: #fefefe) that went white-on-white in dark theme.
+   Diagrams that have no keyboard action take the stops out of the tab order (focusable: false); the ones that remain
+   get a ring here. Ring token: index.css (--th-focus-ring, 3:1 or better on every surface in both themes). */
+
+.react-flow {
+  --xy-controls-button-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color-hover: var(--th-bg-hover);
+  --xy-controls-button-color: var(--th-text);
+  --xy-controls-button-color-hover: var(--th-text);
+  --xy-controls-button-border-color: var(--th-border-strong);
+}
+
+.react-flow .react-flow__node:focus-visible,
+.react-flow .react-flow__node.selectable:focus-visible,
+.react-flow .react-flow__edge:focus-visible,
+.react-flow .react-flow__controls-button:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* An edge is an SVG group: Safari and Firefox draw no outline on it, so the line itself thickens and takes the ring colour. */
+.react-flow .react-flow__edge.react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: var(--th-focus-ring);
+  stroke-width: 3px;
+}

@@ -223,6 +223,7 @@ export const NAV_SEARCH_ALIASES = {
   "/use-cases/live": "live workbench demo script hitl consent mfa step-up ciba policy deny agent run",
   "/users": "search manage user accounts admin actions",
   "/weather-mcp": "third-party mcp server weather geographic scope policy gateway geocode texas model context protocol",
+  "/where-everything-runs": "deployment map docker kubernetes namespaces saas mac today after sample env-map servers front ends",
   "/workload-agents": "workload agent delegated customer uc38 uc44 mfa protected action read sub act step-up",
   "/privilege-intent-triage": "platform update intent purpose behaviour three signals scored deterministic hard refusal anomaly baseline new nov 2026",
   "/privilege-coding-agents": "platform update coding agents claude code cursor codex gemini cli copilot antigravity hook machine-level managed configuration allow deny ask secrets laptop new nov 2026",

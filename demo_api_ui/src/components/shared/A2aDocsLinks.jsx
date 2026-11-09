@@ -1,4 +1,4 @@
-const BASE = 'https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/';
+const BASE = 'https://github.com/curtismu7/AI-DEMO2/blob/main/';
 
 // Every A2A doc in the repo, grouped; paths are repo-relative.
 export const A2A_DOCS = [

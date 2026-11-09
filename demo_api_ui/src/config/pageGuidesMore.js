@@ -175,13 +175,13 @@ export const MORE_PAGE_GUIDES = {
   "/transaction-consent": {
     title: "Transaction Consent Guide",
     talkingPoints: [
-      "High-value or agent-initiated transactions can require explicit human approval through a CIBA push notification.",
-      "The real flow opens this page from a deep link with a ?challenge= id; without one the page runs in simulate mode.",
+      "High-value or agent-initiated transactions can require explicit human approval through CIBA: PingOne delivers the request by email or SMS, and the mock phone on this page is the local stand-in.",
+      "The real flow opens this page from a link with a ?challenge= id (this BFF sends no push); without one the page runs in simulate mode.",
       "Sign-in is required: signed-out visitors see a sign-in prompt.",
     ],
     walkthrough: steps([
-      ["Sign in and read the flow", "The simulate landing explains how production works: a step-up obligation from PingOne Authorize, a CIBA push, then approval on the user's device.", "Sign in, then read 'How it works in production' and the numbered 'CIBA Consent Flow' list."],
-      ["Pick a scenario", "Preset transactions let you show the consent modal without waiting for a live push.", "Under 'Pick a scenario to simulate', click Standard Transfer ($500), High-Value Transfer ($15,000), ATM Withdrawal ($200) or AI Agent-Initiated ($2,500)."],
+      ["Sign in and read the flow", "The simulate landing explains how production works: a step-up obligation from PingOne Authorize, a CIBA request that PingOne delivers by email or SMS, then approval.", "Sign in, then read 'How the real flow differs' and the numbered 'The CIBA consent flow' list."],
+      ["Pick a scenario", "Preset transactions let you show the consent modal without waiting for a live email or SMS.", "Under 'Pick a scenario to simulate', click Standard Transfer ($500), High-Value Transfer ($15,000), ATM Withdrawal ($200) or AI Agent-Initiated ($2,500)."],
       ["Approve or decline in the modal", "The modal shows the transaction snapshot and asks for verification before the transaction proceeds or is blocked.", "Review the details in the consent modal and follow its prompts to approve or decline; closing it returns you to the scenario list."],
     ]),
   },
@@ -392,9 +392,9 @@ export const MORE_PAGE_GUIDES = {
       "Tools run through the BFF with the delegated Ping token, and API keys stay server-side.",
     ],
     walkthrough: steps([
-      ["Check the active brain", "The blue banner reads the current status so you can say which provider and model are answering, and whether a key is set.", "Read the Active brain / provider line, then click Change in Config to switch it."],
+      ["Check the configured brain", "The note at the top says what on the page is fixed text. The Configured brain card under it is read from the BFF and shows the provider, model and key flag it reports for this browser; signed out, that is the global configuration, not a choice made in your own session.", "Read the status chip, Provider and Model lines in the Configured brain card, then click Change in Config to switch it."],
       ["Walk the architecture", "The Architecture diagram and the LangGraph / LCEL pattern code block show the path Browser to AIAgent to BFF to langchain_agent and /internal/agent-tool to the MCP gateway and Ping Authorize.", "Point at the diagram, then at the create_react_agent code block and its tools coming through the BFF."],
-      ["Compare brains and frameworks", "Two tables separate the demo brains from the framework packages in the repo, so the audience sees that swapping one does not change the other.", "Find the row marked active in the Demo brains table, then the langchain_agent row marked this page in All agents we have. The page needs no sign-in."],
+      ["Compare brains and frameworks", "Two tables separate the demo brains from the framework packages in the repo, so the audience sees that swapping one does not change the other.", "Find the row marked Configured in the Demo brains table, then the langchain_agent row marked this page in All agents we have. The page needs no sign-in."],
     ]),
   },
   "/ungoverned-agent": {

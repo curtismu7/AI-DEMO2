@@ -4,6 +4,8 @@
 // A page is: <PingPage> <SimBanner/> <PageHeader/> <PageFrame> <Section>... </PageFrame> </PingPage>.
 // Buttons are plain <button className="pu-btn"> (secondary) and "pu-btn pu-btn--primary" (exactly one per view).
 
+import { useEffect, useId, useRef, useState } from 'react';
+
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
 /** Page root: sets ground, ink and the --pu-accent the cards read. Pass className for a page hook. */
@@ -15,13 +17,62 @@ export function PingPage({ className, children, ...rest }) {
   );
 }
 
-/** P2 simulation/status banner. Render it first inside PingPage, above the title. */
-export function SimBanner({ children, ...rest }) {
+/**
+ * P2 simulation/status banner. Render it first inside PingPage, above the title.
+ *
+ * The honest text is long (it says what is real and what is mocked) and on a phone it filled 41-80% of the screen.
+ * At <= 600px (ping-ui.css) the banner is held to a few lines and a "More" button opens the rest. Nothing is removed:
+ * the full text stays in the DOM, so a screen reader reads all of it, find-by-text still matches, and focusing a link
+ * inside the clipped part opens the banner. The button exists only while the text is actually clipped, so on desktop
+ * (and for a banner that already fits) nothing changes.
+ */
+export function SimBanner({ children, className, ...rest }) {
+  const ref = useRef(null);
+  const bodyId = useId();
+  const [open, setOpen] = useState(false);
+  const [clipped, setClipped] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    // Measure only while collapsed: expanded, nothing is clipped, and the last answer must keep the "Less" button.
+    const measure = () => {
+      if (!open) setClipped(el.scrollHeight - el.clientHeight > 1);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(el);
+    document.fonts?.ready?.then(measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
+  });
+
   return (
     <div className="pu-banner-wrap">
-      <div className="pu-banner" role="note" {...rest}>
+      <div
+        ref={ref}
+        id={bodyId}
+        className={cx('pu-banner', !open && 'pu-banner--clamp', className)}
+        role="note"
+        onFocus={() => setOpen(true)}
+        {...rest}
+      >
         {children}
       </div>
+      {clipped || open ? (
+        <button
+          type="button"
+          className="pu-btn pu-banner__more"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? 'Less' : 'More'}
+        </button>
+      ) : null}
     </div>
   );
 }

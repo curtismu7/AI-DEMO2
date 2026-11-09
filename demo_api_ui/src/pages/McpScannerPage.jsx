@@ -47,6 +47,7 @@ export default function McpScannerPage() {
       tools: HOSTILE_TOOLS.map((t) => t.name),
       resources: HOSTILE_RESOURCES.map((r) => r.name || r.uri),
       prompts: HOSTILE_PROMPTS.map((p) => p.name),
+      allKinds: true, // tools, resources and prompts were all scanned
     });
   };
 
@@ -56,19 +57,25 @@ export default function McpScannerPage() {
     if (emptyJson) return; // aria-disabled: the button keeps focus but does nothing
     setError("");
     let tools;
+    let found;
     try {
       const parsed = JSON.parse(json);
-      tools = Array.isArray(parsed) ? parsed : parsed.tools;
+      tools = Array.isArray(parsed) ? parsed : parsed?.tools;
       if (!Array.isArray(tools)) throw new Error("expected an array of tools, or an object with a `tools` array");
+      if (tools.some((t) => !t || typeof t !== "object" || Array.isArray(t))) throw new Error("every entry in the tools array must be an object");
+      found = scan(tools); // inside the try: a malformed entry becomes the error message, not a crash
     } catch (e) {
       setFindings(null);
       setScanned(null);
       setError(`Could not parse that as a tools/list: ${e.message}`);
       return;
     }
-    setFindings(scan(tools));
-    setScanned({ source: "your pasted tools/list", tools: tools.map((t) => t?.name || "(unnamed)") });
+    setFindings(found);
+    setScanned({ source: "your pasted tools/list", tools: tools.map((t) => t.name || "(unnamed)"), allKinds: false });
   };
+
+  const complete = Boolean(scanned?.allKinds); // green Clean only when every input kind was scanned
+  const nothingToScan = Boolean(scanned) && !scanned.allKinds && scanned.tools.length === 0;
 
   return (
     <PingPage className="mcps-page">
@@ -148,30 +155,45 @@ export default function McpScannerPage() {
             ) : (
               <>
                 <Card
-                  tone={findings.length === 0 ? "ok" : "danger"}
+                  tone={findings.length > 0 ? "danger" : complete ? "ok" : "neutral"}
                   title="Scan summary"
                   data-testid="mcps-summary"
                 >
                   <p className="pu-status-line">
-                    {findings.length === 0 ? (
+                    {findings.length > 0 ? (
+                      <StatusChip tone="danger">{`${findings.length} finding${findings.length === 1 ? "" : "s"}`}</StatusChip>
+                    ) : nothingToScan ? (
+                      <StatusChip tone="neutral">Nothing to scan</StatusChip>
+                    ) : complete ? (
                       <StatusChip tone="ok">Clean</StatusChip>
                     ) : (
-                      <StatusChip tone="danger">{`${findings.length} finding${findings.length === 1 ? "" : "s"}`}</StatusChip>
+                      <StatusChip tone="info">No findings in tools</StatusChip>
                     )}
-                    {findings.length === 0
-                      ? "No poisoned metadata found."
-                      : "This metadata would reach an agent unfiltered. Do not trust these tools."}
+                    {findings.length > 0
+                      ? "This metadata would reach an agent unfiltered. Do not trust these tools."
+                      : nothingToScan
+                        ? "The pasted list has no tools, so nothing was scanned."
+                        : complete
+                          ? "No poisoned metadata found."
+                          : "The tool descriptions and schemas matched none of the tool rules. This is not a clean bill for the whole server."}
                   </p>
                   <KvList
                     items={[
                       { label: "Source", value: scanned.source },
                       { label: "Tools", value: `${scanned.tools.length}: ${names(scanned.tools)}`, mono: true },
-                      { label: "Resources", value: `${scanned.resources?.length || 0}: ${names(scanned.resources)}`, mono: true },
-                      { label: "Prompts", value: `${scanned.prompts?.length || 0}: ${names(scanned.prompts)}`, mono: true },
+                      { label: "Resources", value: scanned.allKinds ? `${scanned.resources?.length || 0}: ${names(scanned.resources)}` : "not scanned (only a tools/list was pasted)", mono: scanned.allKinds },
+                      { label: "Prompts", value: scanned.allKinds ? `${scanned.prompts?.length || 0}: ${names(scanned.prompts)}` : "not scanned (only a tools/list was pasted)", mono: scanned.allKinds },
                     ]}
                   />
+                  {!scanned.allKinds && (
+                    <p className="pu-note" data-testid="mcps-tools-only-note">
+                      Only the tool rules ran (hidden instructions and exfil sinks in tool descriptions and schemas).
+                      The sensitive-action and approval-bypass rules apply to resources and prompts, not to tool
+                      descriptions, and resources and prompts were not scanned.
+                    </p>
+                  )}
                   {findings.length === 0 && (
-                    <p className="pu-note">The rules are pattern-based, so a clean result is not proof the server is safe.</p>
+                    <p className="pu-note">The rules are pattern-based, so a result with no findings is not proof the server is safe.</p>
                   )}
                 </Card>
                 {findings.length > 0 && (

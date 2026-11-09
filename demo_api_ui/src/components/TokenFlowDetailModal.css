@@ -721,7 +721,7 @@
 }
 
 /* expose token type colors for inline styles */
-.tfd-root { --tfd-success: #3fb950; --tfd-danger: #f85149; }
+.tfd-root { --tfd-success: #3fb950; --tfd-danger: #f85149; --tfd-scroll-thumb: #8b949e; }
 
 /* ── Light mode override ───────────────────────────────────────────────── */
 .tfd-root.tfd-light {
@@ -736,6 +736,7 @@
   --accent:             #0969da;
   --tfd-success:        #1a7f37;
   --tfd-danger:         #cf222e;
+  --tfd-scroll-thumb:   #6e7781;
   background: #f6f8fa;
   color: #1f2328;
 }
@@ -793,9 +794,11 @@
 }
 .tfd-insp-empty-icon { font-size: var(--font-size-2xl); opacity: .4; }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-secondary, #3d444d); border-radius: 3px; }
+/* Scoped to the modal: an unscoped ::-webkit-scrollbar here shrank every scrollbar in the app to 4px once this sheet loaded.
+   The thumb is --tfd-scroll-thumb (>= 3:1 on the modal's own ground, dark and .tfd-light), not --border-secondary (1.7:1). */
+.tfd-root ::-webkit-scrollbar { width: 4px; height: 4px; }
+.tfd-root ::-webkit-scrollbar-track { background: transparent; }
+.tfd-root ::-webkit-scrollbar-thumb { background: var(--tfd-scroll-thumb); border-radius: 3px; }
 
 /* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
 :root:not([data-theme="dark"]) .tfd-fscope--dropped {

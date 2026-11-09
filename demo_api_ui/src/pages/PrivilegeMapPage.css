@@ -26,7 +26,7 @@
   margin: 12px 0 0;
 }
 
-.pu-page a.pu-btn.pu-btn--primary {
+.pu-page.pmap-page a.pu-btn.pu-btn--primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -37,7 +37,7 @@
   color: var(--btn-accent-text);
 }
 
-.pu-page a.pu-btn.pu-btn--primary:hover {
+.pu-page.pmap-page a.pu-btn.pu-btn--primary:hover {
   background-image: var(--btn-accent-gradient-hover);
   border-color: var(--btn-accent-edge);
 }
@@ -46,9 +46,9 @@
    other primary (its own rule is a flat red that turns navy on hover).
    While a walkthrough runs, Simulate is replaced by Pause (then Resume): that is the view's one primary for as long as
    it runs, so the view never has two or none. */
-.pu-page .dstep-bar .dc-ctrl-btn--simulate:not(:disabled),
-.pu-page .dstep-bar .dc-ctrl-btn--pause:not(:disabled),
-.pu-page .dstep-bar .dc-ctrl-btn--resume:not(:disabled) {
+.pu-page.pmap-page .dstep-bar .dc-ctrl-btn--simulate:not(:disabled),
+.pu-page.pmap-page .dstep-bar .dc-ctrl-btn--pause:not(:disabled),
+.pu-page.pmap-page .dstep-bar .dc-ctrl-btn--resume:not(:disabled) {
   background-color: var(--btn-accent);
   background-image: var(--btn-accent-gradient);
   border: 1px solid var(--btn-accent-edge);
@@ -57,9 +57,9 @@
 
 /* border-color is restated: the shared toolbar hover rule in ping-ui.css (same specificity) would otherwise turn the
    edge to --btn-accent on hover. */
-.pu-page .dstep-bar .dc-ctrl-btn--simulate:hover:not(:disabled),
-.pu-page .dstep-bar .dc-ctrl-btn--pause:hover:not(:disabled),
-.pu-page .dstep-bar .dc-ctrl-btn--resume:hover:not(:disabled) {
+.pu-page.pmap-page .dstep-bar .dc-ctrl-btn--simulate:hover:not(:disabled),
+.pu-page.pmap-page .dstep-bar .dc-ctrl-btn--pause:hover:not(:disabled),
+.pu-page.pmap-page .dstep-bar .dc-ctrl-btn--resume:hover:not(:disabled) {
   background-image: var(--btn-accent-gradient-hover);
   border-color: var(--btn-accent-edge);
 }

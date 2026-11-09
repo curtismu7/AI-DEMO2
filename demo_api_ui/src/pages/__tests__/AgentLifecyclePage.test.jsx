@@ -19,7 +19,7 @@ vi.mock('../../services/apiClient', () => ({
 vi.mock('../../components/KillSwitchConfirmModal', () => ({
   default: ({ isOpen, agentId, onConfirm }) =>
     isOpen ? (
-      <button onClick={() => onConfirm(agentId, 'test reason')}>
+      <button onClick={() => Promise.resolve(onConfirm(agentId, 'test reason')).catch(() => {})}>
         ConfirmRevoke
       </button>
     ) : null,
@@ -390,5 +390,104 @@ describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
       ).toBeInTheDocument(),
     );
     expect(screen.queryByText(/Unexpected: call still succeeded/)).not.toBeInTheDocument();
+  });
+});
+
+describe('AgentLifecyclePage — leaving the page during an approval (F2)', () => {
+  beforeEach(() => {
+    callMcpTool.mockReset();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    delete global.fetch;
+  });
+
+  const gate = () => Promise.reject(Object.assign(new Error('MCP error: 428'), { statusCode: 428, code: 'mcp_step_up_required' }));
+
+  it('an approval that lands after the page unmounted does not retry the checkout, and no further poll is scheduled', async () => {
+    callMcpTool.mockImplementationOnce(gate).mockResolvedValue({ result: { content: [{ type: 'text', text: '{}' }] }, tokenEvents: [] });
+    let answerPoll;
+    let polls = 0;
+    global.fetch = vi.fn((url, init) => {
+      if (url === '/api/auth/ciba/initiate') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ auth_req_id: 'req-1', interval: 1 }) });
+      }
+      polls += 1;
+      return new Promise((resolve) => {
+        answerPoll = () => resolve({ status: 200, json: () => Promise.resolve({ status: 'approved' }) });
+        init?.signal?.addEventListener('abort', () => resolve({ status: 200, json: () => Promise.resolve({ status: 'approved' }) }));
+      });
+    });
+    const { unmount } = render(<AgentLifecyclePage />);
+    fireEvent.click(screen.getByText('Checkout $600 headphones'));
+    await waitFor(() => expect(screen.getByTestId('alp-checkout-status')).toHaveTextContent(/Waiting for approval/));
+    await vi.advanceTimersByTimeAsync(1000); // the poll fetch is now in flight
+    expect(polls).toBe(1);
+
+    unmount(); // the user leaves
+    answerPoll?.(); // the approval lands afterwards
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(callMcpTool).toHaveBeenCalledTimes(1); // the original checkout only, no retry
+    expect(polls).toBe(1);
+  });
+
+  it('a pending poll that answers after the page unmounted does not poll again', async () => {
+    callMcpTool.mockImplementationOnce(gate);
+    let polls = 0;
+    let answerPoll;
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/auth/ciba/initiate') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ auth_req_id: 'req-2', interval: 1 }) });
+      }
+      polls += 1;
+      return new Promise((resolve) => { answerPoll = () => resolve({ status: 200, json: () => Promise.resolve({ status: 'pending' }) }); });
+    });
+    const { unmount } = render(<AgentLifecyclePage />);
+    fireEvent.click(screen.getByText('Checkout $600 headphones'));
+    await waitFor(() => expect(screen.getByTestId('alp-checkout-status')).toHaveTextContent(/Waiting for approval/));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(polls).toBe(1);
+    unmount();
+    answerPoll();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(polls).toBe(1);
+  });
+});
+
+describe('AgentLifecyclePage — a failed kill-switch call (F3)', () => {
+  beforeEach(() => {
+    getAgents.mockReset().mockResolvedValue({ live: { id: 'demo-agent' }, demo: [] });
+    apiClient.post.mockReset();
+    callMcpTool.mockReset().mockResolvedValue({ result: { content: [] }, tokenEvents: [] });
+  });
+
+  const openAndConfirm = async () => {
+    render(<AgentLifecyclePage />);
+    await waitFor(() => expect(screen.getByText('Revoke agent access')).not.toHaveAttribute('aria-disabled'));
+    fireEvent.click(screen.getByText('Revoke agent access'));
+    fireEvent.click(screen.getByText('ConfirmRevoke'));
+  };
+
+  it('a 500 does not show Revoked: the failure is shown and Revoke stays available to retry', async () => {
+    apiClient.post.mockRejectedValue(Object.assign(new Error('Request failed'), { response: { status: 500 } }));
+    await openAndConfirm();
+    await waitFor(() => expect(screen.getByTestId('alp-revoke-status')).toHaveTextContent(/Revoke failed \(HTTP 500\)/));
+    const card = screen.getByTestId('alp-step-4');
+    expect(card).toHaveTextContent('Not revoked');
+    expect(card).not.toHaveTextContent(/Confirmed revoked/);
+    expect(screen.getByTestId('alp-revoke')).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByTestId('alp-revoke')).toHaveTextContent('Revoke agent access');
+    expect(screen.queryByText('View audit trail →')).toBeNull();
+    expect(callMcpTool).not.toHaveBeenCalled(); // no proof-by-retry for a revoke that never happened
+  });
+
+  it('a 401 (the session died with the kill) is still the success path', async () => {
+    apiClient.post.mockRejectedValue(Object.assign(new Error('Unauthorized'), { response: { status: 401 } }));
+    callMcpTool.mockRejectedValue(new Error('token revoked'));
+    await openAndConfirm();
+    await waitFor(() => expect(screen.getByText(/Confirmed revoked — retry failed: token revoked/)).toBeInTheDocument());
+    expect(screen.getByTestId('alp-step-4')).toHaveTextContent('Revoked');
   });
 });

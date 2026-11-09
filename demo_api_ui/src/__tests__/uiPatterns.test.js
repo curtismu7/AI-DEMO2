@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 // @ts-ignore - plain ESM script shared with CI (npm run check:ui-patterns)
@@ -55,6 +56,18 @@ describe('ui pattern check', () => {
     const { shared } = runAll();
     expect(shared.failed.map((f) => `${f.rule}: ${f.detail}`)).toEqual([]);
     for (const f of [...SHARED_FILES, 'src/components/pingUi/index.jsx']) expect(shared.files).toContain(f);
+  });
+
+  it('the allowlist keeps every route a merged conversion added (floor in scripts/ui-pattern-converted.floor.txt)', () => {
+    const floor = loadAllowlist(path.join(__dirname, '..', '..', 'scripts', 'ui-pattern-converted.floor.txt'));
+    const list = loadAllowlist();
+    expect(floor.length, 'the floor file is empty').toBeGreaterThanOrEqual(43);
+    expect(new Set(floor).size, 'duplicate routes in the floor file').toBe(floor.length);
+    expect(
+      floor.filter((r) => !list.includes(r)),
+      'routes dropped from scripts/ui-pattern-converted.txt. Restore them, or (to retire a route on purpose) delete the line from BOTH that file and ui-pattern-converted.floor.txt and say why in the PR',
+    ).toEqual([]);
+    expect(list.length).toBeGreaterThanOrEqual(floor.length);
   });
 
   it('starts with the SaaS Access page and nothing else is enforced silently', () => {
@@ -274,5 +287,131 @@ describe('ui pattern check', () => {
     expect(scanEscapes('/* ui-pattern: allow vertical shell sets this */')).toEqual({ ok: [{ line: 1, reason: 'vertical shell sets this' }], bad: [] });
     expect(scanEscapes('\n/* ui-pattern: allow */').bad).toEqual([{ line: 2, reason: '' }]);
     expect(scanEscapes('/* ui-pattern: allow ok */').bad).toHaveLength(1);
+  });
+});
+
+describe('ui pattern check: the route loader follows wrappers to the real page', () => {
+  const rel = (root, f) => path.relative(root, f).split(path.sep).join('/');
+  /** A throwaway src/ tree: App.js, routes/ wrappers and a few pages. */
+  const tree = (files) => {
+    const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'ui-loader-'));
+    for (const [f, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, f)), { recursive: true });
+      fs.writeFileSync(path.join(root, f), text);
+    }
+    return root;
+  };
+  const WRAPPERS = `import lazyWithRetry from "../utils/lazyWithRetry";
+import AppShell from "./AppShell";
+import { InspectorFieldProvider } from "../context/InspectorFieldContext";
+import GatewayInspector from "../components/GatewayInspector";
+const AlphaPage = lazyWithRetry(() => import("../pages/AlphaPage"));
+const BetaPage = lazyWithRetry(() => import("../pages/BetaPage"));
+export function AlphaPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AlphaPage />
+    </AppShell>
+  );
+}
+export function BetaPageRoute({ user, logout }) {
+  return <AlphaOuterRoute user={user} />;
+}
+export function AlphaOuterRoute({ user }) {
+  return <AppShell><BetaPage /></AppShell>;
+}
+export function GatewayRoute({ user, logout }) {
+  return (
+    <InspectorFieldProvider>
+      <AppShell user={user} logout={logout}>
+        <GatewayInspector />
+      </AppShell>
+    </InspectorFieldProvider>
+  );
+}
+`;
+  const APP = `import lazyWithRetry from "./utils/lazyWithRetry";
+import { AlphaPageRoute, BetaPageRoute, GatewayRoute } from "./routes/PublicRoutes";
+import RequireAdminLogin from "./routes/RequireAdminLogin";
+import SignInRequired from "./routes/SignInRequired";
+const Direct = lazyWithRetry(() => import("./pages/DirectPage"));
+const r = (
+  <Routes>
+    <Route path="/alpha" element={<AlphaPageRoute user={user} logout={logout} />} />
+    <Route path="/beta" element={<BetaPageRoute user={user} logout={logout} />} />
+    <Route path="/gateway" element={<GatewayRoute user={user} logout={logout} />} />
+    <Route path="/gated" element={loading ? null : user ? (<AlphaPageRoute user={user} />) : (<SignInRequired />)} />
+    <Route path="/admin-only" element={<RequireAdminLogin user={user}><BetaPageRoute user={user} /></RequireAdminLogin>} />
+    <Route path="/only-gate" element={<SignInRequired />} />
+    <Route path="/direct" element={<AppShell><Direct /></AppShell>} />
+  </Routes>
+);
+`;
+  const FILES = {
+    'src/App.js': APP,
+    'src/routes/PublicRoutes.js': WRAPPERS,
+    'src/routes/SignInRequired.js': 'export default function SignInRequired() { return null; }\n',
+    'src/routes/RequireAdminLogin.js': 'export default function RequireAdminLogin() { return null; }\n',
+    'src/pages/AlphaPage.jsx': 'export default function AlphaPage() { return null; }\n',
+    'src/pages/BetaPage.jsx': 'export default function BetaPage() { return null; }\n',
+    'src/pages/DirectPage.jsx': 'export default function DirectPage() { return null; }\n',
+    'src/components/GatewayInspector.jsx': 'export default function GatewayInspector() { return null; }\n',
+  };
+
+  it('a named routes/ wrapper resolves to the page it renders', () => {
+    const root = tree(FILES);
+    const r = loadRoutes(root);
+    expect(rel(root, r['/alpha'])).toBe('src/pages/AlphaPage.jsx');
+    expect(rel(root, r['/gateway'])).toBe('src/components/GatewayInspector.jsx');
+  });
+
+  it('follows a wrapper that renders another wrapper of the same module', () => {
+    const r = loadRoutes(tree(FILES));
+    expect(path.basename(r['/beta'])).toBe('BetaPage.jsx');
+  });
+
+  it('a page behind SignInRequired or RequireAdminLogin resolves to the real page, not the gate', () => {
+    const r = loadRoutes(tree(FILES));
+    expect(path.basename(r['/gated'])).toBe('AlphaPage.jsx');
+    expect(path.basename(r['/admin-only'])).toBe('BetaPage.jsx');
+  });
+
+  it('keeps the old result when nothing better resolves, and for direct components', () => {
+    const r = loadRoutes(tree(FILES));
+    expect(path.basename(r['/only-gate'])).toBe('SignInRequired.js');
+    expect(path.basename(r['/direct'])).toBe('DirectPage.jsx');
+  });
+
+  it('a wrapper whose page cannot be found is skipped, not guessed', () => {
+    const root = tree({ ...FILES, 'src/routes/PublicRoutes.js': WRAPPERS.replace('<AlphaPage />', '<Missing />') });
+    const r = loadRoutes(root);
+    expect(r['/alpha']).toBeUndefined();
+  });
+
+  it('the real App.js resolves the /ai-products destinations that used to be missing', () => {
+    const r = loadRoutes();
+    const want = {
+      '/intent-binding-learning': 'pages/IntentBindingLearningPage',
+      '/a2a-protocol-learning': 'pages/A2AProtocolLearningPage',
+      '/privilege-mcp-learning': 'pages/PrivilegeMcpLearningPage',
+      '/agent-gateway-inspector': 'components/AgentGatewayInspectorClean',
+      '/llm-gateway': 'pages/LlmGatewayCombinedPage',
+      '/llm-test': 'pages/LlmGatewayCombinedPage',
+      '/use-cases/live': 'pages/LiveUseCaseWorkbenchPage',
+      '/intent-inspector': 'pages/IntentInspectorPage',
+    };
+    for (const [route, page] of Object.entries(want)) expect(r[route], route).toContain(`src/${page}.`);
+    // chrome and guards are never the page
+    expect(r['/academy/:lessonId']).not.toMatch(/TopNav/);
+    expect(r['/davinci-widget']).not.toMatch(/PingOneProviderGuard/);
+  });
+
+  it('the newly resolvable routes are advisory, never enforced by accident', () => {
+    const { pages } = runAll();
+    for (const route of ['/intent-binding-learning', '/a2a-protocol-learning', '/privilege-mcp-learning', '/agent-gateway-inspector', '/llm-gateway', '/llm-test', '/use-cases/live']) {
+      const page = pages.find((p) => p.routes.includes(route));
+      expect(page, route).toBeTruthy();
+      expect(page.enforced, route).toBe(false);
+    }
   });
 });

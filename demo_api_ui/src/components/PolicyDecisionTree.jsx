@@ -30,7 +30,7 @@
  *                       decision banner and the title, and drop the outer card chrome
  */
 import { useState } from "react";
-import { DECISION_LABELS, overallDecision } from "../utils/policyDecisionSummary";
+import { DECISION_LABELS, overallDecision, engineLabel } from "../utils/policyDecisionSummary";
 import "./PolicyDecisionTree.css";
 
 const STOP = new Set([
@@ -229,6 +229,9 @@ function PolicyDecisionTreeBody({ policies, result, floating = false, embedded =
   const timing = us != null ? `${(us / 1000).toFixed(3)} ms` : null;
 
   const { ov, unmatched } = buildOverlay(policies, statements);
+  // Who returned the statements comes from the stored engine, never assumed to be PingOne.
+  const engine = engineLabel(result.engine);
+  const statementsFrom = engine.label === "Not recorded" ? "the engine (not recorded)" : engine.label;
 
   // Auto-collapse: initially collapse all non-path parent nodes
   const [collapsedIds, setCollapsedIds] = useState(() => {
@@ -296,9 +299,9 @@ function PolicyDecisionTreeBody({ policies, result, floating = false, embedded =
       <div className="p1dt-head">
         {!floating && !embedded && <span className="p1dt-title">Policy decision trace</span>}
         <span className="p1dt-path-label">
-          Execution path highlighted below
+          Nodes matched to a returned statement are highlighted below
         </span>
-        <span className="p1dt-derived" title="PingOne's API returns the verdict + fired statements, not a per-node trace. Per-node badges are derived here.">
+        <span className="p1dt-derived" title="The decision engine returns the verdict and the statements, not the path it executed. Which nodes are marked is derived here by matching statements to rule names.">
           derived from decision result
         </span>
       </div>
@@ -307,7 +310,7 @@ function PolicyDecisionTreeBody({ policies, result, floating = false, embedded =
       {totalInactive > 0 && (
         <div className="p1dt-collapse-controls">
           <span className="p1dt-collapse-controls__summary">
-            {totalInactive} inactive {totalInactive === 1 ? 'node' : 'nodes'} (not on execution path)
+            {totalInactive} inactive {totalInactive === 1 ? 'node' : 'nodes'} (not matched to a returned statement)
           </span>
           <button type="button" className="p1dt-collapse-controls__btn pu-btn" onClick={collapseAll}>Collapse all inactive</button>
           <button type="button" className="p1dt-collapse-controls__btn pu-btn" onClick={expandAll}>Expand all</button>
@@ -322,7 +325,7 @@ function PolicyDecisionTreeBody({ policies, result, floating = false, embedded =
 
       {statements.length > 0 && (
         <div className="p1dt-statements">
-          <div className="p1dt-statements-title">Statements returned by PingOne ({statements.length})</div>
+          <div className="p1dt-statements-title">Statements returned by {statementsFrom} ({statements.length})</div>
           {statements.map((s, i) => (
             <div className="p1dt-stmt" key={s.code || i}>
               <span>{s.name || "(unnamed)"}</span>
@@ -342,9 +345,9 @@ function PolicyDecisionTreeBody({ policies, result, floating = false, embedded =
       )}
 
       <div className="p1dt-legend">
-        <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--path" /> Execution path (highlighted + animated)</span>
+        <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--path" /> Matched by name (highlighted + animated)</span>
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--na" /> N/A — collapsed by default</span>
-        <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--set" /> Policy set / policy on path</span>
+        <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--set" /> Policy set / policy containing a match</span>
         <span className="p1dt-legend-item">Number badge = statements mapped to that rule</span>
       </div>
     </div>
