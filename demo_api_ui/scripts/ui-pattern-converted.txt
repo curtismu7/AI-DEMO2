@@ -15,6 +15,7 @@
 /privilege-pii-detection
 /privilege-gateway-topologies
 /agent-lifecycle
+/demo-map
 /privilege-demo
 /agent-builder
 /ungoverned-agent
