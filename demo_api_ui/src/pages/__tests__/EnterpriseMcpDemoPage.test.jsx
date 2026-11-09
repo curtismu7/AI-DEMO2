@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -106,7 +106,84 @@ describe("EnterpriseMcpDemoPage", () => {
     fireEvent(window, new Event("id-jag-provider-required"));
 
     expect(screen.getByRole("alert")).toHaveTextContent(/PingOne.*selected/i);
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    // The live region stays mounted (empty) so the next change is announced; the live claim is gone.
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.getByRole("note")).not.toHaveTextContent(/live run requested/i);
+  });
+
+  it("mounts the status live region before any run and keeps the same node as its text changes", () => {
+    render(<EnterpriseMcpDemoPage />);
+    const region = screen.getByRole("status");
+    expect(region).toBeEmptyDOMElement();
+    expect(region.parentElement.querySelector(".pu-chip")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Run mock demo" }));
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region.textContent).toBe("Mock replay — no login or live tokens");
+    fireEvent.click(screen.getByRole("button", { name: "Run live ID-JAG demo" }));
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region.textContent).toMatch(/Live PF ID-JAG requested/);
+  });
+
+  // useAuth clears the run state (id-jag-run-cleared) when a live start fails (502, blocked launch) and when a run
+  // completes. The page used to keep saying "you are signed out and sent to PingFederate" after either.
+  it("stops claiming a live sign-out is under way once the launcher clears the run", () => {
+    render(<EnterpriseMcpDemoPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Run live ID-JAG demo" }));
+    expect(screen.getByRole("note")).toHaveTextContent(/live run requested/i);
+    act(() => { window.dispatchEvent(new CustomEvent("id-jag-run-cleared")); });
+    const banner = screen.getByRole("note");
+    expect(banner).toHaveTextContent(/live run ended/i);
+    expect(banner).toHaveTextContent(/could not start, nothing ran/i);
+    expect(banner).not.toHaveTextContent(/live run requested/i);
+    expect(banner).not.toHaveTextContent(/signed out and sent/i);
+    expect(screen.getByRole("status").textContent).toMatch(/request ended/i);
+    expect(screen.getByRole("status").parentElement.querySelector(".pu-chip--neutral")).toHaveTextContent("Live run ended");
+    expect(screen.getByRole("status").parentElement.querySelector(".pu-chip--ok, .pu-chip--info")).toBeNull();
+    expect(document.querySelector(".pu-chip--ok")).toBeNull();
+  });
+
+  it("ignores a cleared run when no live run was requested (mock replay stays a mock replay)", () => {
+    render(<EnterpriseMcpDemoPage />);
+    act(() => { window.dispatchEvent(new CustomEvent("id-jag-run-cleared")); });
+    expect(screen.getByRole("note")).toHaveTextContent(/nothing has run yet/i);
+    fireEvent.click(screen.getByRole("button", { name: "Run mock demo" }));
+    act(() => { window.dispatchEvent(new CustomEvent("id-jag-run-cleared")); });
+    expect(screen.getByRole("note")).toHaveTextContent(/mock replay.*simulated/i);
+  });
+
+  it("describes the live run from what useAuth does: sign-out only without a PingFederate session", () => {
+    render(<EnterpriseMcpDemoPage />);
+    expect(screen.getByRole("note")).toHaveTextContent(/unless you already have a PingFederate session/i);
+    expect(screen.getByRole("note")).not.toHaveTextContent(/sample balance/i);
+    fireEvent.click(screen.getByRole("button", { name: "Run live ID-JAG demo" }));
+    expect(screen.getByRole("note")).toHaveTextContent(/unless you already have a PingFederate session/i);
+    expect(screen.getByRole("status").textContent).not.toMatch(/login required/i);
+    fireEvent.click(screen.getByRole("button", { name: "Run mock demo" }));
+    // Nothing on this page shows a balance, so the banner may not point at one.
+    expect(screen.getByRole("note")).not.toHaveTextContent(/balance/i);
+  });
+
+  it("drops a live-start failure notice when the mock replay is run", () => {
+    const previousUrl = window.location.href;
+    window.history.replaceState({}, "", "/pingfederate-id-jag/demo?error=id_jag_intent_lost");
+    try {
+      render(<EnterpriseMcpDemoPage />);
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Run mock demo" }));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByRole("note")).toHaveTextContent(/mock replay/i);
+    } finally {
+      window.history.replaceState({}, "", previousUrl);
+    }
+  });
+
+  it("scopes every page-sheet selector under the page class or the emd- prefix", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const css = fs.readFileSync(path.resolve(here, "../EnterpriseMcpDemoPage.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const selectors = [...css.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(",")).map((x) => x.trim()).filter(Boolean);
+    expect(selectors.length).toBeGreaterThan(5);
+    selectors.forEach((sel) => expect(sel, sel).toMatch(/emd-/));
+    expect(css).not.toMatch(/idjag-admin-signin/);
   });
 
   it("replays a visibly mock ID-JAG flow while signed out without auth, network, flags, or agent events", () => {

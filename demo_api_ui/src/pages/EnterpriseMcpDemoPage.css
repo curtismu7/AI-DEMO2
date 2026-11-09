@@ -22,8 +22,11 @@
 
 .emd-prerequisite__text { margin: 0; }
 
+/* The live region is always mounted; while nothing has run it is empty and takes no room. */
+.pu-page.emd-page .emd-run-status--idle { margin: 0; }
+
 /* The admin sign-in inside the recovery notice reads as a link, in the notice's own ink. */
-.idjag-admin-signin {
+.pu-page.emd-page .emd-admin-signin {
   background: none;
   border: none;
   padding: 0;
@@ -34,7 +37,7 @@
   cursor: pointer;
 }
 
-.idjag-admin-signin:focus-visible {
+.pu-page.emd-page .emd-admin-signin:focus-visible {
   outline: 3px solid var(--th-focus-ring);
   outline-offset: 2px;
 }

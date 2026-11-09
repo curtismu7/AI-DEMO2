@@ -4,11 +4,14 @@
 // Enterprise-Managed Authorization demo.
 //
 // Honesty: two run modes, and the wording below follows the one in use (runMode state). "Run live ID-JAG
-// demo" is real: it signs the user out, takes a PingFederate login and runs UC40; the Token chain then holds
-// the claims that run recorded. "Run mock demo" is simulated: sample steps and a sample balance, no login, no
-// request. Before either is pressed nothing has run. The 19-call walkthrough is a fixed reading of the
-// architecture, not a trace; only the calls a run recorded show claims. This page never checks the outcome
-// of a live run, so no chip here is green: it says what was requested, not what happened.
+// demo" is real: with no PingFederate session it signs the user out and takes a PingFederate login, with one
+// it reuses that session (useAuth decides, not this page), then runs UC40; the Token chain holds the claims
+// that run recorded. "Run mock demo" is simulated: sample steps and sample claims, no login, no request.
+// Before either is pressed nothing has run. The 19-call walkthrough is a fixed reading of the architecture,
+// not a trace; only the calls a run recorded show claims. This page never checks the outcome of a live run,
+// so no chip here is green: it says what was requested, not what happened. A request that failed to start,
+// or a run that finished, clears the run state (the id-jag-run-cleared event); the live wording then drops
+// to "ended" instead of still claiming a sign-out is under way.
 //
 // Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md)
 // through the shared primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first (role=note),
@@ -37,6 +40,8 @@ import { openAdminSignIn } from "../utils/signInService";
 import "./EnterpriseMcpDemoPage.css";
 
 const DEMO_CHIP = "show my balance";
+// Local view state: a live request that has since been cleared (it failed to start, or it finished).
+const LIVE_ENDED = "live-ended";
 
 export default function EnterpriseMcpDemoPage() {
   // The learning-path links need a Router; the page is also rendered bare in unit tests.
@@ -52,8 +57,15 @@ export default function EnterpriseMcpDemoPage() {
       setRunMode(null);
       setFailureCode(FAILURE_MESSAGES[event.detail?.code] ? event.detail.code : "id_jag_provider_required");
     };
+    // The launcher clears the run state when a live start fails (BFF/PingFederate error, blocked launch) and
+    // when a run completes. This page cannot tell which, so it stops claiming a sign-out is under way.
+    const onRunCleared = () => setRunMode((mode) => (mode === RUN_MODES.LIVE_ID_JAG ? LIVE_ENDED : mode));
     window.addEventListener("id-jag-provider-required", onProviderRequired);
-    return () => window.removeEventListener("id-jag-provider-required", onProviderRequired);
+    window.addEventListener("id-jag-run-cleared", onRunCleared);
+    return () => {
+      window.removeEventListener("id-jag-provider-required", onProviderRequired);
+      window.removeEventListener("id-jag-run-cleared", onRunCleared);
+    };
   }, []);
   // Optional variant on purpose: useEducationUI() THROWS outside its provider,
   // which would take the whole page down anywhere the provider is absent. Null
@@ -72,33 +84,51 @@ export default function EnterpriseMcpDemoPage() {
     }
   }, []);
   const handleMockRun = useCallback(() => {
+    // A live-start failure notice is about the live run; it must not sit beside a mock replay banner.
+    setFailureCode(null);
     requestMockIdJagReplay();
     setRunMode(RUN_MODES.MOCK_ID_JAG);
   }, []);
 
-  const running = runMode === RUN_MODES.LIVE_ID_JAG ? "live" : runMode === RUN_MODES.MOCK_ID_JAG ? "mock" : "idle";
+  const running = runMode === RUN_MODES.LIVE_ID_JAG ? "live"
+    : runMode === RUN_MODES.MOCK_ID_JAG ? "mock"
+      : runMode === LIVE_ENDED ? "ended" : "idle";
+  const statusText = {
+    live: "Live PF ID-JAG requested — the agent runs after PingFederate sign-in (or straight away if you already have a PingFederate session).",
+    mock: "Mock replay — no login or live tokens",
+    ended: "Live PF ID-JAG request ended — see the Token chain for what it recorded.",
+    idle: "",
+  }[running];
 
   return (
     <PingPage className="emd-page">
       <SimBanner data-testid="emd-banner">
         {running === "idle" && (
           <>
-            <strong>NOTHING HAS RUN YET</strong> — <strong>Run live ID-JAG demo</strong> is real: it signs you out, asks
-            for a PingFederate login, then runs the agent. <strong>Run mock demo</strong> is simulated: sample steps and a
-            sample balance, no login, no request. The 19-call walkthrough is a fixed reading of the architecture, not a
+            <strong>NOTHING HAS RUN YET</strong> — <strong>Run live ID-JAG demo</strong> is real: it asks for a PingFederate
+            login (signing you out first unless you already have a PingFederate session), then runs the agent.
+            <strong>Run mock demo</strong> is simulated: sample steps and sample claims, no login, no request. The 19-call walkthrough is a fixed reading of the architecture, not a
             trace; only the calls a run recorded show claims.
           </>
         )}
         {running === "live" && (
           <>
-            <strong>LIVE RUN REQUESTED</strong> — real: you are signed out and sent to PingFederate to log in, then the
-            agent runs. This page does not check the result; the Token chain below shows what the run recorded. The
-            19-call walkthrough is still a fixed reading of the architecture, not a trace.
+            <strong>LIVE RUN REQUESTED</strong> — real: unless you already have a PingFederate session you are signed
+            out and sent to PingFederate to log in, then the agent runs. This page does not check that it started or
+            how it ended; the Token chain below shows what the run records. The 19-call walkthrough is still a fixed
+            reading of the architecture, not a trace.
+          </>
+        )}
+        {running === "ended" && (
+          <>
+            <strong>LIVE RUN ENDED</strong> — a real run was requested and has since finished or stopped. This page
+            does not check which: if a notification said it could not start, nothing ran; otherwise the Token chain
+            below shows what it recorded. The 19-call walkthrough is a fixed reading of the architecture, not a trace.
           </>
         )}
         {running === "mock" && (
           <>
-            <strong>MOCK REPLAY</strong> — simulated: the steps in the Token chain and the balance are samples, and the
+            <strong>MOCK REPLAY</strong> — simulated: the steps and claims in the Token chain are samples, and the
             replay made no login and no request. Nothing here came from a real run. The 19-call walkthrough is a fixed
             reading of the architecture, not a trace.
           </>
@@ -166,7 +196,7 @@ export default function EnterpriseMcpDemoPage() {
               <p className="pu-status-line"><StatusChip tone="info">Real run</StatusChip>Needs a PingFederate login.</p>
               <KvList
                 items={[
-                  { label: "Your session", value: "Signed out first" },
+                  { label: "Your session", value: "Signed out first, unless you already have a PingFederate session" },
                   { label: "Login", value: "PingFederate" },
                   { label: "Agent prompt", value: `“${DEMO_CHIP}” (UC40)` },
                   { label: "Tokens", value: "Real; claims appear in the Token chain" },
@@ -201,18 +231,14 @@ export default function EnterpriseMcpDemoPage() {
               <p className="emd-prerequisite__text">{FAILURE_MESSAGES[failureCode]}</p>
             </Card>
           )}
-          {running === "live" && (
-            <p className="pu-status-line">
-              <StatusChip tone="info">Live requested</StatusChip>
-              <span role="status">Live PF ID-JAG — PingFederate login required before the agent runs.</span>
-            </p>
-          )}
-          {running === "mock" && (
-            <p className="pu-status-line">
-              <StatusChip tone="neutral">Simulated</StatusChip>
-              <span role="status">Mock replay — no login or live tokens</span>
-            </p>
-          )}
+          {/* The role=status span is mounted from the first render and only its text changes, so assistive
+              technology announces each change; a region inserted together with its text is often missed. */}
+          <p className={`pu-status-line emd-run-status${running === "idle" ? " emd-run-status--idle" : ""}`}>
+            {running === "live" && <StatusChip tone="info">Live requested</StatusChip>}
+            {running === "mock" && <StatusChip tone="neutral">Simulated</StatusChip>}
+            {running === "ended" && <StatusChip tone="neutral">Live run ended</StatusChip>}
+            <span role="status">{statusText}</span>
+          </p>
         </Section>
 
         <Section id="emd-calls-h" kicker="3 · Every call" title="Every call, in order">
@@ -247,7 +273,7 @@ const FAILURE_MESSAGES = {
     <>
       <strong>PingOne is selected.</strong> Live ID-JAG requires PingFederate.
       Select PF with the top-bar P1/PF switch, then run the demo again.
-      If the switch requires admin access, <button type="button" className="idjag-admin-signin" onClick={() => openAdminSignIn({ returnTo: "/pingfederate-id-jag/demo" })}>sign in as admin</button> first.
+      If the switch requires admin access, <button type="button" className="emd-admin-signin" onClick={() => openAdminSignIn({ returnTo: "/pingfederate-id-jag/demo" })}>sign in as admin</button> first.
     </>
   ),
   id_jag_provider_mismatch: (
