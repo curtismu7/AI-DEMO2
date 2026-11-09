@@ -6,34 +6,58 @@ import SignInPrompt from "../components/SignInPrompt";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import "./IntentBindingLearningPage.css";
 import PageHeader from '../components/common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } from '../components/pingUi';
 
 /**
  * Intent Binding learning page demonstrating PAR (Pushed Authorization Request).
  * Shows how authorization details are pre-submitted to PingOne via PAR endpoint,
  * then referenced during token exchange via request_uri. Layout: static pipeline
  * header, then permanent PERMIT | DRIFT split for side-by-side outcome comparison.
+ *
+ * Honesty (what is real on this page): the pipeline, payload and flow are the lesson and never
+ * change. A Run is real only in Live mode, where the BFF pushes the payload to PingOne's PAR
+ * endpoint and shows the request_uri PingOne returns. PingOne stores that request without checking
+ * the amount (routes/intentBinding.js): the $100 cap check is this app's own. With Live mode off,
+ * a Run calls the local RAR simulator and makes no PAR push. The banner and the note under the flow
+ * name the engine that is actually selected.
+ *
+ * Layout follows the Ping UI Standard through the shared primitives (components/pingUi,
+ * docs/ping-ui-primitives.md): P2 banner, P3 frame, P4 cards, P5 kv, P7 chips, P9 buttons.
+ * P9 "exactly one primary per view", decided per state:
+ *   - nothing run yet: "Run" in Within the grant (the lesson starts with the allowed request);
+ *   - Within the grant has a result, Drifts past the grant has none: "Run" in Drifts past the grant;
+ *   - both have a result: "Run" in Within the grant again (start over);
+ *   - a Run came back 401: no Run is primary, the sign-in strip's Sign in button is the one action.
+ * Everything else (Prev/Play/Next, frame chips, Back to Dashboard) is a secondary. A Run that is in
+ * flight takes aria-disabled, not disabled, so keyboard focus stays on it.
  */
-const PAR_PAYLOAD = { type: "banking_transaction", tool: "create_transfer", amount: 100, payee: "acme-utilities" };
+const PAR_CAP = 100;
+const PAR_PAYLOAD = { type: "banking_transaction", tool: "create_transfer", amount: PAR_CAP, payee: "acme-utilities" };
 
 const PIPELINE_STEPS = [
   { num: 1, title: "Declare intent", detail: "Customer authorizes: pay Acme Utilities, up to $100." },
   { num: 2, title: "Push to PAR endpoint", detail: "Authorization details pre-submitted to PingOne via RFC 9126." },
   { num: 3, title: "Receive request_uri", detail: "PingOne returns a reference URI for this authorization context." },
-  { num: 4, title: "Token exchange with request_uri", detail: "Agent uses request_uri in token exchange; P1AZ validates the amount." },
+  { num: 4, title: "Token exchange with request_uri", detail: "Agent uses request_uri in token exchange; the requested amount is checked against the declared cap." },
 ];
 
 function useColumnRun(action, defaultAmount) {
   const [amount, setAmount] = useState(defaultAmount);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  // What this result was run with. The reel and the result chips read it, so editing the amount or flipping
+  // Live mode afterwards cannot rewrite what was actually sent.
+  const [ran, setRan] = useState(null);
   const [error, setError] = useState(null);
   const [needsAuth, setNeedsAuth] = useState(false);
 
   const run = async (live) => {
+    if (loading) return; // aria-disabled keeps focus on the button; the click is ignored
     setLoading(true);
     setError(null);
     setNeedsAuth(false);
     setResult(null);
+    setRan(null);
     try {
       const res = await fetch("/api/demo/intent-binding/run", {
         method: "POST",
@@ -52,6 +76,7 @@ function useColumnRun(action, defaultAmount) {
         setError(data.reason || data.error || "Request failed");
       } else {
         setResult(data);
+        setRan({ amount: Number(amount), live });
         // Hand the run to the live trace so the dashboard's sequence view draws
         // it: the PAR push and request_uri on a live run, the intent check on
         // either. Display-only — never break the page over it.
@@ -68,7 +93,7 @@ function useColumnRun(action, defaultAmount) {
     }
   };
 
-  return { amount, setAmount, loading, result, error, needsAuth, run };
+  return { amount, setAmount, loading, result, ran, error, needsAuth, run };
 }
 
 const REEL_FRAME_MS = 1400;
@@ -127,6 +152,156 @@ export function buildReelFrames(result, sentBody) {
   ];
 }
 
+const FLOW_STEPS = [
+  { key: "user", tone: "info", title: "User declares", sub: "Intent: $100" },
+  { key: "par", tone: "neutral", title: "Push to PAR endpoint", sub: "(auth payload)" },
+  { key: "uri", tone: "neutral", title: "Receive request_uri", sub: "(reference ID)" },
+  { key: "exchange", tone: "ok", title: "Token exchange with request_uri", sub: "(via Agent Gateway)" },
+  { key: "decide", tone: "warn", title: "Amount check", sub: "Compares the amount to the declared cap → PERMIT / DENY" },
+];
+
+export default function IntentBindingLearningPage() {
+  // Default ON: the real PAR push to PingOne is the intended demo path. Off uses the local RAR simulator
+  // and makes no call to PingOne PAR (routes/intentBinding.js). The banner and notes follow this flag.
+  const [live, setLive] = useState(true);
+  const navigate = useNavigate();
+  const permitCol = useColumnRun("permit", 80);
+  const driftCol = useColumnRun("drift", 500);
+  const edu = useEducationUIOptional();
+
+  // P9 primary, one per state (see the header comment). A 401 hands the one action to the sign-in strip.
+  const signInOffered = permitCol.needsAuth || driftCol.needsAuth;
+  const permitDone = Boolean(permitCol.result);
+  const driftDone = Boolean(driftCol.result);
+  let nextKind = null;
+  if (!signInOffered) nextKind = permitDone && !driftDone ? "drift" : "permit";
+
+  return (
+    <PingPage className="intent-binding-page">
+      <SimBanner data-testid="ib-banner">
+        {live ? (
+          <>
+            <strong>LIVE PAR</strong> — Run pushes the authorization details to PingOne&apos;s real PAR endpoint and
+            shows the request_uri PingOne returns. PingOne stores the request without checking the amount; the
+            ${PAR_CAP} cap check is made by this app&apos;s backend, not by PingOne. Run needs a signed-in session and
+            the AI Agent Actor credentials; without them it reports the error and decides nothing. The pipeline
+            and flow below are the lesson, not a recording.
+          </>
+        ) : (
+          <>
+            <strong>SIMULATED</strong> — Live mode is off. Run calls this app&apos;s local RAR simulator: no PAR push is
+            made, PingOne issues no request_uri, and the simulator decides PERMIT or DENY from the amount and
+            the ${PAR_CAP} cap. Run needs a signed-in session. The pipeline and flow below are the lesson, not a
+            recording.
+          </>
+        )}
+      </SimBanner>
+      <PageHeader className="ib-header-band" back={{ to: "/dashboard", label: "Back to Dashboard" }} eyebrow="Learning · Intent Binding" title="Watch an agent's intent get checked, step by step" summary="Every transfer an agent makes runs this pipeline. In Live mode the same authorization payload is pushed to PingOne via PAR (RFC 9126), then referenced below in two requests — one within the agent's declared authority, one past it." />
+
+      <PageFrame>
+        <Section
+          id="ib-pipeline-h"
+          kicker="1 · The pipeline"
+          title="Four steps from intent to decision"
+          lede="The pipeline every agent transfer follows. This is the lesson: each Run below exercises it for one request."
+        >
+          <div className="pu-card-grid ib-pipeline">
+            {PIPELINE_STEPS.map((step) => (
+              <Card key={step.num} title={`Step ${step.num} · ${step.title}`} className="ib-step" data-testid={`ib-step-${step.num}`}>
+                <p className="pu-note">{step.detail}</p>
+              </Card>
+            ))}
+          </div>
+          <div id="par">
+            <Card tone="neutral" title="RAR authorization_details (RFC 9396), pushed via PAR (RFC 9126)" data-testid="ib-grant">
+              <pre className="ib-grant-json">{JSON.stringify(PAR_PAYLOAD, null, 2)}</pre>
+            </Card>
+          </div>
+        </Section>
+
+        <div id="rar">
+          <Section
+            id="ib-flow-h"
+            kicker="2 · The flow"
+            title="PAR + RAR flow through the system"
+            lede="Five hops, left to right. In a Run, the last hop is made by the engine named in the banner."
+          >
+            <Card tone="neutral" data-testid="ib-flow">
+              <ol className="ib-flow" aria-label="PAR + RAR flow">
+                {FLOW_STEPS.map((hop) => (
+                  <li key={hop.key} className={`ib-flow-box ib-flow-box--${hop.tone}`}>
+                    <strong>{hop.title}</strong>
+                    <span>{hop.sub}</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="pu-note" data-testid="ib-flow-note">
+                {live
+                  ? "In Live runs the amount check is made by this app's backend; the PAR push to PingOne does not check the amount."
+                  : "In Simulated runs the amount check is made by the local simulator; nothing is pushed to PingOne."}
+              </p>
+            </Card>
+          </Section>
+
+          <Section
+            id="ib-run-h"
+            kicker="3 · Try it"
+            title="One grant, two requests"
+            lede="Run each request and compare the outcomes. The reel replays the exchange for the run you just made."
+          >
+            <Card tone={live ? "live" : "neutral"} title="How the decision is made" data-testid="ib-mode">
+              <p className="pu-status-line">
+                <StatusChip tone={live ? "info" : "neutral"}>{live ? "Live" : "Simulated"}</StatusChip>
+                {live
+                  ? "Run pushes the authorization details to PingOne's PAR endpoint."
+                  : "Run uses the local simulator and makes no call to PingOne PAR."}
+              </p>
+              <label className="ib-live-toggle">
+                <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} data-testid="ib-live-toggle" />
+                Live mode — push the authorization details to PingOne&apos;s PAR endpoint instead of using the simulator
+              </label>
+            </Card>
+            <div className="pu-card-grid ib-split">
+              <IntentBindingColumn
+                kind="permit"
+                title="Within the grant"
+                expected="permit"
+                col={permitCol}
+                live={live}
+                isNext={nextKind === "permit"}
+              />
+              <IntentBindingColumn
+                kind="drift"
+                title="Drifts past the grant"
+                expected="deny"
+                col={driftCol}
+                live={live}
+                isNext={nextKind === "drift"}
+              />
+            </div>
+          </Section>
+        </div>
+
+        <p className="pu-note ib-edu-link">
+          PAR (RFC 9126) is how the request travels; RAR (RFC 9396) is what it means. See the{" "}
+          <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.PAR, "what")}>
+            PAR education panel
+          </button>{" "}or the{" "}
+          <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.RAR, "what")}>
+            RAR education panel
+          </button>.
+        </p>
+
+        <div className="pu-actions">
+          <button type="button" className="pu-btn" onClick={() => navigate("/dashboard")} data-testid="ib-back-bottom">
+            Back to Dashboard
+          </button>
+        </div>
+      </PageFrame>
+    </PingPage>
+  );
+}
+
 function RunReel({ kind, result, action, amount, live }) {
   const frames = React.useMemo(
     () => buildReelFrames(result, { action, requestedAmount: Number(amount), live }),
@@ -152,6 +327,10 @@ function RunReel({ kind, result, action, amount, live }) {
 
   if (!frames.length) return null;
   const frame = frames[index];
+  // Prev and Next are aria-disabled at the ends, not disabled: pressing Next on the last frame from the keyboard
+  // must not drop focus to the page body.
+  const atStart = index === 0;
+  const atEnd = index === last;
 
   return (
     <div className="ib-reel" data-testid={`ib-reel-${kind}`}>
@@ -161,18 +340,29 @@ function RunReel({ kind, result, action, amount, live }) {
           {index + 1} / {frames.length}
         </span>
         <div className="ib-reel-ctrls">
-          <button type="button" onClick={() => { setPlaying(false); setIndex((n) => Math.max(0, n - 1)); }} disabled={index === 0}>
+          <button
+            type="button"
+            className="pu-btn"
+            aria-disabled={atStart ? "true" : undefined}
+            onClick={() => { if (atStart) return; setPlaying(false); setIndex((n) => Math.max(0, n - 1)); }}
+          >
             Prev
           </button>
           <button
             type="button"
+            className="pu-btn"
             onClick={() => {
               if (index >= last) { setIndex(0); setPlaying(true); } else { setPlaying((p) => !p); }
             }}
           >
             {index >= last ? "Replay" : playing ? "Pause" : "Play"}
           </button>
-          <button type="button" onClick={() => { setPlaying(false); setIndex((n) => Math.min(last, n + 1)); }} disabled={index === last}>
+          <button
+            type="button"
+            className="pu-btn"
+            aria-disabled={atEnd ? "true" : undefined}
+            onClick={() => { if (atEnd) return; setPlaying(false); setIndex((n) => Math.min(last, n + 1)); }}
+          >
             Next
           </button>
         </div>
@@ -184,7 +374,7 @@ function RunReel({ kind, result, action, amount, live }) {
               type="button"
               aria-label={`Frame ${n + 1}: ${f.chip}`}
               aria-current={n === index}
-              className={n === index ? "is-active" : undefined}
+              className={n === index ? "pu-btn is-active" : "pu-btn"}
               onClick={() => { setPlaying(false); setIndex(n); }}
             >
               {f.chip}
@@ -192,7 +382,13 @@ function RunReel({ kind, result, action, amount, live }) {
           </li>
         ))}
       </ol>
-      <div className={`ib-reel-frame ib-reel-frame--${frame.side}`}>
+      {/* Announced when the visitor steps the reel, silent while it auto-plays (a frame every 1.4 s would be noise). */}
+      <div
+        className={`ib-reel-frame ib-reel-frame--${frame.side}`}
+        role="group"
+        aria-label="Reel frame"
+        aria-live={playing ? "off" : "polite"}
+      >
         <div className="ib-reel-title">{frame.title}</div>
         {frame.caption ? <p className="ib-reel-caption">{frame.caption}</p> : null}
         <pre className="ib-reel-json">{JSON.stringify(frame.body, null, 2)}</pre>
@@ -201,170 +397,91 @@ function RunReel({ kind, result, action, amount, live }) {
   );
 }
 
-function IntentBindingColumn({ kind, title, outcomeLabel, rationale, col, live }) {
+/** Words for the run's result chips. The engine word comes from what the server says the run used, never from the toggle. */
+function runEngine(result) {
+  return result.live === true
+    ? { tone: "info", word: "Live PAR push" }
+    : { tone: "neutral", word: "Simulated" };
+}
+
+function IntentBindingColumn({ kind, title, expected, col, live, isNext }) {
+  const amount = Number(col.amount);
+  const within = amount <= PAR_CAP;
+  const permit = col.result && col.result.status === 200;
+  const run = () => col.run(live);
   return (
-    <div className={`ib-col ib-col--${kind}`}>
+    <Card
+      tone={kind === "permit" ? "ok" : "danger"}
+      className={`ib-col ib-col--${kind}`}
+      data-testid={`ib-col-${kind}`}
+    >
       <div className="ib-col-head">
-        <h2>{title}</h2>
-        <span className={`ib-pill ib-pill--${kind}`}>{outcomeLabel}</span>
+        <h3 className="pu-h3">{title}</h3>
+        <StatusChip tone={kind === "permit" ? "ok" : "danger"}>{`Expected: ${expected}`}</StatusChip>
       </div>
-      <div className="ib-amount">
-        <small>Requested</small>${col.amount}
-      </div>
-      <p className="ib-rationale">{rationale}</p>
+      <KvList items={[{ label: "Requested", value: `$${col.amount}` }]} />
+      <p className="ib-rationale">
+        {within
+          ? `$${col.amount} is within the $${PAR_CAP} cap. Steps 3-4 complete and the request matches the declared intent.`
+          : `$${col.amount} exceeds the $${PAR_CAP} cap. Step 4 stops the chain — the transfer never reaches the account.`}
+      </p>
       <div className="ib-controls">
-        <label>
-          Amount
-          <input type="number" value={col.amount} onChange={(e) => col.setAmount(e.target.value)} min={1} />
+        <label className="ib-amount-field">
+          <span className="pu-label">Amount</span>
+          <input
+            className="pu-select ib-amount-input"
+            type="number"
+            value={col.amount}
+            onChange={(e) => col.setAmount(e.target.value)}
+            min={1}
+          />
         </label>
-        <button aria-label={`Run ${kind}`} onClick={() => col.run(live)} disabled={col.loading}>
+        <button
+          type="button"
+          className={isNext ? "pu-btn pu-btn--primary" : "pu-btn"}
+          aria-label={`Run ${kind}`}
+          aria-disabled={col.loading ? "true" : undefined}
+          onClick={run}
+          data-testid={`ib-run-${kind}`}
+        >
           {col.loading ? "Running…" : "Run"}
         </button>
       </div>
       {col.needsAuth ? (
         <SignInPrompt
           variant="strip"
-          message="Running the live decision needs a signed-in session — the PAR push is made on your behalf."
+          message={live
+            ? "Running the live decision needs a signed-in session — the PAR push is made on your behalf."
+            : "Running the simulated decision needs a signed-in session."}
         />
       ) : null}
-      {col.error ? (
-        <div className={`ib-status ib-status--${kind === "permit" ? "permit" : "deny"}`}>{col.error}</div>
-      ) : null}
-      {col.result ? (
-        <div className={`ib-status ib-status--${col.result.status === 200 ? "permit" : "deny"}`}>
-          <strong>{col.result.status === 200 ? "PERMIT" : `DENY (${col.result.errorCode})`}</strong>
-          <ul>
-            {(col.result.tokenChainEvents || []).map((ev) => (
-              <li key={ev.id}>
-                <strong>{ev.label}</strong> — {ev.status}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {col.result ? (
-        <RunReel kind={kind} result={col.result} action={kind} amount={col.amount} live={live} />
-      ) : null}
-    </div>
-  );
-}
-
-export default function IntentBindingLearningPage() {
-  // Default ON: real PingOne Authorize is the intended demo path. RAR amount
-  // enforcement is done gateway-side (Demo Agent Gateway requireRarIntent, pinned
-  // in #603), independent of this toggle — so PERMIT ($80) / DENY ($500) hold in
-  // live mode; the toggle only switches the authorize-decision card between real
-  // PingOne and the simulated engine.
-  const [live, setLive] = useState(true);
-  const navigate = useNavigate();
-  const permitCol = useColumnRun("permit", 80);
-  const driftCol = useColumnRun("drift", 500);
-  const edu = useEducationUIOptional();
-
-  return (
-    <div className="intent-binding-page">
-      <PageHeader className="ib-header-band" back={{ to: "/dashboard", label: "Back to Dashboard" }} eyebrow="Learning · Intent Binding" title={<>Watch an agent's intent get checked, step by step</>} summary="Every transfer an agent makes runs this pipeline. The same authorization payload is pushed to PingOne via PAR (RFC 9126), then referenced below in two requests — one within the agent's declared authority, one past it." />
-
-      <ol className="ib-pipeline">
-        {PIPELINE_STEPS.map((step) => (
-          <li key={step.num} className="ib-step">
-            <div className="ib-step-num">Step {step.num}</div>
-            <h3>{step.title}</h3>
-            <p>{step.detail}</p>
-          </li>
-        ))}
-      </ol>
-
-      <div className="ib-grant-card" id="par">
-        <strong>RAR authorization_details (RFC 9396), pushed via PAR (RFC 9126):</strong>
-        <pre className="ib-grant-json">{JSON.stringify(PAR_PAYLOAD, null, 2)}</pre>
+      {/* One persistent live region per column: a run's outcome is announced where focus already is (the Run button). */}
+      <div className="ib-result" role="status" data-testid={`ib-result-${kind}`}>
+        {col.loading ? <p className="pu-status-line"><StatusChip>Running</StatusChip>Waiting for the decision.</p> : null}
+        {col.error ? (
+          <div className="ib-status ib-status--error">
+            <p className="pu-status-line"><StatusChip tone="danger">Error</StatusChip>{col.error}</p>
+          </div>
+        ) : null}
+        {col.result ? (
+          <div className={`ib-status ib-status--${permit ? "permit" : "deny"}`}>
+            <p className="pu-status-line">
+              <StatusChip tone={permit ? "ok" : "danger"}>{permit ? "PERMIT" : `DENY (${col.result.errorCode})`}</StatusChip>
+              <StatusChip tone={runEngine(col.result).tone}>{runEngine(col.result).word}</StatusChip>
+            </p>
+            <ul>
+              {(col.result.tokenChainEvents || []).map((ev) => (
+                <li key={ev.id}>
+                  <strong>{ev.label}</strong> — {ev.status}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
-
-      <div id="rar">
-        <div className="ib-flow-diagram">
-          <strong>PAR + RAR flow through the system:</strong>
-          <svg viewBox="0 0 1000 200" className="ib-flow-svg">
-            <rect x="10" y="40" width="110" height="60" rx="4" fill="#e3f2fd" stroke="#1976d2" strokeWidth="2" />
-            <text x="65" y="75" textAnchor="middle" fontSize="14" fontWeight="500">User Declares</text>
-            <text x="65" y="92" textAnchor="middle" fontSize="12">Intent: $100</text>
-
-            <path d="M 120 70 L 150 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-            <rect x="150" y="40" width="130" height="60" rx="4" fill="#f3e5f5" stroke="#7b1fa2" strokeWidth="2" />
-            <text x="215" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Push to PAR</text>
-            <text x="215" y="77" textAnchor="middle" fontSize="11">Endpoint</text>
-            <text x="215" y="92" textAnchor="middle" fontSize="10" fill="#666">(auth payload)</text>
-
-            <path d="M 280 70 L 310 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-            <rect x="310" y="40" width="130" height="60" rx="4" fill="#fce4ec" stroke="#c2185b" strokeWidth="2" />
-            <text x="375" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Receive</text>
-            <text x="375" y="77" textAnchor="middle" fontSize="11">request_uri</text>
-            <text x="375" y="92" textAnchor="middle" fontSize="10" fill="#666">(reference ID)</text>
-
-            <path d="M 440 70 L 470 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-            <rect x="470" y="40" width="140" height="60" rx="4" fill="#e8f5e9" stroke="#388e3c" strokeWidth="2" />
-            <text x="540" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Token Exchange</text>
-            <text x="540" y="77" textAnchor="middle" fontSize="11">with request_uri</text>
-            <text x="540" y="92" textAnchor="middle" fontSize="10" fill="#666">(via Agent Gateway)</text>
-
-            <path d="M 610 70 L 640 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
-
-            <rect x="640" y="30" width="160" height="80" rx="4" fill="#fff3e0" stroke="#f57c00" strokeWidth="2" />
-            <text x="720" y="50" textAnchor="middle" fontSize="12" fontWeight="500">PingOne Authorize</text>
-            <text x="720" y="67" textAnchor="middle" fontSize="11">Resolves request_uri,</text>
-            <text x="720" y="84" textAnchor="middle" fontSize="11">validates amount cap</text>
-            <text x="720" y="101" textAnchor="middle" fontSize="10" fill="#f57c00" fontWeight="500">→ PERMIT/DENY</text>
-
-            <defs>
-              <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                <polygon points="0 0, 10 3, 0 6" fill="#666" />
-              </marker>
-            </defs>
-          </svg>
-        </div>
-
-        <div className="ib-split">
-        <IntentBindingColumn
-          kind="permit"
-          title="Within the grant"
-          outcomeLabel="Permit"
-          rationale={`$${permitCol.amount} is within the $${PAR_PAYLOAD.amount} cap. Steps 3-4 complete and the gateway confirms the request matches the declared intent.`}
-          col={permitCol}
-          live={live}
-        />
-        <IntentBindingColumn
-          kind="drift"
-          title="Drifts past the grant"
-          outcomeLabel="Deny"
-          rationale={`$${driftCol.amount} exceeds the $${PAR_PAYLOAD.amount} cap. Step 4 stops the chain — the transfer never reaches the account.`}
-          col={driftCol}
-          live={live}
-        />
-        </div>
-      </div>
-
-      <div className="ib-live-toggle">
-        <label>
-          <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
-          Live mode — route this decision through real PingOne Authorize instead of the simulated engine
-        </label>
-      </div>
-
-      <p className="ib-edu-link">
-        PAR (RFC 9126) is how the request travels; RAR (RFC 9396) is what it means. See the{" "}
-        <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.PAR, "what")}>
-          PAR education panel
-        </button>{" "}or the{" "}
-        <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.RAR, "what")}>
-          RAR education panel
-        </button>.
-      </p>
-
-      <button className="ib-back-btn ib-back-btn--bottom" onClick={() => navigate("/dashboard")}>
-        Back to Dashboard
-      </button>
-    </div>
+      {col.result && col.ran ? (
+        <RunReel kind={kind} result={col.result} action={kind} amount={col.ran.amount} live={col.ran.live} />
+      ) : null}
+    </Card>
   );
 }

@@ -6,6 +6,7 @@
 /delegation-chain-value
 /privilege-map
 /weather-mcp
+/intent-binding-learning
 /brave-mcp
 /demo-track
 /privilege-coding-agents
