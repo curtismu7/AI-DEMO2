@@ -39,6 +39,7 @@
 /personal-agent/full
 /ai-products/core
 /ai-products/gateway
+/digital-worker
 /gateway-claims
 /gateway-stats
 /ai-products/authorize

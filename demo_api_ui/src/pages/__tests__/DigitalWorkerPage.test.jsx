@@ -88,6 +88,65 @@ describe("DigitalWorkerPage diagram rule", () => {
   });
 });
 
+describe("DigitalWorkerPage Ping UI Standard", () => {
+  it("opens with the honest banner as the first element inside the page root, before the title band", async () => {
+    const { container } = renderPage();
+    const root = container.querySelector(".pu-page.dw-page");
+    expect(root).toBeTruthy();
+    const banner = screen.getByTestId("dw-banner");
+    expect(banner.getAttribute("role")).toBe("note");
+    expect(root.firstElementChild.contains(banner)).toBe(true);
+    // what is simulated: the phone and the drawing; no source is named, so the text cannot disagree with the mode in use
+    expect(banner).toHaveTextContent(/mock/i);
+    expect(banner).toHaveTextContent(/drawing/i);
+    expect(banner).not.toHaveTextContent(/PingOne|gateway/i);
+    expect(banner.compareDocumentPosition(screen.getByRole("heading", { level: 1, name: "Digital Worker" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByTestId("studio");
+  });
+
+  it("labels the diagram as a drawing with a chip that carries a word, and the toolbar buttons are secondaries", async () => {
+    renderPage();
+    const diagram = screen.getByRole("region", { name: "How it works" });
+    expect(within(diagram).getByText("Drawing")).toBeTruthy();
+    const bar = within(diagram).getByText("+ Add box").closest(".dw-bar");
+    bar.querySelectorAll(":scope > button").forEach((b) => {
+      expect(b.classList.contains("pu-btn")).toBe(true);
+      expect(b.classList.contains("pu-btn--primary")).toBe(false);
+    });
+    await screen.findByTestId("studio");
+  });
+
+  it("Undo keeps keyboard focus when there is nothing to undo (aria-disabled, not disabled)", async () => {
+    localStorage.clear();
+    renderPage();
+    const undo = screen.getByText("Undo");
+    expect(undo.getAttribute("aria-disabled")).toBe("true");
+    expect(undo.disabled).toBe(false);
+    undo.focus();
+    fireEvent.click(undo);
+    expect(document.activeElement).toBe(undo);
+    await screen.findByTestId("studio");
+  });
+
+  it("signed out: the one primary on the Attended tab is Sign in, with a visible reason", async () => {
+    const wall = Object.assign(new Error("Unauthorized"), { response: { status: 401 } });
+    apiClient.get.mockImplementation((url) => (url.startsWith("/api/autonomous-runs") ? Promise.resolve({ data: { enabled: false } }) : Promise.reject(wall)));
+    renderPage();
+    await screen.findByText("Sign in to run the governed worker.");
+    const attended = document.getElementById("dw-pane-attended");
+    expect(within(attended).getByText("Sign-in needed")).toBeTruthy();
+    expect([...attended.querySelectorAll(".pu-btn--primary")].map((b) => b.textContent)).toEqual(["Sign in"]);
+    expect(openSignIn).not.toHaveBeenCalled(); // nothing navigates until the visitor presses it
+  });
+
+  it("a failed catalog load is a chip with a word, not colour alone", async () => {
+    apiClient.get.mockImplementation((url) => (url.startsWith("/api/use-cases/UC38") ? Promise.reject(new Error("down")) : Promise.resolve({ data: {} })));
+    renderPage();
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Failed")).toBeTruthy();
+  });
+});
+
 describe("DigitalWorkerPage learning surfaces", () => {
   it("page guide lists the digital-worker-live lesson and the catalog has it", () => {
     expect(PAGE_GUIDES["/digital-worker"].lessons).toContain("digital-worker-live");
@@ -119,7 +178,7 @@ describe("DigitalWorkerPage run sections", () => {
     renderPage();
     await screen.findByTestId("studio"); // let the page's fetches settle
     const agent = screen.getByRole("region", { name: "Digital worker agent" });
-    const diagram = screen.getByRole("region", { name: "Architecture diagram" });
+    const diagram = screen.getByRole("region", { name: "How it works" });
     // DOCUMENT_POSITION_FOLLOWING: the diagram comes after the agent card.
     expect(agent.compareDocumentPosition(diagram) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(diagram).getByRole("heading", { name: "How it works" })).toBeTruthy();
@@ -241,6 +300,24 @@ describe("DigitalWorkerPage consent phone", () => {
     await screen.findByTestId("consent-mock-phone");
     fireEvent.click(screen.getByText("Deny on mock phone"));
     await waitFor(() => expect(screen.getByTestId("studio").dataset.gateResult).toBe("false"));
+  });
+
+  it("a signed-out phone shows a sign-in message whose button is a secondary, so the run's own primary stays the one", async () => {
+    apiClient.post.mockImplementationOnce(() => Promise.reject(Object.assign(new Error("Unauthorized"), { response: { status: 401 } })));
+    renderPage();
+    await screen.findByTestId("studio");
+    fireEvent.click(screen.getByText("probe run"));
+    const host = await waitFor(() => {
+      const el = document.querySelector(".dw-consent");
+      expect(el).toBeTruthy();
+      return el;
+    });
+    expect(within(host).getByText("Sign-in needed")).toBeTruthy();
+    expect(within(host).getByRole("button", { name: "Sign in" }).classList.contains("pu-btn--primary")).toBe(false);
+    expect(host.querySelectorAll(".pu-btn--primary")).toHaveLength(0);
+    // the phone card the visitor was in is gone: focus lands on the named sign-in group, not the body
+    const group = within(host).getByRole("group", { name: "Sign-in needed" });
+    await waitFor(() => expect(document.activeElement).toBe(group));
   });
 
   it("runs without a phone when the run prompt names no amount (nothing to approve)", async () => {
