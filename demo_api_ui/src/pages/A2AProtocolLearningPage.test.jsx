@@ -14,7 +14,7 @@ vi.mock('../context/ThemeContext', () => ({
   useThemeOptional: () => ({ darkMode: false, toggleDarkMode: vi.fn() }),
 }));
 
-vi.mock('../components/SignInPrompt', () => ({ default: () => null }));
+vi.mock('../components/SignInPrompt', () => ({ default: () => <div data-testid="signin-strip" /> }));
 
 vi.mock('../utils/a2aChainDetail', () => ({
   buildA2aChainDetail: () => ({ present: false }),
@@ -31,12 +31,19 @@ vi.mock('../data/a2aRecordedRun', () => ({
 }));
 
 const cardSummary = vi.hoisted(() => ({ value: null }));
+const teachingPanes = vi.hoisted(() => ({ value: [] }));
 
 vi.mock('./a2aTeachingPanes', () => ({
-  buildA2aTeachingPanes: () => [],
+  buildA2aTeachingPanes: () => teachingPanes.value,
   summarizeAgentCard: () => cardSummary.value,
   summarizeActChain: () => null,
   LAYER: { IDENTITY: 'identity', WIRE: 'wire' },
+  PROVENANCE: {
+    RECONSTRUCTED: 'reconstructed',
+    DECODED: 'decoded-claims',
+    LIVE: 'live-http',
+    IN_PROCESS: 'in-process',
+  },
 }));
 
 function EducationState() {
@@ -223,5 +230,180 @@ describe('A2A protocol learning page sections', () => {
     const second = renderPage();
     expect(second.container.querySelector('details#card').open).toBe(false);
     expect(second.container.querySelector('details#layers').open).toBe(true);
+  });
+});
+
+const json = (status, body, type = 'application/json') => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: () => type },
+  json: async () => body,
+});
+
+describe('A2A protocol learning page: Ping UI Standard', () => {
+  beforeEach(() => {
+    localStorage.removeItem(A2A_SECTION_FOLD_STORAGE_NAME);
+    teachingPanes.value = [];
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    teachingPanes.value = [];
+  });
+
+  it('puts the note banner first inside the Ping UI page, and says the run is recorded', () => {
+    const { container } = renderPage();
+    const page = container.querySelector('.pu-page.a2l-page');
+    expect(page).not.toBeNull();
+    expect(page.firstElementChild.className).toContain('pu-banner-wrap');
+    const banner = screen.getByTestId('a2l-banner');
+    expect(banner).toHaveAttribute('role', 'note');
+    expect(banner).toHaveTextContent('RECORDED RUN');
+    expect(banner).toHaveTextContent(/captured 2026-09-01 for sporting-goods/);
+  });
+
+  it('has exactly one primary button, "Run the delegation", and every other button is a secondary', () => {
+    const { container } = renderPage();
+    const primaries = container.querySelectorAll('button.pu-btn--primary');
+    expect(primaries).toHaveLength(1);
+    expect(primaries[0]).toHaveTextContent('Run the delegation');
+    expect(screen.getByRole('button', { name: 'Send without a bearer' }).className).not.toContain('pu-btn--primary');
+    expect(screen.getByRole('button', { name: 'Expand all' }).className).toBe('pu-btn');
+    expect(screen.getByTestId('a2l-theme-toggle')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('labels the Agent Card by what was checked: a failed fetch is never green', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('a2l-card-status')).toHaveTextContent('Unavailable'));
+    expect(screen.getByTestId('a2l-card-status')).toHaveTextContent(/live fetch failed \(offline\)/);
+    expect(screen.getByTestId('a2l-card-status')).toHaveAttribute('role', 'status');
+    expect(screen.getByTestId('a2l-card').className).not.toContain('pu-card--live');
+    expect(screen.getByTestId('a2l-card')).not.toHaveTextContent(/just now/);
+  });
+
+  it('shows a live Agent Card as a live fetch only after JSON came back', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => (
+      String(url).includes('agent-card.json')
+        ? json(200, { name: 'Membership Specialist' })
+        : Promise.reject(new Error('offline'))
+    )));
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('a2l-card-status')).toHaveTextContent('Live fetch'));
+    expect(screen.getByTestId('a2l-card').className).toContain('pu-card--live');
+  });
+
+  it('treats a 200 text/html answer (no /a2a/ proxy) as a failed fetch, not a live card', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => (
+      String(url).includes('agent-card.json') ? json(200, null, 'text/html') : Promise.reject(new Error('offline'))
+    )));
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('a2l-card-status')).toHaveTextContent('Unavailable'));
+    expect(screen.getByTestId('a2l-card-status')).toHaveTextContent('text/html');
+  });
+
+  it('the no-bearer probe reports Refused on 401, keeps its own vertical, and uses aria-disabled while sending', async () => {
+    let release;
+    const pending = new Promise((resolve) => { release = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      if (init?.method === 'POST') { await pending; return json(401, { error: 'unauthorized' }); }
+      return Promise.reject(new Error('offline'));
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+    const button = screen.getByTestId('a2l-probe-btn');
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    expect(screen.getByTestId('a2l-probe-status')).toHaveTextContent('Sending');
+    await user.click(button); // ignored while pending
+    expect(fetch.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+    release();
+    await waitFor(() => expect(screen.getByTestId('a2l-probe-status')).toHaveTextContent('Refused'));
+    expect(screen.getByTestId('a2l-probe-status')).toHaveTextContent('HTTP 401');
+    expect(screen.getByTestId('a2l-probe-status')).toHaveAttribute('role', 'status');
+    expect(button).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('the probe does not call a 200 a refusal', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => (
+      init?.method === 'POST' ? json(200, { ok: true }) : Promise.reject(new Error('offline'))
+    )));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+    await user.click(screen.getByTestId('a2l-probe-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-probe-status')).toHaveTextContent('Unexpected'));
+    expect(screen.getByTestId('a2l-probe-status')).not.toHaveTextContent('Refused');
+  });
+
+  it('"Run the delegation" keeps keyboard focus while running (aria-disabled, not disabled)', async () => {
+    let release;
+    const pending = new Promise((resolve) => { release = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      if (String(url) === '/api/a2a/init') return json(200, {});
+      if (String(url) === '/api/a2a/message') { await pending; return json(401, { need_auth: true }); }
+      return Promise.reject(new Error('offline'));
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+    const button = screen.getByTestId('a2l-run-btn');
+    button.focus();
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveFocus();
+    expect(button).toHaveTextContent('Running…');
+    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('Running');
+    release();
+    await waitFor(() => expect(screen.getByTestId('signin-strip')).toBeInTheDocument());
+    expect(button).toHaveFocus();
+    // Signed out: the page says so inline and stays on the recorded run (no redirect, no result swap).
+    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('Recorded run');
+    expect(document.querySelectorAll('button.pu-btn--primary')).toHaveLength(1);
+  });
+
+  it('a live run is called a live run for the vertical it ran for, in the banner and the status line', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url) === '/api/a2a/init') return json(200, {});
+      if (String(url) === '/api/a2a/message') return json(200, { tokenEvents: [{ id: 'user-token' }] });
+      return Promise.reject(new Error('offline'));
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+    await user.click(screen.getByTestId('a2l-run-btn'));
+    await waitFor(() => expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('Live run'));
+    expect(screen.getByTestId('a2l-run-status')).toHaveTextContent('for sporting-goods');
+    expect(screen.getByTestId('a2l-banner')).toHaveTextContent('LIVE RUN');
+    expect(screen.getByTestId('a2l-banner')).not.toHaveTextContent(/captured 2026-09-01/);
+  });
+
+  it('panes name what they are, and a recorded run never claims a browser-made request', () => {
+    teachingPanes.value = [
+      { key: 'a', layer: 'wire', title: 'Agent Card · discovery', provenance: 'live-http', caption: 'A real HTTP request, made from your browser just now.', body: { x: 1 } },
+      { key: 'b', layer: 'identity', title: 'Exchange #1 — request', provenance: 'reconstructed', caption: 'Reconstructed parameter summary.', body: { y: 1 } },
+    ];
+    renderPage();
+    expect(screen.getByText('Recorded · HTTP on the wire')).toBeInTheDocument();
+    expect(screen.getByText('Recorded · Reconstructed')).toBeInTheDocument();
+    expect(screen.queryByText(/just now/)).toBeNull();
+    expect(screen.getByText(/Your browser did not send it/)).toBeInTheDocument();
+    expect(screen.queryByText('Recorded run', { selector: '.pu-chip' })).not.toBeNull();
+  });
+
+  it('implementation status chips carry the word and are not green', () => {
+    const { container } = renderPage();
+    const chips = container.querySelectorAll('[data-testid="a2l-status-card"] .pu-chip');
+    expect(chips.length).toBeGreaterThan(0);
+    chips.forEach((chip) => {
+      expect(chip.textContent.trim().length).toBeGreaterThan(0);
+      expect(chip.className).not.toContain('pu-chip--ok');
+    });
+  });
+
+  it('keeps no inline colour, no violet and no vertical token in the page sheet', () => {
+    const rules = pageCss.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).not.toMatch(/--app-primary-red|--brand-|--theme-accent/);
+    expect(rules).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(rules).not.toMatch(/prefers-color-scheme/);
   });
 });

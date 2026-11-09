@@ -408,7 +408,7 @@ const r = (
 
   it('the newly resolvable routes are advisory, never enforced by accident', () => {
     const { pages } = runAll();
-    for (const route of ['/intent-binding-learning', '/a2a-protocol-learning', '/privilege-mcp-learning', '/agent-gateway-inspector', '/llm-gateway', '/llm-test', '/use-cases/live']) {
+    for (const route of ['/intent-binding-learning', '/privilege-mcp-learning', '/agent-gateway-inspector', '/llm-gateway', '/llm-test', '/use-cases/live']) {
       const page = pages.find((p) => p.routes.includes(route));
       expect(page, route).toBeTruthy();
       expect(page.enforced, route).toBe(false);
