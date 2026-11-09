@@ -97,6 +97,7 @@
 
 .pu-page.lcp .lcp-table tr.lcp-row--active td {
   background: var(--th-bg-inset);
+  color: var(--th-text);
   font-weight: var(--font-weight-semibold);
 }
 
