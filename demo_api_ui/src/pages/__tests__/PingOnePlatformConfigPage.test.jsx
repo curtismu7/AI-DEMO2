@@ -56,9 +56,38 @@ describe("PingOne platform config (Ping UI Standard)", () => {
       }).textContent;
     expect(chipFor("PingOne Protect")).toBe("Not provisioned");
     expect(chipFor("DaVinci orchestration showcase (flag off by default)")).toBe("Flag off by default");
-    expect(chipFor("DaVinci CIBA flow policies")).toBe("From provisioning code");
+    // Rows the provisioning code does NOT create must not carry the "From provisioning code" word.
+    expect(chipFor("DaVinci CIBA flow policies")).toBe("Set up in console");
     // No chip claims a live "configured" or "present" state: the page never calls PingOne.
     expect([...container.querySelectorAll(".pu-chip--ok")]).toHaveLength(0);
+  });
+
+  it("does not say 'From provisioning code' on rows the provisioning code does not create", () => {
+    const { container } = renderPage();
+    const chipByTitle = (title) =>
+      [...container.querySelectorAll(".pu-card")]
+        .find((c) => c.querySelector(".pu-h3, h3")?.textContent === title)
+        ?.querySelector(".pu-chip")?.textContent;
+    expect(chipByTitle("Autonomous agents (Fraud Watch, Balance Sweep)")).toBe("Opt-in script");
+    expect(chipByTitle("Demo AI App - CIBA (+ CIBA SMS)")).toBe("Set up in console");
+    expect(chipByTitle("Admin role \u2014 NOT groups")).toBe("Resolver, not an object");
+    expect(chipByTitle("PingOne Verify / MFA / Recognize")).toBe("Flag-gated or external");
+    // The default rows still say where they come from.
+    expect(chipByTitle("Demo API")).toBe("From provisioning code");
+    for (const c of container.querySelectorAll(".pu-chip")) expect(c.className).not.toMatch(/pu-chip--(ok|good|success)/);
+  });
+
+  it("does not claim that everything is created by bootstrapPingOne", () => {
+    const { container } = renderPage();
+    expect(container.textContent).not.toMatch(/Everything is created by bootstrapPingOne/);
+    expect(container.textContent).toMatch(/Most of it is created by bootstrapPingOne/);
+  });
+
+  it("keeps list semantics on the card grids (list-style none drops them in Safari/VoiceOver)", () => {
+    const { container } = renderPage();
+    const lists = container.querySelectorAll("ul.p1platform__rows");
+    expect(lists).toHaveLength(4);
+    lists.forEach((ul) => expect(ul).toHaveAttribute("role", "list"));
   });
 
   it("has exactly one primary, the PingOne setup link, in the Ping Red primary class", () => {
