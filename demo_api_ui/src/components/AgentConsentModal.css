@@ -286,17 +286,29 @@
   border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
-.acm-btn--primary:hover:not(:disabled) {
+.acm-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--btn-accent-gradient-hover);
   border-color: var(--btn-accent-hover);
 }
-/* Disabled = "not ready yet": neutral, not a faded brand color */
-.acm-btn--primary:disabled {
-  background: #e0e2e4;
-  color: #051727;
-  border-color: #e0e2e4;
+/* Not ready yet (unticked box = aria-disabled, in flight = disabled): the label stays white at FULL opacity, the
+   fill goes to the muted Ping Red and the edge turns dashed. No opacity: fading the brand gradient pulled the
+   white label toward the ground. White on the muted fill is 7.22:1 / 9.55:1 in both themes. */
+.acm-btn--primary:disabled,
+.acm-btn--primary[aria-disabled="true"] {
+  background: var(--btn-accent-inactive-gradient);
+  color: var(--btn-accent-text);
+  border: 1px dashed var(--btn-accent-edge);
   box-shadow: none;
   cursor: not-allowed;
+}
+
+/* The visible reason the primary is not ready (also its aria-describedby). */
+.acm-reason {
+  margin: -4px 0 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--th-text);
 }
 
 .acm-btn--secondary {

@@ -9,10 +9,13 @@ import "./AgentConsentModal.css";
  *
  * Three modes:
  *   1. MCP HITL agent action — when `hitlContext` prop is provided.
- *      Shows tool name + reason, consent checkbox, then calls onAccept()
- *      which triggers the OTP flow before approving the HITL challenge.
+ *      Shows tool name + reason and a consent checkbox, then calls onAccept(),
+ *      which approves the pending challenge and retries the agent's request.
+ *      Approving is the whole gate here: no one-time code is requested by this
+ *      modal. If the retry needs extra verification (step-up MFA or CIBA), the
+ *      response handler opens that prompt on its own afterwards.
  *   2. High-risk transaction consent — when a `transaction` prop is provided.
- *      Shows the transaction details and, on "Authorize", calls onAccept() directly.
+ *      Shows the request details and, on "Agree & Continue", calls onAccept() directly.
  *   3. Agent access consent (legacy) — no `transaction` or `hitlContext` prop.
  *      POSTs to /api/auth/oauth/user/consent before calling onAccept().
  *
@@ -98,6 +101,10 @@ export default function AgentConsentModal({
       : "Allow AI Agent Access";
 
   const requiresCheckbox = !!(hitlContext || transaction);
+  // Not ready yet: the box is unticked. aria-disabled (not `disabled`) keeps the button focusable so a keyboard
+  // user lands on it and hears the reason; handleAccept ignores the click. `accepting` uses real `disabled`.
+  const notReady = requiresCheckbox && !agreed;
+  const reasonId = "acm-primary-reason";
   // Cap to the viewport so the footer (Allow/Cancel) is always on-screen; the
   // body scrolls when content exceeds it.
   const defaultModalHeight =
@@ -112,8 +119,10 @@ export default function AgentConsentModal({
       <button
         type="button"
         className="acm-btn acm-btn--primary"
-        onClick={handleAccept}
-        disabled={accepting || (requiresCheckbox && !agreed)}
+        onClick={notReady ? undefined : handleAccept}
+        disabled={accepting}
+        aria-disabled={notReady ? "true" : undefined}
+        aria-describedby={notReady ? reasonId : undefined}
       >
         {accepting ? "Processing…" : requiresCheckbox ? "Agree & Continue" : "Allow"}
       </button>
@@ -176,9 +185,9 @@ export default function AgentConsentModal({
             </section>
 
             <ul className="acm-assurances">
-              <li>Verified with a one-time code sent to your registered contact</li>
-              <li>Recorded in the audit trail</li>
-              <li>Cannot proceed without your explicit approval</li>
+              <li>Your decision is recorded in the audit trail</li>
+              <li>The agent waits for your decision and cannot proceed without it</li>
+              <li>If this action needs more verification, such as an MFA prompt, you are asked for it after you approve</li>
             </ul>
 
             <label className="acm-agree-label">
@@ -190,6 +199,11 @@ export default function AgentConsentModal({
               />
               <span>I have reviewed this request and authorize the agent to proceed.</span>
             </label>
+            {notReady && (
+              <p id={reasonId} className="acm-reason">
+                Tick the box above to turn on Agree &amp; Continue.
+              </p>
+            )}
           </>
         ) : transaction ? (
           <>
@@ -222,9 +236,9 @@ export default function AgentConsentModal({
             )}
 
             <ul className="acm-assurances">
-              <li>Verified with a one-time code sent to your registered email</li>
-              <li>Recorded in the audit trail</li>
-              <li>Cannot proceed without your explicit approval</li>
+              <li>Your decision is recorded in the audit trail</li>
+              <li>The agent waits for your decision and cannot proceed without it</li>
+              <li>If this action needs more verification, such as an MFA prompt, you are asked for it after you approve</li>
             </ul>
 
             <label className="acm-agree-label">
@@ -236,6 +250,11 @@ export default function AgentConsentModal({
               />
               <span>I have reviewed the details above and authorize this action.</span>
             </label>
+            {notReady && (
+              <p id={reasonId} className="acm-reason">
+                Tick the box above to turn on Agree &amp; Continue.
+              </p>
+            )}
           </>
         ) : (
           <>

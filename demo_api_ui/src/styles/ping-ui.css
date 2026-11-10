@@ -344,9 +344,14 @@
   border-color: var(--btn-accent-edge);
 }
 
-/* A disabled primary keeps its label readable. */
+/* A disabled primary keeps its label readable: no opacity (0.88 over the ground lowered the white label's contrast).
+   Same white label at full opacity on the muted Ping Red, with a dashed edge. 7.22:1 and 9.55:1 for the label. */
 .pu-page button.pu-btn.pu-btn--primary:disabled {
-  opacity: 0.88;
+  opacity: 1;
+  background-color: var(--btn-accent-inactive);
+  background-image: var(--btn-accent-inactive-gradient);
+  border: 1px dashed var(--btn-accent-edge);
+  color: var(--btn-accent-text);
 }
 
 /* A control that cannot act right now but must keep keyboard focus (a disabled button drops focus to the page body)
@@ -357,7 +362,11 @@
 }
 
 .pu-page button.pu-btn.pu-btn--primary[aria-disabled='true'] {
-  opacity: 0.88;
+  opacity: 1;
+  background-color: var(--btn-accent-inactive);
+  background-image: var(--btn-accent-inactive-gradient);
+  border: 1px dashed var(--btn-accent-edge);
+  color: var(--btn-accent-text);
 }
 
 .pu-page .pu-btn[aria-disabled='true']:hover:not(:disabled) {
@@ -365,7 +374,7 @@
 }
 
 .pu-page button.pu-btn.pu-btn--primary[aria-disabled='true']:hover:not(:disabled) {
-  background-image: var(--btn-accent-gradient);
+  background-image: var(--btn-accent-inactive-gradient);
   border-color: var(--btn-accent-edge);
 }
 
