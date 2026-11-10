@@ -70,9 +70,13 @@ export default function PingFederateIdJagExplainerPage() {
         <Section id="id-jag-flow" kicker="The request path" title="What happens when you run “show my balance”">
           <div className="pu-status-line">
             <button type="button" className="pu-btn" aria-pressed={simple} onClick={() => setSimple(!simple)}>
-              {simple ? "Show the technical version" : "Explain it simply"}
+              Explain it simply
             </button>
-            <StatusChip tone="neutral">{simple ? "Plain-language story" : "Technical version"}</StatusChip>
+            {/* Mounted from the first render, so the text change below is announced. The button's name stays fixed;
+                aria-pressed carries on/off and this region says which version is showing. */}
+            <span role="status" aria-live="polite" data-testid="pfj-view-status">
+              <StatusChip tone="neutral">{simple ? "Plain-language story" : "Technical version"}</StatusChip>
+            </span>
           </div>
           <CardGrid>
             {FLOW.map(([number, title, detail]) => (

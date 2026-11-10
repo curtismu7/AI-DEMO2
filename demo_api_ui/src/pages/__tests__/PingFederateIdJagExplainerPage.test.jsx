@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { MemoryRouter } from "react-router-dom";
 import PingFederateIdJagExplainerPage from "../PingFederateIdJagExplainerPage";
 
@@ -29,7 +31,7 @@ describe("PingFederate ID-JAG explainer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Explain it simply" }));
     expect(screen.getByText(/permission slip/)).toBeInTheDocument();
     expect(screen.queryByText(/validates PingFederate's signature through its JWKS/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Show the technical version" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain it simply" }));
     expect(screen.getByText(/validates PingFederate's signature through its JWKS/)).toBeInTheDocument();
   });
 
@@ -62,15 +64,40 @@ describe("PingFederate ID-JAG explainer", () => {
     expect(primaries()).toEqual(["Run the demo"]);
   });
 
-  it("marks the chosen view with aria-pressed and a word chip, never colour alone", () => {
+  it("keeps one stable button name and carries the state in aria-pressed only", () => {
     render(<MemoryRouter><PingFederateIdJagExplainerPage /></MemoryRouter>);
     const toggle = screen.getByRole("button", { name: "Explain it simply" });
     expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByText("Technical version")).toHaveClass("pu-chip");
     fireEvent.click(toggle);
-    const back = screen.getByRole("button", { name: "Show the technical version" });
-    expect(back).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Plain-language story")).toHaveClass("pu-chip");
+    // Same node, same name: a name swap plus aria-pressed would announce the state twice, inverted.
+    expect(screen.getByRole("button", { name: "Explain it simply" })).toBe(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Show the technical version" })).toBeNull();
+  });
+
+  it("announces the chosen view in a status region that is mounted before the text changes", () => {
+    render(<MemoryRouter><PingFederateIdJagExplainerPage /></MemoryRouter>);
+    const live = screen.getByTestId("pfj-view-status");
+    expect(live).toHaveAttribute("role", "status");
+    expect(live).toHaveTextContent("Technical version");
+    expect(live.querySelector(".pu-chip")).toHaveClass("pu-chip--neutral");
+    fireEvent.click(screen.getByRole("button", { name: "Explain it simply" }));
+    // The very same element, not a new one, so assistive tech announces the change.
+    expect(screen.getByTestId("pfj-view-status")).toBe(live);
+    expect(live).toHaveTextContent("Plain-language story");
+  });
+
+  it("keeps focus on the toggle after the view changes", () => {
+    render(<MemoryRouter><PingFederateIdJagExplainerPage /></MemoryRouter>);
+    const toggle = screen.getByRole("button", { name: "Explain it simply" });
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("restyles the path bar's current-step pill so it is not a second red fill", () => {
+    const css = readFileSync(resolve(__dirname, "../PingFederateIdJagExplainerPage.css"), "utf8");
+    expect(css).toMatch(/\.pu-page\.pfj-explainer \.idjag-path \.idjag-path__stops \.is-current a(?:,[^{]*)?\{[^}]*background:\s*var\(--th-bg-card\)[^}]*color:\s*var\(--th-text\)/);
   });
 
   it("lists the trust boundary as a labelled key-value list", () => {

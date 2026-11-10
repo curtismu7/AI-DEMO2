@@ -34,6 +34,17 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* The bar's current-step pill (aria-current="step") is a location marker, not an action: a solid red fill read as a
+   second primary beside "Run the demo". Here it is the card colour with a heavy ink border, so it is marked by more
+   than colour. Background and ink are set together. */
+.pu-page.pfj-explainer .idjag-path .idjag-path__stops .is-current a,
+.pu-page.pfj-explainer .idjag-path .idjag-path__stops .is-current a:hover {
+  background: var(--th-bg-card);
+  border: 2px solid var(--th-text);
+  color: var(--th-text);
+  font-weight: var(--font-weight-bold, 700);
+}
+
 /* "Explain it simply" sits above the cards and shows the chosen view beside it. */
 .pu-page.pfj-explainer #id-jag-flow .pu-status-line {
   margin: 12px 0;
