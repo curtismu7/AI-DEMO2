@@ -133,7 +133,7 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
     expect(notifySuccess).toHaveBeenCalled();
 
     const result = screen.getByRole('region', { name: /registration result/i });
-    expect(document.activeElement).toBe(result);
+    await waitFor(() => expect(document.activeElement).toBe(result));
     expect(result.querySelector('dl.pu-kv')).not.toBeNull();
     const chips = [...result.querySelectorAll('.pu-chip')].map((c) => c.textContent.trim());
     expect(chips).toEqual(['Registered', 'Shown once']);

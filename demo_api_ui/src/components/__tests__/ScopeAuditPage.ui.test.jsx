@@ -7,6 +7,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import ScopeAuditPage from '../ScopeAuditPage';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 vi.mock('../CapabilityCallout', () => ({ default: () => null }));
 vi.mock('../../utils/appToast', () => ({ notifySuccess: vi.fn(), notifyError: vi.fn() }));
@@ -211,11 +212,15 @@ describe('ScopeAuditPage, Ping UI Standard', () => {
     const refresh = screen.getByTestId('scope-audit-refresh');
     refresh.focus();
     expect(document.activeElement).toBe(refresh);
+    // Let the audit render's passive effects flush before pressing: a stale effect run after the press would
+    // consume the page's "hand focus to the primary" flag with the Refresh button still mounted.
+    await flushEffects();
     stubApi({ status: 502, error: 'upstream timeout' });
     fireEvent.click(refresh);
     await waitFor(() => expect(screen.queryByTestId('scope-audit-refresh')).toBeNull());
     await waitFor(() => expect(screen.getByTestId('scope-audit-primary')).toHaveTextContent(/retry audit/i));
-    expect(document.activeElement).toBe(screen.getByTestId('scope-audit-primary'));
+    // Focus is handed over in an effect after the render that swaps the buttons.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('scope-audit-primary')));
     expect(document.activeElement).not.toBe(document.body);
   });
 

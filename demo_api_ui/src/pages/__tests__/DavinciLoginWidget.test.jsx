@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { flushEffects } from '../../test-utils/flushEffects';
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import DavinciLoginWidget from "../DavinciLoginWidget";
 
@@ -102,6 +103,7 @@ describe("DavinciLoginWidget accessibility and Ping UI hooks", () => {
     const first = await findByRole("button", { name: "Retry" });
     // First failure: nothing steals focus.
     expect(document.activeElement).not.toBe(first);
+    await flushEffects(); // run the first render's pending passive effects before interacting
     fireEvent.click(first);
     // Focus moves to the flow area in an effect, then to the new Retry button once the retry fails again.
     await waitFor(() => expect(document.activeElement).toBe(container.querySelector(".dvl-widget")));
@@ -147,8 +149,9 @@ describe("DavinciLoginWidget accessibility and Ping UI hooks", () => {
     const region = container.querySelector(".dvl-widget");
     expect(retry.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     retry.focus();
+    await flushEffects(); // run the first render's pending passive effects before interacting
     fireEvent.click(retry);
-    expect(document.activeElement).toBe(region);
+    await waitFor(() => expect(document.activeElement).toBe(region));
   });
 
   test("without ping, Retry keeps its original class", async () => {

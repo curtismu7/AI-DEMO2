@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { flushEffects } from '../../test-utils/flushEffects';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,6 +74,7 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     const retry = await within(scn).findByTestId('apd-retry');
     retry.focus();
     expect(document.activeElement).toBe(retry);
+    await flushEffects(); // run the first render's pending passive effects before interacting
     fireEvent.click(retry);
     await waitFor(() => expect(within(scn).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'allow'));
     expect(within(scn).queryByTestId('apd-retry')).toBeNull();

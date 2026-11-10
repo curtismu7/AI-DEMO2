@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { flushEffects } from '../../test-utils/flushEffects';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -440,10 +441,11 @@ describe('TokenExchangeTesterPage skeptic fixes', () => {
     const scopes = screen.getByLabelText(/Scopes/i);
     scopes.focus();
     expect(document.activeElement).toBe(scopes);
+    await flushEffects(); // run the first render's pending passive effects before interacting
     fireEvent.submit(scopes.closest('form'));
     await screen.findByText(/Your session ended/i);
     expect(screen.queryByLabelText(/Scopes/i)).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Customer Sign In/i }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Customer Sign In/i })));
   });
 
   it('a check that never answers ends as a plain-words state instead of "Checking" for ever', async () => {

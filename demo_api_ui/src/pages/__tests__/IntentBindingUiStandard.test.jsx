@@ -1,6 +1,7 @@
 // /intent-binding-learning on the Ping UI Standard: banner honesty per mode, one primary per state,
 // results that keep their own run's facts, and keyboard-safe disabled controls.
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { flushEffects } from "../../test-utils/flushEffects";
 import { MemoryRouter } from "react-router-dom";
 import IntentBindingLearningPage from "../IntentBindingLearningPage";
 
@@ -72,7 +73,7 @@ describe("one primary button per state (P9)", () => {
     global.fetch.mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ error: "authentication_required" }) });
     fireEvent.click(runButton("permit"));
     await screen.findByText(/needs a signed-in session/i);
-    expect(primaries(container)).toEqual([]);
+    await waitFor(() => expect(primaries(container)).toEqual([]));
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
   });
 
@@ -164,8 +165,9 @@ describe("reel controls", () => {
     expect(prev).not.toBeDisabled();
     expect(next).not.toHaveAttribute("aria-disabled");
     next.focus();
+    await flushEffects(); // the reel resets to frame 1 in an effect when its frames arrive: let that run before stepping
     fireEvent.click(next);
-    expect(next).toHaveAttribute("aria-disabled", "true");
+    await waitFor(() => expect(next).toHaveAttribute("aria-disabled", "true"));
     expect(document.activeElement).toBe(next);
     expect(reel).toHaveTextContent("2 / 2");
     fireEvent.click(next);

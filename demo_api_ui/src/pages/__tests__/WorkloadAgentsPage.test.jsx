@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { flushEffects } from '../../test-utils/flushEffects';
 import { MemoryRouter } from 'react-router-dom';
 import WorkloadAgentsPage from '../WorkloadAgentsPage';
 import { VerticalContext } from '../../vertical/VerticalProvider';
@@ -50,7 +51,8 @@ beforeEach(() => {
 describe('WorkloadAgentsPage', () => {
   it('uses the active vertical for a direct link without a vertical query', async () => {
     renderPage('/workload-agents?useCase=UC44', 'healthcare');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('healthcare');
+    const select = await screen.findByRole('combobox', { name: /vertical/i });
+    await waitFor(() => expect(select.value).toBe('healthcare'));
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=healthcare');
   });
 
@@ -66,20 +68,22 @@ describe('WorkloadAgentsPage', () => {
 
   it('ignores an active vertical the page has no actions for', async () => {
     renderPage('/workload-agents?useCase=UC38', 'pingone-admin');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('sporting-goods');
+    const select = await screen.findByRole('combobox', { name: /vertical/i });
+    await waitFor(() => expect(select.value).toBe('sporting-goods'));
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
   });
 
   it('uses Super Sports when a direct link has no vertical and no active selection', async () => {
     renderPage('/workload-agents');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('sporting-goods');
+    const select = await screen.findByRole('combobox', { name: /vertical/i });
+    await waitFor(() => expect(select.value).toBe('sporting-goods'));
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
   });
 
   it('offers all 11 supported verticals and respects the explicit deep link', async () => {
     renderPage();
     const selector = await screen.findByRole('combobox', { name: /vertical/i });
-    expect(within(selector).getAllByRole('option')).toHaveLength(11);
+    await waitFor(() => expect(within(selector).getAllByRole('option')).toHaveLength(11));
     expect(selector.value).toBe('sporting-goods');
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=sporting-goods');
@@ -106,6 +110,7 @@ describe('WorkloadAgentsPage', () => {
   it('runs the selected UC44 catalog action with its canonical slug and vertical', async () => {
     renderPage('/workload-agents?useCase=UC44&vertical=sporting-goods');
     const action = await screen.findByRole('button', { name: /Run this demo: UC44/i });
+    await waitFor(() => expect(action.getAttribute('aria-disabled')).toBeNull()); // inactive until the catalog action loads
     fireEvent.click(action);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
       body: withFlowTrace({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
@@ -115,7 +120,9 @@ describe('WorkloadAgentsPage', () => {
 
   it('runs UC38 with its distinct protected write prompt', async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Run this demo: UC38/i }));
+    const action = await screen.findByRole('button', { name: /Run this demo: UC38/i });
+    await waitFor(() => expect(action.getAttribute('aria-disabled')).toBeNull()); // inactive until the catalog action loads
+    fireEvent.click(action);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
       body: withFlowTrace({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'heuristics' }),
     })));
@@ -204,6 +211,7 @@ describe('WorkloadAgentsPage', () => {
       expect(screen.getAllByText('Unavailable').length).toBe(4);
       fail = false;
       retry.focus();
+      await flushEffects(); // run the first render's pending passive effects before interacting
       fireEvent.click(retry);
       await screen.findByText('list_gear');
       expect(screen.queryByRole('button', { name: /Retry loading actions/ })).toBeNull();
@@ -227,6 +235,7 @@ describe('WorkloadAgentsPage', () => {
       const retry = await screen.findByRole('button', { name: /Retry loading actions/ });
       retry.focus();
       release = undefined;
+      await flushEffects(); // run the first render's pending passive effects before interacting
       fireEvent.click(retry);
       // Reloading: the same node is still mounted and focused, inactive (not hidden), with the error text withheld.
       const during = screen.getByRole('button', { name: /Retry loading actions/ });
@@ -240,11 +249,12 @@ describe('WorkloadAgentsPage', () => {
       release();
       await waitFor(() => expect(screen.getByTestId('wa-error').textContent).toMatch(/Failed.*Actions could not be loaded/));
       expect(screen.getByRole('button', { name: /Retry loading actions/ })).toBe(retry);
-      expect(document.activeElement).toBe(retry);
+      await waitFor(() => expect(document.activeElement).toBe(retry));
       expect(retry.getAttribute('aria-disabled')).toBeNull();
       expect(screen.getByTestId('wa-banner-state').textContent).toMatch(/did not load/);
       // A later retry that works still ends on the Run button.
       fail = false;
+      await flushEffects(); // let the failed reload's effects settle before the next press
       fireEvent.click(retry);
       await screen.findByText('list_gear');
       await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Run this demo: UC38/ })));
