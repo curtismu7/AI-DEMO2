@@ -310,8 +310,8 @@
   border: 0;
 }
 
-/* Reload in flight: stays focusable, reads as busy, label stays readable. */
+/* Reload in flight: stays focusable, reads as busy. The look (muted Ping Red, white label, dashed edge, no opacity)
+   comes from the shared disabled primary in ping-ui.css; this rule only sets the cursor. */
 .ungov-page .pu-btn[aria-disabled="true"] {
-  opacity: 0.88;
   cursor: progress;
 }
