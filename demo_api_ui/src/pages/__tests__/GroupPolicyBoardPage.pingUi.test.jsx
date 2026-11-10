@@ -258,7 +258,8 @@ describe('GroupPolicyBoardPage — skeptic fixes', () => {
     fireEvent.click(flip);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/boom/));
     expect(screen.queryByTestId('gpb-check-toggle')).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Run check' }));
+    // Focus moves in an effect after the error state renders, so it can land just after the alert appears.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Run check' })));
     const result = screen.getByTestId('gpb-result');
     expect(result.textContent).not.toMatch(/No check has run yet/);
     expect(result).toHaveTextContent(/did not return a decision/);
