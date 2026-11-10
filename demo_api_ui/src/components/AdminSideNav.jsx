@@ -1137,7 +1137,7 @@ export default function AdminSideNav({
         { label: "All Diagrams", path: "/diagrams", icon: "arc" },
         { label: "Use-case diagrams", path: "/use-case-diagrams", icon: "arc" },
         { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
-        { label: "Where Everything Runs", path: "/where-everything-runs", icon: "arc", searchAlias: "where everything runs map docker kubernetes saas servers landscape movable diagram today after what-if env-map" },
+        { label: "Where Everything Runs", path: "/where-everything-runs", icon: "arc" },
         { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
@@ -1550,7 +1550,6 @@ export default function AdminSideNav({
           {
             label: "Inspect a token (ID-JAG)",
             path: "/pingfederate-id-jag/inspect",
-            searchAlias: "ID-JAG inspect token decode paste jwt claims typ oauth-id-jag+jwt PingFederate",
           },
           {
             label: "ID-JAG Runner Lab (no Postman)",
@@ -1727,7 +1726,7 @@ export default function AdminSideNav({
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
       { label: "Request Flow Diagram", path: "/personal-agent-flow", icon: "arc" },
-      { label: "Personal agent studio", path: "/personal-agent/learn", icon: "agt", searchAlias: "personal agent studio learn build try personal agent" },
+      { label: "Personal agent studio", path: "/personal-agent/learn", icon: "agt" },
       { label: "Poppy Protocol", path: "/poppy", icon: "agt", searchAlias: "poppy personal agent protocol papp poppy-session cimd client metadata document delegation protected resource well-known poppy.json" },
     ], "agt"),
     productGroup("Digital Worker", [digitalWorkerDiagram, authorizationFlow], "agt"),
@@ -1822,7 +1821,7 @@ export default function AdminSideNav({
       "Privilege Docs Index",
       "Claude Skills Index",
       { label: "Page Catalog", path: "/page-catalog" },
-      { label: "Intent binding (learn)", path: "/intent-binding-learning", icon: "doc", searchAlias: "intent binding learning agent intent checked step by step PAR RAR authorization_details pipeline transfer" },
+      { label: "Intent binding (learn)", path: "/intent-binding-learning", icon: "doc" },
       "SPIFFE → PingOne Bridge (TODO)",
       "llama-vscode Guide",
     ], "arc"),
