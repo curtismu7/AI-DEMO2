@@ -234,3 +234,22 @@
     min-height: 70vh;
   }
 }
+
+/* The demo-mode and idempotent-replay notices in the accounts section, and the "sign in" link inside the demo notice.
+   These were inline styles (a literal grey and --brand-navy); they now read the theme ink. */
+.udp-page .udp-demo-notice {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  margin-bottom: 0.75rem;
+}
+
+.udp-page .udp-link-btn {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--th-text);
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}

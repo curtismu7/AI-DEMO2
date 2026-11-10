@@ -85,6 +85,7 @@
 /
 /welcome
 /transaction-consent
+/dashboard
 /audit
 /pingfederate-id-jag/implementation
 /privilege-for-ai

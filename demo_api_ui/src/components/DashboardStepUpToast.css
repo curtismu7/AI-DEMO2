@@ -1,0 +1,13 @@
+/* RFC 9470 challenge line in the step-up toast (rendered by DashboardStepUpToast.jsx in the toast container, outside
+   the page). Was an inline style on the dashboard page. The darker patch is the always-dark band colour at 25%, the
+   same shade the old rgba(0, 0, 0, 0.25) gave on the toast. */
+.dashboard-toast-error__challenge {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: color-mix(in srgb, var(--th-bg-band) 25%, transparent);
+  color: inherit;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+  margin-bottom: 8px;
+}
