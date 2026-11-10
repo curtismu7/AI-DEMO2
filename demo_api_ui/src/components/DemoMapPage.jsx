@@ -14,6 +14,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { MISSION_CONTROL_CATALOG } from "../config/missionControlCatalog";
+import { DEMO_MAP_ROWS } from "../config/demoMapRows";
 import { getConfig, useCaseDiagramPath } from "../config/useCaseDiagrams";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
@@ -118,8 +119,31 @@ export default function DemoMapPage() {
         </Section>
 
         <Section
+          id="demo-map-products"
+          kicker="2 · Agents and products"
+          title="Agent demos and Ping products"
+          lede="The Personal Agent demo, the Digital Worker agent, and one row for each Ping product, with the pages that show each."
+        >
+          <CardGrid>
+            {DEMO_MAP_ROWS.map((row) => (
+              <Card key={row.id} data-testid={`demo-map-row-${row.id}`}>
+                <h3 className="pu-h3">{row.title}</h3>
+                <p className="pu-note demo-map__desc">{row.summary}</p>
+                <ul className="demo-map__links">
+                  {row.pages.map((pg) => (
+                    <li key={pg.path}>
+                      <Link to={pg.path} aria-label={`${pg.label} (${row.title})`}>{pg.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ))}
+          </CardGrid>
+        </Section>
+
+        <Section
           id="demo-map-lanes"
-          kicker="2 · Lanes"
+          kicker="3 · Lanes"
           title="Demo lanes"
           lede="One card per Mission Control lane, as recorded in the catalog."
         >
@@ -140,7 +164,7 @@ export default function DemoMapPage() {
         {planned.length > 0 && (
           <Section
             id="demo-map-planned"
-            kicker="3 · Planned"
+            kicker="4 · Planned"
             title="Planned lanes"
             lede="Not built yet: these have no steps to open."
           >

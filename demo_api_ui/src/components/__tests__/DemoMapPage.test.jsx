@@ -5,6 +5,9 @@ import DemoMapPage from "../DemoMapPage";
 import { MISSION_CONTROL_CATALOG } from "../../config/missionControlCatalog";
 import { CONFIGS } from "../../config/useCaseDiagrams";
 import { DEMO_STEP_GUIDES } from "../../config/demoStepGuides";
+import { DEMO_MAP_ROWS } from "../../config/demoMapRows";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 // The map's contract: every relationship it shows must resolve. A group's
 // step must exist in the guides (the launcher card), a diagrammed step must
@@ -137,6 +140,30 @@ describe("DemoMapPage", () => {
     if (planned.length === 0) return;
     expect(screen.getByRole("heading", { name: "Planned lanes" })).toBeTruthy();
     expect(screen.getAllByText("Planned").length).toBe(planned.length);
+  });
+
+  it("has a row for the Personal Agent demo, the Digital Worker agent and each Ping product", () => {
+    expect(DEMO_MAP_ROWS.map((r) => r.id)).toEqual([
+      "personal-agent", "digital-worker", "pingone", "pingfederate", "pinggateway", "privilege", "authorize",
+    ]);
+    render(
+      <MemoryRouter>
+        <DemoMapPage />
+      </MemoryRouter>,
+    );
+    for (const r of DEMO_MAP_ROWS) {
+      const card = screen.getByTestId(`demo-map-row-${r.id}`);
+      expect(card.textContent).toContain(r.title);
+      expect(card.querySelectorAll("a").length).toBe(r.pages.length);
+      expect(r.pages.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every row page is a real route in App.js", () => {
+    const app = readFileSync(path.resolve(__dirname, "../../App.js"), "utf8");
+    const routes = new Set([...app.matchAll(/path="(\/[^"]*)"/g)].map((m) => m[1]));
+    const missing = DEMO_MAP_ROWS.flatMap((r) => r.pages.map((p) => p.path)).filter((p) => !routes.has(p.split("?")[0]));
+    expect(missing).toEqual([]);
   });
 });
 
