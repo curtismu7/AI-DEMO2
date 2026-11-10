@@ -586,7 +586,7 @@ function AuthzDecisionResult({ result }) {
         </div>
       )}
       {result.decision_id && (
-        <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
+        <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'var(--font-mono)' }}>
           <span style={{ fontWeight: 600, fontFamily: 'inherit' }}>Decision ID:</span> {result.decision_id}
         </div>
       )}
@@ -620,7 +620,7 @@ function TransactionResult({ result, decision, onInitiateMfa, mfaInitiating }) {
         </div>
       )}
       {result.decisionId && (
-        <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
+        <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'var(--font-mono)' }}>
           <span style={{ fontWeight: 600, fontFamily: 'inherit' }}>Decision ID:</span> {result.decisionId}
         </div>
       )}
@@ -677,7 +677,7 @@ function IntrospectResult({ result }) {
           {rows.map(({ label, value, mono }) => (
             <tr key={label} style={{ borderBottom: '1px solid #f3f3f3' }}>
               <td style={{ padding: '4px 8px 4px 0', color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap', verticalAlign: 'top', width: '80px' }}>{label}</td>
-              <td style={{ padding: '4px 0', color: '#111', fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-all' }}>{value}</td>
+              <td style={{ padding: '4px 0', color: '#111', fontFamily: mono ? 'var(--font-mono)' : 'inherit', wordBreak: 'break-all' }}>{value}</td>
             </tr>
           ))}
         </tbody>

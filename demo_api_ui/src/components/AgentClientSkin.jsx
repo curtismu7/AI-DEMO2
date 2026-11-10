@@ -4,7 +4,7 @@ import './AgentClientSkin.css';
 
 function ToolUseBlock({ toolName, toolInput, colors }) {
   return (
-    <div style={{ fontFamily: 'monospace', fontSize: 12, background: colors.toolBg, border: `1px solid ${colors.toolBorder}`, borderRadius: 6, padding: '8px 12px', maxWidth: '100%', marginTop: 4 }}>
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: colors.toolBg, border: `1px solid ${colors.toolBorder}`, borderRadius: 6, padding: '8px 12px', maxWidth: '100%', marginTop: 4 }}>
       <div style={{ color: colors.toolColor, marginBottom: toolInput && Object.keys(toolInput).length > 0 ? 6 : 0 }}>
         <span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>
         <span style={{ fontWeight: 700 }}>{toolName}</span>
@@ -28,7 +28,7 @@ function ToolResultBlock({ toolName, data, colors }) {
   const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
   const isLong = text && text.length > 220;
   return (
-    <div style={{ fontFamily: 'monospace', fontSize: 11, background: colors.toolResultBg, border: `1px solid ${colors.toolBorder}`, borderRadius: 6, padding: '8px 12px', maxWidth: '100%', marginTop: 4 }}>
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: colors.toolResultBg, border: `1px solid ${colors.toolBorder}`, borderRadius: 6, padding: '8px 12px', maxWidth: '100%', marginTop: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ color: colors.toolColor, opacity: 0.65, fontSize: 10 }}>result: {toolName}</span>
         {isLong && (
@@ -167,7 +167,7 @@ const SKIN_CONFIG = {
     accentColor: '#ffb454',
     isTerminal: true,
     logo: () => (
-      <div style={{ width: 28, height: 20, fontFamily: 'monospace', fontSize: 16, color: '#ffb454', display: 'flex', alignItems: 'center', lineHeight: 1, flexShrink: 0 }}>
+      <div style={{ width: 28, height: 20, fontFamily: 'var(--font-mono)', fontSize: 16, color: '#ffb454', display: 'flex', alignItems: 'center', lineHeight: 1, flexShrink: 0 }}>
         {'>_'}
       </div>
     ),
@@ -330,7 +330,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
 
     if (msg.typing) {
       return (
-        <div key={i} style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, color: colors.agentBubbleColor }}>
+        <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.6, color: colors.agentBubbleColor }}>
           {prefix}
           <TypingIndicator color={colors.agentBubbleColor} isTerminal />
         </div>
@@ -338,7 +338,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
     }
     if (type === 'tool_use') {
       return (
-        <div key={i} style={{ fontFamily: 'monospace', fontSize: 12 }}>
+        <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <div style={{ color: colors.toolColor }}><span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>{msg.toolName}</div>
           {msg.toolInput && <pre style={{ color: colors.toolResultColor, margin: '4px 0 0 16px', whiteSpace: 'pre-wrap', fontSize: 11 }}>{JSON.stringify(msg.toolInput, null, 2)}</pre>}
         </div>
@@ -347,14 +347,14 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
     if (type === 'tool_result') {
       const text = typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data, null, 2);
       return (
-        <div key={i} style={{ fontFamily: 'monospace', fontSize: 11 }}>
+        <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <div style={{ color: colors.toolColor, opacity: 0.65, marginBottom: 2 }}>result: {msg.toolName}</div>
           <pre style={{ color: colors.toolResultColor, margin: '0 0 0 16px', whiteSpace: 'pre-wrap' }}>{text}</pre>
         </div>
       );
     }
     return (
-      <div key={i} style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: isUser ? colors.userBubbleColor : colors.agentBubbleColor }}>
+      <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: isUser ? colors.userBubbleColor : colors.agentBubbleColor }}>
         {prefix}{msg.text}
       </div>
     );
@@ -465,12 +465,12 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
   }
 
   return (
-    <div className="agent-client-skin" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
+    <div className="agent-client-skin" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'var(--font-mono)' : 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
       <div style={{ background: colors.headerBg, borderBottom: `1px solid ${colors.headerBorder}`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <cfg.logo />
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: isTerminal ? 12 : 13, fontWeight: isTerminal ? 400 : 600, color: colors.titleColor, fontFamily: isTerminal ? 'monospace' : 'inherit' }}>
+          <span style={{ fontSize: isTerminal ? 12 : 13, fontWeight: isTerminal ? 400 : 600, color: colors.titleColor, fontFamily: isTerminal ? 'var(--font-mono)' : 'inherit' }}>
             {isTerminal ? `claude@terminal: ~` : cfg.title}
           </span>
           <span style={{ fontSize: 11, color: colors.subtitleColor }}>{cfg.subtitle}</span>
@@ -509,7 +509,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
       {/* Input */}
       <div style={{ padding: '10px 16px', borderTop: `1px solid ${colors.inputBorder}`, background: colors.inputAreaBg, flexShrink: 0 }}>
         <div className="acs-field" style={{ display: 'flex', gap: 8, alignItems: 'center', background: isTerminal ? 'transparent' : 'rgba(128,128,128,0.07)', border: isTerminal ? 'none' : '1px solid rgba(128,128,128,0.15)', borderTop: isTerminal ? `1px solid ${colors.inputBorder}` : undefined, borderRadius: isTerminal ? 0 : 10, padding: isTerminal ? '4px 0' : '8px 12px' }}>
-          {isTerminal && <span style={{ color: '#79c0ff', fontFamily: 'monospace', fontSize: 13, flexShrink: 0 }}>$</span>}
+          {isTerminal && <span style={{ color: '#79c0ff', fontFamily: 'var(--font-mono)', fontSize: 13, flexShrink: 0 }}>$</span>}
           <input
             className="acs-input"
             type="text"
@@ -518,7 +518,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isTerminal ? '' : cfg.placeholder}
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: colors.inputColor, fontSize: isTerminal ? 13 : 13, fontFamily: isTerminal ? 'monospace' : 'inherit' }}
+            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: colors.inputColor, fontSize: isTerminal ? 13 : 13, fontFamily: isTerminal ? 'var(--font-mono)' : 'inherit' }}
           />
           {!isTerminal && (
             <button type="button" className="acs-send" aria-label="Send message" onClick={handleSend} style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: cfg.accentColor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -526,7 +526,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
             </button>
           )}
           {isTerminal && (
-            <button onClick={handleSend} style={{ fontSize: 11, color: accentText, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'monospace', flexShrink: 0, padding: '0 4px' }}>
+            <button onClick={handleSend} style={{ fontSize: 11, color: accentText, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', flexShrink: 0, padding: '0 4px' }}>
               [enter]
             </button>
           )}

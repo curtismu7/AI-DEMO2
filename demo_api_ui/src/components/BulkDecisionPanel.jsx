@@ -270,7 +270,7 @@ export default function BulkDecisionPanel() {
                       <td style={{ padding: '6px' }}>{String(!!r.stepUpRequired)}</td>
                       <td style={{ padding: '6px' }}>{String(!!(r.consentRequired || r.hitlRequired))}</td>
                       <td style={{ padding: '6px' }}>{r.elapsedMicroseconds ?? '—'}</td>
-                      <td style={{ padding: '6px', fontFamily: 'monospace' }}>{r.decisionId || '—'}</td>
+                      <td style={{ padding: '6px', fontFamily: 'var(--font-mono)' }}>{r.decisionId || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -300,7 +300,7 @@ export default function BulkDecisionPanel() {
               onChange={(e) => { setItemsText(e.target.value); setBundleKey(null); }}
               spellCheck={false}
               style={{
-                width: '100%', minHeight: '360px', fontFamily: 'monospace', fontSize: '12px',
+                width: '100%', minHeight: '360px', fontFamily: 'var(--font-mono)', fontSize: '12px',
                 padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box',
               }}
             />

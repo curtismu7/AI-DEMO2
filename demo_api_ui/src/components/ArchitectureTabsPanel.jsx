@@ -295,7 +295,7 @@ function DiagramRegeneratePanel({ user }) {
                   style={{
                     fontSize: "0.7rem",
                     color: "#64748b",
-                    fontFamily: "ui-monospace, Menlo, monospace",
+                    fontFamily: "var(--font-mono)",
                     marginBottom: "0.25rem",
                   }}
                 >
@@ -330,7 +330,7 @@ function DiagramRegeneratePanel({ user }) {
                 marginTop: "0.75rem",
                 background: "#0f172a",
                 color: "#e2e8f0",
-                fontFamily: "ui-monospace, Menlo, monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: "0.72rem",
                 padding: "0.6rem 0.75rem",
                 borderRadius: 4,
@@ -527,7 +527,7 @@ function SystemArchitectureView() {
           >
             Full system: browser → BFF → MCP gateway → backend MCP servers, with
             PingOne OAuth + RFC 8693 token exchange. Rendered from{" "}
-            <code style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
+            <code style={{ fontFamily: "var(--font-mono)" }}>
               architecture.mmd
             </code>
             . This diagram is dense — drag, pan and zoom it (or open the{" "}
@@ -574,7 +574,7 @@ function SystemArchitectureView() {
               }}
             >
               Showing only the {FOCUS_GROUPS[focus].label} slice of{" "}
-              <code style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
+              <code style={{ fontFamily: "var(--font-mono)" }}>
                 architecture.mmd
               </code>{" "}
               — switch to Full topology for everything.

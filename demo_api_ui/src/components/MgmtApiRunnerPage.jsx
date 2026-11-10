@@ -286,7 +286,7 @@ export default function MgmtApiRunnerPage() {
                   )}
                   {(result.steps || []).map((step) => (
                     <div key={step.label} style={{ marginBottom: 16 }}>
-                      <div style={{ fontFamily: "'SF Mono', monospace", fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                         {step.label} &rarr; {step.status}
                       </div>
                       <pre className="inspector-shell-output-code">
