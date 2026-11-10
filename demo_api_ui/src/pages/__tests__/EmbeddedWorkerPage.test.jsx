@@ -72,10 +72,10 @@ describe('EmbeddedWorkerPage', () => {
       expect(banner).toHaveAttribute('role', 'note');
       expect(container.querySelector('.pu-page').firstElementChild).toContainElement(banner);
       expect(banner).toHaveTextContent(/simulation/i);
-      expect(banner).toHaveTextContent(/llama\.cpp \(the real local model\)/);
+      expect(banner).toHaveTextContent(/Reply engine selected: llama\.cpp \(the local model\)/);
       fireEvent.click(screen.getByRole('radio', { name: 'Heuristics' }));
-      expect(banner).toHaveTextContent(/Heuristics \(deterministic routing, no model call\)/);
-      expect(banner).not.toHaveTextContent(/llama\.cpp \(the real local model\)/);
+      expect(banner).toHaveTextContent(/Reply engine selected: Heuristics \(deterministic routing, no model call\)/);
+      expect(banner).not.toHaveTextContent(/llama\.cpp \(the local model\)/);
       expect(container.querySelectorAll('h1')).toHaveLength(1);
       expect(container.querySelector('main')).toBeNull();
       await screen.findByText('Not created');
@@ -182,6 +182,119 @@ describe('EmbeddedWorkerPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'What is my miles balance?' }));
       expect(screen.getByRole('textbox')).toHaveValue('What is my miles balance?');
       expect(fetch).not.toHaveBeenCalledWith('/api/agent/invoke', expect.anything());
+    });
+
+    it('banner and panel chip say only what the lookup found: no "real worker" or "mocked CIMD" claim before one exists', async () => {
+      mockApi({ state: () => json({}, 401) });
+      const { unmount } = render(<EmbeddedWorkerPage />);
+      await screen.findByText('Sign in required');
+      let banner = screen.getByTestId('embedded-worker-banner');
+      expect(banner).toHaveTextContent(/You are signed out/);
+      expect(banner).not.toHaveTextContent(/Website Worker is real/);
+      expect(banner).not.toHaveTextContent(/CIMD registration shown for the worker is mocked/);
+      expect(banner).not.toHaveTextContent(/the real local model/);
+      expect(banner).toHaveTextContent(/does not check that the engine is reachable/);
+      expect(screen.queryByText('Live BFF call')).toBeNull();
+      unmount();
+
+      mockApi({ state: () => json({}, 500) });
+      const second = render(<EmbeddedWorkerPage />);
+      await screen.findByText('Unavailable');
+      banner = screen.getByTestId('embedded-worker-banner');
+      expect(banner).toHaveTextContent(/lookup failed/);
+      expect(banner).not.toHaveTextContent(/Website Worker is real/);
+      expect(screen.queryByText('Live BFF call')).toBeNull();
+      expect(screen.getByText('Worker not confirmed')).toBeInTheDocument();
+      second.unmount();
+
+      mockApi({ state: () => json({ agent: null }) });
+      const third = render(<EmbeddedWorkerPage />);
+      await screen.findByText('Not created');
+      expect(screen.getByTestId('embedded-worker-banner')).not.toHaveTextContent(/Website Worker is real/);
+      expect(screen.getByText('No worker registered')).toBeInTheDocument();
+      expect(screen.queryByText('Live BFF call')).toBeNull();
+      third.unmount();
+
+      mockApi({ state: () => json({ agent: { id: 'w-1', name: 'AI Agent - demo', cimd: { mocked: true } } }) });
+      render(<EmbeddedWorkerPage />);
+      await screen.findByText('Registered');
+      banner = screen.getByTestId('embedded-worker-banner');
+      expect(banner).toHaveTextContent(/Website Worker is real/);
+      expect(banner).toHaveTextContent(/CIMD registration shown for the worker is mocked/);
+      expect(screen.getByText('Live BFF call')).toBeInTheDocument();
+    });
+
+    it('chip tones: Live BFF call is info only for a registered worker; signed out is warn; unchecked is neutral', async () => {
+      mockApi({ state: () => json({}, 401) });
+      const out = render(<EmbeddedWorkerPage />);
+      await screen.findByText('Sign in required');
+      expect(screen.getByText('Signed out').className).toMatch(/warn/);
+      out.unmount();
+      mockApi({ state: () => json({ agent: null }) });
+      const none = render(<EmbeddedWorkerPage />);
+      await screen.findByText('Not created');
+      expect(screen.getByText('No worker registered').className).toMatch(/neutral/);
+      none.unmount();
+      mockApi({ state: () => json({ agent: { id: 'w-1', name: 'AI Agent - demo' } }) });
+      render(<EmbeddedWorkerPage />);
+      await screen.findByText('Registered');
+      expect(screen.getByText('Live BFF call').className).toMatch(/info/);
+    });
+
+    it('Send is aria-disabled when the page knows there is no worker: no request, focus stays, draft kept, reason in the mounted status', async () => {
+      mockApi({ state: () => json({ agent: null }) });
+      render(<EmbeddedWorkerPage />);
+      await screen.findByText('Not created');
+      const input = screen.getByRole('textbox');
+      const hint = screen.getByTestId('embedded-worker-hint');
+      expect(hint).toHaveTextContent('');
+      fireEvent.change(input, { target: { value: 'hello' } });
+      const send = screen.getByRole('button', { name: 'Send' });
+      expect(send).toHaveAttribute('aria-disabled', 'true');
+      expect(send).not.toBeDisabled();
+      send.focus();
+      fireEvent.click(send);
+      expect(hint).toHaveTextContent('Create the Website Worker first; no message was sent.');
+      expect(document.activeElement).toBe(send);
+      expect(input).toHaveValue('hello');
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(fetch).not.toHaveBeenCalledWith('/api/agent/invoke', expect.anything());
+      expect(screen.getByRole('button', { name: 'Send' })).toBe(send);
+      // typing clears the stale reason
+      fireEvent.change(input, { target: { value: 'hello again' } });
+      expect(hint).toHaveTextContent('');
+    });
+
+    it('signed out: Send says to sign in and sends nothing', async () => {
+      mockApi({ state: () => json({}, 401) });
+      render(<EmbeddedWorkerPage />);
+      await screen.findByText('Sign in required');
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'hello' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      expect(screen.getByTestId('embedded-worker-hint')).toHaveTextContent('You are signed out. Sign in first; no message was sent.');
+      expect(fetch).not.toHaveBeenCalledWith('/api/agent/invoke', expect.anything());
+    });
+
+    it('after Create succeeds, Send is live (no aria-disabled) and a stale "create first" reason is gone', async () => {
+      mockApi({
+        state: () => json({ agent: null }),
+        create: () => json({ created: true, agent: { id: 'w-9', name: 'AI Agent - new' } }, 201),
+      });
+      render(<EmbeddedWorkerPage />);
+      await screen.findByText('Not created');
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      expect(screen.getByTestId('embedded-worker-hint')).toHaveTextContent('Create the Website Worker first');
+      fireEvent.click(screen.getByRole('button', { name: 'Create Website Worker' }));
+      await screen.findByText('AI Agent - new');
+      expect(screen.getByTestId('embedded-worker-hint')).toHaveTextContent('');
+      expect(screen.getByRole('button', { name: 'Send' })).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('a failed lookup does not block Send: the BFF decides', async () => {
+      mockApi({ state: () => json({}, 500) });
+      render(<EmbeddedWorkerPage />);
+      await screen.findByText('Unavailable');
+      expect(screen.getByRole('button', { name: 'Send' })).not.toHaveAttribute('aria-disabled');
     });
 
     it('keeps the simulated CRM chrome out of the accessibility tree and marks the record as sample data', async () => {

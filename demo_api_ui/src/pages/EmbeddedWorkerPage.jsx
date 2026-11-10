@@ -29,9 +29,27 @@ const TABS = ['Home', 'Accounts', 'Contacts', 'Opportunities', 'Cases', 'Reports
 // The page sends vertical 'airlines' (the use case's primary tool is redeem_miles), so the prompts are airline ones.
 const SAMPLE_PROMPTS = ['What is my miles balance?', 'Redeem 500 miles for me'];
 
+// The engine the toggle selects. This page never probes either engine, so the wording says what the choice does and
+// the banner adds that reachability is not checked (true signed out, after a failure, and while it works).
 const ENGINES = {
   heuristics: 'Heuristics (deterministic routing, no model call)',
-  llm: 'llama.cpp (the real local model)',
+  llm: 'llama.cpp (the local model)',
+};
+
+// What the panel chip says. Only a registered worker makes the panel a live BFF call; every other state is neutral or warn.
+const PANEL_CHIP = {
+  loading: { tone: 'neutral', word: 'Worker not confirmed' },
+  signedOut: { tone: 'warn', word: 'Signed out' },
+  none: { tone: 'neutral', word: 'No worker registered' },
+  ready: { tone: 'info', word: 'Live BFF call' },
+  unavailable: { tone: 'neutral', word: 'Worker not confirmed' },
+};
+
+// Sending is refused only when the page KNOWS there is no usable worker. While the lookup is pending or failed the
+// BFF decides (it checks the registration itself), so the page does not block a worker it could not look up.
+const SEND_BLOCKED_HINT = {
+  signedOut: 'You are signed out. Sign in first; no message was sent.',
+  none: 'Create the Website Worker first; no message was sent.',
 };
 
 const WHO_LABEL = { user: 'You', agent: 'Worker', notice: 'Needs MFA', error: 'Error' };
@@ -43,6 +61,15 @@ const LOOKUP = {
   none: { tone: 'neutral', word: 'Not created', note: 'You have no Website Worker yet. Create one to register its own PingOne identity.' },
   ready: { tone: 'ok', word: 'Registered', note: 'The BFF found your Website Worker registered in PingOne.' },
   unavailable: { tone: 'warn', word: 'Unavailable', note: 'The worker lookup failed, so the page cannot tell whether a worker exists. Try again later.' },
+};
+
+// What the banner may say about the worker, by what the lookup actually returned.
+const BANNER_WORKER = {
+  loading: 'Whether you already have a Website Worker is still being checked.',
+  signedOut: 'You are signed out, so no worker lookup or message can go through until you sign in.',
+  none: 'You have no Website Worker yet; creating one asks the BFF to register a PingOne application for you.',
+  ready: 'The Website Worker is real: a PingOne application the BFF found registered for you, and each message you send goes to the BFF.',
+  unavailable: 'The worker lookup failed, so the page cannot tell whether a worker exists.',
 };
 
 function cimdLabel(cimd) {
@@ -106,6 +133,7 @@ export default function EmbeddedWorkerPage() {
         setAgent({ ...body.agent, cimd: body.cimd || body.agent.cimd });
         setLookup('ready');
         setCreated(true);
+        setHint('');
         // The Create button leaves the page, so hand focus to the next step instead of dropping it.
         inputRef.current?.focus();
       })
@@ -137,6 +165,11 @@ export default function EmbeddedWorkerPage() {
   }
 
   function submit() {
+    // aria-disabled keeps focus on Send, so the click is ignored here; the draft stays so nothing typed is lost.
+    if (sendBlocked) {
+      setHint(SEND_BLOCKED_HINT[lookup]);
+      return;
+    }
     const prompt = draft.trim();
     if (!prompt) {
       setHint('Type a message first, or pick a sample prompt.');
@@ -156,6 +189,8 @@ export default function EmbeddedWorkerPage() {
 
   const state = LOOKUP[lookup];
   const ready = lookup === 'ready';
+  const panelChip = PANEL_CHIP[lookup];
+  const sendBlocked = lookup === 'signedOut' || lookup === 'none';
   const cardTone = { ready: 'ok', signedOut: 'warn', unavailable: 'warn' }[lookup] || 'neutral';
   const createBlocked = creating || !canCreate;
   const statusText = creating
@@ -165,11 +200,11 @@ export default function EmbeddedWorkerPage() {
   return (
     <PingPage className="embedded-worker-page">
       <SimBanner data-testid="embedded-worker-banner">
-        <strong>Simulated host app, real worker.</strong> The CRM around the panel is a simulation: its records are fixed
-        sample data, and nothing is read from or written to a real CRM. The Website Worker is real: a PingOne application
-        the BFF registers for the signed-in user, and each message you send goes to the BFF on the engine you pick:{' '}
-        {ENGINES[agentMode]}. The CIMD registration shown for the worker is mocked. The worker may ask for multi-factor
-        authentication before it acts.
+        <strong>Simulated host app.</strong> The CRM around the panel is a simulation: its records are fixed sample data,
+        and nothing is read from or written to a real CRM. {BANNER_WORKER[lookup]} Reply engine selected:{' '}
+        {ENGINES[agentMode]}. This page does not check that the engine is reachable.
+        {ready && agent?.cimd?.mocked ? ' The CIMD registration shown for the worker is mocked.' : ''} The worker may ask
+        for multi-factor authentication before it acts.
       </SimBanner>
       <PageHeader
         eyebrow="SaaS-embedded agent"
@@ -240,9 +275,9 @@ export default function EmbeddedWorkerPage() {
                 />
               </Card>
 
-              <Card tone="live" title="Embedded worker panel" className="ew-crm__panel" data-testid="embedded-worker-panel">
+              <Card tone={ready ? 'live' : 'neutral'} title="Embedded worker panel" className="ew-crm__panel" data-testid="embedded-worker-panel">
                 <div className="pu-status-line">
-                  <StatusChip tone="info">Live BFF call</StatusChip>
+                  <StatusChip tone={panelChip.tone}>{panelChip.word}</StatusChip>
                   <span className="ew-crm__engine">
                     <span>Reply engine</span>
                     <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
@@ -285,10 +320,10 @@ export default function EmbeddedWorkerPage() {
                     value={draft}
                     placeholder="Ask the agent about this account…"
                     aria-label="Message the Website Worker"
-                    onChange={(event) => setDraft(event.target.value)}
+                    onChange={(event) => { setDraft(event.target.value); setHint(''); }}
                     onKeyDown={(event) => { if (event.key === 'Enter') submit(); }}
                   />
-                  <ActionButton main={ready} onClick={submit}>Send</ActionButton>
+                  <ActionButton main={ready} aria-disabled={sendBlocked ? 'true' : undefined} onClick={submit}>Send</ActionButton>
                 </div>
                 <p className="pu-note ew-crm__hint" role="status" data-testid="embedded-worker-hint">{hint}</p>
               </Card>
