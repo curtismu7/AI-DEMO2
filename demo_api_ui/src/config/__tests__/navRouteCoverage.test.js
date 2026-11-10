@@ -39,7 +39,6 @@ const EXEMPT = new Set([
   '/davinci-sdk-login',
   '/davinci-login-guide',
   '/pingfederate-id-jag/learn', // deep link from the ID-JAG Playground header
-  '/pingfederate-id-jag/inspect', // deep link from the ID-JAG Playground header and Learn
   '/activity',
   '/admin',
   '/admin/walbuy',
@@ -66,7 +65,6 @@ const EXEMPT = new Set([
   '/demo/footprint-mocks',
   '/demo/footprint-picks',
   '/feature-flags',
-  '/intent-binding-learning',
   '/jev-demos',
   '/llm-test',
   '/login',
@@ -84,7 +82,6 @@ const EXEMPT = new Set([
   '/path/feature',
   '/personal-agent/client',
   '/personal-agent/dot/full',
-  '/personal-agent/learn',
   '/group-policy/full',
   '/personal-agent/full',
   '/pinggateway-inspector',

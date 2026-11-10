@@ -256,9 +256,9 @@
 }
 
 /* Send question stays focusable while a run is in flight or the box is empty (a disabled button drops keyboard focus
-   to the page body); the click is ignored in the handler. Same look as the disabled primary in ping-ui.css. */
+   to the page body); the click is ignored in the handler. The look (muted Ping Red, white label, dashed edge, no
+   opacity) comes from the shared disabled primary in ping-ui.css; this rule only keeps the cursor. */
 .a2a-page button.pu-btn.pu-btn--primary[aria-disabled='true'] {
-  opacity: 0.88;
   cursor: not-allowed;
 }
 

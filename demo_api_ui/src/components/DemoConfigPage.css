@@ -92,10 +92,6 @@
   cursor: not-allowed;
 }
 
-.dc-page button.pu-btn.pu-btn--primary[aria-disabled="true"] {
-  opacity: 0.88;
-}
-
 .dc-page .pu-btn.dc-btn-danger {
   border-color: var(--th-status-error);
   color: var(--th-status-error-text);
