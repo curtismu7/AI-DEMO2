@@ -105,6 +105,43 @@ caller's amount.
 In PingFederate mode the token `sub` is a username, not a PingOne user id; a resolver keyed on it may
 not find the user (UNVERIFIED), which fails closed (see "Risks" below).
 
+## Open fare (SH000): the price the trusted connector states
+
+The muse connector lets a person say "book me a flight for $620" or "to London". A request that names
+a price rather than a flight id has no catalogue fare to look up, so one flight, `SH000` (route
+`AUS-ANY`, "open fare: the price is whatever is quoted"), is marked in the data file under a new top-level
+list `openFareFlights: ["SH000"]` (the catalogue `flights` map and its ids and fares are unchanged; SH000
+is deliberately not in it). `SH000` is a seed flight too; the resource server adds it to an existing
+database the same way as `SH101`..`SH109` (INSERT OR IGNORE).
+
+PingGateway uses the caller's `amount` as the judged amount **only when all of these hold**; in every
+other case the behaviour above is exactly as before:
+
+1. the caller is trusted (the correct `x-internal-gateway-secret`);
+2. the tool is `book_airline_flight`;
+3. `arguments.flight_number` is listed in `openFareFlights`;
+4. `arguments.amount` is a JSON **number** above 0, at most 100000, with at most 2 decimals (a string,
+   boolean, object, `0`, a negative, `100000.01` or `1.005` is refused).
+
+Then that amount is the authoritative `Amount` and `TransactionAmount` sent to Authorize and the value the
+HITL pre-approval compares with the user's limit, and `X-Gw-Audit-Trail` records `bookingFacts.fareSource:
+"stated"` with `fareUsd` = the amount (a catalogue booking records `fareSource: "catalogue"`). The
+existing rules then judge it: an agent over the user's limit is denied, and over 750 for a non-premium
+tier is denied. Fail closed with 403 before P1AZ is asked: `open_fare_untrusted` (an open-fare flight
+from a caller that is not trusted, whatever the amount) and `open_fare_bad_amount` (trusted, but the
+amount is missing or unusable). A catalogue flight still takes the catalogue fare and ignores any caller
+amount; any other flight number is still `unknown_flight_fare`.
+
+The airlines resource server books `SH000` at the quoted amount under the same amount rule (here too a
+numeric string such as `"620"` is refused, unlike the lenient catalogue path) and answers
+`booked: false, reason: bad_open_fare_amount` otherwise. A booked answer carries `fareSource: "stated"`.
+
+**Security note (honest limits).** With a stated price the rules judge the price the agent states, and
+only for the trusted connector. An untrusted caller cannot use the open fare. The gateway cannot know
+what the ticket really costs, so the limit and tier rules protect the user from an agent that states a
+high price, not from one that states a low one. A real airline would price the ticket itself; this is a
+demo of the authorization rules, not of fare pricing.
+
 ## Assumptions the owner must confirm
 
 1. **Premium = `Premier Gold` only.** `Premier Silver`, any other value and a missing value count as
@@ -156,7 +193,7 @@ rules into an export of the live policy instead.
    then publish. PingOne skips an object whose `version` is unchanged; the merge gives the policy a
    new version so the new children attach.
 6. Restart the local PingGateway (it reads the Groovy script and the synced data file) and the
-   airlines resource server (it adds flights `SH101`..`SH109` to an existing database without
+   airlines resource server (it adds flights `SH000` and `SH101`..`SH109` to an existing database without
    touching other rows).
 7. **Demo RULE B by flipping the demo user's tier.** The demo user is `Premier Gold` (premium). Make
    the user standard with the owner-run script (dry run by default, so read first; it needs the worker
@@ -220,7 +257,7 @@ rules into an export of the live policy instead.
 
 ```bash
 node --test snapshots/*.test.js                                       # includes airlineBookingRules.test.js
-node --test ping-gateway/scripts/check-airline-booking-data.test.js   # data copy, no tier in the gateway, Groovy source, HITL pre-approval (runs the Groovy in the IG image offline when groovy is absent)
+node --test ping-gateway/scripts/check-airline-booking-data.test.js   # data copy, no tier in the gateway, Groovy source, HITL pre-approval, open fare incl. mutation checks (runs the Groovy in the IG image offline when groovy is absent)
 node --test scripts/set-airline-member-tier.test.js                   # owner script against a stubbed PingOne
 bash ping-gateway/scripts/check-groovy-params.sh
 (cd demo_mcp_resource_server && npx jest tests/airlinesBook.test.ts)

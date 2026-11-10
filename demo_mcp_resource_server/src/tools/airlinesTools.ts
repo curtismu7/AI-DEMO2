@@ -86,7 +86,7 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
         flight_number: { type: 'string', description: 'flight number, e.g. UA502' },
         origin: { type: 'string', description: 'Origin airport code (informational; the flight row is authoritative)' },
         destination: { type: 'string', description: 'Destination airport code (informational; the flight row is authoritative)' },
-        amount: { type: 'number', description: 'Total ticket price in dollars' },
+        amount: { type: 'number', description: 'Total ticket price in dollars. For a catalogue flight it must equal the catalogue fare. For the open-fare flight SH000 it is the price the booking is made at (above 0, up to 100000, at most 2 decimals).' },
         passengers: { type: 'number', description: 'Number of passengers (default 1)' },
       },
       required: [],

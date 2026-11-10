@@ -19,6 +19,7 @@ import {
   getFare,
   getFlight,
   getPassengerRecord,
+  isOpenFareFlight,
   listBookings,
   listSeats,
   nextFlightFor,
@@ -133,6 +134,18 @@ function cancelReservation(args: Record<string, unknown>, subject: string): unkn
   };
 }
 
+const OPEN_FARE_MAX_USD = 100000;
+
+/**
+ * The stated price of an open-fare booking, or null when it is not acceptable: a JSON number, finite,
+ * above 0, at most 100000, written with at most 2 decimals. The decimals test reads the shortest
+ * round-trip text of the number, so 1.005 and 620.001 are refused while 0.07 and 620.1 pass.
+ */
+function parseStatedAmount(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0 || raw > OPEN_FARE_MAX_USD) return null;
+  return /^\d+(\.\d{1,2})?$/.test(String(raw)) ? raw : null;
+}
+
 /**
  * UC48 — the CREATE write. Requires an explicit flight_number: a chip phrase
  * ("book a flight to Paris") names a destination, not a row, and guessing the
@@ -140,11 +153,14 @@ function cancelReservation(args: Record<string, unknown>, subject: string): unkn
  * resolves the flight first (search/status), then books with the number.
  */
 function bookFlight(args: Record<string, unknown>, subject: string): unknown {
+  const flightNumber = typeof args.flight_number === 'string' ? args.flight_number.trim().toUpperCase() : '';
+  const openFare = flightNumber !== '' && isOpenFareFlight(flightNumber);
+  // An open-fare flight (SH000) validates its own, stricter amount below; every other flight keeps
+  // the original check.
   const amount = typeof args.amount === 'number' ? args.amount : Number(args.amount);
-  if (!Number.isFinite(amount) || amount <= 0) {
+  if (!openFare && (!Number.isFinite(amount) || amount <= 0)) {
     return { source: SOURCE, booked: false, note: 'A positive ticket price is required.' };
   }
-  const flightNumber = typeof args.flight_number === 'string' ? args.flight_number.trim().toUpperCase() : '';
   if (!flightNumber) {
     return { source: SOURCE, booked: false, note: 'Name the flight to book (e.g. UA502) — search flights first.' };
   }
@@ -155,11 +171,21 @@ function bookFlight(args: Record<string, unknown>, subject: string): unknown {
   // The fare judged by the booking rules is the catalogue fare, never the caller's. A quote that
   // disagrees is refused (so a lie cannot be booked at the wrong price), as is a flight with no
   // fare. This server is not a policy engine: whether a fare is allowed is decided at the gateway.
-  const fare = getFare(flightNumber);
+  // Open fare (openFareFlights, SH000): no catalogue fare exists, the price is the quoted amount. It
+  // must be a real JSON number (a string is refused, unlike the lenient catalogue path), positive,
+  // at most 100000, with at most 2 decimals. The gateway applies the same rule before Authorize.
+  const stated = openFare ? parseStatedAmount(args.amount) : null;
+  if (openFare && stated === null) {
+    return {
+      source: SOURCE, booked: false, reason: 'bad_open_fare_amount', flightNumber,
+      note: `${flightNumber} is an open fare: give the price as a number above 0 and up to ${OPEN_FARE_MAX_USD}, with at most 2 decimals.`,
+    };
+  }
+  const fare = stated ?? getFare(flightNumber);
   if (fare === null) {
     return { source: SOURCE, booked: false, reason: 'no_fare', flightNumber, note: `No catalogue fare for ${flightNumber}.` };
   }
-  if (Math.abs(amount - fare) > 0.005) {
+  if (stated === null && Math.abs(amount - fare) > 0.005) {
     return {
       source: SOURCE, booked: false, reason: 'fare_mismatch', flightNumber,
       note: `Quoted $${amount} does not match the fare for ${flightNumber}.`,
@@ -194,6 +220,7 @@ function bookFlight(args: Record<string, unknown>, subject: string): unknown {
     cabin: 'Economy',
     amount: fare,
     fare,
+    ...(stated !== null ? { fareSource: 'stated' } : {}),
   };
 }
 

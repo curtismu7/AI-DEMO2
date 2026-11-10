@@ -48,6 +48,18 @@ test('premiumTiers is explicit, non-empty, and every entry is a tier that exists
   assert.ok(!DATA.premiumTiers.includes('Premier Silver'), 'Premier Silver is the standard example and must not be premium');
 });
 
+test('SH000 is the open-fare flight: listed in openFareFlights, a seed flight (AUS-ANY), and not in the fare catalogue', () => {
+  assert.deepStrictEqual(DATA.openFareFlights, ['SH000']);
+  assert.ok(!('SH000' in DATA.flights), 'an open-fare flight has no catalogue fare');
+  const f = SEED.flights.find((x) => x.flight_number === 'SH000');
+  assert.ok(f, 'SH000 must be a seed flight');
+  assert.strictEqual(`${f.origin}-${f.destination}`, 'AUS-ANY');
+  assert.ok(/openFareFlights/.test(DATA._comment) && /trusted/.test(DATA._comment), 'the data file must say who may use an open fare');
+  // the catalogue is unchanged
+  assert.deepStrictEqual(Object.keys(DATA.flights).filter((k) => k.startsWith('SH')),
+    ['SH101', 'SH102', 'SH103', 'SH104', 'SH105', 'SH106', 'SH107', 'SH108', 'SH109']);
+});
+
 test('the catalogue covers the nine scenario flights at the contracted fares', () => {
   assert.deepStrictEqual(
     ['SH101', 'SH102', 'SH103', 'SH104', 'SH105', 'SH106', 'SH107', 'SH108', 'SH109'].map((f) => DATA.flights[f]),
@@ -142,11 +154,11 @@ test('Groovy lookupBookingFacts runs in isolation against the real data file', {
 // read and strip, the call arguments, HitlApproved, the audit field) lives in the script body and cannot be
 // run without IG, so it is pinned below by exact statements. Neither runner available = skipped, UNVERIFIED.
 const IG_IMAGE = 'us-docker.pkg.dev/forgeops-public/images-base/ig:latest';
-function runGroovy(script) {
-  if (hasGroovy) return spawnSync('groovy', [path.join(PG, 'scripts', script), PG], { encoding: 'utf8' });
+function runGroovy(script, dir = PG) {
+  if (hasGroovy) return spawnSync('groovy', [path.join(dir, 'scripts', script), dir], { encoding: 'utf8' });
   const hasImage = spawnSync('docker', ['image', 'inspect', IG_IMAGE], { encoding: 'utf8' }).status === 0;
   if (!hasImage) return null;
-  return spawnSync('docker', ['run', '--rm', '--network', 'none', '-v', `${PG}:/pg:ro`, '--entrypoint', 'java', IG_IMAGE,
+  return spawnSync('docker', ['run', '--rm', '--network', 'none', '-v', `${dir}:/pg:ro`, '--entrypoint', 'java', IG_IMAGE,
     '-cp', '/opt/gateway/lib/*', 'groovy.ui.GroovyMain', `/pg/scripts/${script}`, '/pg'], { encoding: 'utf8' });
 }
 const preapprovalRun = runGroovy('check-airline-booking-preapproval.groovy');
@@ -228,3 +240,85 @@ test('p1az-decision.groovy: the decision closure itself carries the gate, the ex
   // No caller-supplied amount can reach the decision: the closure never sees one.
   assert.ok(!/amt|amount|claimed/i.test(c.replace(/\/\/.*$/gm, '')), 'the decision must not read any caller amount');
 });
+
+// ── Open fare (SH000): the TRUSTED connector's stated amount is the judged amount ─────────────────
+// check-airline-open-fare.groovy EXECUTES parseStatedAmount, lookupOpenFare, decideHitlPreapproval and the real
+// book_airline_flight block of p1az-decision.groovy against a stub binding (local groovy, else the IG image with
+// --network none). The wiring that cannot run without IG is pinned below by exact statements, and the mutation
+// tests re-run the Groovy check against deliberately broken copies and require each to FAIL.
+const openFareRun = runGroovy('check-airline-open-fare.groovy');
+const NO_RUNTIME = 'neither groovy nor the IG image is available (UNVERIFIED here)';
+test('Groovy open fare: stated amount accepted only for trusted + tool + openFareFlights + valid amount; everything else falls back',
+  { skip: openFareRun ? false : NO_RUNTIME }, () => {
+    assert.strictEqual(openFareRun.status, 0, openFareRun.stdout + openFareRun.stderr);
+    assert.match(openFareRun.stdout, /ALL OK/);
+    assert.ok(!/^FAIL/m.test(openFareRun.stdout));
+    assert.ok((openFareRun.stdout.match(/^ok /gm) || []).length >= 110, 'the case list must not have shrunk');
+  });
+
+test('p1az-decision.groovy: the stated amount is wired through trustedCaller, the open-fare lookup runs first, and the audit says where the fare came from', () => {
+  const call = GROOVY.match(/def facts = lookupOpenFare\(([^\n]*)\)\n/);
+  assert.ok(call, 'the lookupOpenFare call is missing');
+  const argv = call[1].split(',').map((a) => a.trim());
+  assert.strictEqual(argv[0], 'bookingData');
+  assert.strictEqual(argv[1], 'flightArg');
+  assert.strictEqual(argv[3], 'trustedCaller', 'the trust flag must be passed, not a literal');
+  const block = bookingBlock();
+  assert.ok(block.indexOf('lookupOpenFare(') >= 0 && block.indexOf('lookupOpenFare(') < block.indexOf('lookupBookingFacts('), 'the open-fare lookup runs before the catalogue lookup');
+  assert.ok(hasLine(block, 'if (facts == null) facts = lookupBookingFacts(bookingData, flightArg, String.valueOf(sub ?: \'\'))'), 'a non-open flight falls back to the catalogue lookup');
+  assert.strictEqual(GROOVY.split('lookupOpenFare(').length - 1, 1, 'exactly one call: no second, ungated use');
+  assert.ok(hasLine(block, "bookingFareSource = facts.fareSource ?: 'catalogue'"));
+  assert.ok(hasLine(GROOVY, 'fareSource        : bookingFareSource,'), 'the audit trail records the fare source');
+  // the judged amount is still assigned once, from bookingFare, so a stated amount and a catalogue fare reach Authorize the same way
+  assert.strictEqual(GROOVY.split('transactionAmount = bookingFare.toPlainString()').length - 1, 1);
+  // the two new fail-closed reasons are distinct and go through denyLocal before P1AZ is called
+  for (const needle of ["'open_fare_untrusted'", "'open_fare_bad_amount'"]) {
+    assert.ok(GROOVY.includes(needle), `expected ${needle}`);
+  }
+  assert.ok(/bookingError == 'open_fare_untrusted'/.test(GROOVY) && /bookingError == 'open_fare_bad_amount'/.test(GROOVY));
+});
+
+test('p1az-decision.groovy: the open-fare closures read no header and no request state (pure), so only the passed trust flag can open them', () => {
+  const start = GROOVY.indexOf('def parseStatedAmount = {');
+  const end = GROOVY.indexOf('// Pre-approval of a booking by the user');
+  assert.ok(start >= 0 && end > start);
+  const code = GROOVY.slice(start, end).replace(/\/\/.*$/gm, '');
+  assert.ok(!/request\.|headers|System\.getenv|trustedCaller/.test(code), 'the open-fare closures must not read request state or the outer trust variable');
+});
+
+// Mutation checks: copy only the two files the Groovy check reads (plus the check itself) into a temp dir, break
+// one thing, and require the Groovy check to fail. A mutation that does not apply is itself a failure.
+function mutatedRun(mutate) {
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'open-fare-mut-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'scripts', 'groovy'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'config'));
+    const mutated = mutate(GROOVY);
+    assert.notStrictEqual(mutated, GROOVY, 'the mutation did not change the source');
+    fs.writeFileSync(path.join(dir, 'scripts', 'groovy', 'p1az-decision.groovy'), mutated);
+    fs.copyFileSync(path.join(PG, 'scripts', 'check-airline-open-fare.groovy'), path.join(dir, 'scripts', 'check-airline-open-fare.groovy'));
+    fs.copyFileSync(path.join(PG, 'config', 'airline-booking-policy-data.json'), path.join(dir, 'config', 'airline-booking-policy-data.json'));
+    return runGroovy('check-airline-open-fare.groovy', dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+const MUTATIONS = [
+  ['the trust gate removed', "if (!trusted) return [error: 'open_fare_untrusted']", ''],
+  ['the openFareFlights membership check removed', ' || !open.contains(flight)', ''],
+  ['the amount range check removed', "if (v.signum() <= 0 || v.compareTo(new BigDecimal('100000')) > 0) return null", ''],
+  ['the 2-decimal check removed', 'if (v.stripTrailingZeros().scale() > 2) return null', ''],
+  ['the Number-type check removed (strings accepted)', 'if (!(raw instanceof Number)) return null', ''],
+  ['the invalid-amount refusal removed', "if (stated == null) return [error: 'open_fare_bad_amount']", ''],
+  ['the caller amount used for catalogue flights', 'transactionAmount = bookingFare.toPlainString()', 'transactionAmount = amt != null ? String.valueOf(amt) : bookingFare.toPlainString()'],
+  ['trust hard-wired to true at the call', 'args instanceof Map ? args.get(\'amount\') : null, trustedCaller,', 'args instanceof Map ? args.get(\'amount\') : null, true,'],
+  ['the fare source not recorded as stated', "bookingFareSource = facts.fareSource ?: 'catalogue'", "bookingFareSource = 'catalogue'"],
+];
+for (const [label, from, to] of MUTATIONS) {
+  test(`mutation: ${label} -> the Groovy open-fare check FAILS`, { skip: openFareRun ? false : NO_RUNTIME }, () => {
+    assert.ok(GROOVY.includes(from), `the text to break is missing from p1az-decision.groovy: ${from}`);
+    const r = mutatedRun((src) => src.replace(from, to));
+    assert.notStrictEqual(r.status, 0, `the check still passed with ${label}`);
+    assert.match(r.stdout, /^FAIL /m, `${label}: the check must fail on a case, not on a crash\n${r.stderr}`);
+  });
+}

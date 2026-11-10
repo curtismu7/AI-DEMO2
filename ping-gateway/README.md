@@ -255,6 +255,7 @@ capture-point string (`"all"`); `true` fails route build.
 - `scripts/validate-config.sh` — route JSON validity + placeholder<->env cross-check.
 - `scripts/check-groovy-params.sh` — static 18-key parity + decision-path check.
 - `scripts/check-airline-booking-preapproval.groovy` — runs the booking HITL pre-approval decision (`X-Hitl-Preapproved: user-limit`) in isolation; rules in `docs/airline-booking-rules-import.md`.
+- `scripts/check-airline-open-fare.groovy` — runs the open-fare logic (`parseStatedAmount`, `lookupOpenFare`) and the real `book_airline_flight` block of `p1az-decision.groovy` in isolation. Security note: for a flight in `openFareFlights` (SH000) the gateway judges the amount the TRUSTED caller states (a positive number up to 100000 with at most 2 decimals); an untrusted caller or a bad amount fails closed (403 `open_fare_untrusted` / `open_fare_bad_amount`), catalogue flights keep the catalogue fare. The rules judge the price the agent states; a real airline would price the ticket itself. Details in `docs/airline-booking-rules-import.md`.
 - `scripts/e2e-pinggateway.sh` — live e2e (401 enforcement + live authz decision; full
   token-bearing PERMIT needs `BANKING_TEST_TOKEN`).
 - `.env.example` — committed source of truth for the env contract (`.env` is gitignored).
