@@ -30,6 +30,17 @@ describe('DiagramsIndexPage', () => {
     expect(banner.textContent).toMatch(/Nothing on it runs/i);
   });
 
+  it('does not claim to know a diagram\'s mode: no promise about 57 other pages, and no unqualified "live" blurb', () => {
+    renderPage();
+    const banner = screen.getByTestId('diagrams-index-banner').textContent;
+    expect(banner).toMatch(/does not check whether a diagram uses live or sample data/i);
+    expect(banner).not.toMatch(/is stated on that page/i);
+    const flow = all.find((d) => d.path === '/monitoring/system-flow');
+    expect(flow.blurb).not.toMatch(/^Live system flow/i);
+    expect(flow.blurb).toMatch(/last run/i);
+    expect(flow.blurb).toMatch(/no run/i);
+  });
+
   it('renders every entry once, as one link named by its title that goes to its path', () => {
     renderPage();
     const links = screen.getAllByRole('link');

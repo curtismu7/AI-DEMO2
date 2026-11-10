@@ -1,7 +1,7 @@
 // DiagramsIndexPage.jsx — /diagrams: one page that links every diagram. List lives in config/diagramsIndex.js.
 //
 // Honesty: this page is an index. It runs nothing, calls no service and simulates nothing; each card is a link to
-// a diagram page, and that page says whether its data is live or sample. The banner says so.
+// a diagram page. It does not know or check any diagram's mode, and the banner says so.
 //
 // Layout follows the standalone Ping UI Standard through the shared primitives (components/pingUi,
 // docs/ping-ui-primitives.md): P2 banner first, P3 frame and sections, P4 cards. Skipped: P5 kv and P7 chips (an
@@ -27,9 +27,9 @@ export default function DiagramsIndexPage() {
     <PingPage className="diagrams-index" data-testid="diagrams-index-page">
       <SimBanner data-testid="diagrams-index-banner">
         This page is an index of links. Nothing on it runs, calls PingOne or any other service, or is simulated; each
-        card only opens a diagram page. Whether a diagram shows live or sample data is stated on that page, and where
-        the blurb below says &quot;Sample data&quot; or &quot;Simulated&quot; that is true of the diagram.
-        The list is fixed in the app and kept in step with the side nav by a test.
+        card only opens a diagram page. It does not check whether a diagram uses live or sample data: a blurb that
+        says &quot;Sample data&quot; or &quot;Simulated&quot; describes that diagram, and nothing else here says
+        anything about its mode. The list is fixed in the app and kept in step with the side nav by a test.
       </SimBanner>
       <PageHeader
         eyebrow="Diagrams"
