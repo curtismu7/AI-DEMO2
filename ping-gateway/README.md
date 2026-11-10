@@ -254,6 +254,7 @@ capture-point string (`"all"`); `true` fails route build.
   route: RS256 against the PingOne JWKS, HS256 against the mock demo_authz_server secret.
 - `scripts/validate-config.sh` — route JSON validity + placeholder<->env cross-check.
 - `scripts/check-groovy-params.sh` — static 18-key parity + decision-path check.
+- `scripts/check-airline-booking-preapproval.groovy` — runs the booking HITL pre-approval decision (`X-Hitl-Preapproved: user-limit`) in isolation; rules in `docs/airline-booking-rules-import.md`.
 - `scripts/e2e-pinggateway.sh` — live e2e (401 enforcement + live authz decision; full
   token-bearing PERMIT needs `BANKING_TEST_TOKEN`).
 - `.env.example` — committed source of truth for the env contract (`.env` is gitignored).
