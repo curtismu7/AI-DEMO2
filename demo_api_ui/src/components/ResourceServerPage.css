@@ -268,3 +268,80 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* The page's one live region: mounted in every state, visually hidden. */
+.pu-page.rsv-page .rsv-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus target for the content wrapper after a retry; it is not a control, so no ring. */
+.pu-page.rsv-page .rsv-content:focus {
+  outline: none;
+}
+
+/* --- Tester pieces, page-local (ResourceServerTester.css and the shared inspector shell are not edited) ----------
+   Each rule that sets a ground also sets its own ink. Tokens flip with the theme, so one rule serves both. */
+
+/* The tester's status line (live region), mounted from the first render. */
+.pu-page.rsv-page .rst-live {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+}
+
+/* Why Execute is blocked: error ink that clears 4.5:1 on the card in both themes (was #f87171, 2.8:1 on white). */
+.pu-page.rsv-page .rst-blocked-reason {
+  margin-top: 8px;
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-xs);
+}
+
+/* 401/403 probe row sits straight on the panel: error ink was #aa0005, 2.2:1 on the dark panel. */
+.pu-page.rsv-page .rst-signin-row {
+  color: var(--th-status-error-text);
+}
+
+/* The "*" on a required field: #d20e0f is 3.1:1 on the dark card. */
+.pu-page.rsv-page .inspector-shell-field label .req {
+  color: var(--th-status-error-text);
+}
+
+/* Rule list rows: the ground was a fixed light grey but the detail text took the theme ink (white on grey in dark). */
+.pu-page.rsv-page .rst-rules li {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.pu-page.rsv-page .rst-rules li.fail {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.pu-page.rsv-page .rst-rules .rst-rule-name,
+.pu-page.rsv-page .rst-rules .rst-rule-detail {
+  color: inherit;
+}
+
+/* JSON colours: the shared palette is for white; the tester prints it on the inset (#eff0f1), where the green string
+   and amber number inks are 4.4:1. Darker inks here (6.25 and 6.21), then the .jh-dark values in dark mode (same as
+   TokenChainTraceRail's own dark override), all scoped to this page. */
+.pu-page.rsv-page .inspector-shell-output-code .jh-string { color: #166534; }
+.pu-page.rsv-page .inspector-shell-output-code .jh-number { color: #92400e; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-key { color: #79c0ff; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-string { color: #7ee787; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-number { color: #ffa657; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-critical { color: #ff6b6b; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-focus {
+  background: rgba(255, 82, 82, 0.18);
+  color: #ff8a8a;
+}

@@ -86,11 +86,12 @@ describe('ResourceServerPage on the Ping UI primitives', () => {
     expect(banner).not.toHaveTextContent(/REAL SESSION TOKENS/);
   });
 
-  it('tells the truth when the load fails: NOT LOADED banner and an alert with the reason', async () => {
+  it('tells the truth when the load fails: NOT LOADED banner and the reason in the error card and the live region', async () => {
     bffAxios.get.mockRejectedValue({ response: { status: 500, data: { message: 'boom' } } });
     renderPage();
     const banner = await screen.findByTestId('rsv-banner');
-    expect(await screen.findByRole('alert')).toHaveTextContent('boom');
+    expect(await screen.findByTestId('rsv-error')).toHaveTextContent('boom');
+    expect(screen.getByTestId('rsv-live')).toHaveTextContent(/Could not load.*boom/);
     expect(banner).toHaveTextContent(/NOT LOADED/);
     expect(banner).not.toHaveTextContent(/REAL SESSION TOKENS/);
   });

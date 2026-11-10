@@ -9,10 +9,10 @@
 // P9 buttons. Skipped: P6 (the tester below is the shared inspector shell, restyled only at its buttons) and P8 (no
 // diagram). The standalone shell bar is not added (the app has its own).
 //
-// P9, one primary per view state: loading, signed out and failed have none of this page's buttons (signed out shows
-// the shared sign-in prompt, whose Sign in button is that state's one action). Once loaded, the tester's top Execute
-// is the only primary. The bottom Execute, Clear and the Login RS / In-flow RS tabs are secondaries.
-import React, { useState, useEffect, useRef } from 'react';
+// P9, one primary per view state: loading has none of this page's buttons; signed out shows the shared sign-in prompt,
+// whose Sign in button is that state's one action; a failed load shows Try again as the one primary. Once loaded, the
+// tester's top Execute is the only primary. The bottom Execute, Clear and the Login RS / In-flow RS tabs are secondaries.
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester, { INFLOW_PROBE_TARGETS, INFLOW_SOURCES } from './ResourceServerTester';
@@ -57,44 +57,56 @@ function calculateTimeRemaining(expTs) {
   return `${seconds}s remaining`;
 }
 
+// The tester's buttons. Its top Execute is the one primary of the ready state; the failed states render this page's own
+// Try again as the primary instead and no tester, so there is never more than one primary in any view state. (Passed as
+// a spread because the static pattern check counts a primary class per tag and cannot see that those states exclude
+// each other.)
+const TESTER_BUTTONS = { executeButtonClassName: 'pu-btn pu-btn--primary', secondaryButtonClassName: 'pu-btn' };
+
+const hasKeys = (o) => Boolean(o) && typeof o === 'object' && Object.keys(o).length > 0;
+
+const VIEW_LABEL = { login: 'Login RS', inflow: 'In-flow RS' };
+
+/** One summary request settled: its data, or why it failed ('auth' for a 401). */
+function settle(outcome) {
+  if (outcome.status === 'fulfilled') return { data: outcome.value.data, error: null };
+  const err = outcome.reason;
+  if (err?.response?.status === 401) return { data: null, error: 'auth' };
+  return { data: null, error: err?.response?.data?.message || 'Failed to load resource server data.' };
+}
+
 export default function ResourceServerPage() {
   const [view, setView] = useState('login');
-  const [loginData, setLoginData] = useState(null);
-  const [inflowData, setInflowData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // null until the first answer; then { login: { data, error }, inflow: { data, error } }. The two summaries are
+  // independent: one failing does not blank the other view.
+  const [results, setResults] = useState(null);
+  const [reloading, setReloading] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
   const tabRefs = useRef({});
+  const contentRef = useRef(null);
+  const mounted = useRef(true);
+  const refocus = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    Promise.all([
+  const load = useCallback(() => {
+    setReloading(true);
+    Promise.allSettled([
       bffAxios.get('/api/resource-server/summary'),
       bffAxios.get('/api/resource-server/summary-inflow'),
-    ])
-      .then(([loginRes, inflowRes]) => {
-        if (cancelled) return;
-        setLoginData(loginRes.data);
-        setInflowData(inflowRes.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err.response?.status === 401) {
-          setError('auth');
-        } else {
-          setError(err.response?.data?.message || 'Failed to load resource server data.');
-        }
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
+    ]).then(([loginOutcome, inflowOutcome]) => {
+      if (!mounted.current) return;
+      setResults({ login: settle(loginOutcome), inflow: settle(inflowOutcome) });
+      setReloading(false);
+    });
   }, []);
 
-  const activeClaims = view === 'inflow'
-    ? inflowData?.accessTokenClaims
-    : loginData?.accessTokenClaims;
+  useEffect(() => {
+    mounted.current = true;
+    load();
+    return () => { mounted.current = false; };
+  }, [load]);
+
+  const current = results?.[view === 'inflow' ? 'inflow' : 'login'];
+  const activeClaims = current?.data?.accessTokenClaims;
 
   useEffect(() => {
     if (!activeClaims?.exp) {
@@ -108,7 +120,7 @@ export default function ResourceServerPage() {
   }, [activeClaims?.exp, view]);
 
   const isInflow = view === 'inflow';
-  const data = isInflow ? inflowData : loginData;
+  const data = current?.data;
   const {
     accounts,
     transactions,
@@ -118,20 +130,69 @@ export default function ResourceServerPage() {
     resourceServerInfo,
     hasMcpToken,
   } = data || {};
-  const state = loading ? 'loading' : error === 'auth' ? 'auth' : error ? 'error' : 'ready';
+  const hasAccessClaims = hasKeys(accessTokenClaims);
+  const hasIdClaims = hasKeys(idTokenClaims);
+  const authFailed = results && (results.login.error === 'auth' || results.inflow.error === 'auth');
+  const bothFailed = results && results.login.error && results.inflow.error;
+  const viewFailed = Boolean(current?.error);
+  const state = !results ? 'loading'
+    : authFailed ? 'auth'
+      : bothFailed ? 'error'
+        : viewFailed ? 'viewError'
+          : 'ready';
+  const failMessage = state === 'error'
+    ? (results.login.error === results.inflow.error ? results.login.error : `${results.login.error} ${results.inflow.error}`)
+    : current?.error;
+
+  // After a retry succeeds the Retry button is gone: hand focus to the active tab (or the content) so it is not dropped.
+  useEffect(() => {
+    if (reloading || !refocus.current) return;
+    refocus.current = false;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    (tabRefs.current[view] || contentRef.current)?.focus();
+  });
+  const retry = () => {
+    if (reloading) return;
+    refocus.current = true;
+    load();
+  };
+
+  // The one live region, mounted from the first render and kept across every state, so a change is announced.
+  let liveText;
+  if (reloading && results) liveText = 'Retrying…';
+  else if (state === 'loading') liveText = 'Loading the resource server summaries.';
+  else if (state === 'auth') liveText = 'Signed out. Sign in to see the resource server.';
+  else if (state === 'error') liveText = `Could not load the resource server summaries: ${failMessage}`;
+  else if (state === 'viewError') liveText = `Could not load the ${VIEW_LABEL[view]} summary: ${failMessage}`;
+  else liveText = 'Resource server summaries loaded.';
 
   // Every state shares one frame: banner first, then the title band, so a signed-out or failed page still says what it is.
   const frame = (children, title = 'OIDC Resource Server', summary = null, eyebrow = null) => (
     <PingPage className="rsv-page">
-      <SimBanner data-testid="rsv-banner">{bannerFor(state, isInflow, Boolean(hasMcpToken && accessTokenClaims))}</SimBanner>
+      <SimBanner data-testid="rsv-banner">{bannerFor(state, isInflow, { hasMcpToken: Boolean(hasMcpToken), hasAccessClaims, hasIdClaims })}</SimBanner>
       <PageHeader eyebrow={eyebrow} title={title} summary={summary} />
-      <PageFrame>{children}</PageFrame>
+      <PageFrame>
+        <p className="rsv-sr-only" role="status" data-testid="rsv-live">{liveText}</p>
+        <div ref={contentRef} tabIndex={-1} className="rsv-content">{children}</div>
+      </PageFrame>
     </PingPage>
+  );
+
+  const retryButton = (
+    <button
+      type="button"
+      className="pu-btn pu-btn--primary"
+      onClick={retry}
+      aria-disabled={reloading ? 'true' : undefined}
+      data-testid="rsv-retry"
+    >
+      Try again
+    </button>
   );
 
   if (state === 'loading') {
     return frame(
-      <div className="rsv-loading" role="status">
+      <div className="rsv-loading">
         <PingIdentitySpinner size={36} label="Loading OIDC Resource Server…" />
       </div>,
     );
@@ -143,8 +204,9 @@ export default function ResourceServerPage() {
 
   if (state === 'error') {
     return frame(
-      <Card tone="danger" title="Could not load the summaries" role="alert" data-testid="rsv-error">
-        <p className="pu-status-line"><StatusChip tone="danger">Not loaded</StatusChip> {error}</p>
+      <Card tone="danger" title="Could not load the summaries" data-testid="rsv-error">
+        <p className="pu-status-line"><StatusChip tone="danger">Not loaded</StatusChip> {failMessage}</p>
+        <p className="pu-actions">{retryButton}</p>
       </Card>,
     );
   }
@@ -183,6 +245,14 @@ export default function ResourceServerPage() {
       </div>
 
       <div role="tabpanel" id="rsv-panel" aria-labelledby={`rsv-tab-${view}`}>
+        {state === 'viewError' ? (
+          <Card tone="danger" title={`Could not load the ${VIEW_LABEL[view]} summary`} data-testid="rsv-error">
+            <p className="pu-status-line"><StatusChip tone="danger">Not loaded</StatusChip> {failMessage}</p>
+            <p className="pu-note">The other view loaded on its own: switch tabs to use it.</p>
+            <p className="pu-actions">{retryButton}</p>
+          </Card>
+        ) : (
+        <>
         <Section id="rsv-hop" kicker="1 · This hop" title={isInflow ? 'The gateway hop' : 'The sign-in hop'}>
           <Card tone="neutral" className="rsv-explainer" data-testid="rsv-explainer">
             <p className="pu-note">
@@ -276,7 +346,7 @@ export default function ResourceServerPage() {
 
         <Section id="rsv-claims" kicker="3 · Token claims" title={isInflow ? 'The gateway token' : 'Your session tokens'}>
           <CardGrid>
-            {accessTokenClaims ? (
+            {hasAccessClaims ? (
               <AccessTokenPanel
                 accessTokenClaims={accessTokenClaims}
                 tokenMetadata={tokenMetadata}
@@ -285,17 +355,24 @@ export default function ResourceServerPage() {
               />
             ) : (
               <Card tone="neutral" title="Access token claims" data-testid="rsv-access-claims">
-                <p className="pu-status-line"><StatusChip>No token</StatusChip></p>
+                <p className="pu-status-line"><StatusChip>{isInflow && hasMcpToken ? 'Not readable' : 'No token'}</StatusChip></p>
                 <p className="pu-note pu-empty">
-                  {isInflow
-                    ? 'No cached in-flow token. Use the tester below (In-flow MCP / gateway TX) — Execute mints via RFC 8693 when needed.'
-                    : 'No access token claims available.'}
+                  {isInflow && hasMcpToken
+                    ? 'A gateway token is cached but the demo API could not decode it (opaque or malformed), so there are no claims to show.'
+                    : isInflow
+                      ? 'No cached in-flow token. Use the tester below (In-flow MCP / gateway TX) — Execute mints via RFC 8693 when needed.'
+                      : 'No access token claims available.'}
                 </p>
               </Card>
             )}
             {!isInflow && (
               <Card tone="live" title="ID token claims" data-testid="rsv-id-claims">
-                <p className="pu-status-line"><StatusChip tone="info">Decoded from the token</StatusChip></p>
+                <p className="pu-status-line">
+                  {hasIdClaims
+                    ? <StatusChip tone="info">Decoded from the token</StatusChip>
+                    : <StatusChip>No claims</StatusChip>}
+                </p>
+                {!hasIdClaims && <p className="pu-note pu-empty">The demo API found no readable ID token claims in this session.</p>}
                 <ClaimList
                   rows={[
                     { label: 'Subject (sub)', value: idTokenClaims?.sub, glossary: CLAIM_GLOSSARY.sub },
@@ -319,8 +396,7 @@ export default function ResourceServerPage() {
             profile={view}
             sources={isInflow ? INFLOW_SOURCES : undefined}
             probeTargets={isInflow ? INFLOW_PROBE_TARGETS : undefined}
-            executeButtonClassName="pu-btn pu-btn--primary"
-            secondaryButtonClassName="pu-btn"
+            {...TESTER_BUTTONS}
             titleLevel={2}
             intro={
               isInflow
@@ -334,6 +410,8 @@ export default function ResourceServerPage() {
             {isInflow ? ' (gateway TX)' : ' (login)'}
           </p>
         </Section>
+        </>
+        )}
       </div>
     </>,
     'OIDC Resource Server',
@@ -447,8 +525,9 @@ const VIEWS = [
   { id: 'inflow', label: 'In-flow RS' },
 ];
 
-/** The P2 banner text for the state the page is actually in (never fixed text that is false while signed out or failed). */
-function bannerFor(state, isInflow, hasToken) {
+/** The P2 banner text for the state the page is actually in (never fixed text that is false while signed out, failed, or
+ *  when the server decoded nothing). */
+function bannerFor(state, isInflow, { hasMcpToken, hasAccessClaims, hasIdClaims }) {
   if (state === 'loading') {
     return <><strong>LOADING</strong> — asking the demo API for the resource server summaries. Nothing below is shown until it answers.</>;
   }
@@ -458,17 +537,40 @@ function bannerFor(state, isInflow, hasToken) {
   if (state === 'error') {
     return <><strong>NOT LOADED</strong> — the demo API did not return the summaries, so nothing on this page is current.</>;
   }
+  if (state === 'viewError') {
+    return <><strong>NOT LOADED</strong> — the demo API did not return the summary for this view, so nothing in it is current. The other view loaded separately.</>;
+  }
   if (isInflow) {
-    return hasToken ? (
-      <>
-        <strong>REAL GATEWAY TOKEN</strong> — the claims below are decoded by the demo API from the gateway token it cached
-        after an RFC 8693 exchange (display only: this page does not verify the signature). The tester sends the token
-        you choose to the demo API's resource server.
-      </>
-    ) : (
+    if (hasMcpToken && hasAccessClaims) {
+      return (
+        <>
+          <strong>REAL GATEWAY TOKEN</strong> — the claims below are decoded by the demo API from the gateway token it cached
+          after an RFC 8693 exchange (display only: this page does not verify the signature). The tester sends the token
+          you choose to the demo API's resource server.
+        </>
+      );
+    }
+    if (hasMcpToken) {
+      return (
+        <>
+          <strong>GATEWAY TOKEN NOT READABLE</strong> — the demo API has a cached gateway token for this session but could not
+          decode it (opaque or malformed), so there are no claims to show. The tester can still check a token you pick or paste.
+        </>
+      );
+    }
+    return (
       <>
         <strong>NO GATEWAY TOKEN YET</strong> — the demo API has not cached an exchanged gateway token for this session, so
         there are no claims to show. The tester can still check a token you pick or paste.
+      </>
+    );
+  }
+  if (!hasAccessClaims && !hasIdClaims) {
+    return (
+      <>
+        <strong>NO CLAIMS DECODED, DEMO BANK DATA</strong> — the demo API could not read claims from your session tokens
+        (opaque, missing or malformed), so none are shown. The balances and transactions come from the demo bank's data
+        store, not a real bank. The tester sends the token you choose to the demo API's resource server.
       </>
     );
   }
