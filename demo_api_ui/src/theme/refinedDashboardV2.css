@@ -100,7 +100,7 @@
 }
 [data-rd-v2] .ud-hero__eyebrow {
   font-family: var(--font-mono);
-  font-size: .62rem;
+  font-size: var(--font-size-3xs);
   letter-spacing: .2em;
   text-transform: uppercase;
   color: var(--rd2-ink-3);
@@ -117,7 +117,7 @@
 }
 [data-rd-v2] .ud-hero__balance-label {
   font-family: var(--font-mono);
-  font-size: .62rem;
+  font-size: var(--font-size-3xs);
   letter-spacing: .2em;
   text-transform: uppercase;
   color: var(--rd2-ink-3);
@@ -321,7 +321,7 @@
 }
 [data-rd-v2] .account-type-badge {
   font-family: var(--font-mono);
-  font-size: .62rem;
+  font-size: var(--font-size-3xs);
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--rd2-ink-3);
@@ -346,7 +346,7 @@
 }
 [data-rd-v2] .tx-feed__date-label {
   font-family: var(--font-mono);
-  font-size: .62rem;
+  font-size: var(--font-size-3xs);
   letter-spacing: .15em;
   text-transform: uppercase;
   color: var(--rd2-ink-3);
@@ -444,7 +444,7 @@
 /* Framework badge pill */
 .rd2-dock .embedded-agent-dock__framework-badge {
   font-family: var(--font-mono);
-  font-size: .6rem;
+  font-size: var(--font-size-3xs);
   letter-spacing: .1em;
   text-transform: uppercase;
   padding: 2px 8px;
@@ -590,7 +590,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: .6rem;
+  font-size: var(--font-size-3xs);
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--rd2-ink-3, #8c8c88);
@@ -614,7 +614,7 @@
 }
 .ba-embedded-bottom-dock .ba-dock-identity__scope {
   font-family: var(--font-mono);
-  font-size: .6rem; letter-spacing: .04em;
+  font-size: var(--font-size-3xs); letter-spacing: .04em;
   padding: 2px 7px; border-radius: var(--radius-pill);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   background: var(--rd2-surface-2, #f3f3f1);
