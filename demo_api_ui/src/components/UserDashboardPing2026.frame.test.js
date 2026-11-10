@@ -13,8 +13,10 @@
  * structural fact: the top-level wrapper carries the `customer-skin-p1` class.
  */
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, waitFor, within } from "@testing-library/react";
+import apiClient from "../services/apiClient";
+import { runTraceChip, chatStatusChip, dashboardModeText } from "./dashboardFrameStatus";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MemoryRouter } from "react-router-dom";
@@ -183,7 +185,7 @@ describe("UserDashboardPing2026 (Ping UI Standard frame)", () => {
     const section = root.querySelector('[data-testid="dashboard-agent-column"]');
     expect(section.getAttribute("aria-labelledby")).toBe("udp-chat-h");
     expect(within(section).getByRole("heading", { level: 2, name: "Banking assistant" })).toBeTruthy();
-    expect(within(section).getByText(/^(Ready|Starting|Guest: sign in to act)$/)).toBeTruthy();
+    expect(within(section).getByText(/^(Signed in|Starting|Guest: sign in to act)$/)).toBeTruthy();
   });
 
   it("keeps the CIBA and Client ID Metadata Document explainers collapsed, as cards with an Explainer chip", async () => {
@@ -237,4 +239,101 @@ describe("UserDashboardPing2026 (Ping UI Standard frame)", () => {
       }
     },
   );
+  describe("mode banner wording follows what the page knows", () => {
+    const realAccounts = { data: { accounts: [{ id: "a1", name: "Checking", balance: 10 }] } };
+    const demoAccounts = { data: { accounts: [{ id: "d1", name: "Demo Checking", balance: 10, _demo: true }] } };
+    const bannerFor = async (user, accountsReply) => {
+      apiClient.get.mockImplementation(async (url) => {
+        if (String(url).includes("accounts")) {
+          if (accountsReply instanceof Error) throw accountsReply;
+          return accountsReply;
+        }
+        return { data: { transactions: [] } };
+      });
+      const { container } = renderPage(user);
+      await waitFor(() => expect(container.querySelector('[data-testid="dashboard-mode-banner"]')).not.toBeNull());
+      const note = container.querySelector('[data-testid="dashboard-mode-banner"]');
+      // the page shows a loading screen until the account fetch settles, so the banner is the settled wording
+      await new Promise((r) => setTimeout(r, 0));
+      return note.textContent;
+    };
+    const httpError = (status, data = {}) => Object.assign(new Error(`HTTP ${status}`), { response: { status, data } });
+    afterEach(() => apiClient.get.mockReset().mockResolvedValue({ data: [] }));
+
+    it("guest: says it is a guest session with sample data", async () => {
+      expect(await bannerFor(null, realAccounts)).toMatch(/^Guest session with demo accounts/);
+    });
+    it("signed in with demo accounts: says sample data", async () => {
+      expect(await bannerFor(mockUser, demoAccounts)).toMatch(/^Demo accounts:.*sample data/);
+    });
+    it("signed in with accounts from the banking API: says banking API", async () => {
+      expect(await bannerFor(mockUser, realAccounts)).toMatch(/^Signed in: balances and transactions come from the banking API/);
+    });
+    it.each([500, 403])("signed in and the accounts request fails with %s: does NOT claim the banking API", async (status) => {
+      const text = await bannerFor(mockUser, httpError(status, status === 403 ? { error: "forbidden" } : {}));
+      expect(text).not.toMatch(/banking API/i);
+      expect(text).toMatch(/^Signed in\. No accounts loaded/);
+    });
+    it("signed in and the bank returns no accounts: does NOT claim the banking API", async () => {
+      const text = await bannerFor(mockUser, { data: { accounts: [] } });
+      expect(text).not.toMatch(/banking API/i);
+      expect(text).toMatch(/^Signed in\. No accounts loaded/);
+    });
+    it("never says live or real for any branch", () => {
+      const lists = [[], [{ _demo: true }], [{ id: 1 }]];
+      for (const user of [null, mockUser]) {
+        for (const accounts of lists) expect(dashboardModeText(user, accounts)).not.toMatch(/\b(live|real)\b/i);
+      }
+    });
+  });
+
+  describe("status chips", () => {
+    const base = { startedAt: 1, runId: 7, provenance: "live", outcome: null, mcpResult: null, authorize: null };
+    it("Banking assistant chip says what the page knows, never Ready", () => {
+      expect(chatStatusChip({ hostPending: true, user: mockUser }).word).toBe("Starting");
+      expect(chatStatusChip({ hostPending: false, user: null }).word).toBe("Guest: sign in to act");
+      expect(chatStatusChip({ hostPending: false, user: mockUser }).word).toBe("Signed in");
+    });
+    it("Not run / Run started / Run captured / Run failed", () => {
+      expect(runTraceChip({ startedAt: null }).word).toBe("Not run");
+      expect(runTraceChip(base).word).toBe("Run started");
+      expect(runTraceChip({ ...base, outcome: "ok" })).toEqual({ tone: "ok", word: "Run captured" });
+      expect(runTraceChip({ ...base, outcome: "error" })).toEqual({ tone: "danger", word: "Run failed" });
+    });
+    it("a paused step-up / HITL run stamped error is Paused, not Run failed", () => {
+      const stepUp = { ...base, outcome: "error", authorize: { outcome: "STEP_UP" }, mcpResult: { status: "error", denied: false } };
+      expect(runTraceChip(stepUp)).toEqual({ tone: "warn", word: "Paused: step-up MFA" });
+      const hitl = { ...base, outcome: "error", authorize: { outcome: "HITL_REQUIRED" } };
+      expect(runTraceChip(hitl)).toEqual({ tone: "warn", word: "Paused: human approval" });
+    });
+    it("a refused approval gate is Approval declined", () => {
+      const declined = { ...base, outcome: "error", authorize: { outcome: "STEP_UP" }, approvalOutcome: "declined" };
+      expect(runTraceChip(declined)).toEqual({ tone: "info", word: "Approval declined" });
+    });
+    it("an expected DENY is Expected DENY, not Run failed", () => {
+      const deny = { ...base, outcome: "error", authorize: { outcome: "DENY" }, mcpResult: { denied: true, expected: true } };
+      expect(runTraceChip(deny)).toEqual({ tone: "info", word: "Expected DENY" });
+    });
+    it("a hard DENY that was not expected stays Run failed", () => {
+      const deny = { ...base, outcome: "error", authorize: { outcome: "DENY" }, mcpResult: { denied: true } };
+      expect(runTraceChip(deny).word).toBe("Run failed");
+    });
+    it("a mock replay says so", () => {
+      expect(runTraceChip({ ...base, outcome: "mock-success", provenance: "mock-id-jag", mode: "mock-id-jag" }).word).toBe("Mock replay captured");
+      expect(runTraceChip({ ...base, outcome: "ok", provenance: "mock" }).word).toBe("Mock replay captured");
+      expect(runTraceChip({ ...base, outcome: "ok", provenance: "recorded" }).word).toBe("Recorded run captured");
+    });
+    it("a run from before this visit is an earlier run, not this visit's Run captured", () => {
+      expect(runTraceChip({ ...base, outcome: "ok" }, 7)).toEqual({ tone: "neutral", word: "Earlier run" });
+      expect(runTraceChip({ ...base, outcome: "ok", runId: 8 }, 7).word).toBe("Run captured");
+      expect(runTraceChip({ ...base, outcome: "ok" }, null).word).toBe("Run captured");
+    });
+  });
+
+  it("keeps the unconverted regions at the line height they had: .pu-page's 1.5 stops at the page root", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/UserDashboardPing2026.pingUi.css"), "utf8");
+    const rule = css.match(/\.udp-page\.pu-page \{[^}]*\}/)?.[0] ?? "";
+    expect(rule).toMatch(/line-height:\s*inherit;/);
+    expect(css).toMatch(/\.udp-page \.udp-card__head,\s*\.udp-page \.udp-explainers \{\s*line-height: var\(--line-height-normal\)/);
+  });
 });

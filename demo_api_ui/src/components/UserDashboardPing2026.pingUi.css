@@ -12,6 +12,16 @@
   min-height: 0;
   background: var(--th-bg-page);
   color: var(--th-text);
+  /* .pu-page sets line-height 1.5 for pages built on the primitives. This page keeps its unconverted body, chat and
+     panels, which were laid out under the line height the app root hands down (1 under the end-user-nano skin).
+     `inherit` takes exactly that value, so those regions keep their old density; the new frame sets its own below. */
+  line-height: inherit;
+}
+
+/* The new frame parts read at the app's normal line height. */
+.udp-page .udp-card__head,
+.udp-page .udp-explainers {
+  line-height: var(--line-height-normal);
 }
 
 .udp-page.user-dashboard--split3 {

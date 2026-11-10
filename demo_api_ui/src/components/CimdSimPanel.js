@@ -21,6 +21,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './CimdSimPanel.css';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 // ── Demo CIMD document (always available, uses current origin) ────────────────
 
@@ -1094,6 +1095,8 @@ grant_type=authorization_code
 
 export default function CimdSimPanel() {
   const [open,      setOpen]      = useState(false);
+  const drawerRef = useRef(null);
+  useDialogFocus(drawerRef, { active: open, restoreFromWithin: true });
   const [activeTab, setActiveTab] = useState('what');
   const [width,     setWidth]     = useState(740);
   const drawerWidth  = useRef(740);
@@ -1163,6 +1166,8 @@ export default function CimdSimPanel() {
 
       {/* ── Slide-in drawer ─────────────────────────────────────────────────── */}
       <div
+        ref={drawerRef}
+        tabIndex={-1}
         className={`cimd-drawer${open ? ' cimd-drawer--open' : ''}`}
         style={{ width: `min(${width}px, 96vw)` }}
         role="dialog"
@@ -1182,6 +1187,7 @@ export default function CimdSimPanel() {
           </div>
           <button
             className="cimd-close"
+            data-autofocus
             onClick={() => setOpen(false)}
             aria-label="Close CIMD panel"
           >

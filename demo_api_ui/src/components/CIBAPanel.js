@@ -17,6 +17,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { notifyError } from '../utils/appToast';
 import './CIBAPanel.css';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 // The education tabs render <pre className="edu-code">; that rule lives here, not in CIBAPanel.css, and nothing else
 // loads it before the drawer opens, so the code blocks painted unstyled on first open.
 import './shared/EducationDrawer.css';
@@ -374,6 +375,8 @@ function TryItTab({ cibaStatus }) {
 
 export default function CIBAPanel() {
   const [open, setOpen]           = useState(false);
+  const drawerRef = useRef(null);
+  useDialogFocus(drawerRef, { active: open, restoreFromWithin: true });
   const [activeTab, setActiveTab] = useState('what');
   const [cibaStatus, setCibaStatus] = useState(null);
   // Resizable drawer width — persisted in localStorage
@@ -463,6 +466,8 @@ export default function CIBAPanel() {
 
       {/* Drawer */}
       <div
+        ref={drawerRef}
+        tabIndex={-1}
         className={`ciba-drawer${open ? ' ciba-drawer--open' : ''}`}
         role="dialog"
         aria-modal="true"
@@ -492,7 +497,7 @@ export default function CIBAPanel() {
               OIDC CIBA plus OAuth tokens, Backend-for-Frontend (BFF) session, MCP, and RFC 8693 token exchange — open <strong>Full stack</strong> for the map and <strong>Token exchange</strong> for before/after <code>/token</code>, statuses, and responses.
             </p>
           </div>
-          <button className="ciba-close" onClick={() => setOpen(false)} aria-label="Close">✕</button>
+          <button className="ciba-close" data-autofocus onClick={() => setOpen(false)} aria-label="Close">✕</button>
         </div>
 
         {/* Tabs */}

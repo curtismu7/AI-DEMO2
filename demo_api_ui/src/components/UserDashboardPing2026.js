@@ -70,6 +70,7 @@ import "./UserDashboardPing2026.pingUi.css";
 import PageHeader from "./common/PageHeader";
 import { SimBanner, StatusChip } from "./pingUi";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { dashboardModeText, chatStatusChip, runTraceChip } from "./dashboardFrameStatus";
 import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
@@ -213,23 +214,18 @@ function DetailPaneResizeHandle({ height, onMouseDown, onKeyDown }) {
 }
 
 /**
- * The run-trace status word, read from the same trace store the sequence diagram reads
- * (read-only subscribe). No run -> "Not run"; started with no outcome yet -> "Run started" (some chat runs never record
- * an outcome, so it does not claim "Running" or "Done"); then the recorded outcome.
+ * The run-trace chip, read from the same trace store the sequence diagram reads (read-only subscribe). The wording is
+ * decided by runTraceChip; `baselineRunId` is the run already in the store when this page mounted.
  */
-function useRunTraceStatus() {
+function useRunTraceStatus(baselineRunId) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
-  const trace = snap?.trace;
-  if (!trace?.startedAt) return { tone: "neutral", word: "Not run" };
-  if (trace.outcome === "error") return { tone: "danger", word: "Run failed" };
-  if (trace.outcome === "ok" || trace.outcome === "mock-success") return { tone: "ok", word: "Run captured" };
-  return { tone: "info", word: "Run started" };
+  return runTraceChip(snap?.trace, baselineRunId);
 }
 
 /** Labelled card around the run trace (sequence diagram). The diagram itself is unchanged. */
-function RunTraceCard({ children }) {
-  const status = useRunTraceStatus();
+function RunTraceCard({ children, baselineRunId }) {
+  const status = useRunTraceStatus(baselineRunId);
   return (
     <section className="udp-card udp-trace" aria-labelledby="udp-trace-h" data-testid="dashboard-run-trace">
       <div className="udp-card__head">
@@ -454,6 +450,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   }, []);
 
   const [user, setUser] = useState(propUser);
+  // The run already in the trace store when this page mounted; the Run trace chip calls it an earlier run.
+  const [traceBaselineRunId] = useState(() => tokenChainTraceStore.getState().trace?.runId ?? null);
   const [accounts, setAccounts] = useState([]);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -4044,20 +4042,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     );
   }
 
-  // What this page can actually tell about the mode in use. It knows whether a session is signed in and
-  // whether the account list is the built-in demo list. It does not know whether the agent engine or the bank behind
-  // the BFF is live or mocked, so it says only that, and points at the run trace.
-  const modeText = !user
-    ? "Guest session with demo accounts: the balances and transactions here are sample data. Agent answers come from the agent engine in use; sign in to act on your own accounts."
-    : isDemoMode
-      ? "Demo accounts: the balances and transactions on this page are sample data, not your own. Agent answers come from the agent engine in use; the run trace shows what each run called."
-      : "Signed in: balances and transactions come from the banking API for your session. Agent answers come from the agent engine in use; the run trace shows what each run called.";
+  // What this page can actually tell about the mode in use: see dashboardFrameStatus.js.
+  const modeText = dashboardModeText(user, accounts);
   const verticalName = pageManifest?.identity?.headerTitle || pageManifest?.identity?.displayName || "Customer";
-  const chatStatus = !middleHostEl && agentPlacement === "middle"
-    ? { tone: "neutral", word: "Starting" }
-    : !user
-      ? { tone: "warn", word: "Guest: sign in to act" }
-      : { tone: "ok", word: "Ready" };
+  const chatStatus = chatStatusChip({ hostPending: !middleHostEl && agentPlacement === "middle", user });
 
   return (
     <div
@@ -4216,7 +4204,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <RunTraceCard>
+            <RunTraceCard baselineRunId={traceBaselineRunId}>
               <SequenceReelDiagram
                 onSelectStep={setSelectedSeqStep}
                 onReset={() => setSelectedSeqStep(null)}
@@ -4305,7 +4293,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
             {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <RunTraceCard>
+            <RunTraceCard baselineRunId={traceBaselineRunId}>
               <SequenceReelDiagram
                 onSelectStep={setSelectedSeqStep}
                 onReset={() => setSelectedSeqStep(null)}
