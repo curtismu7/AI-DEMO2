@@ -30,7 +30,7 @@ const ACTS = [
 
 export default function IdJagRunnerLabPage() {
   return (
-    <main className="ijl" data-testid="id-jag-runner-lab">
+    <div className="ijl" data-testid="id-jag-runner-lab">
       <IdJagPathBar current="run" />
       <header className="ijl-hero">
         <p className="ijl-eyebrow">Run it live</p>
@@ -81,6 +81,6 @@ export default function IdJagRunnerLabPage() {
           {" "}<Link to="/pingfederate-id-jag/implementation">implementation page</Link>.
         </p>
       </section>
-    </main>
+    </div>
   );
 }

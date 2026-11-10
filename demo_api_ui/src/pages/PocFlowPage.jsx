@@ -8,7 +8,7 @@ import { POC_FLOW_PAYLOADS, POC_FLOW_DETAILS, POC_FLOW_SOURCE, POC_FLOW_STEP_DET
 
 export default function PocFlowPage() {
   return (
-    <main style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px 32px' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px 32px' }}>
       <PageHeader
         eyebrow="Diagrams · Tokens and delegation"
         title="POC flow"
@@ -22,6 +22,6 @@ export default function PocFlowPage() {
         stepDetails={POC_FLOW_STEP_DETAILS}
         label="POC flow: agent token exchange and CIBA approval sequence"
       />
-    </main>
+    </div>
   );
 }

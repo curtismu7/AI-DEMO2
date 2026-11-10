@@ -150,18 +150,18 @@ export default function LearningProtocolLabPage() {
   const lab = LABS[labId];
   if (!lab) {
     return (
-      <main className="learning-lab">
+      <div className="learning-lab">
         <BackLink to="/learning">Back to Learning Hub</BackLink>
         <h1>Training lab not found</h1>
         <p className="learning-lab__honesty">Choose a runnable simulated example from the Learning Hub.</p>
-      </main>
+      </div>
     );
   }
   return (
-    <main className="learning-lab">
+    <div className="learning-lab">
       <LabHeader lab={lab} />
       {labId === "rar" ? <RarLab /> : labId === "jwt-client-auth" ? <JwtClientAuthLab /> : labId === "step-up" ? <StepUpLab /> : <ParLab />}
       <p className="learning-lab__honesty">This is a deterministic training lab. It demonstrates the protocol decision and evidence shape without calling an external authorization server.</p>
-    </main>
+    </div>
   );
 }

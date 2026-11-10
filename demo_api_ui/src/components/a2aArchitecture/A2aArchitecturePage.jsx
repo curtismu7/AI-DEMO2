@@ -10,7 +10,7 @@ import "./a2aArchitecture.css";
 
 export default function A2aArchitecturePage() {
   return (
-    <main className="pa-page" data-testid="a2a-architecture-page">
+    <div className="pa-page" data-testid="a2a-architecture-page">
       <header className="pa-hero">
         <div className="pa-eyebrow">Agents · A2A</div>
         <h1>A2A Architecture</h1>
@@ -46,6 +46,6 @@ export default function A2aArchitecturePage() {
           ariaLabel="Card discovery. The generalist fetches the Agent Card from the well-known path for the vertical and reads its capabilities, then posts a JSON-RPC SendMessage to the specialist endpoint."
         />
       </section>
-    </main>
+    </div>
   );
 }

@@ -173,7 +173,7 @@ export default function PingFederateIdJagPage() {
   };
 
   return (
-    <main className="pfj-page" data-testid="pingfederate-id-jag-page">
+    <div className="pfj-page" data-testid="pingfederate-id-jag-page">
       <IdJagPathBar current="protocol" />
       <PageHeader className="pfj-header" eyebrow="UC40 · Enterprise-managed MCP authorization" title={diagram.title} summary={diagram.intro}
         actions={<>        <div className="pfj-provider-badge"><span /> {diagram.badge}</div>
@@ -237,6 +237,6 @@ export default function PingFederateIdJagPage() {
         <p className="pfj-intro">The diagram above groups the flow into steps. This lists all 19 calls, from sign-in to the banking API.</p>
         <IdJagCallPlayer />
       </section>
-    </main>
+    </div>
   );
 }

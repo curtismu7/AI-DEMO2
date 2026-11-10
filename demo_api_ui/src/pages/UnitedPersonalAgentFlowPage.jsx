@@ -13,7 +13,7 @@ const UNITED_ORIGINAL_DIAGRAM_URL = 'https://drive.google.com/file/d/1W0fCnzQf9c
 export default function UnitedPersonalAgentFlowPage() {
   const [showIssues, setShowIssues] = useState(false);
   return (
-    <main style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px 32px' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px 32px' }}>
       <PageHeader
         eyebrow="Diagrams · Personal agent"
         title="A member's agent meets United's MCP door"
@@ -37,6 +37,6 @@ export default function UnitedPersonalAgentFlowPage() {
         issues={showIssues ? UNITED_FLOW_ISSUES : undefined}
         label="United personal-agent MCP door sequence"
       />
-    </main>
+    </div>
   );
 }

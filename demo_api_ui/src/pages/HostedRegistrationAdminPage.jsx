@@ -59,7 +59,7 @@ export default function HostedRegistrationAdminPage() {
   }
 
   return (
-    <main style={{ padding: '2rem' }}>
+    <div style={{ padding: '2rem' }}>
       <h1>Hosted registration requests</h1>
       {error && <p role="alert">{error}</p>}
       <section style={{ marginBottom: '2rem' }}>
@@ -101,6 +101,6 @@ export default function HostedRegistrationAdminPage() {
       <EmbeddedFlowDiagram config={HOSTED_FLOW} testId="hosted-flow" ariaLabel="Hosted access registration flow"
         title="Hosted access: request, invite, approval"
         lede="Requesters verify an email code, admins can also invite directly, and an admin approval moves the user into the group that opens the hosted-access wall." />
-    </main>
+    </div>
   );
 }

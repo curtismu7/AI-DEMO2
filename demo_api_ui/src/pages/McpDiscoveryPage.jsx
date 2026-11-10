@@ -148,7 +148,7 @@ export default function McpDiscoveryPage() {
   };
 
   return (
-    <main className="mcp-discovery-page">
+    <div className="mcp-discovery-page">
       <PageHeader
         className="mcp-discovery-header"
         eyebrow="MCP runtime"
@@ -249,6 +249,6 @@ export default function McpDiscoveryPage() {
           <div className="mcp-discovery-boundary"><strong>Discovery boundary</strong><span>No credentials. No tool calls. Stdio processes remain candidates unless they expose an inspection channel.</span></div>
         </section>}
       </div>
-    </main>
+    </div>
   );
 }

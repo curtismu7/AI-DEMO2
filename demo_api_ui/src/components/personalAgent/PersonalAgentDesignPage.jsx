@@ -25,7 +25,7 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
   const usedGroups = [...new Set(design.nodes.map((n) => n.group))];
 
   return (
-    <main className="pa-page" data-testid={`pa-page-${variant}`}>
+    <div className="pa-page" data-testid={`pa-page-${variant}`}>
       <PageHeader className="pa-hero" eyebrow={design.eyebrow} title={design.title} summary={design.intro}>
         <nav className="pa-links" aria-label="Related personal agent pages">
           <Link to="/personal-agent-review">Why the original design was wrong</Link>
@@ -104,6 +104,6 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }

@@ -176,7 +176,7 @@ function Log() {
 export default function IdJagInspectPage() {
   const [tab, setTab] = useState("decode");
   return (
-    <main className="ijl" data-testid="id-jag-inspect">
+    <div className="ijl" data-testid="id-jag-inspect">
       <IdJagPathBar />
       <header className="ijl-hero">
         <p className="ijl-eyebrow">Inspector</p>
@@ -192,6 +192,6 @@ export default function IdJagInspectPage() {
       {tab === "decode" && <Decode />}
       {tab === "log" && <Log />}
       <Discovery />
-    </main>
+    </div>
   );
 }

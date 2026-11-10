@@ -10,7 +10,7 @@ import './PoppyPage.css';
 
 export default function PoppyPage() {
   return (
-    <main className="poppy-page" data-testid="poppy-page">
+    <div className="poppy-page" data-testid="poppy-page">
       <PageHeader
         eyebrow="Diagrams · Agents"
         title="Poppy: the Personal Agent Protocol"
@@ -63,6 +63,6 @@ export default function PoppyPage() {
           </tbody>
         </table>
       </section>
-    </main>
+    </div>
   );
 }
