@@ -7,20 +7,20 @@
    drifted onto a second gray ramp. The --admin-* tokens also carry the page's
    dark values, so this file needs no dark block of its own. */
 
-.acp-panel {
+.admin-dashboard-page .acp-panel {
   display: flex;
   flex-direction: column;
   color: var(--th-text);
 }
 
-.acp-subtitle {
+.admin-dashboard-page .acp-subtitle {
   margin: 0 0 1rem;
   font-size: 0.9rem;
   color: var(--admin-muted);
   line-height: 1.5;
 }
 
-.acp-label {
+.admin-dashboard-page .acp-label {
   display: block;
   font-size: 0.72rem;
   font-weight: 600;
@@ -30,47 +30,48 @@
   margin-bottom: 0.3rem;
 }
 
-.acp-search {
+.admin-dashboard-page .acp-search {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   margin-bottom: 0.5rem;
 }
 
-.acp-search-input {
+.admin-dashboard-page .acp-search-input {
   max-width: 360px;
   padding: 0.5rem 0.65rem;
   border-radius: var(--radius-lg);
   border: 1px solid var(--admin-line);
 }
 
-.acp-hint {
+.admin-dashboard-page .acp-hint {
   font-size: 0.85rem;
   color: var(--admin-muted);
   margin: 0.35rem 0;
 }
 
-.acp-hint--select {
+.admin-dashboard-page .acp-hint--select {
   font-style: italic;
 }
 
-.acp-error {
+.admin-dashboard-page .acp-error {
   font-size: 0.85rem;
-  color: var(--brand-error, #d20e0f);
+  color: var(--th-status-error-text);
   font-weight: 500;
 }
 
-.acp-error--block {
+.admin-dashboard-page .acp-error--block {
   display: block;
   margin: 0.75rem 0;
   padding: 0.6rem 0.8rem;
   border-radius: var(--radius-lg);
-  background: rgba(210, 14, 15, 0.08);
-  border: 1px solid rgba(210, 14, 15, 0.25);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border: 1px solid var(--th-status-error-border);
 }
 
 /* Match list */
-.acp-matches {
+.admin-dashboard-page .acp-matches {
   list-style: none;
   margin: 0 0 1rem;
   padding: 0;
@@ -82,7 +83,7 @@
   overflow-y: auto;
 }
 
-.acp-match {
+.admin-dashboard-page .acp-match {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -97,29 +98,35 @@
   transition: background 0.12s;
 }
 
-.acp-matches li:last-child .acp-match {
+.admin-dashboard-page .acp-matches li:last-child .acp-match {
   border-bottom: none;
 }
 
-.acp-match:hover,
-.acp-match:focus-visible {
+.admin-dashboard-page .acp-match:hover,
+.admin-dashboard-page .acp-match:focus-visible {
   background: var(--admin-surface-2);
-  outline: none;
+  color: var(--admin-ink);
+}
+.admin-dashboard-page .acp-match:focus-visible,
+.admin-dashboard-page .acp-selected:focus-visible,
+.admin-dashboard-page .acp-results:focus-visible {
+  outline: 2px solid var(--admin-ink);
+  outline-offset: 2px;
 }
 
-.acp-match__name {
+.admin-dashboard-page .acp-match__name {
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--admin-ink);
 }
 
-.acp-match__meta {
+.admin-dashboard-page .acp-match__meta {
   font-size: 0.78rem;
   color: var(--admin-muted);
 }
 
 /* Selected banner */
-.acp-selected {
+.admin-dashboard-page .acp-selected {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -131,7 +138,7 @@
   border: 1px solid var(--admin-line);
 }
 
-.acp-selected__label {
+.admin-dashboard-page .acp-selected__label {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -139,19 +146,19 @@
   color: var(--admin-muted);
 }
 
-.acp-selected__name {
+.admin-dashboard-page .acp-selected__name {
   font-weight: 600;
   color: var(--admin-ink);
 }
 
-.acp-selected__id {
+.admin-dashboard-page .acp-selected__id {
   font-weight: 400;
   font-size: 0.8rem;
   color: var(--admin-muted);
   word-break: break-all;
 }
 
-.acp-clear-btn {
+.admin-dashboard-page .acp-clear-btn {
   margin-left: auto;
   background: transparent;
   border: 1px solid var(--admin-line);
@@ -162,68 +169,38 @@
   color: var(--admin-ink);
 }
 
-.acp-clear-btn:hover {
+.admin-dashboard-page .acp-clear-btn:hover {
   background: rgba(148, 163, 184, 0.18);
 }
 
 /* Actions */
-.acp-actions {
+.admin-dashboard-page .acp-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
-.acp-action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* Results */
-.acp-results {
+.admin-dashboard-page .acp-results {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--admin-line);
 }
 
-.acp-result-title {
+.admin-dashboard-page .acp-result-title {
   margin: 0 0 0.65rem;
   font-size: 1rem;
   font-weight: 700;
   color: var(--admin-ink);
 }
 
-.acp-dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.6rem 1.25rem;
-  margin: 0;
-  font-size: 0.875rem;
-}
-
-.acp-dl__row {
-  min-width: 0;
-}
-
-.acp-dl__key {
-  margin: 0;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--admin-muted);
-}
-
-.acp-dl__val {
-  margin: 0.15rem 0 0;
-  color: var(--admin-ink);
-  word-break: break-word;
-}
-
-.acp-mono {
+.admin-dashboard-page .acp-mono {
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
 }
 
-.acp-json {
+.admin-dashboard-page .acp-json {
   margin: 0.5rem 0 0;
   padding: 0.6rem 0.8rem;
   background: var(--admin-surface-2);
@@ -232,28 +209,28 @@
   overflow-x: auto;
 }
 
-.acp-callout {
+.admin-dashboard-page .acp-callout {
   padding: 0.75rem 0.9rem;
   border-radius: var(--radius-lg);
   font-size: 0.9rem;
   line-height: 1.5;
 }
 
-.acp-callout--ok {
+.admin-dashboard-page .acp-callout--ok {
   background: rgba(34, 197, 94, 0.12);
   border: 1px solid rgba(34, 197, 94, 0.3);
   color: var(--admin-ink);
 }
 
 /* Adjust form */
-.acp-adjust__fields {
+.admin-dashboard-page .acp-adjust__fields {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: flex-end;
 }
 
-.acp-select {
+.admin-dashboard-page .acp-select {
   min-width: 220px;
   padding: 0.5rem 0.65rem;
   border-radius: var(--radius-lg);
@@ -261,8 +238,8 @@
 }
 
 /* ── Consolidated lookup (absorbed from the dashboard's separate card) ────── */
-.acp-hints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.acp-hint-chip {
+.admin-dashboard-page .acp-hints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.admin-dashboard-page .acp-hint-chip {
   border: 1px solid var(--admin-line);
   background: var(--admin-surface);
   color: var(--admin-ink);
@@ -271,9 +248,9 @@
   font-size: var(--font-size-2xs);
   cursor: pointer;
 }
-.acp-hint-chip:hover { background: var(--admin-tint); border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface)); }
-.acp-lookup { margin-top: 14px; }
-.acp-lookup__h {
+.admin-dashboard-page .acp-hint-chip:hover { background: var(--admin-tint); border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface)); }
+.admin-dashboard-page .acp-lookup { margin-top: 14px; }
+.admin-dashboard-page .acp-lookup__h {
   margin: 14px 0 6px;
   font-size: var(--font-size-2xs);
   font-weight: 800;
@@ -281,7 +258,14 @@
   letter-spacing: .04em;
   color: var(--admin-muted);
 }
-.acp-kv { margin: 0; display: grid; gap: 2px; }
-.acp-kv__row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--admin-line); font-size: var(--font-size-sm); }
-.acp-kv__row dt { color: var(--admin-muted); }
-.acp-kv__row dd { margin: 0; color: var(--admin-ink); font-weight: 600; }
+
+/* Status line for the running action: always mounted so a change is announced. Empty = no space taken. */
+.admin-dashboard-page .acp-run-status {
+  margin: 0;
+  min-height: 0;
+  font-size: var(--font-size-sm);
+  color: var(--admin-muted);
+}
+.admin-dashboard-page .acp-run-status:not(:empty) {
+  margin: 0.35rem 0;
+}

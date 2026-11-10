@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import bffAxios from "../services/bffAxios";
 import { adminCustomerContext } from "../services/adminCustomerContext";
+import { KvList } from "./pingUi";
 import "./AdminCustomerPanel.css";
 
 const API = "/api/admin/agent";
@@ -26,7 +27,32 @@ function errMessage(err, fallback) {
   );
 }
 
-const AdminCustomerPanel = () => {
+// What each action is called in the status line, and what it says when it finishes.
+const RUN_LABEL = {
+  profile: "profile",
+  accounts: "accounts",
+  transactions: "transactions",
+  reset: "password reset",
+  "adjust-accounts": "accounts for the adjustment",
+  adjust: "balance adjustment",
+};
+
+function doneMessage(kind, data) {
+  switch (kind) {
+    case "profile": return "Profile loaded.";
+    case "accounts": return `Accounts loaded (${Array.isArray(data) ? data.length : 0}).`;
+    case "transactions": return `Transactions loaded (${Array.isArray(data) ? data.length : 0}).`;
+    case "reset": return "Password reset flagged.";
+    case "adjust-accounts": return "Adjust balance form ready.";
+    case "adjust": return "Balance adjusted.";
+    default: return "Done.";
+  }
+}
+
+// primaryAction: whether this panel holds the page's one primary button (Dashboard turns it off while its own
+// Retry card is the primary). Inside the panel the primary is "View Profile", or "Apply adjustment" while the
+// adjust form is open; every other action is a secondary.
+const AdminCustomerPanel = ({ primaryAction = true }) => {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -50,9 +76,33 @@ const AdminCustomerPanel = () => {
   const [adjustAccountId, setAdjustAccountId] = useState("");
   const [adjustAmount, setAdjustAmount] = useState("");
 
+  // One status line for the running action. It is mounted from the first render, so its text changing is
+  // announced; the buttons keep their names while it runs (aria-disabled shows the busy state).
+  const [runStatus, setRunStatus] = useState("");
+  const searchRef = useRef(null);
+  const selectedRef = useRef(null);
+  const resultsRef = useRef(null);
+  const pendingFocusRef = useRef(null);
+
   const debounceRef = useRef(null);
   const reqIdRef = useRef(0);
   const lookupReqRef = useRef(0);
+
+  // Selecting a match unmounts the list the keyboard user was in, and Clear unmounts its own button. Hand focus
+  // to the "Acting on" block (which reads the selection) or back to the search box, never to <body>.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    pendingFocusRef.current = null;
+    (target === "selected" ? selectedRef.current : searchRef.current)?.focus();
+  }, [selectedCustomer]);
+
+  // Apply adjustment replaces the form with its result, so the button that was pressed is gone.
+  useEffect(() => {
+    if (result && (!document.activeElement || document.activeElement === document.body)) {
+      resultsRef.current?.focus();
+    }
+  }, [result]);
 
   // Username hint chips — carried over from the dashboard's lookup card.
   useEffect(() => {
@@ -99,9 +149,11 @@ const AdminCustomerPanel = () => {
 
   const handleSelect = useCallback((u) => {
     const customer = { id: u.id, name: displayName(u) };
+    pendingFocusRef.current = "selected";
     setSelectedCustomer(customer);
     adminCustomerContext.set(customer);
     setResult(null);
+    setRunStatus("");
     setActionError(null);
     setAdjustAccountId("");
     setAdjustAmount("");
@@ -128,7 +180,9 @@ const AdminCustomerPanel = () => {
   }, []);
 
   const handleClear = useCallback(() => {
+    pendingFocusRef.current = "search";
     setSelectedCustomer(null);
+    setRunStatus("");
     adminCustomerContext.set(null);
     lookupReqRef.current += 1;   // drop any in-flight read for the old customer
     setLookup(null);
@@ -144,11 +198,17 @@ const AdminCustomerPanel = () => {
       if (!selectedCustomer) return;
       setActionLoading(kind);
       setActionError(null);
+      // A result from an earlier action must not sit beside this action's loading or error. The adjust form
+      // stays up while it submits so a rejected amount can be corrected.
+      if (kind !== "adjust") setResult(null);
+      setRunStatus(`Running ${RUN_LABEL[kind] || kind}…`);
       try {
         const data = await fn();
         setResult({ kind, data });
+        setRunStatus(doneMessage(kind, data));
       } catch (err) {
         setActionError(errMessage(err, "Action failed"));
+        setRunStatus("");
       } finally {
         setActionLoading(null);
       }
@@ -210,10 +270,20 @@ const AdminCustomerPanel = () => {
 
   const busy = actionLoading !== null;
   const disabled = !selectedCustomer || busy;
+  const adjusting = result?.kind === "adjust-accounts";
+  const profilePrimary = primaryAction && !adjusting;
+  // aria-disabled, not disabled: the button that was just pressed keeps keyboard focus while its action runs.
+  // The click is ignored here, and the visible reason is the "Search and select a customer" line (or "Loading…").
+  const actionProps = (run) => ({
+    type: "button",
+    "aria-disabled": disabled ? "true" : undefined,
+    "aria-describedby": selectedCustomer ? undefined : "acp-select-hint",
+    onClick: disabled ? undefined : run,
+  });
 
   return (
     <section
-      className="dash-shell-card acp-panel"
+      className="dash-shell-card pu-card acp-panel"
       aria-labelledby="acp-heading"
     >
       <h2 id="acp-heading" className="dash-shell-card__title">
@@ -237,6 +307,7 @@ const AdminCustomerPanel = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
+          ref={searchRef}
         />
         {hints.length > 0 && !selectedCustomer && (
           <div className="acp-hints" role="group" aria-label="Suggested customers">
@@ -253,11 +324,9 @@ const AdminCustomerPanel = () => {
           </div>
         )}
         {searching && <span className="acp-hint">Searching…</span>}
-        {searchError && (
-          <span className="acp-error" role="alert">
-            ❌ {searchError}
-          </span>
-        )}
+        <span role="alert">
+          {searchError && <span className="acp-error">❌ {searchError}</span>}
+        </span>
       </div>
 
       {matches.length > 0 && (
@@ -288,7 +357,12 @@ const AdminCustomerPanel = () => {
 
       {/* Selected customer banner */}
       {selectedCustomer ? (
-        <div className="acp-selected" role="status">
+        <div
+          className="acp-selected"
+          ref={selectedRef}
+          tabIndex={-1}
+          aria-label={`Acting on ${selectedCustomer.name}`}
+        >
           <span className="acp-selected__label">Acting on:</span>
           <span className="acp-selected__name">
             {selectedCustomer.name}{" "}
@@ -304,15 +378,17 @@ const AdminCustomerPanel = () => {
           </button>
         </div>
       ) : (
-        <p className="acp-hint acp-hint--select">
+        <p id="acp-select-hint" className="acp-hint acp-hint--select">
           Search and select a customer above to enable admin actions.
         </p>
       )}
 
       {/* Consolidated read — replaces the dashboard's separate lookup card. */}
-      {selectedCustomer && lookupError && (
-        <p className="acp-error" role="alert">❌ {lookupError}</p>
-      )}
+      <div role="alert">
+        {selectedCustomer && lookupError && (
+          <p className="acp-error">❌ {lookupError}</p>
+        )}
+      </div>
       {selectedCustomer && lookup && (
         <div className="acp-lookup">
           <h3 className="acp-lookup__h">Customer profile</h3>
@@ -321,16 +397,17 @@ const AdminCustomerPanel = () => {
           {lookup.pingOne && (
             <>
               <h3 className="acp-lookup__h">PingOne record</h3>
-              <dl className="acp-kv">
-                {Object.entries(lookup.pingOne)
+              {lookup.pingOne.linked === false && (
+                <p className="acp-hint">
+                  No PingOne record is linked to this customer ({String(lookup.pingOne.reason || "not found")}), so
+                  the profile above comes from the demo store only.
+                </p>
+              )}
+              <KvList
+                items={Object.entries(lookup.pingOne)
                   .filter(([, v]) => v !== null && typeof v !== "object")
-                  .map(([k, v]) => (
-                    <div className="acp-kv__row" key={k}>
-                      <dt>{k}</dt>
-                      <dd>{String(v)}</dd>
-                    </div>
-                  ))}
-              </dl>
+                  .map(([k, v]) => ({ label: k, value: String(v) }))}
+              />
             </>
           )}
 
@@ -345,56 +422,54 @@ const AdminCustomerPanel = () => {
       {/* Action buttons */}
       <div className="acp-actions" role="group" aria-label="Customer admin actions">
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={viewProfile}
+          className={`pu-btn acp-action-btn${profilePrimary ? " pu-btn--primary" : ""}`}
+          {...actionProps(viewProfile)}
         >
-          {actionLoading === "profile" ? "Loading…" : "View Profile"}
+          View Profile
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={viewAccounts}
+          className="pu-btn acp-action-btn"
+          {...actionProps(viewAccounts)}
         >
-          {actionLoading === "accounts" ? "Loading…" : "View Accounts"}
+          View Accounts
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={viewTransactions}
+          className="pu-btn acp-action-btn"
+          {...actionProps(viewTransactions)}
         >
-          {actionLoading === "transactions" ? "Loading…" : "View Transactions"}
+          View Transactions
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={resetPassword}
+          className="pu-btn acp-action-btn"
+          {...actionProps(resetPassword)}
         >
-          {actionLoading === "reset" ? "Working…" : "Reset Password"}
+          Reset Password
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={loadAccountsForAdjust}
+          className="pu-btn acp-action-btn"
+          {...actionProps(loadAccountsForAdjust)}
         >
-          {actionLoading === "adjust-accounts" ? "Loading…" : "Adjust Balance"}
+          Adjust Balance
         </button>
       </div>
 
-      {actionError && (
-        <div className="acp-error acp-error--block" role="alert">
-          ❌ {actionError}
-        </div>
-      )}
+      <p role="status" className="acp-run-status">{runStatus}</p>
+
+      <div role="alert">
+        {actionError && (
+          <div className="acp-error acp-error--block">❌ {actionError}</div>
+        )}
+      </div>
 
       {/* Results area */}
       {result && (
-        <div className="acp-results">
+        <div
+          className="acp-results"
+          ref={resultsRef}
+          tabIndex={-1}
+          role="region"
+          aria-label="Customer action result"
+        >
           {result.kind === "profile" && <ProfileResult user={result.data} />}
           {result.kind === "accounts" && (
             <AccountsTable accounts={result.data} />
@@ -427,6 +502,7 @@ const AdminCustomerPanel = () => {
               onAmountChange={setAdjustAmount}
               onSubmit={submitAdjust}
               submitting={actionLoading === "adjust"}
+              primary={primaryAction}
             />
           )}
         </div>
@@ -443,16 +519,12 @@ function ProfileResult({ user }) {
   return (
     <div>
       <h3 className="acp-result-title">Profile</h3>
-      <dl className="acp-dl">
-        {entries.map(([k, v]) => (
-          <div key={k} className="acp-dl__row">
-            <dt className="acp-dl__key">{k}</dt>
-            <dd className="acp-dl__val">
-              {v === null || v === "" ? "—" : String(v)}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <KvList
+        items={entries.map(([k, v]) => ({
+          label: k,
+          value: v === null || v === "" ? "—" : String(v),
+        }))}
+      />
     </div>
   );
 }
@@ -551,6 +623,7 @@ function AdjustForm({
   onAmountChange,
   onSubmit,
   submitting,
+  primary,
 }) {
   if (!accounts || accounts.length === 0)
     return (
@@ -597,11 +670,11 @@ function AdjustForm({
         </div>
         <button
           type="button"
-          className="btn btn-primary acp-action-btn"
-          onClick={onSubmit}
-          disabled={submitting || !accountId || amount === ""}
+          className={`pu-btn acp-action-btn${primary ? " pu-btn--primary" : ""}`}
+          onClick={submitting || !accountId || amount === "" ? undefined : onSubmit}
+          aria-disabled={submitting || !accountId || amount === "" ? "true" : undefined}
         >
-          {submitting ? "Applying…" : "Apply adjustment"}
+          Apply adjustment
         </button>
       </div>
     </div>
