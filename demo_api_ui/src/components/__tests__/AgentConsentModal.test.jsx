@@ -5,6 +5,8 @@
  * Mode 2 — High-risk transaction  (transaction prop)
  * Mode 3 — Legacy agent access  (no hitlContext/transaction)
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AgentConsentModal from '../AgentConsentModal';
@@ -57,7 +59,7 @@ describe('AgentConsentModal — HITL mode (hitlContext)', () => {
     expect(screen.getByText('User requested a transfer')).toBeInTheDocument();
   });
 
-  it('Agree & Continue is disabled until the checkbox is checked', () => {
+  it('Agree & Continue is inactive (aria-disabled, still focusable) until the checkbox is checked', () => {
     render(
       <AgentConsentModal
         hitlContext={{ tool: 'create_transfer' }}
@@ -66,10 +68,20 @@ describe('AgentConsentModal — HITL mode (hitlContext)', () => {
       />,
     );
     const btn = screen.getByRole('button', { name: /Agree & Continue/i });
-    expect(btn).toBeDisabled();
+    // aria-disabled, not `disabled`: the button keeps keyboard focus and explains itself.
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(btn).not.toBeDisabled();
+    const reason = document.getElementById(btn.getAttribute('aria-describedby'));
+    expect(reason).toHaveTextContent('Tick the box above to turn on Agree & Continue.');
+    btn.focus();
+    expect(document.activeElement).toBe(btn);
+    fireEvent.click(btn);
+    expect(onAccept).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('checkbox'));
-    expect(btn).not.toBeDisabled();
+    expect(btn).not.toHaveAttribute('aria-disabled');
+    expect(btn).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText(/Tick the box above/)).not.toBeInTheDocument();
   });
 
   it('calls onAccept after checkbox + Agree & Continue', async () => {
@@ -244,5 +256,77 @@ describe('AgentConsentModal — legacy agent access mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /Allow/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Internal error');
     expect(screen.getByRole('button', { name: /Allow/i })).not.toBeDisabled();
+  });
+});
+
+describe('AgentConsentModal — honest wording (no one-time code)', () => {
+  const tx = { type: 'transfer', amount: 750, fromAccountId: 'CHK-001', toAccountId: 'SAV-002', description: 'Monthly savings sweep' };
+  const cases = {
+    'hitlContext': <AgentConsentModal hitlContext={{ tool: 'create_transfer' }} onAccept={vi.fn()} onDismiss={vi.fn()} />,
+    'transaction': <AgentConsentModal transaction={tx} onAccept={vi.fn()} onDismiss={vi.fn()} />,
+  };
+  for (const [mode, el] of Object.entries(cases)) {
+    it(`${mode}: says what happens, and never promises a one-time code`, () => {
+      const { container } = render(el);
+      const items = [...container.querySelectorAll('.acm-assurances li')].map((li) => li.textContent);
+      expect(items).toEqual([
+        'Your decision is recorded in the audit trail',
+        'The agent waits for your decision and cannot proceed without it',
+        'If this action needs more verification, such as an MFA prompt, you are asked for it after you approve',
+      ]);
+      expect(container.textContent).not.toMatch(/one-time code|registered (contact|email)/i);
+    });
+  }
+});
+
+describe('AgentConsentModal — inactive primary style', () => {
+  const css = fs.readFileSync(path.resolve(__dirname, '..', 'AgentConsentModal.css'), 'utf8');
+  const indexCss = fs.readFileSync(path.resolve(__dirname, '..', '..', 'index.css'), 'utf8');
+  const pingUi = fs.readFileSync(path.resolve(__dirname, '..', '..', 'styles', 'ping-ui.css'), 'utf8');
+  const strip = (c) => c.replace(/\/\*[\s\S]*?\*\//g, '');
+  const ruleBody = (src, selector) => {
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    const out = [];
+    let m;
+    while ((m = re.exec(strip(src)))) if (m[1].replace(/\s+/g, ' ').trim() === selector) out.push(m[2]);
+    return out.join('\n');
+  };
+  const lum = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+
+  it('the inactive state never fades the button with opacity', () => {
+    const body = ruleBody(css, '.acm-btn--primary:disabled,\n.acm-btn--primary[aria-disabled="true"]'.replace('\n', ' '));
+    expect(body).toContain('var(--btn-accent-inactive-gradient)');
+    expect(body).toContain('color: var(--btn-accent-text)');
+    expect(body).toContain('1px dashed');
+    expect(body).not.toMatch(/opacity/);
+  });
+
+  it('the shared .pu-btn--primary inactive rules (disabled and aria-disabled) are full opacity, never 0.88', () => {
+    for (const sel of [
+      ".pu-page button.pu-btn.pu-btn--primary:disabled",
+      ".pu-page button.pu-btn.pu-btn--primary[aria-disabled='true']",
+    ]) {
+      const body = ruleBody(pingUi, sel);
+      expect(body, sel).toMatch(/opacity:\s*1;/);
+      expect(body, sel).toContain('var(--btn-accent-inactive-gradient)');
+      expect(body, sel).toContain('1px dashed');
+    }
+    expect(strip(pingUi)).not.toMatch(/pu-btn--primary[^{]*\{[^}]*opacity:\s*0\.88/);
+  });
+
+  it('white label on both inactive gradient stops clears 4.5:1 (resolved from the index.css tokens)', () => {
+    const root = ruleBody(indexCss, ':root');
+    const grad = root.match(/--btn-accent-inactive-gradient:\s*linear-gradient\(90deg,\s*(#[0-9a-f]{6}) 55%,\s*(#[0-9a-f]{6})\)/i);
+    expect(grad).toBeTruthy();
+    const label = root.match(/--btn-accent-text:\s*(#[0-9a-f]{6})/i)[1];
+    for (const stop of [grad[1], grad[2]]) expect(ratio(label, stop)).toBeGreaterThanOrEqual(4.5);
+    // Active gradient stays Ping Red; the dark theme only changes the edge, so the label ratio is the same in both themes.
+    expect(ratio(label, grad[1])).toBeCloseTo(7.22, 1);
+    expect(ruleBody(indexCss, ':root[data-theme="dark"]')).not.toContain('--btn-accent-inactive');
   });
 });

@@ -134,6 +134,10 @@ textarea::placeholder {
   --btn-accent-text: #ffffff;
   --btn-accent-gradient: linear-gradient(90deg, #d20e0f 55%, #aa0005);
   --btn-accent-gradient-hover: linear-gradient(180deg, #d20e0f 0%, #aa0005 100%);
+  /* A primary that is not ready yet: muted Ping Red at FULL opacity (no opacity fade) with a dashed edge.
+     White on both stops is above 4.5:1 (7.22 and 9.55). */
+  --btn-accent-inactive: #7a4a4b;
+  --btn-accent-inactive-gradient: linear-gradient(90deg, #7a4a4b 55%, #65393a);
   /* Top-nav vars resolve to dashboard-header vars so a single manifest override
      (--brand-dashboard-header-*) themes both the dashboard hero and the sticky
      top-nav. Fallback colors retained for the no-manifest case. */
