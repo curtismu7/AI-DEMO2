@@ -129,7 +129,7 @@ export default function P1ThirdPartyExchangePage() {
       <SimBanner data-testid="p1x-banner">
         <strong>Simulated.</strong> Nothing on this page calls PingOne. The token checks run in your browser against rules we modelled, and every token is a mock with a signature that can never verify.
         The refusal messages and the settings behaviour are real: they were measured live against PingOne on 2026-10-27 and replayed here.
-        The capability is behind a feature flag (Phase 2 of P14C-83104): the guide gives no flag name, so check with Ping that it is on in your environment.
+        The capability is generally available in all geographies, subject to your license entitlement. Third-party JWTs are not trusted until an administrator defines a trusted issuer and assigns it to the application.
       </SimBanner>
       <PageHeader
         eyebrow="Diagrams · PingOne"
