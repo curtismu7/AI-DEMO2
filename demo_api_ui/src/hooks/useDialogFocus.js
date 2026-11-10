@@ -31,8 +31,10 @@ const stack = [];
  * @param {{ active: boolean, trap?: boolean }} options
  *   active  the dialog is open and wants focus management (false for non-modal floating panels)
  *   trap    Tab is held inside (false while a dialog is deliberately non-blocking, e.g. a docked card)
+ *   restoreFromWithin  also put focus back on the opener when focus is still inside the dialog at close. For drawers
+ *           that stay mounted and slide out (focus is not dropped to <body> at the moment of closing).
  */
-export function useDialogFocus(containerRef, { active, trap = true }) {
+export function useDialogFocus(containerRef, { active, trap = true, restoreFromWithin = false }) {
   // Remember the opener while rendering: a child with autoFocus takes focus during the commit, before any effect of
   // ours could read document.activeElement.
   const openerRef = useRef(null);
@@ -41,6 +43,8 @@ export function useDialogFocus(containerRef, { active, trap = true }) {
 
   const trapRef = useRef(trap);
   trapRef.current = trap;
+  const withinRef = useRef(restoreFromWithin);
+  withinRef.current = restoreFromWithin;
 
   useEffect(() => {
     if (!active) return undefined;
@@ -83,7 +87,8 @@ export function useDialogFocus(containerRef, { active, trap = true }) {
         // Only pull focus back if it was left in the (now removed) dialog or dropped to the page body; if a page handler
         // already put it somewhere deliberate, leave it.
         const now = document.activeElement;
-        if (!now || now === document.body) opener.focus();
+        const inside = withinRef.current && containerRef.current?.contains(now);
+        if (!now || now === document.body || inside) opener.focus();
       }
     };
   }, [active, containerRef]);

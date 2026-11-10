@@ -65,6 +65,12 @@ import WebMcpPanel from "./WebMcpPanel";
 import FloatingPanel from "./FloatingPanel";
 import "./UserDashboard.css";
 import "./customerSkinPing2026.css";
+// Ping UI Standard frame for this page. Every rule in it sits under .udp-page.
+import "./UserDashboardPing2026.pingUi.css";
+import PageHeader from "./common/PageHeader";
+import { SimBanner, StatusChip } from "./pingUi";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { dashboardModeText, chatStatusChip, runTraceChip } from "./dashboardFrameStatus";
 import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
@@ -206,6 +212,32 @@ function DetailPaneResizeHandle({ height, onMouseDown, onKeyDown }) {
     </div>
   );
 }
+
+/**
+ * The run-trace chip, read from the same trace store the sequence diagram reads (read-only subscribe). The wording is
+ * decided by runTraceChip; `baselineRunId` is the run already in the store when this page mounted.
+ */
+function useRunTraceStatus(baselineRunId) {
+  const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
+  useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
+  return runTraceChip(snap?.trace, baselineRunId);
+}
+
+/** Labelled card around the run trace (sequence diagram). The diagram itself is unchanged. */
+function RunTraceCard({ children, baselineRunId }) {
+  const status = useRunTraceStatus(baselineRunId);
+  return (
+    <section className="udp-card udp-trace" aria-labelledby="udp-trace-h" data-testid="dashboard-run-trace">
+      <div className="udp-card__head">
+        <h2 id="udp-trace-h" className="udp-card__title">Run trace</h2>
+        <StatusChip tone={status.tone}>{status.word}</StatusChip>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const openGuide = (eventName) => () => window.dispatchEvent(new CustomEvent(eventName));
 
 const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const navigate = useNavigate();
@@ -418,6 +450,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   }, []);
 
   const [user, setUser] = useState(propUser);
+  // The run already in the trace store when this page mounted; the Run trace chip calls it an earlier run.
+  const [traceBaselineRunId] = useState(() => tokenChainTraceStore.getState().trace?.runId ?? null);
   const [accounts, setAccounts] = useState([]);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -1789,7 +1823,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         {stepUpChallengeRaw && (
           <p
             style={{
-              fontFamily: "monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 11,
               background: "rgba(0,0,0,0.25)",
               padding: 6,
@@ -4008,9 +4042,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     );
   }
 
+  // What this page can actually tell about the mode in use: see dashboardFrameStatus.js.
+  const modeText = dashboardModeText(user, accounts);
+  const verticalName = pageManifest?.identity?.headerTitle || pageManifest?.identity?.displayName || "Customer";
+  const chatStatus = chatStatusChip({ hostPending: !middleHostEl && agentPlacement === "middle", user });
+
   return (
     <div
-      className={`customer-skin-p1 user-dashboard user-dashboard--2026${
+      className={`udp-page pu-page customer-skin-p1 user-dashboard user-dashboard--2026${
         agentPlacement === "middle"
           ? " user-dashboard--split3"
           : ""
@@ -4018,6 +4057,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       data-refined-surface="customer"
       data-rd-v2
     >
+      {/* Ping UI Standard frame: mode banner first, then the one h1 in the title band. */}
+      <SimBanner data-testid="dashboard-mode-banner">{modeText}</SimBanner>
+      <PageHeader
+        className="udp-hero"
+        eyebrow={verticalName}
+        title="Customer dashboard"
+        summary="Ask the banking agent, watch each authorization step, and see the evidence behind every answer."
+      />
       {/* Brand bar — the same logo + caps + name block the sign-in modal shows,
           at the very top of every dashboard layout. */}
       <SignInBrand />
@@ -4049,15 +4096,19 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               they were being asked to fit half the width they were built for. */}
           <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
           <section
-            className="ud-agent-column"
+            className="ud-agent-column udp-card"
             ref={agentColumnRef}
-            aria-label="AI banking assistant"
+            aria-labelledby="udp-chat-h"
             data-testid="dashboard-agent-column"
             {...(!showBankingInMiddle && {
               id: "main-dashboard-content",
               tabIndex: -1,
             })}
           >
+            <div className="udp-card__head">
+              <h2 id="udp-chat-h" className="udp-card__title">Banking assistant</h2>
+              <StatusChip tone={chatStatus.tone}>{chatStatus.word}</StatusChip>
+            </div>
             <div className="embedded-banking-agent ud-dashboard-inline-agent">
               {/* Host stays mounted so the BankingAgent portal target's ref always
                   attaches. Guests have no portaled agent here (App.js gates the
@@ -4153,14 +4204,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <SequenceReelDiagram
-              onSelectStep={setSelectedSeqStep}
-              onReset={() => setSelectedSeqStep(null)}
-              selectedStepId={selectedSeqStep?.id}
-              slowMode={slowMode}
-              followFlow={followFlow}
-              onToggleSlowMode={() => setSlowMode(!slowMode)}
-            />
+            <RunTraceCard baselineRunId={traceBaselineRunId}>
+              <SequenceReelDiagram
+                onSelectStep={setSelectedSeqStep}
+                onReset={() => setSelectedSeqStep(null)}
+                selectedStepId={selectedSeqStep?.id}
+                slowMode={slowMode}
+                followFlow={followFlow}
+                onToggleSlowMode={() => setSlowMode(!slowMode)}
+              />
+            </RunTraceCard>
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <>
@@ -4186,7 +4239,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         // browsers land in Focus Mode on their next load.
           <div className="ud-body-outer">
             <div className="dashboard-content ud-body ud-body--2026 ud-body--floating ud-body--float-mode">
-              <main
+              {/* A div, not a second <main>; the shell's <main> is the page's only one. */}
+              <div
                 className="ud-center"
                 id="main-dashboard-content"
                 tabIndex={-1}
@@ -4196,7 +4250,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 ) : (
                   renderBankingMain()
                 )}
-              </main>
+              </div>
 
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
@@ -4239,14 +4293,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
             {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <SequenceReelDiagram
-              onSelectStep={setSelectedSeqStep}
-              onReset={() => setSelectedSeqStep(null)}
-              selectedStepId={selectedSeqStep?.id}
-              slowMode={slowMode}
-              followFlow={followFlow}
-              onToggleSlowMode={() => setSlowMode(!slowMode)}
-            />
+            <RunTraceCard baselineRunId={traceBaselineRunId}>
+              <SequenceReelDiagram
+                onSelectStep={setSelectedSeqStep}
+                onReset={() => setSelectedSeqStep(null)}
+                selectedStepId={selectedSeqStep?.id}
+                slowMode={slowMode}
+                followFlow={followFlow}
+                onToggleSlowMode={() => setSlowMode(!slowMode)}
+              />
+            </RunTraceCard>
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <>
@@ -4262,6 +4318,43 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           )}
           </div>
       )}
+
+      {/* The CIBA and Client ID Metadata Document guides live in app-level drawers (CIBAPanel, CimdSimPanel).
+          Here they are cards, collapsed by default, each with a button that opens the same drawer. */}
+      <div className="udp-explainers">
+        <section className="pu-card udp-explainer" aria-labelledby="udp-ciba-h">
+          <h2 id="udp-ciba-h" className="pu-h3">Backchannel authentication (CIBA)</h2>
+          <StatusChip tone="info">Explainer</StatusChip>
+          <details>
+            <summary>How the step-up works</summary>
+            <p className="pu-note">
+              When a transfer needs stronger proof, the app asks PingOne to authenticate you out of band, for example
+              with an approval on your phone, while this page waits and checks for the answer.
+            </p>
+            <div className="pu-actions">
+              <button type="button" className="pu-btn" onClick={openGuide("education-open-ciba")}>
+                Open the CIBA guide
+              </button>
+            </div>
+          </details>
+        </section>
+        <section className="pu-card udp-explainer" aria-labelledby="udp-cimd-h">
+          <h2 id="udp-cimd-h" className="pu-h3">Client ID Metadata Document</h2>
+          <StatusChip tone="info">Explainer</StatusChip>
+          <details>
+            <summary>What the document is</summary>
+            <p className="pu-note">
+              A client ID that is a URL. The authorization server fetches the client's metadata from it instead of
+              needing the client registered in advance.
+            </p>
+            <div className="pu-actions">
+              <button type="button" className="pu-btn" onClick={openGuide("education-open-cimd")}>
+                Open the Client ID Metadata Document guide
+              </button>
+            </div>
+          </details>
+        </section>
+      </div>
 
       {/* Middle-layout open FAB — shown when middle placement hasn't been expanded yet.
           App.js global float is suppressed for middle so there is exactly one FAB. */}

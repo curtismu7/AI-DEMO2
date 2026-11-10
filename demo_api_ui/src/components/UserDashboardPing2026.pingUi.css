@@ -1,0 +1,236 @@
+/* Ping UI Standard frame for UserDashboardPing2026.js (the /dashboard page). Every rule here sits under .udp-page.
+   UserDashboard.css and customerSkinPing2026.css are unchanged.
+
+   Colour ownership (docs/ping-ui-primitives.md): the vertical (--pu-accent, from --app-primary-red) colours the title
+   band and the card top edges. Buttons never take it: the one primary is Ping Red from the fixed --btn-accent tokens.
+   Ink, surfaces and lines are --th-* only, so there is no dark block; type is the --font-size-* scale (10px floor). */
+
+/* The root carries .pu-page (ground, ink, --pu-accent, the .pu-btn / .pu-banner rules). Its 100vh floor would fight the
+   dashboard's viewport-fitting flex layout, so it is lifted; the dashboard scrolls inside itself so the explainer
+   cards under the work stay reachable. */
+.udp-page.pu-page {
+  min-height: 0;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  /* .pu-page sets line-height 1.5 for pages built on the primitives. This page keeps its unconverted body, chat and
+     panels, which were laid out under the line height the app root hands down (1 under the end-user-nano skin).
+     `inherit` takes exactly that value, so those regions keep their old density; the new frame sets its own below. */
+  line-height: inherit;
+}
+
+/* The new frame parts read at the app's normal line height. */
+.udp-page .udp-card__head,
+.udp-page .udp-explainers {
+  line-height: var(--line-height-normal);
+}
+
+.udp-page.user-dashboard--split3 {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* The banner and the title band span the dashboard, not the 1100px frame the standalone pages use. */
+.udp-page .pu-banner-wrap {
+  flex: 0 0 auto;
+  max-width: none;
+  margin: 0;
+  padding: 8px 12px 0;
+}
+
+.udp-page .ping-page-header.udp-hero {
+  flex: 0 0 auto;
+  margin: 8px 12px 0;
+  padding: 12px 20px;
+  border-top: 4px solid var(--pu-accent);
+  border-radius: var(--radius-lg);
+  /* The band is dark in both themes (same as PageHeader.css), so its ink is white in both; set here because this rule
+     sets the ground. */
+  color: #ffffff;
+  /* Dark on the text side, the vertical's colour (kept dark enough for the white title) at the far end. */
+  background: linear-gradient(
+    90deg,
+    var(--th-bg-band) 55%,
+    color-mix(in srgb, var(--pu-accent) 55%, var(--th-bg-band))
+  );
+}
+
+.udp-page .ping-page-header.udp-hero .ping-page-header__title {
+  margin-bottom: 4px;
+  font-size: var(--font-size-xl);
+}
+
+.udp-page .ping-page-header.udp-hero .ping-page-header__summary {
+  font-size: var(--font-size-sm);
+}
+
+/* The work area: room around the cards. Its height is the viewport minus what sits above it (top nav, mode banner, title
+   band, brand bar), with a floor, so the token chain row at the bottom of this grid stays on screen without scrolling
+   (tests/e2e/movie-reel-visible.spec.js pins that on a 700px window: the floor keeps the chat usable, and the row, being at the
+   bottom of the grid, still shows its top part on a short window and all of it from about 830px). The page scrolls past the
+   work area to the explainers.
+   A fixed height rather than content height: a long sequence diagram scrolls inside its card instead of stretching the
+   chat column with it. */
+.udp-page.user-dashboard--split3 .ud-body.ud-body--dashboard-split3 {
+  --udp-above-work: 420px;
+  flex: 0 0 auto;
+  height: max(420px, calc(100vh - var(--udp-above-work)));
+  min-height: 0;
+  gap: 12px;
+  margin: 12px;
+  width: auto;
+  border: 0;
+  background: transparent;
+}
+
+/* Short windows (a laptop with browser chrome): the title band drops its summary line and tightens, and the work floor is
+   lower, so the chain row stays on screen (movie-reel-visible.spec.js, 700px window). The h1 and eyebrow stay. */
+@media (max-height: 800px) {
+  .udp-page .ping-page-header.udp-hero {
+    padding: 8px 20px;
+  }
+
+  .udp-page .ping-page-header.udp-hero .ping-page-header__summary {
+    display: none;
+  }
+
+  .udp-page .ping-page-header.udp-hero .ping-page-header__title {
+    margin-bottom: 0;
+  }
+
+  .udp-page.user-dashboard--split3 .ud-body.ud-body--dashboard-split3 {
+    --udp-above-work: 380px;
+    height: max(360px, calc(100vh - var(--udp-above-work)));
+  }
+}
+
+/* Labelled cards: chat and run trace. Top edge = the vertical; the rest of the edge is the strong line. */
+.udp-page .udp-card {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--th-border-strong);
+  border-top: 4px solid var(--pu-accent);
+  border-radius: var(--radius-xl);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.udp-page .udp-card__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--th-border-strong);
+}
+
+.udp-page .udp-card__title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--th-text);
+}
+
+/* The run trace card is a grid item beside the chat; the diagram inside keeps its own scroll box. */
+.udp-page .udp-trace {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.udp-page .udp-trace > :not(.udp-card__head) {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 8px 12px 12px;
+}
+
+/* An honest empty state: a dashed box that reads at body size, not 10px grey on grey. */
+.udp-page .srd-empty {
+  padding: 12px;
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+/* The "Direct dashboard run" card inside the assistant (UseCaseRunContextCard, shared): the vertical edge on top. */
+.udp-page .ba-run-context-card {
+  border-top: 4px solid var(--pu-accent);
+}
+
+/* P9: the one primary is Send. Fixed Ping Red from the --btn-accent tokens, white text, never the vertical. The
+   shared rule it replaces is `background: #aa0005 !important`, so this needs !important and one more class. */
+.udp-page .ba-send-btn {
+  background-color: var(--btn-accent) !important;
+  background-image: var(--btn-accent-gradient) !important;
+  border: 1px solid var(--btn-accent-edge) !important;
+  color: var(--btn-accent-text) !important;
+}
+
+.udp-page .ba-send-btn:hover:not(:disabled) {
+  background-image: var(--btn-accent-gradient-hover) !important;
+}
+
+/* Idle (empty input): the shared disabled rule fades the whole button to 0.75, which takes the white label under 4.5:1 on
+   this lighter red. Same treatment as a disabled .pu-btn--primary: full opacity, muted Ping Red, dashed edge. */
+.udp-page .ba-send-btn:disabled {
+  opacity: 1 !important;
+  background-color: var(--btn-accent-inactive) !important;
+  background-image: var(--btn-accent-inactive-gradient) !important;
+  border: 1px dashed var(--btn-accent-edge) !important;
+  color: var(--btn-accent-text) !important;
+}
+
+/* Explainers: cards under the work, collapsed by default. */
+.udp-page .udp-explainers {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+  padding: 0 12px 24px;
+  align-items: start;
+}
+
+.udp-page .udp-explainers .pu-card {
+  margin: 0;
+}
+
+.udp-page .udp-explainer details {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.udp-page .udp-explainer summary {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--th-text);
+}
+
+.udp-page .udp-explainer summary:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Phone: one column, the chat gets the height it needs, and nothing scrolls sideways. */
+@media (max-width: 700px) {
+  .udp-page .ping-page-header.udp-hero {
+    padding: 10px 14px;
+  }
+
+  .udp-page.user-dashboard--split3 .ud-body.ud-body--dashboard-split3 {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .udp-page.user-dashboard--split3 .ud-agent-column {
+    min-height: 70vh;
+  }
+}

@@ -105,6 +105,10 @@
   .ping-page-header__row {
     flex-direction: column;
   }
+  /* In a column the 360px flex-basis above would be a 360px height; size the copy to its content. */
+  .ping-page-header__copy {
+    flex: 0 1 auto;
+  }
 }
 
 .ping-page-header > input {
