@@ -33,6 +33,7 @@
 /aic-token-exchange
 /token-exchange-tester
 /demo-map
+/diagrams
 /privilege-demo
 /agent-builder
 /ungoverned-agent
