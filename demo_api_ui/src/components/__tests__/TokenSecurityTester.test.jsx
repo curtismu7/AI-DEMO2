@@ -235,7 +235,8 @@ describe('TokenSecurityTester (standalone UI standard)', () => {
       fireEvent.click(execute());
       expect(scroll).not.toHaveBeenCalled();
       await screen.findByTestId('tst-result');
-      expect(scroll).toHaveBeenCalledTimes(1);
+      // The scroll runs in a passive effect after the result renders, so it can land just after findBy resolves.
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
       expect(scroll.mock.instances[0].className).toContain('inspector-shell-col-right');
       expect(document.activeElement).toBe(execute());
     });
