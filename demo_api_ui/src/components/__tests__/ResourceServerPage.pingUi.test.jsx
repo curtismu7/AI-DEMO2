@@ -2,7 +2,7 @@
 // Ping UI conversion of /resource-server: banner first and honest per state, one primary button, tablist keyboard,
 // and the tester's opt-in buttons (aria-disabled keeps focus; the default look is unchanged).
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -47,7 +47,7 @@ describe('ResourceServerPage on the Ping UI primitives', () => {
     const banner = await screen.findByTestId('rsv-banner');
     const note = within(document.body).getByRole('note');
     expect(note).toBe(banner);
-    expect(note).toHaveTextContent(/REAL SESSION TOKENS, DEMO BANK DATA/);
+    await waitFor(() => expect(note).toHaveTextContent(/REAL SESSION TOKENS, DEMO BANK DATA/));
     expect(note).toHaveTextContent(/not a real bank/);
     const h1 = screen.getByRole('heading', { level: 1, name: /OIDC Resource Server/i });
     expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -57,8 +57,8 @@ describe('ResourceServerPage on the Ping UI primitives', () => {
   it('has exactly one primary button, the top Execute; the bottom Execute and Clear are secondary', async () => {
     const { container } = renderPage();
     await screen.findByTestId('rsv-banner');
+    await waitFor(() => expect(container.querySelectorAll('button.pu-btn--primary')).toHaveLength(1));
     const primaries = container.querySelectorAll('button.pu-btn--primary');
-    expect(primaries).toHaveLength(1);
     expect(primaries[0]).toHaveTextContent('Execute');
     expect(container.querySelectorAll('.inspector-shell-form-actions--top .pu-btn--primary')).toHaveLength(1);
     const executes = screen.getAllByRole('button', { name: 'Execute' });
@@ -99,8 +99,8 @@ describe('ResourceServerPage on the Ping UI primitives', () => {
   it('in-flow without a cached token says there is no gateway token (neutral chip), not that claims are decoded', async () => {
     renderPage();
     await screen.findByTestId('rsv-banner');
-    fireEvent.click(screen.getByRole('tab', { name: /In-flow RS/i }));
-    expect(screen.getByTestId('rsv-banner')).toHaveTextContent(/NO GATEWAY TOKEN YET/);
+    fireEvent.click(await screen.findByRole('tab', { name: /In-flow RS/i })); // the tabs render once the summaries load
+    await waitFor(() => expect(screen.getByTestId('rsv-banner')).toHaveTextContent(/NO GATEWAY TOKEN YET/));
     expect(screen.getByTestId('rsv-banner')).not.toHaveTextContent(/decoded by the demo API from the gateway token/);
     expect(screen.getByText('No TX token yet').className).toMatch(/pu-chip--neutral/);
   });
@@ -113,8 +113,8 @@ describe('ResourceServerPage on the Ping UI primitives', () => {
     }));
     renderPage();
     await screen.findByTestId('rsv-banner');
-    fireEvent.click(screen.getByRole('tab', { name: /In-flow RS/i }));
-    expect(screen.getByTestId('rsv-banner')).toHaveTextContent(/REAL GATEWAY TOKEN/);
+    fireEvent.click(await screen.findByRole('tab', { name: /In-flow RS/i })); // the tabs render once the summaries load
+    await waitFor(() => expect(screen.getByTestId('rsv-banner')).toHaveTextContent(/REAL GATEWAY TOKEN/));
     expect(screen.getByText('TX token cached').className).toMatch(/pu-chip--ok/);
   });
 

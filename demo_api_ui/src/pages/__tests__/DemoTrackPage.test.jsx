@@ -242,7 +242,8 @@ describe("DemoTrackPage — Ping UI Standard", () => {
     const banner = await screen.findByTestId("dtp-banner");
     expect(banner).toHaveAttribute("role", "note");
     expect(container.querySelector(".pu-page").firstElementChild).toContainElement(banner);
-    expect(banner).toHaveTextContent(/LIVE RUN/);
+    // The banner first reads NOT CONNECTED; it flips to LIVE RUN once the first load answers.
+    await waitFor(() => expect(banner).toHaveTextContent(/LIVE RUN/));
     expect(banner).toHaveTextContent(/refreshes every 5 seconds/);
     expect(banner).toHaveTextContent(/none of it is sample data/);
 
@@ -265,7 +266,7 @@ describe("DemoTrackPage — Ping UI Standard", () => {
 
   it("names the gauntlet in the LIVE RUN banner only when the track has the gauntlet step", async () => {
     const { unmount } = render(<DemoTrackPage />);
-    expect(await screen.findByTestId("dtp-banner")).toHaveTextContent(/the gauntlet sends 2 deliberately flawed tokens/);
+    await waitFor(() => expect(screen.getByTestId("dtp-banner")).toHaveTextContent(/the gauntlet sends 2 deliberately flawed tokens/));
     unmount();
     window.history.pushState({}, "", "/demo-track?track=support");
     apiClient.get.mockImplementation((url) => {
@@ -279,7 +280,7 @@ describe("DemoTrackPage — Ping UI Standard", () => {
     render(<DemoTrackPage />);
     await screen.findByText("Verify the customer");
     const banner = screen.getByTestId("dtp-banner");
-    expect(banner).toHaveTextContent(/LIVE RUN/);
+    await waitFor(() => expect(banner).toHaveTextContent(/LIVE RUN/));
     expect(banner).not.toHaveTextContent(/gauntlet/i);
   });
 

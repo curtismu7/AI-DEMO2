@@ -6,6 +6,7 @@ import React from 'react';
 import fs from 'node:fs';
 import path from 'node:path';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { flushEffects } from '../../test-utils/flushEffects';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -92,6 +93,7 @@ describe('page live region and retry', () => {
     const retry = await screen.findByRole('button', { name: 'Try again' });
     retry.focus();
     bffAxios.get.mockImplementation(route(loginSummary, inflowSummary));
+    await flushEffects(); // run the first render's pending passive effects before interacting
     fireEvent.click(retry);
     const tab = await screen.findByRole('tab', { name: /Login RS/i });
     await waitFor(() => expect(document.activeElement).toBe(tab));
