@@ -19,6 +19,7 @@
 /demo-config
 /demo-summary
 /demo-track
+/feature-flags
 /gateway-claims
 /governance-timeline
 /mcp-observability

@@ -4,6 +4,16 @@ import IdJagPathBar from "../components/IdJagPathBar";
 import { diagramLinkProps } from "../utils/diagramLinks";
 import "./PingFederateIdJagExplainerPage.css";
 import PageHeader from '../components/common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList } from '../components/pingUi';
+
+// /pingfederate-id-jag: a written explainer. Nothing on it makes a request, so nothing is simulated either: the
+// banner says so, and sends the reader to "Run the demo" for the page where a run happens.
+//
+// Layout follows the standalone Ping UI Standard through the shared primitives (components/pingUi,
+// docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 key-value, P7 chip, P9 buttons.
+// P9 "one primary per view": "Run the demo" is the primary in both toggle states (technical and plain-language);
+// the other two header links and the Simple/Detailed toggle are secondaries. The learning-path bar's "Next: Run it"
+// link is a shared child that fills itself red, so this page's sheet restyles it as a secondary.
 
 const FLOW = [
   ["01", "Sign in once", "The browser signs in through PingFederate. The BFF keeps the refresh token and browser tokens out of the agent and MCP calls."],
@@ -29,57 +39,68 @@ const SIMPLE = [
 
 export default function PingFederateIdJagExplainerPage() {
   const [simple, setSimple] = useState(false);
+  const heroActions = (
+    <div className="pu-actions pfj-explainer__actions">
+      <Link className="pu-btn pu-btn--primary" to="/pingfederate-id-jag/demo">Run the demo</Link>
+      <Link className="pu-btn" to="/pingfederate-id-jag/diagram" {...diagramLinkProps("/pingfederate-id-jag/diagram")}>Open the diagram</Link>
+      <Link className="pu-btn" to="/pingfederate-id-jag/implementation" {...diagramLinkProps("/pingfederate-id-jag/implementation")}>See how we built it</Link>
+    </div>
+  );
   return (
-    <main className="pfj-explainer" data-testid="pingfederate-id-jag-explainer">
-      <IdJagPathBar current="explain" />
+    <PingPage className="pfj-explainer" data-testid="pingfederate-id-jag-explainer">
+      <SimBanner data-testid="pfj-banner">
+        <strong>EXPLAINER</strong> — nothing on this page runs. It describes the ID-JAG flow in words: no request is
+        made from here to PingFederate, the MCP authorization server, the gateway or the banking API, and the
+        plain-language version is an analogy, not a trace. “Run the demo” opens the page where a run happens, in the
+        mode you pick there.
+      </SimBanner>
       <PageHeader className="pfj-explainer__hero" eyebrow="PingFederate · enterprise-managed authorization" title="How the ID-JAG demo works" summary="This demo shows PingFederate carrying a user identity across the MCP trust boundary without sending the user through a second consent screen."
-        actions={<>        <div className="pfj-explainer__actions">
-          <Link className="pfj-explainer__primary" to="/pingfederate-id-jag/demo">Run the demo</Link>
-          <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/diagram" {...diagramLinkProps("/pingfederate-id-jag/diagram")}>Open the diagram</Link>
-          <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/implementation" {...diagramLinkProps("/pingfederate-id-jag/implementation")}>See how we built it</Link>
-        </div>
-        </>} />
+        actions={heroActions} />
 
-      <section className="pfj-explainer__definition" aria-labelledby="id-jag-definition">
-        <div>
-          <p className="pfj-explainer__eyebrow">The short version</p>
-          <h2 id="id-jag-definition">One identity, two authorization servers</h2>
-        </div>
-        <p>
-          PingFederate is the identity provider and issuer. The downstream MCP authorization server trusts PingFederate's issuer and JWKS, redeems the ID-JAG, and mints the resource-specific access token used for the tool call.
-        </p>
-      </section>
+      <PageFrame>
+        <IdJagPathBar current="explain" />
 
-      <section className="pfj-explainer__flow" aria-labelledby="id-jag-flow">
-        <div className="pfj-explainer__section-heading">
-          <p className="pfj-explainer__eyebrow">Live request path</p>
-          <h2 id="id-jag-flow">What happens when you run “show my balance”</h2>
-          <button type="button" className="pfj-explainer__secondary" aria-pressed={simple} onClick={() => setSimple(!simple)}>
-            {simple ? "Show the technical version" : "Explain it simply"}
-          </button>
-        </div>
-        <div className="pfj-explainer__steps">
-          {FLOW.map(([number, title, detail]) => (
-            <article key={number} className="pfj-explainer__step">
-              <span className="pfj-explainer__step-number">{number}</span>
-              <h3>{title}</h3>
-              <p>{simple ? SIMPLE[Number(number) - 1] : detail}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+        <Section
+          id="id-jag-definition"
+          kicker="The short version"
+          title="One identity, two authorization servers"
+          lede="PingFederate is the identity provider and issuer. The downstream MCP authorization server trusts PingFederate's issuer and JWKS, redeems the ID-JAG, and mints the resource-specific access token used for the tool call."
+        />
 
-      <section className="pfj-explainer__boundary" aria-labelledby="id-jag-boundary">
-        <div>
-          <p className="pfj-explainer__eyebrow">Trust boundary</p>
-          <h2 id="id-jag-boundary">The important distinction</h2>
-        </div>
-        <div className="pfj-explainer__boundary-grid">
-          <div><strong>PingFederate issues</strong><span>the signed ID-JAG assertion</span></div>
-          <div><strong>The MCP AS redeems</strong><span>the assertion and issues its local access token</span></div>
-          <div><strong>The BFF calls</strong><span>the gateway, MCP server and banking API without exposing tokens to the browser</span></div>
-        </div>
-      </section>
-    </main>
+        <Section id="id-jag-flow" kicker="The request path" title="What happens when you run “show my balance”">
+          <div className="pu-status-line">
+            <button type="button" className="pu-btn" aria-pressed={simple} onClick={() => setSimple(!simple)}>
+              Explain it simply
+            </button>
+            {/* Mounted from the first render, so the text change below is announced. The button's name stays fixed;
+                aria-pressed carries on/off and this region says which version is showing. */}
+            <span role="status" aria-live="polite" data-testid="pfj-view-status">
+              <StatusChip tone="neutral">{simple ? "Plain-language story" : "Technical version"}</StatusChip>
+            </span>
+          </div>
+          <CardGrid>
+            {FLOW.map(([number, title, detail]) => (
+              <Card key={number}>
+                <p className="pu-label">Step {number}</p>
+                <h3 className="pu-h3">{title}</h3>
+                <p className="pu-note">{simple ? SIMPLE[Number(number) - 1] : detail}</p>
+              </Card>
+            ))}
+          </CardGrid>
+        </Section>
+
+        <Section id="id-jag-boundary" kicker="Trust boundary" title="The important distinction">
+          <Card>
+            <KvList
+              items={[
+                { label: "PingFederate issues", value: "the signed ID-JAG assertion" },
+                { label: "The MCP AS redeems", value: "the assertion and issues its local access token" },
+                { label: "The BFF calls", value: "the gateway, MCP server and banking API without exposing tokens to the browser" },
+              ]}
+            />
+          </Card>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
 }

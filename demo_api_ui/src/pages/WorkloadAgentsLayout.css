@@ -1,0 +1,30 @@
+/* /workload-agents layout. Everything is scoped under .wa-page (the shared Ping UI primitives cover banner, frame,
+   cards, kv, chips and buttons). The embedded studio's own classes stay in WorkloadAgentsPage.css, which
+   DigitalWorkerPage and PersonalAgentClientWindow also import; nothing here reaches them. */
+
+/* The vertical picker sits on the dark header band, so its label takes the band's ink, not the muted card ink. */
+.wa-page .ping-page-header .wa-vertical { display: grid; gap: 6px; min-width: 200px; margin: 0; color: #ffffff; }
+
+/* Error strip: the alert wrapper is always mounted (so its text is announced); it takes no space while empty. */
+.wa-page .wa-alert p { margin: 12px 0 8px; }
+
+/* Scenario cards: equal height, key/value and button pinned to the bottom. The selected card gets an inset edge
+   in the page ink (plus the Selected chip: never the edge alone). */
+.wa-page .wa-choice { display: flex; flex-direction: column; align-self: stretch; margin: 0; }
+.wa-page .wa-choice .pu-kv { margin-top: auto; padding: 12px 14px; border-radius: var(--radius-md); background: var(--th-bg-inset); color: var(--th-text); }
+.wa-page .wa-choice .pu-btn { align-self: flex-start; margin-top: 4px; }
+.wa-page .wa-choice.is-selected { box-shadow: inset 4px 0 0 var(--th-text); }
+.wa-page .pu-card .wa-cue { font-weight: var(--font-weight-semibold); color: var(--th-text); }
+
+/* The run section. The studio is a self-padded one-column grid (WorkloadAgentsPage.css); the card already pads it, and
+   its column may shrink so a long value wraps at phone width instead of widening the card. */
+.wa-page .wa-execution { margin-top: 8px; }
+.wa-page .wa-execution__line { margin: 4px 0 8px; }
+.wa-page .wa-studio { margin: 0; }
+.wa-page .wa-studio .workload-agents__run { grid-template-columns: minmax(0, 1fr); padding: 0; }
+.wa-page .wa-studio .workload-agents__run h3,
+.wa-page .wa-studio .workload-agents__run p { min-width: 0; overflow-wrap: anywhere; }
+/* SecurityRail (the gate list) is the one class-less div child; it sets min-width: 320 inline, which at phone width runs the
+   gate rows past the card. !important is the only way past an inline style. */
+.wa-page .wa-studio .workload-agents__run > div:not([class]) { min-width: 0 !important; }
+.wa-page .wa-alert + .pu-actions { margin-bottom: 8px; }
