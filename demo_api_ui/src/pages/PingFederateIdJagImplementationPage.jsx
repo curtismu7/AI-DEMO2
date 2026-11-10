@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ReactFlowProvider, useReactFlow, useNodesState, NodeResizer, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Background, Controls, Handle, Position, ConnectionMode, MarkerType } from "@xyflow/react";
 import ReactFlow from "../components/diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import "./PingFederateIdJagImplementationPage.css";
 import IdJagPathBar from "../components/IdJagPathBar";
+import { PingPage, SimBanner, Card as PuCard, StatusChip, KvList } from "../components/pingUi";
 import { CALLS, nodesForCall, actorById } from "../utils/idJagCallSequence";
 import { readableClaims, useLastRunTrace } from "../utils/idJagLiveClaims";
 
@@ -40,7 +41,7 @@ function Card({ data, selected }) {
       <NodeResizer isVisible={selected} minWidth={220} minHeight={90} />
       {SIDES.flatMap(([s, pos]) => [1, 2, 3].map((i) => (
         <Handle key={s + i} id={s + i} type="source" position={pos}
-          style={{ [pos === Position.Top || pos === Position.Bottom ? "left" : "top"]: `${i * 25}%`, opacity: 0 }} />
+          style={pos === Position.Top || pos === Position.Bottom ? { left: `${i * 25}%`, opacity: 0 } : { top: `${i * 25}%`, opacity: 0 }} />
       )))}
       <div className="ct">{data.title}</div>
       <div className="cs">{data.sub}</div>
@@ -68,7 +69,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
         </circle>
       )}
       <EdgeLabelRenderer>
-        <div className="elabel" style={{ transform: `translate(-50%,-50%) translate(${lx}px,${ly}px)`, opacity: data.on ? 1 : 0.15 }}>{label}</div>
+        <div className={data.on ? "elabel" : "elabel off"} style={{ transform: `translate(-50%,-50%) translate(${lx}px,${ly}px)`, opacity: data.on ? 1 : 0.15 }}>{label}</div>
       </EdgeLabelRenderer>
     </>
   );
@@ -166,10 +167,30 @@ function callAsStep(call) {
   return { t: `Call ${call.n}: ${call.label}`, nodes, edges, text: call.does, wire: `${route}\n${call.where}`, src: [call.source], call };
 }
 
-function ImplementationFlow() {
+export default function PingFederateIdJagImplementationPage() {
+  const lastRun = useLastRunTrace();
+  return (
+    <PingPage className="ijx ijxi">
+      <SimBanner data-testid="idjag-impl-banner">
+        <strong>WALKTHROUGH, NOT A LIVE CALL</strong> — This page documents how the ID-JAG chain is wired. The diagram, step text and
+        wire snippets are written from the code: nothing here calls PingFederate, oauth-mcp, the gateway or the banking API, and
+        Simulate only moves a dot along the arrows. {claimsSentence(lastRun)}
+      </SimBanner>
+      <IdJagPathBar current="build" />
+      <ReactFlowProvider>
+        <ImplementationFlow lastRun={lastRun} />
+      </ReactFlowProvider>
+    </PingPage>
+  );
+}
+
+function ImplementationFlow({ lastRun }) {
   const rf = useReactFlow();
+  const appRef = useRef(null);
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // True once a played walkthrough has run out of steps and stopped by itself; any other action clears it.
+  const [ended, setEnded] = useState(false);
   const [speed, setSpeed] = useState(3500);
   const [locked, setLocked] = useState(false);
   const [log, setLog] = useState([]);
@@ -177,7 +198,6 @@ function ImplementationFlow() {
   const [side, setSide] = useState(400);
   const [panel, setPanel] = useState(true);
   const [simple, setSimple] = useState(false);
-  const lastRun = useLastRunTrace();
   const [mode, setMode] = useState("phases");
   const [callIdx, setCallIdx] = useState(0);
   const [nodes, setNodes, onNodesChange] = useNodesState(baseNodes());
@@ -205,7 +225,8 @@ function ImplementationFlow() {
   }, [panel]);
 
   const fullscreen = () => {
-    const el = document.querySelector(".ijx");
+    // Only the workspace goes fullscreen (not the banner or the learning-path bar).
+    const el = appRef.current;
     if (document.fullscreenElement) document.exitFullscreen();
     else if (el && el.requestFullscreen) el.requestFullscreen();
     setTimeout(() => rf.fitView({ padding: 0.03, duration: 300 }), 250);
@@ -223,16 +244,23 @@ function ImplementationFlow() {
   useEffect(() => {
     if (!playing) return;
     const t = setTimeout(() => {
-      if (step >= STEPS.length - 1) { setPlaying(false); return; }
+      if (step >= STEPS.length - 1) { setPlaying(false); setEnded(true); return; }
       setStep(step + 1);
     }, speed);
     return () => clearTimeout(t);
   }, [playing, step, speed]);
 
   const play = () => {
+    setEnded(false);
     if (step >= STEPS.length - 1 || step === 0) { setLog([]); setStep(1); setPlaying(true); }
     else setPlaying(true);
   };
+  const stop = () => { setPlaying(false); setEnded(false); };
+  // aria-disabled (not disabled) keeps keyboard focus on a control that cannot act right now; the handler ignores the press.
+  const back = () => { if (step === 0) return; stop(); setStep(step - 1); };
+  const next = () => { if (step === STEPS.length - 1) return; stop(); setStep(step + 1); };
+  const backCall = () => { if (callIdx > 0) setCallIdx(callIdx - 1); };
+  const nextCall = () => { if (callIdx < CALLS.length - 1) setCallIdx(callIdx + 1); };
   const resetLayout = () => { const b = baseNodes(); setNodes((ns) => ns.map((n) => ({ ...n, position: b.find((x) => x.id === n.id).position, style: { width: 300 } }))); setTimeout(() => rf.fitView({ padding: 0.08, duration: 400 }), 30); };
 
   const edges = EDGES.map(([id, source, sh, target, th, label, dashed]) => {
@@ -254,56 +282,76 @@ function ImplementationFlow() {
   };
 
   return (
-    <div className="ijx-app" style={{ gridTemplateColumns: panel ? `${side}px 6px 1fr` : "0 0 1fr" }}>
-      <aside style={panel ? undefined : { padding: 0, border: 0, overflow: "hidden", visibility: "hidden" }}>
-        <h1>ID-JAG on PingFederate</h1>
+    <div ref={appRef} className="ijx-app" style={{ gridTemplateColumns: panel ? `${side}px 6px 1fr` : "0 0 1fr" }}>
+      <aside aria-labelledby="ijxi-title" style={panel ? undefined : { padding: 0, border: 0, overflow: "hidden", visibility: "hidden" }}>
+        <h1 id="ijxi-title">ID-JAG on PingFederate</h1>
         <p className="lede">UC40 · how the BFF, PingFederate, oauth-mcp, the gateway, the MCP server and the banking API are wired</p>
         <div className="sim" role="group" aria-label="Detail level">
-          <button aria-pressed={mode === "phases"} className={mode === "phases" ? "pri" : ""} onClick={() => { setPlaying(false); setMode("phases"); }}>Phases</button>
-          <button aria-pressed={mode === "calls"} className={mode === "calls" ? "pri" : ""} onClick={() => { setPlaying(false); setMode("calls"); }}>Every call ({CALLS.length})</button>
+          <button type="button" className="pu-btn" aria-pressed={mode === "phases"} onClick={() => { stop(); setMode("phases"); }}>Phases</button>
+          <button type="button" className="pu-btn" aria-pressed={mode === "calls"} onClick={() => { stop(); setMode("calls"); }}>Every call ({CALLS.length})</button>
         </div>
-        {mode === "phases" && <div className="sim">
-          <button className="pri" onClick={playing ? () => setPlaying(false) : play}>{playing ? "⏸ Pause" : "▶ Simulate"}</button>
-          <button onClick={() => { setPlaying(false); setStep(Math.max(0, step - 1)); }} disabled={step === 0}>◀ Back</button>
-          <button onClick={() => { setPlaying(false); setStep(Math.min(STEPS.length - 1, step + 1)); }} disabled={step === STEPS.length - 1}>Next ▶</button>
-          <button onClick={() => { setPlaying(false); setStep(0); setLog([]); }}>⟲ Reset</button>
-          <label>Speed <select value={speed} onChange={(e) => setSpeed(+e.target.value)}>
-            <option value={6000}>Slow</option><option value={3500}>Normal</option><option value={2000}>Fast</option></select></label>
-        </div>}
+        {/* The view's one primary: Simulate in Phases, Next call in Every call. Its name never changes while it is pressed (the step status region
+            announces the move), so Simulate is a toggle: aria-pressed says it is playing and pressing it again pauses. */}
+        <div className="sim" role="group" aria-label={mode === "phases" ? "Walkthrough controls" : "Call controls"}>
+          <button type="button" className="pu-btn pu-btn--primary" aria-disabled={mode === "calls" && callIdx === CALLS.length - 1}
+            aria-pressed={mode === "phases" ? playing : undefined}
+            onClick={mode === "calls" ? nextCall : playing ? stop : play}>
+            {mode === "calls" ? "Next call" : "Simulate"}
+          </button>
+          {mode === "phases" ? (
+            <>
+              <button type="button" className="pu-btn" aria-disabled={step === 0} onClick={back}>Back</button>
+              <button type="button" className="pu-btn" aria-disabled={step === STEPS.length - 1} onClick={next}>Next</button>
+              <button type="button" className="pu-btn" onClick={() => { stop(); setStep(0); setLog([]); }}>Reset</button>
+              <label className="ijxi-speed">Speed <select className="pu-select" value={speed} onChange={(e) => setSpeed(+e.target.value)}>
+                <option value={6000}>Slow</option><option value={3500}>Normal</option><option value={2000}>Fast</option></select></label>
+            </>
+          ) : (
+            <button type="button" className="pu-btn" aria-disabled={callIdx === 0} onClick={backCall}>Previous call</button>
+          )}
+        </div>
+        {mode === "phases" && (playing || ended) && (
+          <p className="hint ijxi-playstate" data-testid="idjag-playstate">
+            {playing ? "Playing the walkthrough. Press Simulate again to pause." : "The walkthrough ended on the last step. Press Simulate to run it again."}
+          </p>
+        )}
         <div className="sim">
-          <button aria-pressed={simple} onClick={() => setSimple(!simple)}>{simple ? "Show technical detail" : "Explain it simply"}</button>
+          <button type="button" className="pu-btn" aria-pressed={simple} onClick={() => setSimple(!simple)}>Explain it simply</button>
         </div>
         <div className="sim">
-          <button onClick={() => setLocked(!locked)}>{locked ? "🔒 Nodes locked" : "✋ Nodes movable"}</button>
-          <button onClick={resetLayout}>Reset layout</button>
+          <button type="button" className="pu-btn" aria-pressed={locked} onClick={() => setLocked(!locked)}>Lock nodes</button>
+          <button type="button" className="pu-btn" onClick={resetLayout}>Reset layout</button>
           <span className="hint">Drag to move · click a node to resize</span>
         </div>
         {mode === "phases" ? (
-          <nav>{STEPS.map((x, i) => (
-            <button key={i} className={i === step ? "sel" : ""} onClick={() => { setPlaying(false); setStep(i); }}>{x.t}</button>
+          <nav aria-label="Phases">{STEPS.map((x, i) => (
+            <button type="button" key={i} className="pu-btn" aria-current={i === step ? "step" : undefined} onClick={() => { stop(); setStep(i); }}>{x.t}</button>
           ))}</nav>
         ) : (
           <nav aria-label="Every call">{CALLS.map((c, i) => (
-            <button key={c.n} className={i === callIdx ? "sel" : ""} onClick={() => setCallIdx(i)}>{c.n}. {c.label}</button>
+            <button type="button" key={c.n} className="pu-btn" aria-current={i === callIdx ? "step" : undefined} onClick={() => setCallIdx(i)}>{c.n}. {c.label}</button>
           ))}</nav>
         )}
-        <section>
-          <h2>{s.t}</h2>
-          {simple && !callView && <p className="simple" data-testid="idjag-simple">{SIMPLE[step]}</p>}
+        <p className="ijxi-sr" role="status" data-testid="idjag-step-status">{callView ? s.t : ended ? `Walkthrough ended on ${s.t}` : `Showing ${s.t}`}</p>
+        <section aria-labelledby="ijxi-step">
+          <h2 id="ijxi-step" className="pu-h2">{s.t}</h2>
+          {simple && !callView && (
+            <PuCard className="ijxi-simple" title="In plain words" data-testid="idjag-simple"><p>{SIMPLE[step]}</p></PuCard>
+          )}
           <p>{s.text}</p>
           <pre>{s.wire}</pre>
           <LiveClaims eventId={callView ? callView.call.evidence : LIVE_EVENT_FOR_STEP[step]} lastRun={lastRun} />
-          <h3>Source</h3>
+          <h3 className="pu-h3">Source</h3>
           <ul>{s.src.map((x) => <li key={x}>{x}</li>)}</ul>
-          {log.length > 0 && (<><h3>Simulation log</h3><ol className="log">{log.map((l, i) => <li key={i}>{l}</li>)}</ol></>)}
+          {log.length > 0 && (<><h3 className="pu-h3">Simulation log</h3><ol className="log">{log.map((l, i) => <li key={i}>{l}</li>)}</ol></>)}
         </section>
         <p className="legend">Solid = request/response on the happy path · dashed = trust lookup or alternate branch</p>
       </aside>
       <div className="split" style={panel ? undefined : { visibility: "hidden" }} onPointerDown={startSplit} title="Drag to resize panel" />
-      <main>
+      <div className="ijx-stage" role="region" aria-label="ID-JAG implementation diagram">
         <div className="tools">
-          <button onClick={() => setPanel(!panel)}>{panel ? "◀ Hide panel" : "▶ Show panel"}</button>
-          <button onClick={fullscreen}>⛶ Fullscreen</button>
+          <button type="button" className="pu-btn" aria-pressed={panel} onClick={() => setPanel(!panel)}>Side panel</button>
+          <button type="button" className="pu-btn" onClick={fullscreen}>Fullscreen</button>
         </div>
         <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
           onNodesChange={onNodesChange} nodesDraggable={!locked} connectionMode={ConnectionMode.Loose}
@@ -311,39 +359,65 @@ function ImplementationFlow() {
           <Background gap={24} />
           <Controls showInteractive={false} />
         </ReactFlow>
-      </main>
+      </div>
     </div>
   );
 }
+
+// What kind of run the trace store holds, from its provenance: "mock" (sample values), "replay" (a recorded unattended run played
+// back, provenance "recorded"), "live" (live / live-id-jag), "other" (anything else) or "none".
+function runKind(lastRun) {
+  if (!lastRun) return "none";
+  const p = String(lastRun.provenance || "");
+  if (p.startsWith("mock")) return "mock";
+  if (p === "recorded") return "replay";
+  if (p.startsWith("live")) return "live";
+  return "other";
+}
+const isMockRun = (lastRun) => runKind(lastRun) === "mock";
+
+// Chip, card title and hint for a run kind. None of them says "live" or "real" for a run that was not live, and green is never used:
+// this page checks nothing, so a recorded run is neutral and a mock replay is a warning.
+const RUN_COPY = {
+  mock: { tone: "warn", word: "Mock replay", title: "Claims from your last run", hint: "Mock replay: sample values, not a live token." },
+  replay: { tone: "neutral", word: "Replayed run", title: "Claims from a replayed run", hint: "Replay of a recorded run, not a fresh live token." },
+  live: { tone: "neutral", word: "Last live run", title: "Claims from your last live run", hint: "Decoded from the token chain of your last live run; this page does not re-check them." },
+  other: { tone: "neutral", word: "Recorded run", title: "Claims from your last run", hint: "Recorded in this browser; its source is not stated." },
+};
 
 function LiveClaims({ eventId, lastRun }) {
   if (!eventId) return null;
   const events = (lastRun && lastRun.tokenEvents) || [];
   const event = events.find((e) => e && e.id === eventId);
   const claims = readableClaims(event);
-  const mock = lastRun && String(lastRun.provenance || "").startsWith("mock");
+  const copy = claims ? RUN_COPY[runKind(lastRun)] || RUN_COPY.other : null;
+  const ranSomething = hasRecordedClaims(lastRun);
+  const items = claims ? Object.entries(claims).map(([label, v]) => ({ label, value: typeof v === "string" ? v : JSON.stringify(v), mono: true })) : [];
   return (
-    <div className="live" data-testid="idjag-live">
-      <h3>Real claims from your last run</h3>
+    <PuCard tone={copy && copy.tone === "warn" ? "warn" : "neutral"} title={copy ? copy.title : "Claims from your last run"} className="live" data-testid="idjag-live">
+      <p className="pu-status-line"><StatusChip tone={copy ? copy.tone : "neutral"}>{copy ? copy.word : ranSomething ? "Not in this run" : "No run recorded"}</StatusChip></p>
       {claims ? (
         <>
-          <p className="hint">{mock ? "Mock replay: sample values, not a live token." : "Decoded from the live token chain."}</p>
-          <pre>{JSON.stringify(claims, null, 2)}</pre>
+          <p className="hint">{copy.hint}</p>
+          <KvList items={items} />
         </>
       ) : (
-        <p className="hint">No run recorded yet. Run the demo, then come back and these claims fill in.</p>
+        <p className="hint">{ranSomething ? "The last run recorded no claims for this step." : "No run recorded yet. Run the demo, then come back and these claims fill in."}</p>
       )}
-    </div>
+    </PuCard>
   );
 }
 
-export default function PingFederateIdJagImplementationPage() {
-  return (
-    <div className="ijx ijx--wrap">
-      <IdJagPathBar current="build" />
-      <ReactFlowProvider>
-        <ImplementationFlow />
-      </ReactFlowProvider>
-    </div>
-  );
+// What the banner says about the claims panels, from the evidence actually recorded in this browser. The store always
+// holds a trace (an empty one before any run), so "a trace exists" is not "a run was recorded": ask for claims.
+function hasRecordedClaims(lastRun) {
+  const ids = new Set([...Object.values(LIVE_EVENT_FOR_STEP), ...CALLS.map((c) => c.evidence).filter(Boolean)]);
+  return ((lastRun && lastRun.tokenEvents) || []).some((e) => e && ids.has(e.id) && readableClaims(e));
 }
+function claimsSentence(lastRun) {
+  if (!hasRecordedClaims(lastRun)) return "No run is recorded in this browser yet, so the claims on the issue and redeem steps stay empty until you run the demo.";
+  if (isMockRun(lastRun)) return "The last recorded run was a mock replay, so the claims shown on the issue and redeem steps are sample values, not live tokens.";
+  if (runKind(lastRun) === "replay") return "The last recorded run was a replay of an earlier run, so the claims shown on the issue and redeem steps are from that replay, not a fresh live token.";
+  return "The claims shown on the issue and redeem steps come from the last run recorded in this browser; this page does not re-check them.";
+}
+
