@@ -37,12 +37,14 @@
 /agent-builder
 /ungoverned-agent
 /davinci-widget
+/davinci-sdk
 /oauth-academy
 /privilege-intent-triage
 /policy-decision-trace
 /mcp-observability
 /demo/enterprise-mcp
 /pingfederate-id-jag/demo
+/pingfederate-id-jag
 /pingfederate-config
 /pingfederate-ai-agent
 /privilege-prompt-log
@@ -61,6 +63,7 @@
 /personal-agent
 /personal-agent/full
 /pingone-platform-config
+/pingone-setup
 /ai-products/core
 /ai-products/gateway
 /digital-worker
