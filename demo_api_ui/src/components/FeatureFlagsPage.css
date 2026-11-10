@@ -1,606 +1,284 @@
-/* banking_api_ui/src/components/FeatureFlagsPage.css */
+/* Feature Flags page: only what is specific to this page, the on/off switch, the flag card header and the webhook form.
+   The banner, frame, cards, chips, key-value lists and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1: every rule
+   that sets a ground sets its own ink), type comes from the --font-size-* scale (H2), no inline styles (H3).
 
-/* Themed per THEMING.md: colours come from --th-* tokens, so dark mode is
-   inherited from :root[data-theme="dark"] redefining them and there is no
-   prefers-color-scheme block here.
-
-   --ff-accent is page-scoped on purpose. The red focus/hover accent has no
-   --th-* equivalent, and inventing a global token for one page's chrome would
-   be worse than declaring it here — but it still has to be declared PER THEME,
-   because a single value cannot carry a focus ring on both grounds. */
-:root {
-  --ff-accent: #aa0005; /* Ping Red gradient end — #d20e0f was only ~4.8:1 on the tint */
-  --ff-accent-soft: #fdeaea;
-  --ff-accent-ring: rgba(170, 0, 5, 0.28);
-}
-
-:root[data-theme="dark"] {
-  --ff-accent: #fecaca; /* light red tint, ~17:1 on the dark soft bg */
-  --ff-accent-soft: #2e1011;
-  --ff-accent-ring: rgba(210, 14, 15, 0.35);
-}
-
-/* ── Page header extras ──────────────────────────────────────────────────── */
-
-.ff-page-stats {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.ff-stat {
-  font-size: 0.8rem;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 20px;
-  letter-spacing: 0.02em;
-}
-
-.ff-stat--on {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-  border: 1px solid var(--th-status-success-border);
-}
-.ff-stat--off {
-  background: var(--th-bg-inset);
-  color: var(--th-text-faint);
-  border: 1px solid var(--th-border-strong);
-}
+   Every rule is scoped under .feature-flags-page: the PingOne end-user-nano skin sets word-wrap and colours on bare
+   elements, and Configuration/UnifiedConfigurationPage.css has its own ff-* classes. */
 
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
 
-.ff-error {
+.feature-flags-page .ff-error {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--th-status-error-bg);
+  margin: 12px 0;
+  padding: 10px 14px;
   border: 1px solid var(--th-status-error-border);
-  border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 0.88rem;
-  color: var(--th-status-error);
-  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-sm);
 }
 
-.ff-error__dismiss {
-  background: none;
-  border: none;
-  color: var(--th-status-error);
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0;
-  flex-shrink: 0;
+.feature-flags-page .ff-error__text {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.ff-saved-toast {
-  background: var(--th-status-success-bg);
+/* The live region is mounted before its text arrives, so the toast is announced; empty, it takes no room. */
+.feature-flags-page .ff-saved-region:empty {
+  display: none;
+}
+
+.feature-flags-page .ff-saved-toast {
+  margin: 12px 0;
+  padding: 8px 14px;
   border: 1px solid var(--th-status-success-border);
   border-radius: var(--radius-lg);
-  padding: 8px 14px;
-  font-size: 0.85rem;
+  background: var(--th-status-success-bg);
   color: var(--th-status-success-text);
-  margin-bottom: 16px;
-  animation: ff-fade-in 0.2s ease;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
 
-@keyframes ff-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.ff-loading {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--th-text-body);
-  font-size: 1rem;
-}
-
-/* ── Groups ──────────────────────────────────────────────────────────────── */
-
-.ff-groups {
+.feature-flags-page .ff-loading {
   display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.ff-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.ff-group__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--th-border);
-}
-
-.ff-group__title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 800;
+  justify-content: center;
+  padding: 48px 16px;
   color: var(--th-text);
-  letter-spacing: 0.01em;
+  font-size: var(--font-size-body);
 }
 
-.ff-group__count {
-  font-size: 0.78rem;
-  color: var(--th-text-body);
-  font-weight: 500;
-}
-
-.ff-group__cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+.feature-flags-page .ff-empty {
+  margin: 24px 0;
 }
 
 /* ── Flag card ───────────────────────────────────────────────────────────── */
 
-.ff-card {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1.5px solid var(--th-border);
-  border-radius: 14px;
-  padding: 20px;
+.feature-flags-page .ff-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-  position: relative;
 }
 
-.ff-card--on {
-  border-color: var(--th-status-info-border);
-  color: var(--th-text);
-  background: linear-gradient(135deg, var(--th-bg-inset) 0%, var(--th-status-info-bg) 100%);
-  box-shadow: 0 2px 12px var(--th-status-info-bg);
-}
-
-.ff-card__header {
+.feature-flags-page .ff-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.ff-card__meta {
+.feature-flags-page .ff-card__meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 6px;
   min-width: 0;
 }
 
-.ff-badge {
-  display: inline-block;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  width: fit-content;
-}
-
-.ff-badge--on {
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
-}
-.ff-badge--off {
-  background: var(--th-bg-inset);
-  color: var(--th-text-faint);
-}
-.ff-badge--enum {
-  background: var(--ff-accent-soft);
-  color: var(--ff-accent);
-}
-
-/* ── Enum select ─────────────────────────────────────────────────────────── */
-
-/* Flags whose real control lives on another page (managedOn). */
-.ff-managed-link {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.ff-managed-link:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.ff-managed-link:focus-visible {
-  outline: 2px solid var(--th-border-strong);
-  outline-offset: 2px;
-}
-
-.ff-enum-select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding: 6px 28px 6px 10px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  background-color: var(--th-bg-card);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--th-text-body);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: border-color 0.15s;
-}
-.ff-enum-select:hover {
-  border-color: var(--ff-accent);
-}
-.ff-enum-select:focus {
-  outline: none;
-  border-color: var(--ff-accent);
-  box-shadow: 0 0 0 2px var(--ff-accent-ring);
-}
-.ff-enum-select--saving {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.ff-card__name {
+.feature-flags-page .ff-card .ff-card__name {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--th-text);
-  line-height: 1.3;
+  line-height: var(--line-height-tight);
 }
 
-.ff-card__id {
-  font-size: 0.72rem;
-  color: var(--th-text-body);
-  background: var(--brand-light-gray);
+.feature-flags-page .ff-card__id {
+  max-width: 100%;
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  width: fit-content;
-}
-
-/* ── Toggle switch ───────────────────────────────────────────────────────── */
-
-.ff-toggle {
+  background: var(--th-bg-inset);
   color: var(--th-text);
-  width: 52px;
-  height: 28px;
-  border-radius: 14px;
-  background: var(--th-border-strong);
-  border: none;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-  transition: background 0.2s;
-  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
-.ff-toggle--on {
-  background: var(--th-status-info-solid);
-  color: var(--th-text-invert);
-}
-
-.ff-toggle:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ff-toggle__thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s;
-  display: block;
-}
-
-.ff-toggle--on .ff-toggle__thumb {
-  transform: translateX(24px);
-}
-
-/* ── Card body ───────────────────────────────────────────────────────────── */
-
-.ff-card__desc {
+.feature-flags-page .ff-card__desc,
+.feature-flags-page .ff-card__impact {
   margin: 0;
-  font-size: 0.87rem;
+}
+
+.feature-flags-page .ff-card__impact-label {
+  display: block;
+  margin-bottom: 2px;
   color: var(--th-text-muted);
-  line-height: 1.55;
-}
-
-.ff-card__impact {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--brand-light-gray);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  padding: 10px 12px;
-}
-
-.ff-card__impact-label {
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.06em;
-  color: var(--th-text-body);
   text-transform: uppercase;
 }
 
-.ff-card__impact-text {
-  font-size: 0.82rem;
-  color: var(--brand-dark-gray);
-  line-height: 1.5;
-}
-
-.ff-card__warn {
-  font-size: 0.8rem;
-  color: var(--th-status-warning-text);
-  background: var(--th-status-warning-bg);
+.feature-flags-page .ff-card__warn {
+  padding: 8px 12px;
   border: 1px solid var(--th-status-warning-border);
   border-radius: var(--radius-lg);
-  padding: 8px 12px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-size: var(--font-size-sm);
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-.ff-card__docs-link {
-  font-size: 0.78rem;
-  color: var(--th-status-info);
-  text-decoration: none;
-  align-self: flex-start;
-}
-
-.ff-card__docs-link:hover {
-  text-decoration: underline;
-}
-
-.ff-card--saving {
-  opacity: 0.75;
-  pointer-events: none;
-}
-
-.ff-card__footer {
+.feature-flags-page .ff-card__footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 18px;
 }
 
-.ff-card__impact-inline {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--th-text-body);
-  line-height: 1.4;
-}
-
-.ff-card__saving {
-  font-size: 0.75rem;
-  color: var(--th-status-info);
-  animation: ff-pulse 0.8s ease infinite alternate;
-  flex-shrink: 0;
-}
-
-@keyframes ff-pulse {
-  from {
-    opacity: 0.5;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* ── Recognize Configuration section ────────────────────────────────────── */
-
-.rc-section {
-  margin-top: 40px;
-  padding-top: 32px;
-  border-top: 2px solid var(--th-border);
-}
-
-.rc-section__header {
-  margin-bottom: 18px;
-}
-
-.rc-section__title {
-  margin: 0 0 6px;
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--th-text);
-  letter-spacing: 0.01em;
-}
-
-.rc-section__subtitle {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--th-text-body);
-  line-height: 1.55;
-}
-
-.rc-section__subtitle code {
-  background: var(--brand-light-gray, var(--th-bg-inset));
-  color: var(--th-text);
-  padding: 1px 5px;
-  border-radius: var(--radius-sm);
-  font-size: 0.82em;
-}
-
-.rc-card {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1.5px solid var(--th-border);
-  border-radius: 14px;
-  padding: 20px 24px;
-  max-width: 560px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.rc-card__status-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.85rem;
-}
-
-.rc-label {
-  font-weight: 700;
-  color: var(--th-text-body);
-  min-width: 120px;
-  flex-shrink: 0;
-}
-
-.rc-status {
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-}
-
-.rc-status--set {
-  background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
-  border: 1px solid var(--th-status-success-border);
-}
-
-.rc-status--unset {
-  background: var(--th-bg-inset);
-  color: var(--th-text-body);
-  border: 1px solid var(--th-border-strong);
-}
-
-.rc-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 4px;
-  border-top: 1px solid var(--th-border);
-}
-
-.rc-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.rc-field__label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--th-text-body);
-  letter-spacing: 0.02em;
-}
-
-.rc-field__input {
-  padding: 8px 12px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
-  font-size: 0.87rem;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  transition: border-color 0.15s;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.rc-field__input:focus {
-  outline: none;
-  border-color: var(--ff-accent);
-  box-shadow: 0 0 0 2px var(--ff-accent-soft);
-}
-
-.rc-form__footer {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding-top: 4px;
-}
-
-.rc-save-btn {
-  padding: 8px 22px;
-  background: var(--th-status-info-solid);
-  color: var(--th-text-invert);
-  border: none;
-  border-radius: var(--btn-radius);
-  font-size: 0.87rem;
-  font-weight: var(--btn-weight);
-  cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-  flex-shrink: 0;
-}
-
-.rc-save-btn:hover:not(:disabled) {
-  background: var(--th-status-info-text);
-  color: var(--th-text-invert);
-}
-
-.rc-save-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.rc-result {
-  font-size: 0.83rem;
-  font-weight: 600;
-}
-
-.rc-result--ok {
-  color: var(--th-status-success-text);
-}
-
-.rc-result--err {
-  color: var(--th-status-error);
-}
-
-/* ── Footer ──────────────────────────────────────────────────────────────── */
-
-.ff-footer {
-  margin-top: 32px;
-  padding-top: 20px;
-  border-top: 1px solid var(--th-border);
-  font-size: 0.82rem;
-  color: var(--th-text-body);
-  line-height: 1.6;
-}
-
-.ff-footer a {
+.feature-flags-page .ff-card__docs-link {
   color: var(--th-status-info-text);
-  text-decoration: none;
-}
-
-.ff-footer a:hover {
+  font-size: var(--font-size-sm);
   text-decoration: underline;
 }
 
-/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
-:root[data-theme="dark"] .ff-error {
+.feature-flags-page .ff-card__saving {
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+/* The control beside the flag name. A managed flag shows a link instead (a secondary, from .pu-btn). */
+.feature-flags-page .ff-managed-link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 50%;
+  box-sizing: border-box;
+}
+
+.feature-flags-page .ff-enum-select {
+  flex-shrink: 0;
+  width: auto;
+  max-width: 50%;
+}
+
+/* ── Switch ──────────────────────────────────────────────────────────────── */
+
+/* Both states carry a 2px edge in the control-border token, so the switch is visible on the card in either theme
+   (a dark fill on a dark card was the old "on" state). On: Ping blue with a white thumb. Off: inset with an ink thumb.
+   aria-disabled (while saving) keeps focus on the switch and changes only the cursor. */
+.feature-flags-page .ff-toggle {
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 52px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.feature-flags-page .ff-toggle--on {
+  background: var(--th-status-info);
+  color: var(--btn-accent-text);
+}
+
+.feature-flags-page .ff-toggle[aria-disabled='true'] {
+  cursor: progress;
+}
+
+.feature-flags-page .ff-toggle__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--th-text);
+  color: var(--th-bg-card);
+}
+
+.feature-flags-page .ff-toggle--on .ff-toggle__thumb {
+  left: 25px;
+  background: var(--btn-accent-text);
+  color: var(--th-status-info);
+}
+
+.feature-flags-page .ff-toggle:focus-visible,
+.feature-flags-page .ff-enum-select:focus-visible,
+.feature-flags-page .ff-input:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Webhook form ────────────────────────────────────────────────────────── */
+
+.feature-flags-page .ff-webhook__form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--th-border-strong);
+}
+
+.feature-flags-page .ff-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.feature-flags-page .ff-input::placeholder {
+  color: var(--th-text-body);
+  font-style: italic;
+  opacity: 1;
+}
+
+.feature-flags-page .ff-webhook__result {
+  align-self: center;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.feature-flags-page .ff-webhook__result--ok {
+  color: var(--th-status-success-text);
+}
+
+.feature-flags-page .ff-webhook__result--err {
   color: var(--th-status-error-text);
 }
 
-:root[data-theme="dark"] .rc-save-btn:hover:not(:disabled) {
-  color: #051727;
+/* ── Footnote ────────────────────────────────────────────────────────────── */
+
+.feature-flags-page .ff-footnote {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--th-border-strong);
+  overflow-wrap: anywhere;
+}
+
+.feature-flags-page .ff-footnote a {
+  color: var(--th-status-info-text);
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  /* A card header with a wide control (a managed-flag link, a long mode name) stacks instead of squeezing the name. */
+  .feature-flags-page .ff-card__header {
+    flex-wrap: wrap;
+  }
+
+  .feature-flags-page .ff-managed-link,
+  .feature-flags-page .ff-enum-select {
+    max-width: 100%;
+  }
 }
