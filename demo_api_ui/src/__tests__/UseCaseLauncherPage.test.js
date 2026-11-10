@@ -442,6 +442,10 @@ describe('UseCaseLauncherPage', () => {
       expect.objectContaining({ sim: 'insufficient-scope', flowTraceId: expect.any(String) }),
     );
 
+    // The sim runs a real token exchange + gateway call, so the trace must not be tagged 'mock'.
+    expect(tokenChainTraceStore.beginTrace).toHaveBeenCalledWith(
+      expect.objectContaining({ provenance: 'live' }),
+    );
     await waitFor(() => expect(screen.getByText(/403 DENY/i)).toBeInTheDocument());
     expect(screen.getAllByText('insufficient_scope').length).toBeGreaterThan(0);
     expect(screen.getAllByText(SAMPLE_SIM_RESULT.reason).length).toBeGreaterThan(0);

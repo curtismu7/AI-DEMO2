@@ -157,7 +157,9 @@
   border-color: var(--tctr-border); background: var(--tctr-pill-bg);
 }
 .tctr-more-pop .tctr-view-mode button { color: var(--tctr-muted); }
-.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #051727; }
+/* The active segment was #051727 on the tray: 1.2:1 in dark. The emphasis tokens (dark navy with white ink in light,
+   light blue with navy ink in dark) clear 3:1 against the tray and the pill it sits in, and 4.5:1 for the label. */
+.tctr-more-pop .tctr-view-mode button.active { color: var(--th-text-on-emphasis); background: var(--th-bg-emphasis); }
 .tctr-more-pop .tctr-zoom { margin-right: 0; padding-right: 0; border-right: 0; }
 /* The tray is a card, not the header band: its zoom buttons took the band's white ink (1:1 on the card). */
 .tctr-more-pop .tctr-zoom-btn,
