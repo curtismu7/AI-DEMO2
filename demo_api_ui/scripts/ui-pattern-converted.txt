@@ -22,6 +22,7 @@
 /use-cases/live
 /demo-summary
 /langchain
+/embedded-worker
 /group-policy
 /group-policy/full
 /agent-gateway-authorization
