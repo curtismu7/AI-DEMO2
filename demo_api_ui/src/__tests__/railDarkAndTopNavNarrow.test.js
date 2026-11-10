@@ -24,8 +24,10 @@ const tintedGround = (railCss, cls) => {
 describe('TokenChainTraceRail dark mode', () => {
   const css = read('components/TokenChainTraceRail.css');
   const darkColor = (selector) => {
-    const m = css.match(new RegExp(`:root\\[data-theme="dark"\\] ${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{[^}]*?color:\\s*(#[0-9a-fA-F]{6})`));
-    return m && m[1];
+    const m = css.match(new RegExp(`:root\\[data-theme="dark"\\] ${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{[^}]*?color:\\s*(#[0-9a-fA-F]{6}|var\\(--th-[\\w-]+\\))`));
+    if (!m) return null;
+    const token = m[1].match(/^var\((--th-[\w-]+)\)$/);
+    return token ? themeToken(token[1], 'dark') : m[1];
   };
 
   it.each([

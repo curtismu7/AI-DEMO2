@@ -254,7 +254,7 @@ export function openStepTeachingWindow(step, useCase) {
   th{text-align:left;color:#64748b;width:120px;vertical-align:top;padding:4px 8px 4px 0}
   td{padding:4px 0;vertical-align:top}
   .jh-key{color:#79c0ff}.jh-string{color:#7ee787}.jh-number{color:#ffa657}
-  .jh-keyword{color:#d2a8ff;font-weight:600}.jh-punct{color:#8b949e}
+  .jh-keyword{color:#e5e7eb;font-weight:400}.jh-punct{color:#8b949e}
   .jh-critical{color:#ff6b6b;font-weight:600}
   .jh-focus{background:rgba(251,191,36,.28);color:#fde68a;font-weight:700;border-radius:3px}
   .claim-diff{border-radius:3px}

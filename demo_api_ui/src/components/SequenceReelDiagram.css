@@ -98,6 +98,8 @@
 .srd-toolbar {
   display: flex;
   align-items: center;
+  /* Wrap: at a 371px phone the font-size controls and Reset ran 128px past the card edge. */
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 0.4rem;
   /* The toolbars sit outside .srd-scroll (the scroll box), so they stay put

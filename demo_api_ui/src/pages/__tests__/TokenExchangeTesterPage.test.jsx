@@ -493,25 +493,25 @@ describe('TokenExchangeTesterPage CSS', () => {
     expect(indexCss).not.toMatch(/\.tet-btn/);
   });
 
-  it('dark: highlighted JSON keys clear 4.5:1 on the card ground (the shared palette measures 4.31:1)', () => {
+  it('dark: highlighted JSON keys clear 4.5:1 on the card ground through the shared palette alone (no page override)', () => {
     const card = hex('#131c2e'); // dark --th-bg-card
     const wash = over([255, 82, 82], 0.18, card); // .jh-dark .jh-focus background
     const shared = fs.readFileSync(path.resolve(__dirname, '../../components/shared/JsonHighlight.css'), 'utf8');
     const sharedInk = shared.match(/\.jh-dark \.jh-focus \{[^}]*color: (#[0-9a-f]{6})/i)[1];
-    expect(ratio(hex(sharedInk), wash)).toBeLessThan(4.5); // the reason for the override
-    const m = stripped.match(/\.pu-page\.tet-page \.tet-json\.jh-dark \.jh-focus \{\s*color: (#[0-9a-f]{6});/i);
-    expect(m).toBeTruthy();
-    expect(ratio(hex(m[1]), wash)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(hex(sharedInk), wash)).toBeGreaterThanOrEqual(4.5);
+    expect(stripped).not.toMatch(/\.jh-focus/);
   });
 
   it('light: the highlighted keys and the palette inks clear 4.5:1 on the card ground', () => {
     const card = hex('#ffffff');
-    expect(ratio(hex('#d20e0f'), over([210, 14, 15], 0.1, card))).toBeGreaterThanOrEqual(4.5);
+    const shared = fs.readFileSync(path.resolve(__dirname, '../../components/shared/JsonHighlight.css'), 'utf8');
+    const focusInk = shared.match(/^\.jh-focus \{[^}]*color: (#[0-9a-f]{6})/im)[1];
+    expect(ratio(hex(focusInk), over([210, 14, 15], 0.1, card))).toBeGreaterThanOrEqual(4.5);
     ['#0550ae', '#15803d', '#b45309'].forEach((c) => expect(ratio(hex(c), card)).toBeGreaterThanOrEqual(4.5));
   });
 
-  it('true / false / null are ink, not error red, unless the field is one the palette flags as critical', () => {
-    expect(stripped).toMatch(/\.pu-page\.tet-page \.tet-json \.jh-keyword:not\(\.jh-critical\) \{\s*color: var\(--th-text\);/);
+  it('true / false / null are neutral in the shared palette, so the page needs no keyword override', () => {
+    expect(stripped).not.toMatch(/\.jh-keyword/);
   });
 
   it('every rule that sets a --th-* background sets its own ink in the same rule', () => {

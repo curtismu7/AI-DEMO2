@@ -135,7 +135,6 @@
   color: var(--th-status-warning-text);
 }
 
-.pu-page.tst-page .jh-keyword,
 .pu-page.tst-page .jh-critical,
 .pu-page.tst-page .jh-focus {
   color: var(--th-status-error-text);

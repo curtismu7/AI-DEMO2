@@ -140,17 +140,3 @@
 .pu-page.tet-page .tet-json-label {
   margin: 12px 0 4px;
 }
-
-/* The shared JsonHighlight palette is not edited here (it is reported). Two page-scoped corrections:
-   1. Dark: the highlighted keys (aud, scope, payload) are #ff5252 on a 0.18 red wash over the card ground, 4.31:1.
-      A lighter red on the same wash measures 6.07:1 (the page test computes it).
-   2. true / false / null are bold red in the shared palette, which reads as an error inside a green "Issued" card.
-      Red stays for the fields the palette itself flags as critical (error, status, result...); the rest is ink. */
-.pu-page.tet-page .tet-json.jh-dark .jh-focus {
-  color: #ff8a8a;
-}
-
-.pu-page.tet-page .tet-json .jh-keyword:not(.jh-critical) {
-  color: var(--th-text);
-  font-weight: var(--font-weight-bold);
-}
