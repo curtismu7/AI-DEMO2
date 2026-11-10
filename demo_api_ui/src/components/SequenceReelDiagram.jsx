@@ -22,7 +22,7 @@
 // Status (active/done/error) is a SEPARATE encoding layered on top (motion,
 // dash, weight) — it never overrides the lane's hue, or "each step is a
 // different color" would collapse back into "each status is a color".
-import React, { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, useContext, useId } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
 import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
@@ -165,6 +165,8 @@ export default function SequenceReelDiagram({
   initialZoom = ZOOM_DEFAULT,
   ariaLabel = "Live sequence diagram of this session's token chain",
 }) {
+  // Per-instance marker ids: two diagrams on one page must not share an id (url(#...) would resolve to the first one).
+  const uid = `rf${useId().replace(/[^A-Za-z0-9]/g, "")}`;
   const verticalContext = useContext(VerticalContext);
   const pageManifest = verticalContext?.pageManifest;
   const verticalName = pageManifest?.identity?.displayName;
@@ -711,7 +713,7 @@ export default function SequenceReelDiagram({
                   x2={toX}
                   y2={y}
                   className="srd-arrow"
-                  markerEnd={`url(#srd-arrowhead-${String(step.to || "").toLowerCase()})`}
+                  markerEnd={`url(#${uid}-srd-arrowhead-${String(step.to || "").toLowerCase()})`}
                 />
                 {/* Boxed label, sitting just above the line so the arrow does
                     not cut through it. Same treatment as a note box, so a hop
@@ -739,7 +741,7 @@ export default function SequenceReelDiagram({
             {participants.map((p) => p.toLowerCase()).map((lane) => (
               <marker
                 key={lane}
-                id={`srd-arrowhead-${lane}`}
+                id={`${uid}-srd-arrowhead-${lane}`}
                 markerWidth="9"
                 markerHeight="9"
                 refX="8"

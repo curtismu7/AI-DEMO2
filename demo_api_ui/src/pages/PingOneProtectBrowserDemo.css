@@ -180,8 +180,13 @@
 
 .p1p-auth__run-chip[aria-disabled="true"] {
   cursor: wait;
-  /* Busy: 0.75 dropped the white label to 4.1:1 on a light ground. 0.88 holds 4.9:1 in both themes. */
-  opacity: 0.88;
+  /* Busy: no opacity (it pulled the white label toward the ground). The same muted Ping Red, white label and dashed
+     edge as the shared disabled primary (ping-ui.css), at full opacity. */
+  opacity: 1;
+  background-color: var(--btn-accent-inactive);
+  background-image: var(--btn-accent-inactive-gradient);
+  border: 1px dashed var(--btn-accent-edge);
+  color: var(--btn-accent-text);
 }
 
 .p1p-auth__status,
