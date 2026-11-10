@@ -51,6 +51,22 @@ describe("DiagramReel", () => {
     expect(s.goTo).toHaveBeenCalledWith(0);
   });
 
+  it("keeps ONE polite region while Simulate auto-plays: the details row is quiet, the step bar caption announces", () => {
+    const open = (over) => {
+      const view = render(<DiagramReel steps={steps} stepper={stepper({ step: 0, ...over })} openKey={1} />);
+      return view.container.querySelector(".dreel-detail");
+    };
+    expect(open({ active: true, paused: false }).getAttribute("aria-live")).toBe("off");
+  });
+
+  it("announces the details row again when the walkthrough is paused, stopped, or was never started", () => {
+    for (const over of [{ active: true, paused: true }, { active: false, paused: false }, {}]) {
+      const { container, unmount } = render(<DiagramReel steps={steps} stepper={stepper({ step: 0, ...over })} openKey={1} />);
+      expect(container.querySelector(".dreel-detail").getAttribute("aria-live")).toBe("polite");
+      unmount();
+    }
+  });
+
   it("opens the details row under the reel on a card click, and Close hides it", () => {
     const { container, rerender } = render(<DiagramReel steps={steps} stepper={stepper({ step: 0 })} />);
     expect(container.querySelector(".dreel-detail")).toBeNull();

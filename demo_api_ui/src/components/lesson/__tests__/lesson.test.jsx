@@ -64,11 +64,16 @@ describe("LessonLayout", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "Product pages" })).toBeInTheDocument();
-    const themeToggle = screen.getByRole("button", { name: "Switch to dark mode" });
+    // The name is fixed ("Dark mode"); aria-pressed carries the state, so name and state never contradict.
+    const themeToggle = screen.getByRole("button", { name: "Dark mode" });
     expect(themeToggle).toBeInTheDocument();
+    expect(themeToggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(themeToggle);
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-    expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument();
+    const pressed = screen.getByRole("button", { name: "Dark mode" });
+    expect(pressed).toHaveAttribute("aria-pressed", "true");
+    expect(pressed.textContent).toBe(themeToggle.textContent);
+    expect(screen.queryByRole("button", { name: /switch to|light mode/i })).toBeNull();
   });
 
   it("renders one nav entry per section and scrolls to the id it names", () => {

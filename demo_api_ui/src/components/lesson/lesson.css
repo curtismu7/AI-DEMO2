@@ -356,7 +356,8 @@
 }
 
 .lesson-theme-toggle:hover,
-.lesson-theme-toggle:focus-visible {
+.lesson-theme-toggle:focus-visible,
+.lesson-theme-toggle[aria-pressed="true"] {
   color: var(--th-text);
   background: var(--th-bg-card);
 }

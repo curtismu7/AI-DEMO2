@@ -142,7 +142,7 @@
     - label: OAuth Debug
       path: /oauth-debug-logs
       adminOnly: true
-    - label: CIMD Simulation
+    - label: CIMD Client Registration
       path: /client-registration
       adminOnly: true
 

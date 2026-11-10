@@ -230,23 +230,26 @@ describe('ClientRegistrationPage (Ping UI standard)', () => {
   });
 });
 
-// jsdom loads neither App.css nor the nano skin, so the shell-toggle contrast fix is pinned as CSS text.
-describe('ClientRegistrationPage.css shell theme toggle', () => {
-  const css = readFileSync(resolve(__dirname, '../ClientRegistrationPage.css'), 'utf8');
+// jsdom loads no stylesheet, so the shared shell toggle's colour rule is pinned as CSS text. The toggle
+// (.app-page-toolbar-btn--theme, used by AdminSubPageShell, ClientCredentialsResourcePage and McpGatewayConfig) is a
+// plain bordered secondary: no rule may fill it from a vertical's colour (--app-primary-blue-*).
+describe('shared shell theme toggle (.app-page-toolbar-btn--theme)', () => {
+  const shellCss = readFileSync(resolve(__dirname, '../../styles/appShellPages.css'), 'utf8');
   const appCss = readFileSync(resolve(__dirname, '../../App.css'), 'utf8');
+  const crpCss = readFileSync(resolve(__dirname, '../ClientRegistrationPage.css'), 'utf8');
 
-  it('beats the App.css !important colour on the theme button, in every state App.css covers', () => {
-    // App.css forces white text (--app-primary-blue-text) on this variant under .App.end-user-nano
-    expect(appCss).toMatch(/\.App\.end-user-nano button\.app-page-toolbar-btn\.app-page-toolbar-btn--theme:active \{[^}]*color: var\(--app-primary-blue-text, #fff\) !important/);
-    // this page paints the fill with the card colour ...
-    expect(css).toMatch(/\.crp-page \.app-page-toolbar-btn--theme,[\s\S]*?background: var\(--th-bg-card\)/);
-    // ... so the text must be the page ink, with the same !important and a longer selector, for each state
-    const block = css.match(/((?:\.App\.end-user-nano \.crp-page button\.app-page-toolbar-btn\.app-page-toolbar-btn--theme(?::[a-z-]+)?,?\s*)+)\{([^}]*)\}/);
-    expect(block).not.toBeNull();
-    for (const state of ['', ':hover', ':focus', ':focus-visible', ':active']) {
-      expect(block[1]).toContain(`app-page-toolbar-btn--theme${state}`);
+  it('has no rule of its own that takes a vertical colour, in the shell, App.css or this page', () => {
+    for (const css of [shellCss, appCss, crpCss]) {
+      const rules = css.match(/[^{}]*app-page-toolbar-btn--theme[^{}]*\{[^}]*\}/g) || [];
+      for (const rule of rules) expect(rule).not.toMatch(/--app-primary-blue/);
     }
-    expect(block[2]).toMatch(/color: var\(--th-text\) !important/);
-    expect(block[2]).toMatch(/-webkit-text-fill-color: var\(--th-text\) !important/);
+    expect(shellCss).not.toMatch(/app-page-toolbar-btn--theme/);
+  });
+
+  it('is styled by the base toolbar button (outline, card ground, page ink)', () => {
+    const base = shellCss.match(/\n\.app-page-toolbar-btn \{([^}]*)\}/);
+    expect(base).not.toBeNull();
+    expect(base[1]).toMatch(/color: var\(--th-text\)/);
+    expect(base[1]).toMatch(/background: var\(--th-bg-card\)/);
   });
 });

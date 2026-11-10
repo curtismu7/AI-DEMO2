@@ -1318,50 +1318,8 @@
   }
 }
 
-/* ── Task 9: Landing page (v2 styling) ────── */
-
-[data-rd-v2] .landing-page {
-  background: var(--rd2-surface, #ffffff);
-  color: var(--rd2-ink-1, #111110);
-}
-
-[data-rd-v2] .landing-header {
-  background: var(--rd2-surface, #ffffff);
-  border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
-  padding: 16px clamp(16px, 4vw, 48px);
-}
-
-[data-rd-v2] .landing-header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-[data-rd-v2] .landing-logo-title {
-  font-family: var(--font-primary);
-  font-size: 1.2rem;
-  font-weight: 600;
-  letter-spacing: -.015em;
-  color: var(--rd2-ink-1, #111110);
-  margin: 0;
-}
-
-[data-rd-v2] .landing-logo p:last-child {
-  font-family: var(--font-mono);
-  font-size: .65rem;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--rd2-ink-3, #8c8c88);
-  margin: 2px 0 0 0;
-}
-
-[data-rd-v2] .landing-header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+/* ── Task 9: Buttons (v2 styling). The landing page left data-rd-v2 behind, so its [data-rd-v2] .landing-* twin
+   rules are gone; see LandingPage.css. ────── */
 
 [data-rd-v2] .btn {
   padding: 10px 20px;
@@ -1396,140 +1354,6 @@
   border-color: var(--rd2-line-2, #d5d5d0);
 }
 
-[data-rd-v2] .landing-main {
-  background: var(--rd2-surface, #ffffff);
-  padding: 48px clamp(16px, 4vw, 48px);
-}
-
-[data-rd-v2] .landing-hero {
-  text-align: center;
-  margin-bottom: 64px;
-}
-
-[data-rd-v2] .landing-hero-headline {
-  font-family: var(--font-primary);
-  font-size: clamp(1.8rem, 5vw, 2.8rem);
-  font-weight: 700;
-  letter-spacing: -.02em;
-  line-height: 1.2;
-  color: var(--rd2-ink-1, #111110);
-  margin: 0 0 16px 0;
-}
-
-[data-rd-v2] .landing-hero-subheadline {
-  font-family: var(--font-primary);
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: var(--rd2-ink-2, #4c4c48);
-  max-width: 600px;
-  margin: 0 auto 24px;
-}
-
-[data-rd-v2] .landing-hero-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-[data-rd-v2] .landing-features {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-[data-rd-v2] .landing-features-heading {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-[data-rd-v2] .landing-features-heading h2 {
-  font-family: var(--font-primary);
-  font-size: 1.8rem;
-  font-weight: 700;
-  letter-spacing: -.015em;
-  color: var(--rd2-ink-1, #111110);
-  margin: 0 0 12px 0;
-}
-
-[data-rd-v2] .landing-features-heading p {
-  font-family: var(--font-primary);
-  font-size: 1rem;
-  color: var(--rd2-ink-2, #4c4c48);
-  margin: 0;
-}
-
-[data-rd-v2] .landing-features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-[data-rd-v2] .landing-feature-card {
-  background: var(--rd2-surface-2, #f3f3f1);
-  border: 1px solid var(--rd2-line-1, #e4e4e0);
-  border-radius: var(--rd2-r-md, 8px);
-  padding: 24px;
-  transition: all 200ms ease-out;
-}
-
-[data-rd-v2] .landing-feature-card:hover {
-  border-color: var(--rd2-line-2, #d5d5d0);
-  box-shadow: var(--rd2-shadow-2, 0 3px 8px rgba(0,0,0,.1));
-}
-
-[data-rd-v2] .landing-feature-icon {
-  color: var(--theme-accent, #051727);
-  margin-bottom: 16px;
-}
-
-[data-rd-v2] .landing-feature-title {
-  font-family: var(--font-primary);
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -.015em;
-  color: var(--rd2-ink-1, #111110);
-  margin: 0 0 8px 0;
-}
-
-[data-rd-v2] .landing-feature-description {
-  font-family: var(--font-primary);
-  font-size: .9rem;
-  line-height: 1.5;
-  color: var(--rd2-ink-2, #4c4c48);
-  margin: 0;
-}
-
-[data-rd-v2] .landing-footer {
-  background: color-mix(in srgb, var(--rd2-ink-1, #111110) 2%, #ffffff);
-  border-top: 1px solid var(--rd2-line-1, #e4e4e0);
-  padding: 32px clamp(16px, 4vw, 48px);
-  text-align: center;
-}
-
-[data-rd-v2] .landing-footer p {
-  font-family: var(--font-primary);
-  font-size: .85rem;
-  color: var(--rd2-ink-2, #4c4c48);
-  margin: 0;
-}
-
-@media (max-width: 700px) {
-  [data-rd-v2] .landing-header-content {
-    flex-direction: column;
-    gap: 16px;
-    text-align: center;
-  }
-  [data-rd-v2] .landing-hero-actions {
-    justify-content: center;
-  }
-  [data-rd-v2] .landing-features-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Below 480px the base .hero-cta rule forces min-width: 100%, stacking all
    four hero CTAs into one tall column. On phones with a ~950px+ viewport
    height (e.g. iPhone 15/16/17 Pro Max) that stack runs tall enough for the
@@ -1537,10 +1361,6 @@
    Script launcher. A 2-column grid halves the stack height so every CTA
    clears both fixed buttons. */
 @media (max-width: 480px) {
-  [data-rd-v2] .landing-hero-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
   [data-rd-v2] .hero-cta {
     min-width: 0;
   }

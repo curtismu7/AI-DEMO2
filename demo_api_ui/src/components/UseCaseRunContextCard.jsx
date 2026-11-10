@@ -22,7 +22,11 @@ function humanizeUseCaseId(useCaseId) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function UseCaseRunContextCard({ runContext }) {
+// headingLevel: the card's title is a heading, and its level has to sit one below whatever heading contains the card.
+// 2 is right when the card sits in a section with no heading of its own (the floating or docked agent); the dashboard
+// puts the agent inside its "Banking assistant" h2 card and passes 3.
+export default function UseCaseRunContextCard({ runContext, headingLevel = 2 }) {
+  const Title = `h${[2, 3, 4].includes(headingLevel) ? headingLevel : 2}`;
   const launchedFromUseCases = runContext?.source === 'use-cases';
   const launchedFromDemoTrack = runContext?.source === 'demo-track';
   const launchedFromDemoSteps = runContext?.source === 'demo-steps';
@@ -41,11 +45,11 @@ export default function UseCaseRunContextCard({ runContext }) {
                   ? 'Launched from Demo Steps'
                   : 'Direct dashboard run'}
           </div>
-          <h2 className="ba-run-context-card__title">
+          <Title className="ba-run-context-card__title">
             {runContext?.useCaseLabel
               || humanizeUseCaseId(runContext?.useCaseId)
               || 'No use case selected'}
-          </h2>
+          </Title>
         </div>
         {runContext?.expectedOutcome && (
           <span className={`ba-run-context-card__verdict ba-run-context-card__verdict--${runContext.expectedOutcome.toLowerCase()}`}>

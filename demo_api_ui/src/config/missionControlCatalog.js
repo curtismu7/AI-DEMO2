@@ -15,7 +15,7 @@ const definitions = [
     inspectors: [
       link('Agent Registry & NHI', '/agent-registry'),
       link('Agent & Token Flow History', '/agent-flow-inspector'),
-      link('CIMD Simulation', '/client-registration'),
+      link('CIMD Client Registration', '/client-registration'),
     ],
     diagrams: [
       link('Agent Onboarding Flow', '/agent-onboarding-flow'),
@@ -53,7 +53,7 @@ const definitions = [
     inspectors: [
       link('Consumer & Partner Agent Builder', '/agent-builder'),
       link('Agent Registry & NHI', '/agent-registry'),
-      link('CIMD Simulation', '/client-registration'),
+      link('CIMD Client Registration', '/client-registration'),
     ],
     diagrams: [
       link('Agent Onboarding Flow', '/agent-onboarding-flow'),
@@ -132,7 +132,7 @@ const definitions = [
     ],
     inspectors: [
       link('Agent Onboarding Flow', '/agent-onboarding-flow'),
-      link('CIMD Simulation', '/client-registration'),
+      link('CIMD Client Registration', '/client-registration'),
       link('Agent Registry & NHI', '/agent-registry'),
     ],
     diagrams: [link('Agent Onboarding Flow', '/agent-onboarding-flow-subway')],
