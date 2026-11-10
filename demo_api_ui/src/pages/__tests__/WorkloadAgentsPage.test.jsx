@@ -137,4 +137,100 @@ describe('WorkloadAgentsPage', () => {
       body: withFlowTrace({ prompt: 'show my balance', vertical: 'banking', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
     })));
   });
+
+  describe('Ping UI standard', () => {
+    const primaries = () => [...document.querySelectorAll('.pu-btn--primary')].map((b) => b.textContent);
+
+    it('puts the banner first inside the page, as a note', async () => {
+      renderPage();
+      await screen.findByText('list_gear');
+      const page = document.querySelector('.pu-page.wa-page');
+      expect(page).toBeTruthy();
+      const banner = within(page).getByTestId('wa-banner');
+      expect(banner.getAttribute('role')).toBe('note');
+      expect(page.querySelector('.pu-banner-wrap')).toBe(page.firstElementChild);
+      expect(document.querySelectorAll('main').length).toBe(0);
+      expect(document.querySelectorAll('h1').length).toBe(1);
+    });
+
+    it('derives the banner state from the session and the catalog, not fixed text', async () => {
+      const { unmount } = renderPage();
+      await screen.findByText('list_gear');
+      expect(screen.getByTestId('wa-banner-state').textContent).toMatch(/Nobody is signed in/);
+      expect(screen.getByTestId('wa-banner-state').textContent).not.toMatch(/with your session/);
+      unmount();
+      renderPage(undefined, null, { username: 'demoAdmin' });
+      await screen.findByText('list_gear');
+      expect(screen.getByTestId('wa-banner-state').getAttribute('role')).toBe('status');
+      expect(screen.getByTestId('wa-banner-state').textContent).toMatch(/with your session/);
+    });
+
+    it('has exactly one primary button once loaded, and the card Run buttons are secondaries', async () => {
+      renderPage();
+      await screen.findByText('list_gear');
+      expect(primaries()).toEqual(['Run rental extension']);
+      expect(screen.getByRole('button', { name: /Run this demo: UC38/ }).className).not.toMatch(/primary/);
+      expect(screen.getByRole('button', { name: /Run this demo: UC44/ }).className).not.toMatch(/primary/);
+    });
+
+    it('keeps the Run buttons inactive (aria-disabled, with a reason) until the catalog action loads', async () => {
+      renderPage();
+      const run = screen.getByRole('button', { name: /Run this demo: UC38/ });
+      expect(run.getAttribute('aria-disabled')).toBe('true');
+      expect(run.hasAttribute('disabled')).toBe(false);
+      expect(document.getElementById(run.getAttribute('aria-describedby')).textContent).toMatch(/Waiting for the catalog action/);
+      expect(primaries()).toEqual([]);
+      fireEvent.click(run);
+      expect(fetch).not.toHaveBeenCalled();
+      await waitFor(() => expect(run.getAttribute('aria-disabled')).toBeNull());
+    });
+
+    it('shows a failed catalog load as Retry (the one primary), and Retry reloads and gives focus to Run', async () => {
+      let fail = true;
+      apiClient.get.mockImplementation((url) => {
+        if (url === '/api/verticals/list') return Promise.resolve({ data: verticals });
+        if (fail) return Promise.reject(new Error('down'));
+        const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
+        return Promise.resolve({ data: { useCase: scenarios[id] } });
+      });
+      renderPage();
+      const retry = await screen.findByRole('button', { name: /Retry loading actions/ });
+      expect(screen.getByTestId('wa-error').getAttribute('role')).toBe('alert');
+      expect(screen.getByTestId('wa-error').textContent).toMatch(/Failed.*Actions could not be loaded/);
+      expect(screen.getByTestId('wa-banner-state').textContent).toMatch(/did not load/);
+      expect(primaries()).toEqual(['Retry loading actions']);
+      const run = screen.getByRole('button', { name: /Run this demo: UC38/ });
+      expect(run.getAttribute('aria-disabled')).toBe('true');
+      expect(screen.getAllByText('Unavailable').length).toBe(4);
+      fail = false;
+      retry.focus();
+      fireEvent.click(retry);
+      await screen.findByText('list_gear');
+      expect(screen.queryByRole('button', { name: /Retry loading actions/ })).toBeNull();
+      expect(screen.getByTestId('wa-error').textContent).toBe('');
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Run this demo: UC38/ })));
+      expect(primaries()).toEqual(['Run rental extension']);
+    });
+
+    it('keeps Retry a secondary when only the vertical list failed (the studio owns the primary)', async () => {
+      apiClient.get.mockImplementation((url) => {
+        if (url === '/api/verticals/list') return Promise.reject(new Error('down'));
+        const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
+        return Promise.resolve({ data: { useCase: scenarios[id] } });
+      });
+      renderPage();
+      expect(await screen.findByText(/Vertical choices could not be loaded/)).toBeTruthy();
+      await screen.findByText('list_gear');
+      expect(primaries()).toEqual(['Run rental extension']);
+      expect(screen.getByRole('button', { name: /Retry loading actions/ }).className).not.toMatch(/primary/);
+    });
+
+    it('marks the selected scenario with a word, not only an edge', async () => {
+      renderPage('/workload-agents?useCase=UC44&vertical=sporting-goods');
+      await screen.findAllByText('list_gear');
+      expect(within(screen.getByTestId('wa-choice-UC44')).getByText('Selected')).toBeTruthy();
+      expect(within(screen.getByTestId('wa-choice-UC38')).queryByText('Selected')).toBeNull();
+    });
+  });
 });
+
