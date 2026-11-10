@@ -19,6 +19,14 @@ const { pushAuthorizationRequestWithRedirectFallback, isParRedirectUriMismatch }
 const { getParEndpoint } = require('../services/oauthEndpointResolver');
 const { listActorParRedirectCandidates } = require('../services/oauthRedirectUris');
 
+/**
+ * Live (PAR) runs: PingOne stores the pushed request and returns a request_uri without
+ * evaluating the amount. The PERMIT/DENY is this backend's own amount <= cap comparison,
+ * not a PingOne Authorize decision, so the label and decisionEngine say so.
+ */
+const LIVE_PAR_DECISION_ENGINE = 'app-intent-cap-check';
+const LIVE_PAR_PERMIT_LABEL = "Amount check — PERMIT (made by this app's backend)";
+
 /** Classify PingOne PAR push failures for the learning-page token chain. */
 function classifyParPushError(message) {
   const msg = String(message || '');
@@ -181,13 +189,17 @@ router.post('/run', authenticateToken, async (req, res) => {
             ? [
                 ...parPushEvents,
                 { id: 'intent-check', label: `Intent cap $${amount} <= $${INTENT_CAP}`, status: 'active' },
-                { id: 'p1az-permit', label: 'PingOne Authorize — PERMIT', status: 'active' },
+                // Event id stays 'p1az-permit' (trace consumers key on it); the label names the
+                // engine that actually decided: the amount <= cap comparison above, in this
+                // backend. PingOne's PAR endpoint only stored the request.
+                { id: 'p1az-permit', label: LIVE_PAR_PERMIT_LABEL, status: 'active' },
               ]
             : [
                 ...parPushEvents,
                 { id: 'intent-check', label: `Intent cap $${amount} > $${INTENT_CAP}`, status: 'exceeded' },
                 { id: 'transfer-blocked', label: 'Transfer blocked — intent exceeded', status: 'enforced' },
               ],
+          decisionEngine: LIVE_PAR_DECISION_ENGINE,
           live: true,
         });
       } catch (parErr) {

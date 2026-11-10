@@ -160,6 +160,45 @@ export async function warmupAuthz() {
   }
 }
 
+/**
+ * Build the synthetic "authorize-decision" token event from an MCP-level
+ * authorize evaluation. Nothing is defaulted to a favourable or "simulated"
+ * value: a missing decision is INDETERMINATE (never PERMIT) and a missing
+ * engine is "unknown" (never "simulated"), and the label/explanation only name
+ * PingOne Authorize when the server said the engine was pingone.
+ */
+export function buildAuthorizeDecisionEvent(ae) {
+  const decision = ae.decision || "INDETERMINATE";
+  const engine = ae.engine || "unknown";
+  const decisionStatus =
+    decision === "PERMIT" ? "active" : decision === "DENY" ? "failed" : "waiting";
+  const engineName =
+    engine === "pingone"
+      ? "PingOne Authorize"
+      : engine === "simulated" || engine === "mock"
+        ? "Simulated policy engine"
+        : engine === "unknown"
+          ? "Policy engine (not reported)"
+          : `Policy engine (${engine})`;
+  return {
+    id: "authorize-decision",
+    label: engine === "pingone" ? "PingOne Authorize — Policy Decision" : "Authorize — Policy Decision",
+    status: decisionStatus,
+    timestamp: Date.now(),
+    rfc: "RFC 8705",
+    authorizeDecision: decision,
+    authorizeEngine: engine,
+    authorizePath: ae.path || null,
+    authorizeDecisionId: ae.decisionId || null,
+    authorizeRef: ae.authorizeRef || ae.decisionEndpointId || null,
+    authorizeRequest: ae.request || null,
+    authorizeResponse: ae.response || null,
+    explanation: ae.decision
+      ? `${engineName} evaluated the agent tool call and returned ${decision}.`
+      : `${engineName} evaluated the agent tool call but reported no decision.`,
+  };
+}
+
 // ─── Low-level MCP tool call ──────────────────────────────────────────────────
 
 /**
@@ -413,29 +452,9 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       if (err.mcpAuthorizeEvaluation) {
         try {
           const ae = err.mcpAuthorizeEvaluation;
-          const decision = ae.decision || "INDETERMINATE";
-          const engine = ae.engine || "simulated";
-          const decisionStatus =
-            decision === "PERMIT"
-              ? "active"
-              : decision === "DENY"
-                ? "failed"
-                : "waiting";
           if (!allTokenEvents.some((e) => e && e.id === "authorize-decision")) {
             allTokenEvents.push({
-              id: "authorize-decision",
-              label: "PingOne Authorize — Policy Decision",
-              status: decisionStatus,
-              timestamp: Date.now(),
-              rfc: "RFC 8705",
-              authorizeDecision: decision,
-              authorizeEngine: engine,
-              authorizePath: ae.path || null,
-              authorizeDecisionId: ae.decisionId || null,
-              authorizeRef: ae.authorizeRef || ae.decisionEndpointId || null,
-              authorizeRequest: ae.request || null,
-              authorizeResponse: ae.response || null,
-              explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
+              ...buildAuthorizeDecisionEvent(ae),
               ...(ae.useCaseId ? { useCaseId: ae.useCaseId } : {}),
               ...(ae.vertical ? { vertical: ae.vertical } : {}),
             });
@@ -699,29 +718,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
     // Synthesize authorize-decision event from MCP-level PingOne Authorize evaluation
     if (data.mcpAuthorizeEvaluation) {
       const ae = data.mcpAuthorizeEvaluation;
-      const decision = ae.decision || "PERMIT";
-      const engine = ae.engine || "simulated";
-      const decisionStatus =
-        decision === "PERMIT"
-          ? "active"
-          : decision === "DENY"
-            ? "failed"
-            : "waiting";
-      allTokenEvents.push({
-        id: "authorize-decision",
-        label: "PingOne Authorize — Policy Decision",
-        status: decisionStatus,
-        timestamp: Date.now(),
-        rfc: "RFC 8705",
-        authorizeDecision: decision,
-        authorizeEngine: engine,
-        authorizePath: ae.path || null,
-        authorizeDecisionId: ae.decisionId || null,
-        authorizeRef: ae.authorizeRef || ae.decisionEndpointId || null,
-        authorizeRequest: ae.request || null,
-        authorizeResponse: ae.response || null,
-        explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
-      });
+      allTokenEvents.push(buildAuthorizeDecisionEvent(ae));
       tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
       if (data.mcpAuthorizeEvaluations) {
         tokenChainTraceStore.ingestAuthorizeEvaluations(data.mcpAuthorizeEvaluations);

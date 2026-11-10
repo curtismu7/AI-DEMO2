@@ -68,7 +68,7 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "Personal Agents", children: [
     "Personal Agent", "Personal Agent Clients", "Dot Workbench", "Workload Agents", "Embedded Worker", "OBO Demo",
-    "Target Design", "Dual Gateway Design", "Design Review",
+    "Target Design", "Dual Gateway Design", "Design Review", "Personal agent studio",
   ] },
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
@@ -86,22 +86,22 @@ export const NAV_STRUCTURE_CATALOG = [
     "Transaction Trace", "MCP Observability", "Observability Demo", "Grafana",
   ] },
   { label: "Diagrams", children: [
-    "Demo Map", "All Diagrams", "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",
+    "Demo Map", "All Diagrams", "Use-case diagrams", "Server Topology (Interactive)", "Where Everything Runs", "System Flow (Live)", "PingFederate ID-JAG (Node)",
     "System Diagram (Node)", "Overview Diagram (Node)", "Token Flow (Interactive) (Node)",
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
     "Delegated Access Proof", "Demo Steps Lifeline Audit",
     "Invest Dual-Auth (MM)", "Agent Privilege (MM)",
     "Agent Privilege Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
     "Personal Agent Design (Node)", "Personal Agent Dual Gateway (Node)", "Personal Agent Design Review",
-    "CIMD in Privilege (Node)",
+    "ChatGPT to UHG Front Door (Seq)", "POC flow", "United Agent MCP Door (Seq)", "CIMD in Privilege (Node)",
   ] },
   { label: "Demo arch slides", children: [
     "Workload Agents · Topology", "Workload Agents · CIBA Step-up",
-    "Workload Agents · 3rd-party MCP via ID-JAG", "Agentic Control Plane",
+    "Workload Agents · 3rd-party MCP via ID-JAG", "Workload Agent · Digital Assistant (OBO)", "Employee Agents · Coding Agents", "Agentic Control Plane",
   ] },
   { label: "Architecture & Learning", children: [
     "Learning Hub", "Privilege Docs Index", "Claude Skills Index", "Learning Hub (Web Mirror)", "Page Catalog",
-    "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",
+    "Intent binding (learn)", "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",
   ] },
   { label: "Administration", children: [
     "Feature Flags", "LLM Config", "Secret Rotation", "App Configuration", "Security Settings", "CIMD Simulation",
