@@ -21,8 +21,8 @@
 //
 // P9, one primary per view state. There is one state (the page never changes): "Open the live SDK login" is the one
 // primary. It is a link, because it navigates, so it takes the primary look from page CSS (the shared primary rule is
-// button-only). Everything else is a link or a secondary (the banner More/Less and the diagram's Simulate, Reset and
-// step controls).
+// button-only). Everything else is a link or a secondary (the diagram's Simulate, Reset and step controls; the banner's
+// More/Less toggle appears only at 600px and narrower).
 //
 // Every code sample here is copied from shipped code, never hand-written for
 // the page. Three docs in this repo went stale by describing intended code
@@ -162,7 +162,8 @@ export default function OrchestrationSdkExplainerPage() {
       <SimBanner data-testid="osx-banner">
         <strong>Static lesson.</strong> Nothing on this page calls PingOne, DaVinci or this app&rsquo;s server, and
         the diagram&rsquo;s Simulate steps through a drawn sequence, not a live flow. The code samples are copied from
-        the shipped code. The live SDK login and the demos linked below run the real flows.
+        the shipped code. The live SDK login and the demos linked below run the real flows when DaVinci is configured
+        for this environment.
       </SimBanner>
 
       <PageHeader eyebrow="DaVinci SDK" title="DaVinci SDK" summary={<>A DaVinci flow can reach a user three ways, and only one of them lets you render the
@@ -183,7 +184,7 @@ export default function OrchestrationSdkExplainerPage() {
             Open the live SDK login
           </a>
           <span className="osx-cta-note">
-            Runs the real DaVinci flow and renders its collectors with the code on this page.
+            When DaVinci is configured for this environment, runs the real flow and renders its collectors with the code on this page.
           </span>
         </p>
 

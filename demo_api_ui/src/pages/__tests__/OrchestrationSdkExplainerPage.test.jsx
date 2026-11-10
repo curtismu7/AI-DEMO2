@@ -7,6 +7,8 @@
 // The lifecycle diagram is drawn with React Flow, which needs ResizeObserver in jsdom
 // (same stub A2AFlowVisualizer.test.jsx uses); its source is checked with expectDrawable.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import { expectDrawable } from "../../utils/__tests__/diagramSource";
 import OrchestrationSdkExplainerPage, { LIFECYCLE_DIAGRAM } from "../OrchestrationSdkExplainerPage";
@@ -120,10 +122,24 @@ describe("OrchestrationSdkExplainerPage", () => {
       // Honest copy: nothing live here, the diagram is a drawn sequence, the demos make the real calls.
       expect(banner.textContent).toMatch(/Static lesson/);
       expect(banner.textContent).toMatch(/Simulate steps through a drawn sequence, not a live flow/);
-      expect(banner.textContent).toMatch(/run the real flows/);
+      // Not an unconditional promise: the live pages only run the real flow where DaVinci is set up.
+      expect(banner.textContent).toMatch(/real flows when DaVinci is configured/);
+      expect(banner.textContent).not.toMatch(/run the real flows\./);
       // The banner comes before the title band.
       const h1 = screen.getByRole("heading", { level: 1 });
       expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("does not promise a real flow without the setup it needs, next to the primary link either", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const note = container.querySelector(".osx-cta-note");
+      expect(note.textContent).toMatch(/when DaVinci is configured/i);
+    });
+
+    it("lets the primary link's note wrap a long value inside a narrow column", () => {
+      const css = readFileSync(resolve(__dirname, "../OrchestrationSdkExplainerPage.css"), "utf8");
+      const rule = css.match(/\.osx-page \.osx-cta-note\s*\{[^}]*\}/)[0];
+      expect(rule).toMatch(/overflow-wrap:\s*anywhere/);
     });
 
     it("has exactly one primary: the live SDK login, a link that takes the shared primary class", () => {

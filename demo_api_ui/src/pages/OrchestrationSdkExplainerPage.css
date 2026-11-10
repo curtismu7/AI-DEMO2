@@ -50,6 +50,8 @@
 }
 
 .osx-page .osx-cta-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
 }
