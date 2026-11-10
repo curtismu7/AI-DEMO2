@@ -103,7 +103,8 @@ describe("DavinciLoginWidget accessibility and Ping UI hooks", () => {
     // First failure: nothing steals focus.
     expect(document.activeElement).not.toBe(first);
     fireEvent.click(first);
-    expect(document.activeElement).toBe(container.querySelector(".dvl-widget"));
+    // Focus moves to the flow area in an effect, then to the new Retry button once the retry fails again.
+    await waitFor(() => expect(document.activeElement).toBe(container.querySelector(".dvl-widget")));
     await waitFor(() => expect(document.activeElement.textContent).toBe("Retry"));
     expect(document.activeElement.tagName).toBe("BUTTON");
   });

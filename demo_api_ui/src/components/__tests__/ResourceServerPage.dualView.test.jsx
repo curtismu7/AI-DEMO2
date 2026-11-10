@@ -82,8 +82,8 @@ describe('ResourceServerPage dual view', () => {
     await screen.findByText('banking:accounts');
     const banking = screen.getByText('banking:accounts');
     const openid = screen.getByText('openid');
-    expect(banking.className).toMatch(/rsp-scope-banking/);
-    expect(openid.className).not.toMatch(/rsp-scope-banking/);
+    expect(banking.className).toMatch(/rsv-scope-banking/);
+    expect(openid.className).not.toMatch(/rsv-scope-banking/);
   });
 
   it('shows auth gate when summary returns 401', async () => {

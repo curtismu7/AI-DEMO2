@@ -11,7 +11,7 @@ export const DIAGRAMS_INDEX = [
       D("Server Topology", "/architecture/server-topology", "Interactive map of the services and how they connect."),
       D("Where Everything Runs", "/where-everything-runs", "Movable map of where the software runs (the Mac in Docker, Kubernetes namespaces, SaaS), with a Today / After toggle. Sample data."),
       D("System Diagram", "/architecture/system", "The whole system, with focus tabs for frontend, BFF and gateways, MCP servers and PingOne."),
-      D("System Flow (Live)", "/monitoring/system-flow", "Live system flow, also listed under Observability."),
+      D("System Flow (Live)", "/monitoring/system-flow", "Deployment map with the last run painted on it; with no run it walks the canonical path. Same page as Observability > System Flow."),
       D("Overview Diagram", "/architecture/overview", "One-page overview of the demo architecture."),
       D("PingFederate ID-JAG", "/architecture/pingfederate-id-jag", "Cross-app access with ID-JAG through PingFederate."),
     ],
