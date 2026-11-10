@@ -89,7 +89,7 @@ export default function LlmConfigPage() {
   return (
     <div className="page-container">
       <div className="cfg-page-heading">
-        <h2>LLM Provider</h2>
+        <h1>LLM Provider</h1>
         <p>Select and configure the language model used by the banking agent.</p>
       </div>
       <ProviderSelector

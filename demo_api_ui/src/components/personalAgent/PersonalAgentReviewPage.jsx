@@ -23,7 +23,7 @@ const VERDICT = { fail: "Fails", partial: "Partly met" };
 export default function PersonalAgentReviewPage() {
   const counts = FINDINGS.reduce((acc, f) => ({ ...acc, [f.severity]: (acc[f.severity] || 0) + 1 }), {});
   return (
-    <main className="pa-page" data-testid="pa-review">
+    <div className="pa-page" data-testid="pa-review">
       <PageHeader className="pa-hero" eyebrow="Personal agent · design review" title="Why the original design was wrong" summary={<>The original assistant is a sound product shape: payment stays on the airline site and the facade guards
           every cart change. As an architecture for an agent that holds a member&apos;s authority, it is an
           impersonation design. The AI acts as the traveller with the traveller&apos;s whole session, and nothing in
@@ -142,6 +142,6 @@ export default function PersonalAgentReviewPage() {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }

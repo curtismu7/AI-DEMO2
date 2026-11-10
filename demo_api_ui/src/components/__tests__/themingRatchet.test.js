@@ -140,15 +140,10 @@ const SHORTHAND_SIZE = /(?:^|\s)((?:\d+\.?\d*|\.\d+)(?:px|rem|em|pt|%))(?=[\s/,]
 const NOT_A_LENGTH = /^(?:var\(|inherit$|initial$|unset$|revert|smaller$|larger$)/;
 
 /**
- * The sub-10px declarations that are still in the tree on this commit, with how many each file has. This is
- * the measured list the stricter floor found; it is a pin, not a licence. Fix one (use var(--font-size-3xs) or
- * larger), then delete its line — the "not stale" test below fails until you do. Never add a line.
+ * The sub-10px declarations still in the tree, with how many each file has. The list is empty: every one the
+ * stricter floor found now uses var(--font-size-3xs) or larger. Never add a line.
  */
-const KNOWN_BELOW_FLOOR = {
-  'theme/refinedDashboardV2.css': 8, // .62rem (9.92px) x4, .6rem (9.6px) x3, 0.6em (9.6px)
-  'components/ServerTopologyStory.css': 1, // font: 9px var(--font-mono)
-  'components/TokenTopologyPanel.css': 1, // font: 800 9px var(--font-mono)
-};
+const KNOWN_BELOW_FLOOR = {};
 
 function belowFloorByFile() {
   const byFile = {};

@@ -42,7 +42,7 @@ export default function SpinnerShowcasePage() {
   };
 
   return (
-    <main className="spinner-showcase">
+    <div className="spinner-showcase">
       <div className="spinner-showcase__shell">
         <PageHeader className="spinner-showcase__header" eyebrow="Loading states" title="Ping spinner in context" summary="The same identity mark scales from a small embedded wait state to a full-page handoff." />
 
@@ -135,6 +135,6 @@ export default function SpinnerShowcasePage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

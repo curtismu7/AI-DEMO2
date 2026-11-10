@@ -626,7 +626,7 @@
 .ttp-evidence-node--error { border-color: #f85149; }
 .ttp-evidence-status {
   color: #3fb950;
-  font: 800 9px var(--font-mono);
+  font: 800 var(--font-size-3xs) var(--font-mono);
 }
 .ttp-evidence-node--pending .ttp-evidence-status { color: #fbbf24; }
 .ttp-evidence-node--error .ttp-evidence-status { color: #f85149; }

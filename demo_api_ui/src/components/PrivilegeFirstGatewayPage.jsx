@@ -41,7 +41,7 @@ export default function PrivilegeFirstGatewayPage() {
   const stepper = useDiagramStepper(GATEWAY_EDGES.length);
   const forkStepper = useDiagramStepper(FORK_EDGES.length);
   return (
-    <main className="pfg-page">
+    <div className="pfg-page">
       <PageHeader className="pfg-hero" eyebrow="AI-DEMO2 · plan 2026-09-08" title="Privilege first, Agent Gateway for the rest" summary={<>Every LLM call and every MCP tool call enters the PingOne Agent Privilege before anything else.
           Privilege owns the credentials and the human-governed policy. The Agent Gateway behind it keeps doing the
           delegated, per-tool authorization it does today. Agent-to-agent calls take the same front door: each agent
@@ -115,6 +115,6 @@ export default function PrivilegeFirstGatewayPage() {
           </div>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

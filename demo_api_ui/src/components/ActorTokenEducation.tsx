@@ -51,7 +51,7 @@ export const ActorTokenEducation: React.FC = () => {
 
   return (
     <div className={styles.actorTokenEducation} data-testid="actor-token-education">
-      <h2>Understanding Actor (Agent) Token Delegation</h2>
+      <h1>Understanding Actor (Agent) Token Delegation</h1>
 
       <div className={styles.introduction}>
         <p>

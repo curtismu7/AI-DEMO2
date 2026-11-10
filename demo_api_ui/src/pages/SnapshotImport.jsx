@@ -99,7 +99,7 @@ export default function SnapshotImport() {
       >
         {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
       </button>
-      <h2>P1AZ Snapshot Import & Validation</h2>
+      <h1>P1AZ Snapshot Import & Validation</h1>
       <p className="description">
         Validate that a PingOne Authorize snapshot matches the mock authz server policies.
         This ensures P1AZ and demo-authz-server stay synchronized.

@@ -116,7 +116,7 @@ export default function OAuthHealthDashboard() {
             borderRadius: 6,
             padding: '10px 12px',
             fontSize: 12,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             wordBreak: 'break-all',
             color: '#111827',
             marginBottom: 12,
@@ -135,7 +135,7 @@ export default function OAuthHealthDashboard() {
             borderRadius: 6,
             padding: '10px 12px',
             fontSize: 12,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             wordBreak: 'break-all',
             color: '#111827',
           }}
@@ -170,7 +170,7 @@ export default function OAuthHealthDashboard() {
               }}
             >
               <div>
-                <div style={{ color: '#065f46', fontFamily: 'monospace' }}>
+                <div style={{ color: '#065f46', fontFamily: 'var(--font-mono)' }}>
                   {healthInfo.demo_credentials[type].username}
                 </div>
                 <div style={{ color: '#047857', fontSize: 11, marginTop: 2 }}>
@@ -248,7 +248,7 @@ export default function OAuthHealthDashboard() {
                 borderRadius: 6,
                 padding: '8px 12px',
                 fontSize: 12,
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               {url}:{port}
@@ -270,7 +270,7 @@ export default function OAuthHealthDashboard() {
         ].map(({ label, value }) => (
           <div key={label} style={{ marginBottom: 8, display: 'flex', fontSize: 13 }}>
             <div style={{ minWidth: 140, fontWeight: 600, color: '#374151' }}>{label}:</div>
-            <div style={{ color: '#6b7280', fontFamily: 'monospace' }}>{value}</div>
+            <div style={{ color: '#6b7280', fontFamily: 'var(--font-mono)' }}>{value}</div>
           </div>
         ))}
       </div>

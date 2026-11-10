@@ -32,8 +32,10 @@
   }
 }
 
+.snapshot-import h1,
 .snapshot-import h2 {
   font-size: var(--font-size-2xl);
+  margin-top: 0.83em;
   /* Reserves room for the absolutely-positioned toggle above 480px so the
      long "P1AZ Snapshot Import & Validation" heading never renders under it. */
   padding-right: 130px;
@@ -41,6 +43,7 @@
 }
 
 @media (max-width: 480px) {
+  .snapshot-import h1,
   .snapshot-import h2 {
     padding-right: 0;
   }

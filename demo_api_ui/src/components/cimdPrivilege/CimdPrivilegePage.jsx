@@ -88,7 +88,7 @@ function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
 
 export default function CimdPrivilegePage() {
   return (
-    <main className="pa-page" data-testid="cimd-privilege-page">
+    <div className="pa-page" data-testid="cimd-privilege-page">
       <PageHeader className="pa-hero" eyebrow="Privilege · client documents" title="CIMD in Privilege" summary={<>A Client ID Metadata Document lets an AI client identify itself to Privilege with a web address instead of a
           registration. The client's client_id is the address of a small JSON file. Privilege keeps a list of the
           addresses it accepts, fetches each one, and reads the client's name and redirect addresses from it.</>} />
@@ -123,6 +123,6 @@ export default function CimdPrivilegePage() {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }

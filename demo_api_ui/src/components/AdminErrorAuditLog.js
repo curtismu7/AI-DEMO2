@@ -62,7 +62,7 @@ export default function AdminErrorAuditLog() {
   return (
     <div className="error-audit-log">
       <div className="audit-header">
-        <h2>Error Audit Log</h2>
+        <h1>Error Audit Log</h1>
         <div className="audit-controls">
           <label className="audit-auto-refresh">
             <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />

@@ -623,7 +623,7 @@ export default function SetupWizard({
           <button className="setup-btn primary" onClick={runAll}>Run Bootstrap</button>
         )}
         {(running || logEntries.length > 0) && (
-          <div style={{ fontFamily: 'monospace', fontSize: '0.78rem', maxHeight: '300px', overflowY: 'auto', background: '#1e293b', color: '#e2e8f0', padding: '0.75rem', borderRadius: '6px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', maxHeight: '300px', overflowY: 'auto', background: '#1e293b', color: '#e2e8f0', padding: '0.75rem', borderRadius: '6px' }}>
             {logEntries.map((e, i) => (
               <div key={i}>{e.icon} {e.message}</div>
             ))}
@@ -682,7 +682,7 @@ export default function SetupWizard({
             padding: '8px 10px',
             border: '1px solid #c7c7cc',
             borderRadius: 6,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             marginBottom: 8,
           }}
         />
@@ -703,7 +703,7 @@ export default function SetupWizard({
           {wipeRunning ? 'Wiping…' : 'Wipe environment'}
         </button>
         {wipeLog.length > 0 && (
-          <div style={{ marginTop: 16, maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #c7c7cc', borderRadius: 6, padding: 12, fontFamily: 'monospace', fontSize: 13 }}>
+          <div style={{ marginTop: 16, maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #c7c7cc', borderRadius: 6, padding: 12, fontFamily: 'var(--font-mono)', fontSize: 13 }}>
             {wipeLog.map((ev, i) => (
               <div key={i}>{ev.icon || '·'}  {ev.message || ''}</div>
             ))}

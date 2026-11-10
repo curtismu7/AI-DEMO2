@@ -69,7 +69,7 @@ const POLICIES = [
 
 export default function PingOneAuthorizeConfigByUseCasePage() {
   return (
-    <main className="p1azconfig" data-testid="pingone-authorize-config-by-use-case">
+    <div className="p1azconfig" data-testid="pingone-authorize-config-by-use-case">
       <PageHeader
         eyebrow="PingOne Authorize · what we configured"
         title="P1AZ config by use case"
@@ -144,6 +144,6 @@ export default function PingOneAuthorizeConfigByUseCasePage() {
           Authorize policy. See <code>snapshots/gen-authorize-snapshot.js</code> header comments.
         </p>
       </section>
-    </main>
+    </div>
   );
 }

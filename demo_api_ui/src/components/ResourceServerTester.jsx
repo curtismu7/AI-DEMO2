@@ -449,7 +449,7 @@ export default function ResourceServerTester({
                 width: '100%',
                 padding: '8px 10px',
                 fontSize: 13,
-                fontFamily: "'SF Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 background: '#ffffff',
                 border: '1px solid #94a3b8',
                 borderRadius: 4,

@@ -43,7 +43,7 @@ const SCORE_RULES = [
 
 export default function ShadowAiDetectorPage() {
   return (
-    <main className="shadow-detector-page">
+    <div className="shadow-detector-page">
       <PageHeader className="shadow-detector-hero" eyebrow="AI-Gateway learning page" title="Shadow AI Detector" summary={<>A browser-side visibility layer for AI usage, OAuth-connected agents,
           and sensitive data flows. This page documents the signals the
           unpacked Chrome extension actually records.</>}>
@@ -176,6 +176,6 @@ export default function ShadowAiDetectorPage() {
         <span>Chrome Manifest V3 bundle, version 1.0.0, loaded as an unpacked extension.</span>
         <span>Default event destination: http://localhost:8008/shadowai/events</span>
       </footer>
-    </main>
+    </div>
   );
 }

@@ -2140,7 +2140,7 @@ const MFATestPageContent: FC = () => {
               </span>
               <span
                 style={{
-                  fontFamily: "monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: "0.8rem",
                   color: "#92400e",
                 }}
@@ -2195,7 +2195,7 @@ const MFATestPageContent: FC = () => {
                     border: `1px solid ${match ? "#bbf7d0" : "#fecaca"}`,
                     borderRadius: 8,
                     fontSize: "0.85rem",
-                    fontFamily: "monospace",
+                    fontFamily: "var(--font-mono)",
                   }}
                 >
                   <div

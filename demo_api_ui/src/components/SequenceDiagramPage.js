@@ -253,7 +253,7 @@ function HttpDetailGrid({ entries }) {
           <div
             style={{
               color: "#0f172a",
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: "0.65rem",
               wordBreak: "break-word",
               whiteSpace: "pre-wrap",
@@ -609,7 +609,7 @@ function StepInfoPanel({
                           fontSize: "0.65rem",
                           color: "#475569",
                           fontFamily:
-                            "ui-monospace, SFMono-Regular, Menlo, monospace",
+                            "var(--font-mono)",
                           wordBreak: "break-word",
                         }}
                       >
@@ -3257,7 +3257,7 @@ function MermaidSourceModal({ onClose }) {
             padding: "0.75rem 1rem 1rem",
             fontSize: "0.74rem",
             lineHeight: 1.5,
-            fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+            fontFamily: "var(--font-mono)",
             color: "#0f172a",
             background: "#f8fafc",
             whiteSpace: "pre",
