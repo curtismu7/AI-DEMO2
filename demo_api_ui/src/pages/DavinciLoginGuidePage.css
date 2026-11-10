@@ -1,62 +1,63 @@
 /* demo_api_ui/src/pages/DavinciLoginGuidePage.css
-   /davinci-widget — only what the shared lesson shell (components/lesson)
-   does not provide: the Try It Live grid and the Call Inspector cards. Mirrors
-   DavinciSdkLoginPage.css's .dvsdk-live. Every colour is a --th-* token; font
-   sizes come from the scale; radii from --radius-*. */
+   /davinci-widget — page-specific styles only. Cards, chips, key-value lists, the banner and every button come from
+   the shared Ping UI primitives (styles/ping-ui.css); the lesson shell (components/lesson) provides the header, section
+   nav and prose. Every rule is scoped under .dvlg (this page's root) and every new class carries the dvlg- prefix.
+   Every colour is a --th-* token; font sizes come from the scale; radii from --radius-*. */
 
-.dvl-lesson .lesson-content {
+.dvlg .lesson-content {
   max-width: 1600px;
   width: 100%;
 }
 
-.dvl-live-intro {
+.dvlg .dvl-live-intro {
   max-width: 68ch;
 }
 
-.dvl-journeys {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+/* The lesson shell's paragraph, heading and list rules (.lesson-section p / h3 / ol / li) are more specific than the
+   primitives, so the card text below is restated under .dvlg. */
+.dvlg .lesson-section .pu-card .pu-h3 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.dvlg .lesson-section .pu-card .pu-note {
+  margin: 8px 0 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+}
+
+.dvlg .lesson-section .pu-card .pu-status-line {
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+
+.dvlg .lesson-section .pu-card .pu-actions {
+  margin: 8px 0;
+}
+
+/* The three paths: a numbered list of cards, three across where there is room. */
+.dvlg .dvlg-journeys {
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   margin: 1.5rem 0 0;
   padding: 0;
   list-style: none;
 }
 
-.dvl-journeys li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 1rem 1.1rem;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
+.dvlg .dvlg-journeys > li {
+  margin: 0;
+  padding: 0;
 }
 
-.dvl-journey-number {
-  flex: 0 0 auto;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+.dvlg .dvlg-journeys .dvlg-journey {
+  height: 100%;
+  margin: 0;
 }
 
-.dvl-journeys li div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.dvl-journeys strong {
-  font-size: var(--font-size-sm);
-}
-
-.dvl-journeys li div span {
-  color: var(--th-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.dvl-live {
+/* The live widget is the primary surface; the call trace is a quieter rail. */
+.dvlg .dvlg-live {
   display: grid;
   grid-template-columns: minmax(440px, 3fr) minmax(320px, 2fr);
   gap: 1.25rem;
@@ -64,44 +65,25 @@
   margin-top: 1.5rem;
 }
 
-/* The live widget is the primary surface; the call trace is a quieter rail. */
-.dvl-live-app {
-  min-width: 0;
+.dvlg .dvlg-live > .pu-card {
+  margin: 0;
+}
+
+.dvlg .dvlg-live-app {
   padding: 1.5rem;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
 }
 
-.dvl-login-header h1,
-.dvl-login-header h2 {
-  margin: 0 0 0.35rem;
-  color: inherit;
-  font-size: var(--font-size-xl);
+/* A chip word may wrap in the narrow content column the app shell leaves at phone width. */
+.dvlg .pu-chip {
+  max-width: 100%;
+  white-space: normal;
 }
 
-.dvl-mode-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 1rem;
+.dvlg .dvlg-status {
+  display: inline-flex;
 }
 
-.dvl-mode-label {
-  padding: 0.35rem 0.7rem;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  color: var(--th-text);
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-pill);
-}
-
-.dvl-popup-error {
-  margin: 0.75rem 0 0;
+.dvlg .dvl-popup-error {
   padding: 0.65rem 0.8rem;
   color: var(--th-text);
   background: var(--th-bg-card);
@@ -109,76 +91,54 @@
   border-radius: var(--radius-md);
 }
 
-.dvl-secondary {
-  font: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  padding: 0.55rem 0.9rem;
-  cursor: pointer;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-}
-
-.dvl-secondary:hover {
-  color: var(--th-text);
-  background: var(--th-bg-hover);
-}
-
-.dvl-popout-page {
+/* Pop-out window: the card and the close button sit in a narrow column. */
+.dvlg-popout-page {
   min-height: 100vh;
-  padding: 2rem 1.5rem;
-  color: var(--th-text);
-  background: var(--th-bg-page);
+  padding-bottom: 2rem;
 }
 
-.dvl-popout-page .dvl-login-header {
+.dvlg-popout-page .dvl-login-header {
   max-width: 34rem;
   margin: 0 auto 1rem;
-  color: var(--th-text);
-  border-color: var(--th-border);
 }
 
-.dvl-popout-card {
+.dvlg-popout-page .dvlg-popout-card {
   max-width: 34rem;
   margin: 0 auto 1rem;
   padding: 1.25rem;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
 }
 
-.dvl-popout-card .dvl-page {
+.dvlg-popout-page .dvlg-popout-card .dvl-page {
   margin: 0;
   padding: 0;
 }
 
-.dvl-popout-page > .dvl-secondary {
-  display: block;
-  margin: 0 auto;
-  color: var(--th-text);
-  border-color: var(--th-border);
+.dvlg-popout-page .dvlg-popout-actions {
+  display: flex;
+  justify-content: center;
+  margin: 0;
 }
 
 /* The embedded runner inherits the card's ink and removes its standalone-page spacing. */
-.dvl-live-app .dvl-page,
-.dvl-live-app .dvl-status,
-.dvl-live-app .dvl-version {
+.dvlg .dvl-page,
+.dvlg .dvl-status,
+.dvlg .dvl-version {
   color: inherit;
 }
 
-.dvl-live-app .dvl-page {
+.dvlg .dvl-page {
   margin: 0;
   padding: 0;
+}
+
+/* An empty live region takes no room. */
+.dvlg .dvl-status:empty {
+  margin: 0;
 }
 
 /* DaVinci draws its own HTML here (its end-user-nano styles), so it gets a
    card panel and keeps its normal ground instead of the emphasis surface. */
-.dvl-live-app .dvl-widget,
-.dvl-popout-card .dvl-widget {
+.dvlg .dvl-widget {
   color: var(--th-text);
   background: var(--th-bg-card) !important;
   border-radius: var(--radius-md);
@@ -189,26 +149,26 @@
 /* The tenant's existing DaVinci templates use a full-bleed blue canvas,
    a fixed-width card, and a large stock logo. Keep their form controls and
    behavior, but let the embedded experience fit this lesson's surface. */
-:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .bg-light {
+.dvlg .dvl-widget .end-user-nano .bg-light {
   background: var(--th-bg-card) !important;
 }
 
-:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .bg-light > div {
+.dvlg .dvl-widget .end-user-nano .bg-light > div {
   width: min(calc(100% - 2rem), 420px) !important;
   min-width: 0 !important;
   max-width: 420px !important;
 }
 
-:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .card {
+.dvlg .dvl-widget .end-user-nano .card {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm) !important;
 }
 
-:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .card-body {
+.dvlg .dvl-widget .end-user-nano .card-body {
   padding: 2rem !important;
 }
 
-:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .companyLogo {
+.dvlg .dvl-widget .end-user-nano .companyLogo {
   max-width: 124px;
   max-height: 90px;
   width: auto;
@@ -218,65 +178,58 @@
 
 /* The current Success template includes optional profile rows whose linked
    values can resolve empty. Hide those labels until the tenant supplies data. */
-:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano p:has(> strong:empty) {
+.dvlg .dvl-widget .end-user-nano p:has(> strong:empty) {
   display: none;
 }
 
-/* Keep the retry focus ring visible against the live card. */
-.dvl-live-app .dvl-retry:focus-visible {
-  outline: 2px solid var(--th-status-info);
+/* Signed in: DaVinci's own success screen is short, so the summary below it is not pushed 580px down. */
+.dvlg .dvlg-live-app--signed-in .dvl-widget {
+  min-height: 0;
+}
+
+/* The widget region takes focus after Retry; show it with the shared ring colour. */
+.dvlg .dvl-widget:focus-visible {
+  outline: 2px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
 
-.dvl-live-calls {
-  min-width: 0;
-  padding: 1.25rem;
-  color: var(--th-text-body);
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-}
-
-.dvl-calls-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.dvl-calls-heading h3 {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  color: var(--th-text);
-}
-
-.dvl-calls-heading span {
-  white-space: nowrap;
-  font-size: var(--font-size-xs);
-  color: var(--th-text-muted);
-}
-
-.dvl-signed-in {
+.dvlg .dvl-signed-in {
   margin-top: 1rem;
   padding-top: 1rem;
-  color: inherit;
   border-top: 1px solid var(--th-border);
 }
 
-.dvl-calls {
+.dvlg .dvl-live-calls {
+  min-width: 0;
+}
+
+.dvlg .dvl-calls-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.dvlg .dvl-calls-heading .pu-h3 {
+  margin: 0;
+}
+
+/* One Call Inspector entry per call. */
+.dvlg .dvl-calls {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.dvl-call {
+.dvlg .dvl-call {
   margin: 0;
   padding: 0;
   border-top: 1px solid var(--th-border);
 }
 
-.dvl-call summary {
+.dvlg .dvl-call summary {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -285,17 +238,17 @@
   list-style: none;
 }
 
-.dvl-call summary::-webkit-details-marker {
+.dvlg .dvl-call summary::-webkit-details-marker {
   display: none;
 }
 
-.dvl-call summary:focus-visible {
-  outline: 2px solid var(--th-status-info);
+.dvlg .dvl-call summary:focus-visible {
+  outline: 2px solid var(--th-status-info-text);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
-.dvl-call-number {
+.dvlg .dvl-call-number {
   display: grid;
   flex: 0 0 1.75rem;
   place-items: center;
@@ -308,7 +261,7 @@
   font-size: var(--font-size-xs);
 }
 
-.dvl-call-summary {
+.dvlg .dvl-call-summary {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -316,52 +269,96 @@
   gap: 0.15rem;
 }
 
-.dvl-call-summary strong {
+.dvlg .dvl-call-summary strong {
   color: var(--th-text);
   font-size: var(--font-size-sm);
 }
 
-.dvl-call-summary code {
+.dvlg .dvl-call-summary code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-size-xs);
 }
 
-.dvl-call summary .lesson-ok,
-.dvl-call summary .lesson-warn {
+.dvlg .dvl-call summary .pu-chip {
   flex-shrink: 0;
-  font-size: var(--font-size-xs);
 }
 
-.dvl-call-detail {
+.dvlg .dvl-call-detail {
   padding: 0 0.25rem 1rem 2.75rem;
 }
 
-.dvl-call-title {
-  margin: 0 0 0.35rem;
-  font-size: var(--font-size-sm);
-  color: var(--th-text);
+.dvlg .dvl-call-detail .pu-kv {
+  grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);
+}
+
+.dvlg .dvl-call-detail .pu-kv dd {
   overflow-wrap: anywhere;
 }
 
-.dvl-call p {
+.dvlg .dvl-call p {
   margin: 0.25rem 0 0;
   font-size: var(--font-size-sm);
 }
 
-.dvl-calls-empty {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+/* The lesson shell keeps a fixed-width section nav beside the content, which at phone width pushes the
+   content off screen. Here the nav becomes a one-line strip above the content. */
+@media (max-width: 900px) {
+  .dvlg .dvlg-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-@media (max-width: 900px) {
-  .dvl-journeys {
-    grid-template-columns: 1fr;
+@media (max-width: 700px) {
+  .dvlg .dvl-lesson .lesson-header {
+    padding: 1.25rem 1rem 1rem;
   }
 
-  .dvl-live {
-    grid-template-columns: minmax(0, 1fr);
+  .dvlg .dvl-lesson .lesson-header-row {
+    flex-wrap: wrap;
+  }
+
+  .dvlg .dvl-lesson .lesson-layout {
+    display: block;
+    min-height: 0;
+  }
+
+  .dvlg .dvl-lesson .lesson-layout > .divider-drag-handle {
+    display: none;
+  }
+
+  .dvlg .dvl-lesson .lesson-sidebar {
+    position: static;
+    display: flex;
+    gap: 4px;
+    width: auto;
+    height: auto;
+    padding: 8px 12px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--th-border);
+  }
+
+  .dvlg .dvl-lesson .lesson-nav-item {
+    width: auto;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .dvlg .dvl-lesson .lesson-content {
+    padding: 1rem;
+  }
+
+  .dvlg .dvlg-live-app {
+    padding: 1rem;
+  }
+
+  .dvlg .dvl-widget {
+    min-height: 0;
+  }
+
+  .dvlg .dvl-widget .end-user-nano .card-body {
+    padding: 1.25rem !important;
   }
 }

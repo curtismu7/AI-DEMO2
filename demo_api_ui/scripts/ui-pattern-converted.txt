@@ -35,6 +35,7 @@
 /privilege-demo
 /agent-builder
 /ungoverned-agent
+/davinci-widget
 /oauth-academy
 /privilege-intent-triage
 /policy-decision-trace
