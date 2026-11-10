@@ -60,6 +60,7 @@
 /p1-third-party-exchange
 /where-everything-runs
 /resource-server-checkpoint
+/resource-server
 /privilege-shelf
 /personal-agent
 /personal-agent/full
