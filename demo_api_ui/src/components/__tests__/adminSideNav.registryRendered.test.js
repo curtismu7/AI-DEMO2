@@ -12,8 +12,8 @@ const groupsStart = lines.findIndex((l) => l.includes("const legacyChildren = le
 const registry = lines.slice(registryStart, groupsStart).join("\n");
 const groups = lines.slice(groupsStart).join("\n");
 
-// Removed from the menu on purpose (commit "drop the Demo Map nav line"); the page is still routed.
-const HIDDEN_ON_PURPOSE = new Set(["/demo-map"]);
+// Registry items that are deliberately kept out of the menu. Empty now: Demo Map came back (owner, 2026-11-10).
+const HIDDEN_ON_PURPOSE = new Set([]);
 
 describe("AdminSideNav registry items are rendered by a group", () => {
   const found = new Map();
