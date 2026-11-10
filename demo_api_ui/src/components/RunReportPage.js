@@ -160,6 +160,8 @@ export default function RunReportPage({ user }) {
     try {
       const { data } = await bffAxios.post('/api/agent/invoke', { prompt, vertical });
       const ok = data.success !== false;
+      // The BFF may leave the flag out. Then the page says so instead of crediting the BFF with a success report.
+      const flagged = data.success === true;
       const runId = typeof data.runId === 'string' ? data.runId : null;
       const toolsCalled = Array.isArray(data.toolsCalled) ? data.toolsCalled : [];
       const fetched = await loadHistory();
@@ -169,9 +171,8 @@ export default function RunReportPage({ user }) {
       setDemoResult({
         ...base,
         state: ok ? 'ok' : 'failed',
-        message: ok
-          ? `The BFF reported success for the ${vertical} run.`
-          : `The run ended with an error: ${data.reply || data.error || 'unknown'}`,
+        flagged,
+        message: ok ? null : `The run ended with an error: ${data.reply || data.error || 'unknown'}`,
         runId,
         toolsCalled,
         recorded,
@@ -223,6 +224,10 @@ export default function RunReportPage({ user }) {
   async function copyShareLink(runId) {
     try {
       const { data } = await bffAxios.get(`/api/reports/${runId}/share`);
+      if (typeof data?.shareUrl !== 'string' || !data.shareUrl) {
+        setRow(runId, 'danger', 'The BFF returned no share link, so nothing was copied.');
+        return;
+      }
       await navigator.clipboard.writeText(data.shareUrl);
       setRow(runId, 'ok', 'Share link copied to the clipboard.');
     } catch (error) {
@@ -307,7 +312,7 @@ export default function RunReportPage({ user }) {
   if (demoRunning) {
     runStatus = { tone: 'neutral', word: 'Running', text: `${runAuto ? 'No reports existed, so a demo run started automatically. ' : ''}Sending the ${activeVertical} prompt to /api/agent/invoke.` };
   } else if (demoResult?.state === 'ok') {
-    runStatus = { tone: 'ok', word: 'Completed', text: demoResult.message };
+    runStatus = okOutcome(demoResult);
   } else if (demoResult?.state === 'failed') {
     runStatus = { tone: 'danger', word: 'Failed', text: demoResult.message };
   } else if (demoResult?.state === 'signed-out') {
@@ -365,8 +370,8 @@ export default function RunReportPage({ user }) {
                 id="rr-vertical"
                 className="pu-select rr-vertical"
                 value={activeVertical}
-                onChange={(e) => setSelectedVertical(e.target.value)}
-                disabled={demoRunning}
+                onChange={(e) => { if (!runningRef.current) setSelectedVertical(e.target.value); }}
+                aria-disabled={demoRunning ? 'true' : undefined}
                 title="Choose a vertical for the demo run"
                 data-testid="rr-vertical"
               >
@@ -398,7 +403,7 @@ export default function RunReportPage({ user }) {
             </Card>
             <Card
               title="Last demo run"
-              tone={demoResult ? (demoResult.state === 'ok' ? 'ok' : demoResult.state === 'failed' ? 'danger' : 'warn') : 'neutral'}
+              tone={demoResult ? runStatus.tone : 'neutral'}
               data-testid="rr-result"
             >
               {demoResult ? (
@@ -632,6 +637,21 @@ export default function RunReportPage({ user }) {
       </PageFrame>
     </PingPage>
   );
+}
+
+// What the page saw for a run the BFF did not report as failed. Green only when the page itself found the run
+// id in the reloaded list; a miss is a warning and anything unchecked is neutral.
+function okOutcome({ vertical, flagged, recorded }) {
+  const lead = flagged
+    ? `The BFF reported success for the ${vertical} run.`
+    : `The BFF answered the ${vertical} run without a success flag.`;
+  if (recorded === 'yes') {
+    return { tone: 'ok', word: flagged ? 'Completed' : 'Recorded', text: `${lead} Its run id is in the history.` };
+  }
+  if (recorded === 'no') {
+    return { tone: 'warn', word: 'Not in history', text: `${lead} Its run id is not in the history list, so the report may be missing.` };
+  }
+  return { tone: 'neutral', word: flagged ? 'Reported success' : 'Answered', text: `${lead} Whether it was recorded was not checked.` };
 }
 
 // One button, one place the primary class is written. `lead` is the view state's single primary (see the header).

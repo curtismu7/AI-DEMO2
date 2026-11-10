@@ -165,7 +165,7 @@ test('while a run is in flight the button is aria-disabled (not disabled), keeps
   expect(bffAxios.post).toHaveBeenCalledTimes(1);
   expect(screen.getByTestId('rr-table')).toBeInTheDocument(); // the list stays mounted during the reload
   release();
-  await waitFor(() => expect(screen.getByTestId('rr-run-status')).toHaveTextContent('Completed'));
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).not.toHaveTextContent('Running'));
   expect(button).toHaveFocus();
 });
 
@@ -233,4 +233,113 @@ test('a vertical the list does not offer is not run silently: the select and the
   await userEvent.click(screen.getByRole('button', { name: 'Run Demo Flow' }));
   await waitFor(() => expect(bffAxios.post).toHaveBeenCalled());
   expect(bffAxios.post.mock.calls[0][1].vertical).toBe('banking');
+});
+
+// ---- skeptic follow-ups ----
+
+const chipOf = (testId) => screen.getByTestId(testId).querySelector('.pu-chip');
+
+test('a 200 with no success flag is not reported as the BFF reporting success, and a found run id is the only green', async () => {
+  let calls = 0;
+  bffAxios.get.mockImplementation((url) => {
+    if (url === '/api/reports/history') {
+      calls += 1;
+      return Promise.resolve({ data: { runs: calls === 1 ? [RUN_A] : [RUN_A, { ...RUN_A, runId: 'new-run-1' }] } });
+    }
+    return Promise.reject(new Error('x'));
+  });
+  bffAxios.post.mockResolvedValue({ data: { reply: 'Your balance is 10', runId: 'new-run-1' } });
+  render(<RunReportPage user={USER} />);
+  await screen.findByTestId('rr-table');
+  await userEvent.click(screen.getByRole('button', { name: 'Run Demo Flow' }));
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).toHaveTextContent('Recorded'));
+  const status = screen.getByTestId('rr-run-status');
+  expect(status).toHaveTextContent(/without a success flag/);
+  expect(status).not.toHaveTextContent(/reported success/);
+  expect(chipOf('rr-run-status')).toHaveClass('pu-chip--ok');
+  expect(screen.getByTestId('rr-result')).toHaveClass('pu-card--ok');
+});
+
+test('a 200 with no success flag and no run id is neutral: nothing was checked, nothing is green', async () => {
+  seed({ runs: [RUN_A], invoke: () => Promise.resolve({ data: { reply: 'hello' } }) });
+  render(<RunReportPage user={USER} />);
+  await screen.findByTestId('rr-table');
+  await userEvent.click(screen.getByRole('button', { name: 'Run Demo Flow' }));
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).toHaveTextContent('Answered'));
+  expect(screen.getByTestId('rr-run-status')).toHaveTextContent(/without a success flag/);
+  expect(chipOf('rr-run-status')).toHaveClass('pu-chip--neutral');
+  expect(screen.getByTestId('rr-result')).toHaveClass('pu-card--neutral');
+  expect(screen.getByTestId('rr-result')).toHaveTextContent('Not checked');
+});
+
+test('a reported success whose run id is missing from the reloaded list is a warning, not green Completed', async () => {
+  seed({ runs: [RUN_A] });
+  render(<RunReportPage user={USER} />);
+  await screen.findByTestId('rr-table');
+  await userEvent.click(screen.getByRole('button', { name: 'Run Demo Flow' }));
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).toHaveTextContent('Not in history'));
+  expect(screen.getByTestId('rr-run-status')).not.toHaveTextContent('Completed');
+  expect(chipOf('rr-run-status')).toHaveClass('pu-chip--warn');
+  expect(screen.getByTestId('rr-result')).toHaveClass('pu-card--warn');
+});
+
+test('a reported success with a failed history refresh is neutral (Reported success, not checked), not green', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  let calls = 0;
+  bffAxios.get.mockImplementation((url) => {
+    if (url === '/api/reports/history') {
+      calls += 1;
+      return calls === 1 ? Promise.resolve({ data: { runs: [RUN_A] } }) : Promise.reject(new Error('down'));
+    }
+    return Promise.reject(new Error('x'));
+  });
+  bffAxios.post.mockResolvedValue({ data: { success: true, runId: 'new-run-1' } });
+  render(<RunReportPage user={USER} />);
+  await screen.findByTestId('rr-table');
+  await userEvent.click(screen.getByRole('button', { name: 'Run Demo Flow' }));
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).toHaveTextContent('Reported success'));
+  expect(chipOf('rr-run-status')).toHaveClass('pu-chip--neutral');
+  expect(screen.getByTestId('rr-result')).toHaveClass('pu-card--neutral');
+  expect(screen.getByTestId('rr-result')).toHaveTextContent('Not checked');
+});
+
+test('the vertical select takes aria-disabled (not disabled) during a run, keeps focus, and ignores changes', async () => {
+  let release;
+  seed({ runs: [RUN_A], invoke: () => new Promise((resolve) => { release = () => resolve({ data: { success: true, runId: 'r' } }); }) });
+  render(<RunReportPage user={USER} />);
+  await screen.findByTestId('rr-table');
+  await waitFor(() => expect(screen.getByRole('option', { name: 'Retail' })).toBeInTheDocument());
+  const select = screen.getByTestId('rr-vertical');
+  await userEvent.click(screen.getByRole('button', { name: 'Run Demo Flow' }));
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).toHaveTextContent('Running'));
+  expect(select).toHaveAttribute('aria-disabled', 'true');
+  expect(select).not.toBeDisabled();
+  select.focus();
+  await userEvent.selectOptions(select, 'retail');
+  expect(select).toHaveValue('banking');
+  expect(select).toHaveFocus();
+  release();
+  await waitFor(() => expect(screen.getByTestId('rr-run-status')).not.toHaveTextContent('Running'));
+  expect(select).not.toHaveAttribute('aria-disabled');
+  expect(select).toHaveFocus();
+  await userEvent.selectOptions(select, 'retail');
+  expect(select).toHaveValue('retail');
+});
+
+test('a share response without a link says so and copies nothing', async () => {
+  seed();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  bffAxios.get.mockImplementation((url) => {
+    if (url === '/api/reports/history') return Promise.resolve({ data: { runs: [RUN_A] } });
+    if (url.endsWith('/share')) return Promise.resolve({ data: {} });
+    return Promise.reject(new Error('x'));
+  });
+  render(<RunReportPage user={USER} />);
+  await screen.findByTestId('rr-table');
+  await userEvent.click(screen.getByRole('button', { name: /Share: copy the share link for run aaaaaaaa/ }));
+  expect(await screen.findByTestId('rr-row-status')).toHaveTextContent('no share link');
+  expect(screen.getByTestId('rr-row-status')).not.toHaveTextContent(/copied to the clipboard/);
+  expect(writeText).not.toHaveBeenCalled();
 });

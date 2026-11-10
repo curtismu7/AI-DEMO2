@@ -9,6 +9,13 @@
   margin-bottom: 8px;
 }
 
+/* In flight the select takes aria-disabled (not disabled) so keyboard focus stays on it; same dashed inactive
+   vocabulary as the buttons, no opacity. */
+.pu-page.run-report-page .rr-vertical[aria-disabled='true'] {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
 /* History table: scrolls inside its own wrapper when wide, stacks as labelled rows at phone width. */
 .pu-page.run-report-page .rr-table-wrap {
   overflow-x: auto;
