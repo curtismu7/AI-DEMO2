@@ -70,6 +70,9 @@ const Dashboard = ({ user, onLogout }) => {
   const [loadedOnce, setLoadedOnce] = useState(false);
   const [activityFailed, setActivityFailed] = useState(false);
   const retryRequestedRef = React.useRef(false);
+  // Outcome of the last Retry, spoken through the always-mounted status line (the Retry card itself goes away
+  // when the retry works).
+  const [retryNote, setRetryNote] = useState("");
   const metricsRef = React.useRef(null);
   const [forbidden403, setForbidden403] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -423,13 +426,15 @@ const Dashboard = ({ user, onLogout }) => {
   // gone. Hand focus to the metrics region (role=region with a name) instead of dropping it to the page.
   useEffect(() => {
     if (!retryRequestedRef.current || loading) return;
-    retryRequestedRef.current = false;
+    retryRequestedRef.current = false; // a failed retry must not pull focus on some later, unrelated reload
+    setRetryNote(stats ? "Key metrics loaded." : "Retry failed. Key metrics are still unavailable.");
     if (stats) metricsRef.current?.focus();
   }, [loading, stats]);
 
   const retryLoad = () => {
     if (loading) return; // aria-disabled keeps focus on the button; the click is ignored
     retryRequestedRef.current = true;
+    setRetryNote("Retrying…");
     fetchDashboardData(0);
   };
 
@@ -460,13 +465,14 @@ const Dashboard = ({ user, onLogout }) => {
       <SimBanner data-testid="admin-banner">
         <strong>DEMO DATA</strong> — the customers, accounts, balances and activity on this page are demo records held
         in the BFF&apos;s memory, not a real bank. <strong>Reset Demo</strong> overwrites every demo balance and{" "}
-        <strong>Export seed JSON</strong> downloads that data. The token chain, PingOne group membership and PingOne
-        customer record are requested from PingOne through the BFF for the signed-in admin session, and each panel
-        shows its own error when its request fails.{" "}
+        <strong>Export seed JSON</strong> downloads that data. The token chain, group membership and customer lookup panels
+        load through the BFF for the signed-in admin session, and each panel shows its own error, or a note that
+        nothing was found, instead of data.{" "}
         {stats
           ? "Key metrics were loaded from the BFF."
           : "Key metrics could not be loaded, so no figures are shown and nothing below reflects current data."}
       </SimBanner>
+      <p role="status" className="dash-sr" data-testid="admin-load-status">{retryNote}</p>
       <a href="#admin-dashboard-main" className="dash-skip-link">
         Skip to admin content
       </a>
@@ -720,8 +726,9 @@ const Dashboard = ({ user, onLogout }) => {
                       aria-disabled={loading ? "true" : undefined}
                       onClick={retryLoad}
                     >
-                      {loading ? "Retrying…" : "Retry"}
+                      Retry
                     </button>
+                    {loading && <span aria-hidden="true">Retrying…</span>}
                   </div>
                   {forbidden403 && (
                     <div className="dash-forbidden-help">
@@ -810,7 +817,7 @@ const Dashboard = ({ user, onLogout }) => {
                             <td className="dash-activity-endpoint">{log.endpoint}</td>
                             <td>
                               <StatusChip
-                                tone={log.responseStatus >= 400 ? "danger" : "ok"}
+                                tone={log.responseStatus >= 400 ? "danger" : "neutral"}
                               >
                                 {log.responseStatus}{" "}
                                 {log.responseStatus >= 400 ? "Error" : "OK"}

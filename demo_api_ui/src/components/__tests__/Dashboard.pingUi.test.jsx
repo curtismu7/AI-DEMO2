@@ -84,6 +84,8 @@ describe('Dashboard (/admin) — Ping UI Standard', () => {
     await screen.findByText('Key metrics');
     expect(screen.getByTestId('admin-banner')).toHaveTextContent('Key metrics were loaded from the BFF.');
     expect(screen.getByTestId('admin-banner')).toHaveTextContent(/demo records held in the BFF's memory, not a real bank/);
+    // it must not claim a source (PingOne) or mode it cannot know: the BFF falls back to the demo store
+    expect(screen.getByTestId('admin-banner').textContent).not.toMatch(/requested from PingOne/);
     first.unmount();
 
     routes({ stats: () => reject(500) });
@@ -121,16 +123,20 @@ describe('Dashboard (/admin) — Ping UI Standard', () => {
     expect(screen.getByRole('button', { name: 'Sign out' }).className).toBe('pu-btn');
   });
 
-  it('Retry keeps keyboard focus while it runs, never swaps in the spinner, and focus lands on the metrics when it succeeds', async () => {
+  it('Retry keeps its name and keyboard focus while it runs; the always-mounted status line speaks, and focus lands on the metrics when it succeeds', async () => {
     let ok = false;
     let release;
     routes({ stats: () => (ok ? new Promise((r) => { release = () => r({ data: { stats: STATS } }); }) : reject(500)) });
     renderPage();
     const retry = await screen.findByRole('button', { name: 'Retry' });
+    const live = screen.getByTestId('admin-load-status');
+    expect(live.getAttribute('role')).toBe('status'); // mounted before its text changes
+    expect(live).toHaveTextContent('');
     ok = true;
     retry.focus();
     fireEvent.click(retry);
-    await waitFor(() => expect(retry).toHaveTextContent('Retrying…'));
+    await waitFor(() => expect(live).toHaveTextContent('Retrying…'));
+    expect(screen.getByRole('button', { name: 'Retry' })).toBe(retry); // name did not change
     expect(retry.getAttribute('aria-disabled')).toBe('true');
     expect(document.activeElement).toBe(retry);
     expect(screen.queryByText('spinner')).toBeNull();
@@ -139,6 +145,24 @@ describe('Dashboard (/admin) — Ping UI Standard', () => {
     await act(async () => { release(); });
     const metrics = await screen.findByRole('region', { name: 'Key metrics' });
     await waitFor(() => expect(document.activeElement).toBe(metrics));
+    expect(live).toHaveTextContent('Key metrics loaded.');
+  });
+
+  it('a failed Retry says so in the status line, keeps the Retry card and focus, and does not pull focus on a later reload', async () => {
+    routes({ stats: () => reject(500) });
+    const view = renderPage();
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    const live = screen.getByTestId('admin-load-status');
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(live).toHaveTextContent('Retry failed. Key metrics are still unavailable.'));
+    expect(screen.getByRole('button', { name: 'Retry' })).toBe(retry);
+    expect(document.activeElement).toBe(retry);
+    // a later successful reload by another path (a new user object re-runs the load) leaves focus alone
+    routes();
+    view.rerender(<MemoryRouter><Dashboard user={{ ...ADMIN }} onLogout={vi.fn()} /></MemoryRouter>);
+    const metrics = await screen.findByRole('region', { name: 'Key metrics' });
+    expect(document.activeElement).not.toBe(metrics);
   });
 
   it('recent activity: every cell chip carries a word, and a failed read does not read as "no activity"', async () => {
@@ -148,6 +172,11 @@ describe('Dashboard (/admin) — Ping UI Standard', () => {
     const table = screen.getByRole('table');
     const chips = [...table.querySelectorAll('.pu-chip')].map((c) => c.textContent.trim());
     expect(chips).toEqual(['LOGIN', '200 OK', 'TRANSFER_MONEY', '403 Error']);
+    // rows the BFF recorded earlier are not something this page checked: neutral, never green; a recorded error stays red
+    const toneOf = (word) => [...table.querySelectorAll('.pu-chip')].find((c) => c.textContent.trim() === word).className;
+    expect(toneOf('200 OK')).toMatch(/pu-chip--neutral/);
+    expect(toneOf('200 OK')).not.toMatch(/pu-chip--ok/);
+    expect(toneOf('403 Error')).toMatch(/pu-chip--danger/);
     expect(table.querySelector('[style]')).toBeNull();
     first.unmount();
 

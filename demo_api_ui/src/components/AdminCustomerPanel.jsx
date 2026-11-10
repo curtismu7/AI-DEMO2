@@ -27,6 +27,28 @@ function errMessage(err, fallback) {
   );
 }
 
+// What each action is called in the status line, and what it says when it finishes.
+const RUN_LABEL = {
+  profile: "profile",
+  accounts: "accounts",
+  transactions: "transactions",
+  reset: "password reset",
+  "adjust-accounts": "accounts for the adjustment",
+  adjust: "balance adjustment",
+};
+
+function doneMessage(kind, data) {
+  switch (kind) {
+    case "profile": return "Profile loaded.";
+    case "accounts": return `Accounts loaded (${Array.isArray(data) ? data.length : 0}).`;
+    case "transactions": return `Transactions loaded (${Array.isArray(data) ? data.length : 0}).`;
+    case "reset": return "Password reset flagged.";
+    case "adjust-accounts": return "Adjust balance form ready.";
+    case "adjust": return "Balance adjusted.";
+    default: return "Done.";
+  }
+}
+
 // primaryAction: whether this panel holds the page's one primary button (Dashboard turns it off while its own
 // Retry card is the primary). Inside the panel the primary is "View Profile", or "Apply adjustment" while the
 // adjust form is open; every other action is a secondary.
@@ -54,9 +76,33 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
   const [adjustAccountId, setAdjustAccountId] = useState("");
   const [adjustAmount, setAdjustAmount] = useState("");
 
+  // One status line for the running action. It is mounted from the first render, so its text changing is
+  // announced; the buttons keep their names while it runs (aria-disabled shows the busy state).
+  const [runStatus, setRunStatus] = useState("");
+  const searchRef = useRef(null);
+  const selectedRef = useRef(null);
+  const resultsRef = useRef(null);
+  const pendingFocusRef = useRef(null);
+
   const debounceRef = useRef(null);
   const reqIdRef = useRef(0);
   const lookupReqRef = useRef(0);
+
+  // Selecting a match unmounts the list the keyboard user was in, and Clear unmounts its own button. Hand focus
+  // to the "Acting on" block (which reads the selection) or back to the search box, never to <body>.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    pendingFocusRef.current = null;
+    (target === "selected" ? selectedRef.current : searchRef.current)?.focus();
+  }, [selectedCustomer]);
+
+  // Apply adjustment replaces the form with its result, so the button that was pressed is gone.
+  useEffect(() => {
+    if (result && (!document.activeElement || document.activeElement === document.body)) {
+      resultsRef.current?.focus();
+    }
+  }, [result]);
 
   // Username hint chips — carried over from the dashboard's lookup card.
   useEffect(() => {
@@ -103,9 +149,11 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
 
   const handleSelect = useCallback((u) => {
     const customer = { id: u.id, name: displayName(u) };
+    pendingFocusRef.current = "selected";
     setSelectedCustomer(customer);
     adminCustomerContext.set(customer);
     setResult(null);
+    setRunStatus("");
     setActionError(null);
     setAdjustAccountId("");
     setAdjustAmount("");
@@ -132,7 +180,9 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
   }, []);
 
   const handleClear = useCallback(() => {
+    pendingFocusRef.current = "search";
     setSelectedCustomer(null);
+    setRunStatus("");
     adminCustomerContext.set(null);
     lookupReqRef.current += 1;   // drop any in-flight read for the old customer
     setLookup(null);
@@ -148,11 +198,17 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
       if (!selectedCustomer) return;
       setActionLoading(kind);
       setActionError(null);
+      // A result from an earlier action must not sit beside this action's loading or error. The adjust form
+      // stays up while it submits so a rejected amount can be corrected.
+      if (kind !== "adjust") setResult(null);
+      setRunStatus(`Running ${RUN_LABEL[kind] || kind}…`);
       try {
         const data = await fn();
         setResult({ kind, data });
+        setRunStatus(doneMessage(kind, data));
       } catch (err) {
         setActionError(errMessage(err, "Action failed"));
+        setRunStatus("");
       } finally {
         setActionLoading(null);
       }
@@ -251,6 +307,7 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
+          ref={searchRef}
         />
         {hints.length > 0 && !selectedCustomer && (
           <div className="acp-hints" role="group" aria-label="Suggested customers">
@@ -267,11 +324,9 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
           </div>
         )}
         {searching && <span className="acp-hint">Searching…</span>}
-        {searchError && (
-          <span className="acp-error" role="alert">
-            ❌ {searchError}
-          </span>
-        )}
+        <span role="alert">
+          {searchError && <span className="acp-error">❌ {searchError}</span>}
+        </span>
       </div>
 
       {matches.length > 0 && (
@@ -302,7 +357,12 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
 
       {/* Selected customer banner */}
       {selectedCustomer ? (
-        <div className="acp-selected" role="status">
+        <div
+          className="acp-selected"
+          ref={selectedRef}
+          tabIndex={-1}
+          aria-label={`Acting on ${selectedCustomer.name}`}
+        >
           <span className="acp-selected__label">Acting on:</span>
           <span className="acp-selected__name">
             {selectedCustomer.name}{" "}
@@ -324,9 +384,11 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
       )}
 
       {/* Consolidated read — replaces the dashboard's separate lookup card. */}
-      {selectedCustomer && lookupError && (
-        <p className="acp-error" role="alert">❌ {lookupError}</p>
-      )}
+      <div role="alert">
+        {selectedCustomer && lookupError && (
+          <p className="acp-error">❌ {lookupError}</p>
+        )}
+      </div>
       {selectedCustomer && lookup && (
         <div className="acp-lookup">
           <h3 className="acp-lookup__h">Customer profile</h3>
@@ -335,6 +397,12 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
           {lookup.pingOne && (
             <>
               <h3 className="acp-lookup__h">PingOne record</h3>
+              {lookup.pingOne.linked === false && (
+                <p className="acp-hint">
+                  No PingOne record is linked to this customer ({String(lookup.pingOne.reason || "not found")}), so
+                  the profile above comes from the demo store only.
+                </p>
+              )}
               <KvList
                 items={Object.entries(lookup.pingOne)
                   .filter(([, v]) => v !== null && typeof v !== "object")
@@ -357,43 +425,51 @@ const AdminCustomerPanel = ({ primaryAction = true }) => {
           className={`pu-btn acp-action-btn${profilePrimary ? " pu-btn--primary" : ""}`}
           {...actionProps(viewProfile)}
         >
-          {actionLoading === "profile" ? "Loading…" : "View Profile"}
+          View Profile
         </button>
         <button
           className="pu-btn acp-action-btn"
           {...actionProps(viewAccounts)}
         >
-          {actionLoading === "accounts" ? "Loading…" : "View Accounts"}
+          View Accounts
         </button>
         <button
           className="pu-btn acp-action-btn"
           {...actionProps(viewTransactions)}
         >
-          {actionLoading === "transactions" ? "Loading…" : "View Transactions"}
+          View Transactions
         </button>
         <button
           className="pu-btn acp-action-btn"
           {...actionProps(resetPassword)}
         >
-          {actionLoading === "reset" ? "Working…" : "Reset Password"}
+          Reset Password
         </button>
         <button
           className="pu-btn acp-action-btn"
           {...actionProps(loadAccountsForAdjust)}
         >
-          {actionLoading === "adjust-accounts" ? "Loading…" : "Adjust Balance"}
+          Adjust Balance
         </button>
       </div>
 
-      {actionError && (
-        <div className="acp-error acp-error--block" role="alert">
-          ❌ {actionError}
-        </div>
-      )}
+      <p role="status" className="acp-run-status">{runStatus}</p>
+
+      <div role="alert">
+        {actionError && (
+          <div className="acp-error acp-error--block">❌ {actionError}</div>
+        )}
+      </div>
 
       {/* Results area */}
       {result && (
-        <div className="acp-results">
+        <div
+          className="acp-results"
+          ref={resultsRef}
+          tabIndex={-1}
+          role="region"
+          aria-label="Customer action result"
+        >
           {result.kind === "profile" && <ProfileResult user={result.data} />}
           {result.kind === "accounts" && (
             <AccountsTable accounts={result.data} />
@@ -598,7 +674,7 @@ function AdjustForm({
           onClick={submitting || !accountId || amount === "" ? undefined : onSubmit}
           aria-disabled={submitting || !accountId || amount === "" ? "true" : undefined}
         >
-          {submitting ? "Applying…" : "Apply adjustment"}
+          Apply adjustment
         </button>
       </div>
     </div>
