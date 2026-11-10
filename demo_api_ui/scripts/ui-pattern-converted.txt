@@ -2,6 +2,7 @@
 # Every other routed page is reported but advisory. Add a route in the SAME PR that converts the page.
 # One route path per line, exactly as in src/App.js.
 /privilege-saas-access
+/obo-demo
 /client-registration
 /pingone-authorize
 /scope-audit
