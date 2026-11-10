@@ -1,11 +1,11 @@
 # PingOne token exchange with third-party signed JWTs: setup
 
-Audience: SEs and customers who have the capability enabled. Source: Ping's UAT guide "Token Exchange to support third-party signed JWTs as subject and actor tokens" (23 Oct 2026, Ping staff and selected customers, ticket P14C-83104 phase 2). The demo page is `/p1-third-party-exchange` (simulated, no live call).
+Audience: SEs and customers. **Status (release note, 10 Nov 2026): generally available in all geographies, subject to the license entitlement.** Third-party JWTs are never trusted by default: an administrator defines each trusted issuer and assigns it to the applications that need it. Our measurements below were made on 2026-10-27 while it was still behind a feature flag and have not been re-run since GA. Source: Ping's UAT guide "Token Exchange to support third-party signed JWTs as subject and actor tokens" (23 Oct 2026, Ping staff and selected customers, ticket P14C-83104 phase 2). The demo page is `/p1-third-party-exchange` (simulated, no live call).
 
 Every step is labelled:
 
 - **GUIDE**: stated in the UAT guide.
-- **MEASURED**: run live against a PingOne environment (North America, feature flag on) on 2026-10-27. We created a trusted issuer whose signing key we generated ourselves, signed the third-party tokens with it, ran the exchanges, then deleted everything. Error text below is exactly what PingOne returned.
+- **MEASURED**: run live against a PingOne environment (North America, while the capability was still feature-flagged) on 2026-10-27. We created a trusted issuer whose signing key we generated ourselves, signed the third-party tokens with it, ran the exchanges, then deleted everything. Error text below is exactly what PingOne returned.
 - **UNVERIFIED**: neither stated nor measured. Check it in your environment before you quote it.
 
 What the first live run did NOT cover (signed-in user as the subject token, real vendor tokens, a JWKS URL fetched by PingOne, PingOne's order of evaluation when several faults occur at once): a second live run with a **real PingFederate token** covered the JWKS URL and PingFederate, see "Measured with a real PingFederate token" below. Still not covered: a signed-in user as the subject, real Okta, Auth0 or Microsoft tokens, and the order of evaluation.
@@ -21,8 +21,8 @@ Two uses in the guide:
 
 ## Before you start
 
-1. The capability is behind a **feature flag** (the guide gives no flag name). Quick check that it is on for your environment (MEASURED): `GET https://api.pingone.com/v1/environments/<ENV_ID>/trustedIssuers` returns HTTP 200 with a count, even if it is 0. If the flag is off, expect an error instead.
-2. A license package that includes it (GUIDE, any one): TRIAL, ENHANCED TRIAL, AGENT IAM CORE, WORKFORCE PLUS, WORKFORCE PREMIUM, CIAM PLUS, CIAM PASSWORDLESS, CIAM PREMIUM.
+1. The capability is generally available. Quick check that your environment can use it (MEASURED during the feature-flag period): `GET https://api.pingone.com/v1/environments/<ENV_ID>/trustedIssuers` returns HTTP 200 with a count, even if it is 0. If it returns an error instead, check the license entitlement.
+2. A license entitlement that includes it (release note: "subject to the applicable license entitlement"). The UAT guide listed these packages (GUIDE, any one; re-check against the current license list): TRIAL, ENHANCED TRIAL, AGENT IAM CORE, WORKFORCE PLUS, WORKFORCE PREMIUM, CIAM PLUS, CIAM PASSWORDLESS, CIAM PREMIUM.
 3. The right role (GUIDE). Creating, updating and deleting trusted issuers and assignments: **Environment Admin**. Read: also Client Application Developer, Application Owner, Configuration Read Only. The permissions are `trustedIssuers:create|read|update|delete:trustedIssuer` and `applications:create|read|update|delete:trustedIssuerAssignment`.
 4. An **OIDC-based, non-worker application** that is allowed to use the token exchange grant (GUIDE). This is the application that sends the exchange.
 5. The third-party issuer's **issuer string** and either its **JWKS URL** or the JWKS itself.
@@ -110,12 +110,18 @@ Client authentication was HTTP Basic with the application's client id and secret
 
 **Third-party JWT as the subject token (MEASURED):** accepted (`subject_token_type=urn:ietf:params:oauth:token-type:jwt`), with or without an actor token. But the issued token then has **no `sub` claim at all**, because there is no PingOne user to take it from. Map what you need with `subjectToken.<claim>` (table above). If your API expects a `sub`, create a `sub`-less design deliberately or map the external subject into another claim.
 
+**Limits stated in the release note (10 Nov 2026):**
+
+- **Signed only.** Input JWTs must be signed. Signed-and-encrypted JWTs are not supported.
+- **Type is `jwt` even for ID tokens and access tokens.** For any third-party input, set `subject_token_type` or `actor_token_type` to `urn:ietf:params:oauth:token-type:jwt`, whatever kind of token it is.
+- **No local user.** PingOne does not resolve a third-party token to a PingOne user. A `p1.userId` claim in it is ignored, and the `subjectTokenUser` / `actorTokenUser` context value is null. This is why the issued token has no `sub` when the subject is third-party (measured above). Do not write mapping expressions that read the user context for a third-party token.
+
 Expected response (GUIDE sample): `token_type: Bearer`, `expires_in: 3600`, the scope, and `issued_token_type: urn:ietf:params:oauth:token-type:access_token`.
 
 ## 5. Check it worked
 
 1. Decode the issued token. Its `aud` is the custom resource, `scope` is the requested scope, `sub` is the original user, and the mapped claim (`act` or `security`) is present with the value from the third-party token.
-2. Audit: PingOne emits Trusted Issuer and Trusted Issuer Assignment events (Created, Read, Update, Delete, eight in all).
+2. Audit: PingOne emits Trusted Issuer and Trusted Issuer Assignment events (Created, Updated, Deleted for each of the two resources, six in all; there is no Read event). Administrators can subscribe to them through webhooks.
 3. Negative tests: the table below is what PingOne returns for each. Every failure is **HTTP 400** with `error: invalid_request` and a description that starts `The request could not be completed. The request was malformed or invalid.: ` followed by the text below and a correlation id.
 
 ## Error responses (MEASURED, one fault at a time)

@@ -1,7 +1,7 @@
 /* eslint-disable no-template-curly-in-string -- SpEL expressions are shown as text */
 // /p1-third-party-exchange: PingOne token exchange (RFC 8693) accepting third-party signed JWTs as subject/actor tokens.
 // Sources: Ping's UAT guide "Token Exchange to support third-party signed JWTs as subject and actor tokens" (23 Oct 2026,
-// Ping staff and selected customers; feature-flagged; this page calls the guide GUIDE) and the "Token claims from Auth0,
+// Ping staff and selected customers; the capability has since gone generally available, release note 10 Nov 2026; this page calls the guide GUIDE) and the "Token claims from Auth0,
 // Okta, Microsoft, RFC9068, and PingOne" comparison sheets (public vendor sample tokens; SAMPLE). The page itself calls nothing:
 // it is a mock. Its refusal wording and settings behaviour were MEASURED live against PingOne on 2026-10-27 (see MEASURED below). Every issuer, client id, user id and host is a placeholder; real tenant ids from the guide are NOT copied.
 import { wrapMessages } from './sequenceWrap';
@@ -243,7 +243,10 @@ export const API_SAMPLES = {
 export const ADMIN_FACTS = [
   ['Permissions: trusted issuers', 'trustedIssuers:create|read|update|delete:trustedIssuer. Create, update, delete: Environment Admin. Read: also Client Application Developer, Application Owner, Configuration Read Only.'],
   ['Permissions: assignments', 'applications:create|read|update|delete:trustedIssuerAssignment, same role split.'],
-  ['Audit and webhook events', 'Trusted Issuer and Trusted Issuer Assignment, each with Created, Read, Update, Delete (eight events).'],
+  ['Audit and webhook events', 'Six events: Trusted Issuer and Trusted Issuer Assignment, each with Created, Updated, Deleted. There is no Read event. Subscribe through webhooks.'],
+  ['Availability', 'Generally available in all geographies (release note, 10 Nov 2026), subject to the license entitlement. Third-party JWTs are never trusted by default: an administrator defines the trusted issuer and assigns it to each application.'],
+  ['Not supported', 'Signed-and-encrypted JWTs. Input JWTs must be signed only.'],
+  ['No local user', 'PingOne does not resolve a third-party token to a PingOne user. Any p1.userId claim in it is ignored, and the subjectTokenUser / actorTokenUser context value is null. That is why the issued token has no sub of its own when the subject is a third-party JWT.'],
   ['License packages (any one)', 'TRIAL, ENHANCED TRIAL, AGENT IAM CORE, WORKFORCE PLUS, WORKFORCE PREMIUM, CIAM PLUS, CIAM PASSWORDLESS, CIAM PREMIUM. Four internal packages also have it.'],
   ['Measured limits (2026-10-27)', 'clockSkew is in seconds and PingOne rejects more than 60 (it loosens exp and nbf). maxFutureValidity is in seconds, 0 means no limit, and refuses an exp further ahead than that. Inline JWKS is the jwks field, a JSON string.'],
   ['Measured with a real PingFederate token', 'Accepted when the trusted issuer used the PingFederate JWKS URL (<base>/pf/JWKS) and the token\'s iss equalled the issuer exactly. The token manager must publish its keys to that JWKS and the token\'s kid must match one. A damaged signature gives JWT signature verification failed; a different issuer string gives the issuer-does-not-match message. A nested claim such as actorToken.act.sub can be mapped.'],
@@ -255,7 +258,7 @@ export const NOT_SHOWN = [
   'The order PingOne evaluates the checks in. Each refusal text is real, but when two things are wrong at once PingOne may name a different one first. We tested one fault at a time.',
   'A third-party JWT as the SUBJECT token. PingOne accepts it (measured), and you can map its claims with subjectToken, but the issued token then has no sub of its own. The page simulates the actor case only.',
   'A signed-in USER as the subject. Our live runs used a client-credentials PingOne access token as the subject, because a user sign-in needs a browser.',
-  'The feature flag name. The guide gives none; the flag was on in the environment we tested.',
+  'Our live runs were made while the capability was still behind a feature flag (the flag was on in the environment we tested). It is now generally available, and we have not re-run the measurements since.',
 ];
 
 // Comparison sheet (claims each issuer puts in its access token). null = "Not included" / "Not defined" on the sheet.
@@ -272,7 +275,7 @@ export const COMPARE_ROWS = [
   ['acr', 'acr', 'acr (Optional)', null, null, null, 'acrs', 'acr'],
   ['amr', null, 'amr (Optional)', null, null, null, 'amr', null],
   ['Scope', 'scope', 'scope (Conditional)', 'scope', 'scope', 'scp', 'scp', 'scp'],
-  ['User id', 'p1.userId', null, null, null, 'uid', 'oid', 'oid'],
+  ['User id (p1.userId is ignored by PingOne when the token is third-party)', 'p1.userId', null, null, null, 'uid', 'oid', 'oid'],
   ['Grant type used', 'Custom?', null, null, 'gty', null, null, null],
   ['Permissions', 'PingOne AuthZ', null, 'permissions', 'permissions', null, null, null],
   ['Rich authorization (RAR)', 'Not natively', null, 'authorization_details', 'authorization_details', null, null, null],
