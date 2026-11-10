@@ -189,6 +189,8 @@ function ImplementationFlow({ lastRun }) {
   const appRef = useRef(null);
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // True once a played walkthrough has run out of steps and stopped by itself; any other action clears it.
+  const [ended, setEnded] = useState(false);
   const [speed, setSpeed] = useState(3500);
   const [locked, setLocked] = useState(false);
   const [log, setLog] = useState([]);
@@ -242,19 +244,21 @@ function ImplementationFlow({ lastRun }) {
   useEffect(() => {
     if (!playing) return;
     const t = setTimeout(() => {
-      if (step >= STEPS.length - 1) { setPlaying(false); return; }
+      if (step >= STEPS.length - 1) { setPlaying(false); setEnded(true); return; }
       setStep(step + 1);
     }, speed);
     return () => clearTimeout(t);
   }, [playing, step, speed]);
 
   const play = () => {
+    setEnded(false);
     if (step >= STEPS.length - 1 || step === 0) { setLog([]); setStep(1); setPlaying(true); }
     else setPlaying(true);
   };
+  const stop = () => { setPlaying(false); setEnded(false); };
   // aria-disabled (not disabled) keeps keyboard focus on a control that cannot act right now; the handler ignores the press.
-  const back = () => { if (step === 0) return; setPlaying(false); setStep(step - 1); };
-  const next = () => { if (step === STEPS.length - 1) return; setPlaying(false); setStep(step + 1); };
+  const back = () => { if (step === 0) return; stop(); setStep(step - 1); };
+  const next = () => { if (step === STEPS.length - 1) return; stop(); setStep(step + 1); };
   const backCall = () => { if (callIdx > 0) setCallIdx(callIdx - 1); };
   const nextCall = () => { if (callIdx < CALLS.length - 1) setCallIdx(callIdx + 1); };
   const resetLayout = () => { const b = baseNodes(); setNodes((ns) => ns.map((n) => ({ ...n, position: b.find((x) => x.id === n.id).position, style: { width: 300 } }))); setTimeout(() => rf.fitView({ padding: 0.08, duration: 400 }), 30); };
@@ -283,20 +287,22 @@ function ImplementationFlow({ lastRun }) {
         <h1 id="ijxi-title">ID-JAG on PingFederate</h1>
         <p className="lede">UC40 · how the BFF, PingFederate, oauth-mcp, the gateway, the MCP server and the banking API are wired</p>
         <div className="sim" role="group" aria-label="Detail level">
-          <button type="button" className="pu-btn" aria-pressed={mode === "phases"} onClick={() => { setPlaying(false); setMode("phases"); }}>Phases</button>
-          <button type="button" className="pu-btn" aria-pressed={mode === "calls"} onClick={() => { setPlaying(false); setMode("calls"); }}>Every call ({CALLS.length})</button>
+          <button type="button" className="pu-btn" aria-pressed={mode === "phases"} onClick={() => { stop(); setMode("phases"); }}>Phases</button>
+          <button type="button" className="pu-btn" aria-pressed={mode === "calls"} onClick={() => { stop(); setMode("calls"); }}>Every call ({CALLS.length})</button>
         </div>
-        {/* The view's one primary: Simulate (Pause while it plays) in Phases, Next call in Every call. One element, so focus stays put when the mode changes. */}
+        {/* The view's one primary: Simulate in Phases, Next call in Every call. Its name never changes while it is pressed (the step status region
+            announces the move), so Simulate is a toggle: aria-pressed says it is playing and pressing it again pauses. */}
         <div className="sim" role="group" aria-label={mode === "phases" ? "Walkthrough controls" : "Call controls"}>
           <button type="button" className="pu-btn pu-btn--primary" aria-disabled={mode === "calls" && callIdx === CALLS.length - 1}
-            onClick={mode === "calls" ? nextCall : playing ? () => setPlaying(false) : play}>
-            {mode === "calls" ? "Next call" : playing ? "Pause" : "Simulate"}
+            aria-pressed={mode === "phases" ? playing : undefined}
+            onClick={mode === "calls" ? nextCall : playing ? stop : play}>
+            {mode === "calls" ? "Next call" : "Simulate"}
           </button>
           {mode === "phases" ? (
             <>
               <button type="button" className="pu-btn" aria-disabled={step === 0} onClick={back}>Back</button>
               <button type="button" className="pu-btn" aria-disabled={step === STEPS.length - 1} onClick={next}>Next</button>
-              <button type="button" className="pu-btn" onClick={() => { setPlaying(false); setStep(0); setLog([]); }}>Reset</button>
+              <button type="button" className="pu-btn" onClick={() => { stop(); setStep(0); setLog([]); }}>Reset</button>
               <label className="ijxi-speed">Speed <select className="pu-select" value={speed} onChange={(e) => setSpeed(+e.target.value)}>
                 <option value={6000}>Slow</option><option value={3500}>Normal</option><option value={2000}>Fast</option></select></label>
             </>
@@ -304,6 +310,11 @@ function ImplementationFlow({ lastRun }) {
             <button type="button" className="pu-btn" aria-disabled={callIdx === 0} onClick={backCall}>Previous call</button>
           )}
         </div>
+        {mode === "phases" && (playing || ended) && (
+          <p className="hint ijxi-playstate" data-testid="idjag-playstate">
+            {playing ? "Playing the walkthrough. Press Simulate again to pause." : "The walkthrough ended on the last step. Press Simulate to run it again."}
+          </p>
+        )}
         <div className="sim">
           <button type="button" className="pu-btn" aria-pressed={simple} onClick={() => setSimple(!simple)}>Explain it simply</button>
         </div>
@@ -314,14 +325,14 @@ function ImplementationFlow({ lastRun }) {
         </div>
         {mode === "phases" ? (
           <nav aria-label="Phases">{STEPS.map((x, i) => (
-            <button type="button" key={i} className="pu-btn" aria-current={i === step ? "step" : undefined} onClick={() => { setPlaying(false); setStep(i); }}>{x.t}</button>
+            <button type="button" key={i} className="pu-btn" aria-current={i === step ? "step" : undefined} onClick={() => { stop(); setStep(i); }}>{x.t}</button>
           ))}</nav>
         ) : (
           <nav aria-label="Every call">{CALLS.map((c, i) => (
             <button type="button" key={c.n} className="pu-btn" aria-current={i === callIdx ? "step" : undefined} onClick={() => setCallIdx(i)}>{c.n}. {c.label}</button>
           ))}</nav>
         )}
-        <p className="ijxi-sr" role="status" data-testid="idjag-step-status">{callView ? s.t : `Showing ${s.t}`}</p>
+        <p className="ijxi-sr" role="status" data-testid="idjag-step-status">{callView ? s.t : ended ? `Walkthrough ended on ${s.t}` : `Showing ${s.t}`}</p>
         <section aria-labelledby="ijxi-step">
           <h2 id="ijxi-step" className="pu-h2">{s.t}</h2>
           {simple && !callView && (
@@ -353,28 +364,45 @@ function ImplementationFlow({ lastRun }) {
   );
 }
 
-// Whether the last recorded run was a mock replay (sample values) or not.
-const isMockRun = (lastRun) => !!lastRun && String(lastRun.provenance || "").startsWith("mock");
+// What kind of run the trace store holds, from its provenance: "mock" (sample values), "replay" (a recorded unattended run played
+// back, provenance "recorded"), "live" (live / live-id-jag), "other" (anything else) or "none".
+function runKind(lastRun) {
+  if (!lastRun) return "none";
+  const p = String(lastRun.provenance || "");
+  if (p.startsWith("mock")) return "mock";
+  if (p === "recorded") return "replay";
+  if (p.startsWith("live")) return "live";
+  return "other";
+}
+const isMockRun = (lastRun) => runKind(lastRun) === "mock";
+
+// Chip, card title and hint for a run kind. None of them says "live" or "real" for a run that was not live, and green is never used:
+// this page checks nothing, so a recorded run is neutral and a mock replay is a warning.
+const RUN_COPY = {
+  mock: { tone: "warn", word: "Mock replay", title: "Claims from your last run", hint: "Mock replay: sample values, not a live token." },
+  replay: { tone: "neutral", word: "Replayed run", title: "Claims from a replayed run", hint: "Replay of a recorded run, not a fresh live token." },
+  live: { tone: "neutral", word: "Last live run", title: "Claims from your last live run", hint: "Decoded from the token chain of your last live run; this page does not re-check them." },
+  other: { tone: "neutral", word: "Recorded run", title: "Claims from your last run", hint: "Recorded in this browser; its source is not stated." },
+};
 
 function LiveClaims({ eventId, lastRun }) {
   if (!eventId) return null;
   const events = (lastRun && lastRun.tokenEvents) || [];
   const event = events.find((e) => e && e.id === eventId);
   const claims = readableClaims(event);
-  const mock = isMockRun(lastRun);
-  // Green is for what this page checked; it checks nothing, so a recorded run is neutral and a mock replay is a warning.
-  const chip = !claims ? { tone: "neutral", word: "No run recorded" } : mock ? { tone: "warn", word: "Mock replay" } : { tone: "neutral", word: "Recorded run" };
+  const copy = claims ? RUN_COPY[runKind(lastRun)] || RUN_COPY.other : null;
+  const ranSomething = hasRecordedClaims(lastRun);
   const items = claims ? Object.entries(claims).map(([label, v]) => ({ label, value: typeof v === "string" ? v : JSON.stringify(v), mono: true })) : [];
   return (
-    <PuCard tone={chip.tone === "warn" ? "warn" : "neutral"} title={claims && !mock ? "Real claims from your last run" : "Claims from your last run"} className="live" data-testid="idjag-live">
-      <p className="pu-status-line"><StatusChip tone={chip.tone}>{chip.word}</StatusChip></p>
+    <PuCard tone={copy && copy.tone === "warn" ? "warn" : "neutral"} title={copy ? copy.title : "Claims from your last run"} className="live" data-testid="idjag-live">
+      <p className="pu-status-line"><StatusChip tone={copy ? copy.tone : "neutral"}>{copy ? copy.word : ranSomething ? "Not in this run" : "No run recorded"}</StatusChip></p>
       {claims ? (
         <>
-          <p className="hint">{mock ? "Mock replay: sample values, not a live token." : "Decoded from the live token chain."}</p>
+          <p className="hint">{copy.hint}</p>
           <KvList items={items} />
         </>
       ) : (
-        <p className="hint">No run recorded yet. Run the demo, then come back and these claims fill in.</p>
+        <p className="hint">{ranSomething ? "The last run recorded no claims for this step." : "No run recorded yet. Run the demo, then come back and these claims fill in."}</p>
       )}
     </PuCard>
   );
@@ -389,6 +417,7 @@ function hasRecordedClaims(lastRun) {
 function claimsSentence(lastRun) {
   if (!hasRecordedClaims(lastRun)) return "No run is recorded in this browser yet, so the claims on the issue and redeem steps stay empty until you run the demo.";
   if (isMockRun(lastRun)) return "The last recorded run was a mock replay, so the claims shown on the issue and redeem steps are sample values, not live tokens.";
+  if (runKind(lastRun) === "replay") return "The last recorded run was a replay of an earlier run, so the claims shown on the issue and redeem steps are from that replay, not a fresh live token.";
   return "The claims shown on the issue and redeem steps come from the last run recorded in this browser; this page does not re-check them.";
 }
 

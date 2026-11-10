@@ -143,12 +143,17 @@
   border-color:var(--control-border);
 }
 
-.pu-page.ijxi .ijx-app .pu-btn[aria-pressed="true"],
+.pu-page.ijxi .ijx-app .pu-btn:not(.pu-btn--primary)[aria-pressed="true"],
 .pu-page.ijxi .ijx-app .pu-btn[aria-current="step"] {
   background:var(--th-bg-inset);
   color:var(--th-text);
   border-color:var(--btn-accent);
   box-shadow:inset 0 0 0 1px var(--btn-accent);
+}
+
+/* Simulate is a toggle whose name never changes: while it plays it keeps the primary fill and gains a white inner ring. */
+.pu-page.ijxi .ijx-app .pu-btn--primary[aria-pressed="true"] {
+  box-shadow:inset 0 0 0 2px #fff;
 }
 
 .pu-page.ijxi nav {
