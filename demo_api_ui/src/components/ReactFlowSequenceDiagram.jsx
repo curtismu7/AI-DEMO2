@@ -9,7 +9,7 @@
  *   - Active step highlighted, with an animated token dot traveling each
  *     active arrow (SVG animateMotion)
  */
-import React, { useMemo } from "react";
+import React, { useId, useMemo } from "react";
 import SequenceActorHeader from "./SequenceActorHeader";
 import "./ReactFlowSequenceDiagram.css";
 
@@ -56,6 +56,8 @@ export default function ReactFlowSequenceDiagram({
   activeStepIndex,
   outcome,
 }) {
+  // Per-instance marker ids: two diagrams on one page must not share an id.
+  const uid = `rf${useId().replace(/[^A-Za-z0-9]/g, "")}`;
   const activeOutcomeColors = {
     permit: "#16a34a",
     deny: "#dc2626",
@@ -178,7 +180,7 @@ export default function ReactFlowSequenceDiagram({
                       d={geo.path}
                       className={`rfps-arrow${isActive ? " rfps-arrow--active" : ""}`}
                       style={{ stroke: rowColor }}
-                      markerEnd={`url(#rfps-arrowhead-${isActive ? "on" : "off"})`}
+                      markerEnd={`url(#${uid}-rfps-arrowhead-${isActive ? "on" : "off"})`}
                     />
                     {isActive && (
                       <circle r="5" className="rfps-token">
@@ -211,7 +213,7 @@ export default function ReactFlowSequenceDiagram({
 
         <defs>
           <marker
-            id="rfps-arrowhead-on"
+            id={`${uid}-rfps-arrowhead-on`}
             markerWidth="8"
             markerHeight="8"
             refX="6"
@@ -221,7 +223,7 @@ export default function ReactFlowSequenceDiagram({
             <path d="M0,0 L8,4 L0,8 z" className="rfps-arrowhead rfps-arrowhead--on" />
           </marker>
           <marker
-            id="rfps-arrowhead-off"
+            id={`${uid}-rfps-arrowhead-off`}
             markerWidth="8"
             markerHeight="8"
             refX="6"

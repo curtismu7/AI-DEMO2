@@ -13,6 +13,9 @@ import StaticFlowDiagram from "../StaticFlowDiagram";
 import PingSlideFlow from "../PingSlideFlow";
 import { SystemFlowMapView } from "../SystemFlowMap";
 import { TOPOLOGY_SLIDE } from "../../config/pingSlideDiagrams";
+import SequenceReelDiagram from "../SequenceReelDiagram";
+import TokenExchangeFlowDiagram from "../TokenExchangeFlowDiagram";
+import ReactFlowSequenceDiagram from "../ReactFlowSequenceDiagram";
 
 class ResizeObserverStub {
   constructor(cb) { this.cb = cb; }
@@ -86,6 +89,66 @@ describe("ReactFlow diagrams give every instance its own ids", () => {
     render(<MemoryRouter><PrivilegeFirstGatewayPage /></MemoryRouter>);
     expect(duplicateIds()).toEqual([]);
     expect(danglingRefs()).toEqual([]);
+  });
+});
+
+// The three hand-drawn SVG diagrams (not React Flow) draw their own <marker> defs. Each id carries a per-instance
+// useId prefix, so a second copy on the page neither duplicates an id nor borrows the first copy's arrowhead.
+describe("hand-drawn SVG diagrams give every instance its own marker ids", () => {
+  const markerIds = () => [...document.querySelectorAll("marker[id]")].map((m) => m.id);
+  const arrowRefs = () => [...document.querySelectorAll("[marker-end]")].map((e) => e.getAttribute("marker-end"));
+
+  const RF_STEPS = [
+    { id: 1, title: "Sign in", path: ["user", "ui", "bff"] },
+    { id: 2, title: "Exchange", path: ["bff", "pingone"] },
+  ];
+  const REEL_STEPS = [
+    { id: "user-token", num: 1, status: "done", title: "User token", lane: "USER", laneLabel: "USER" },
+    { id: "exchange", num: 2, status: "done", title: "Token exchange", lane: "BFF", laneLabel: "BFF" },
+  ];
+
+  const cases = [
+    ["SequenceReelDiagram", /srd-arrowhead-/, () => (
+      <>
+        <SequenceReelDiagram externalSteps={REEL_STEPS} onToggleSlowMode={() => {}} />
+        <SequenceReelDiagram externalSteps={REEL_STEPS} onToggleSlowMode={() => {}} />
+      </>
+    )],
+    ["TokenExchangeFlowDiagram", /tefd-arrow-/, () => (
+      <>
+        <TokenExchangeFlowDiagram mode="double" />
+        <TokenExchangeFlowDiagram mode="double" />
+      </>
+    )],
+    ["ReactFlowSequenceDiagram", /rfps-arrowhead-/, () => (
+      <>
+        <ReactFlowSequenceDiagram steps={RF_STEPS} activeStepIndex={0} />
+        <ReactFlowSequenceDiagram steps={RF_STEPS} activeStepIndex={0} />
+      </>
+    )],
+  ];
+
+  it.each(cases)("two %s instances share no id and every arrow points at a marker that exists", (_name, idPattern, tree) => {
+    render(tree());
+    const ids = markerIds();
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.every((id) => idPattern.test(id))).toBe(true);
+    expect(arrowRefs().length).toBeGreaterThan(0);
+    expect(duplicateIds()).toEqual([]);
+    expect(danglingRefs()).toEqual([]);
+  });
+
+  it.each(cases)("%s: each instance's arrows use its own markers, none the other's", (_name, _p, tree) => {
+    const { container } = render(<>{tree().props.children.map((c, i) => <div key={i} data-inst={i}>{c}</div>)}</>);
+    const insts = [...container.querySelectorAll("[data-inst]")];
+    const own = insts.map((el) => new Set([...el.querySelectorAll("marker[id]")].map((m) => m.id)));
+    expect([...own[0]].some((id) => own[1].has(id))).toBe(false);
+    insts.forEach((el, i) => {
+      for (const e of el.querySelectorAll("[marker-end]")) {
+        const m = /url\(#([^)]+)\)/.exec(e.getAttribute("marker-end"));
+        expect(own[i].has(m[1])).toBe(true);
+      }
+    });
   });
 });
 
