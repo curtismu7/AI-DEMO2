@@ -68,6 +68,7 @@
 /ai-products/core
 /ai-products/gateway
 /digital-worker
+/workload-agents
 /gateway-claims
 /gateway-stats
 /ai-products/authorize
