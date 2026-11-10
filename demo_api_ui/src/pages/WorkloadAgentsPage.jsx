@@ -43,51 +43,84 @@ export default function WorkloadAgentsPage({ user = null }) {
   const selectedId = params.get('useCase') === 'UC44' ? 'UC44' : 'UC38';
   const [verticals, setVerticals] = useState([]);
   const [catalog, setCatalog] = useState({ vertical: null, cases: {} });
-  const [listError, setListError] = useState('');
-  const [catalogError, setCatalogError] = useState('');
-  const [reload, setReload] = useState(0);
+  // An error is remembered with the vertical it belongs to, so it never shows on another vertical. A failed load keeps its
+  // error (and the Retry button, mounted) while it is retried: Retry is the focused control, and unmounting it mid-reload
+  // would drop keyboard focus to <body>. While retrying, the error text is hidden and the banner says "Loading".
+  const [listErr, setListErr] = useState('');
+  const [catalogErr, setCatalogErr] = useState(null);
+  const [listTick, setListTick] = useState(0);
+  const [catalogTick, setCatalogTick] = useState(0);
+  const [retryingList, setRetryingList] = useState(false);
+  const [retryingCatalog, setRetryingCatalog] = useState(false);
   const [requestedRun, setRequestedRun] = useState({ id: null, nonce: 0 });
   const executionRef = useRef(null);
-  // Retry unmounts itself when the load succeeds, which would drop keyboard focus to <body>: hand it to the selected card's Run button.
+  // Retry unmounts itself once the load succeeds, which would drop keyboard focus to <body>: hand it to the selected card's Run button.
   const runButtons = useRef({});
   const retried = useRef(false);
+  const lastListTick = useRef(0);
+  const lastCatalogTick = useRef(0);
 
   useEffect(() => {
     let live = true;
-    setListError('');
+    const wasRetry = lastListTick.current !== listTick;
+    lastListTick.current = listTick;
+    setRetryingList(wasRetry);
     apiClient.get('/api/verticals/list').then(({ data }) => {
-      if (live) setVerticals(Array.isArray(data) ? data.filter((item) => SUPPORTED_VERTICALS.has(item.id)) : []);
-    }).catch(() => { if (live) setListError('Vertical choices could not be loaded.'); });
+      if (!live) return;
+      setVerticals(Array.isArray(data) ? data.filter((item) => SUPPORTED_VERTICALS.has(item.id)) : []);
+      setListErr('');
+      setRetryingList(false);
+    }).catch(() => { if (live) { setListErr('Vertical choices could not be loaded.'); setRetryingList(false); } });
     return () => { live = false; };
-  }, [reload]);
+  }, [listTick]);
 
   useEffect(() => {
     let live = true;
-    setCatalog({ vertical: null, cases: {} });
-    setCatalogError('');
+    const wasRetry = lastCatalogTick.current !== catalogTick;
+    lastCatalogTick.current = catalogTick;
+    setRetryingCatalog(wasRetry);
     Promise.all(SCENARIOS.map(({ id }) =>
       apiClient.get(`/api/use-cases/${id}?vertical=${encodeURIComponent(vertical)}`)
     )).then((responses) => {
-      if (live) setCatalog({ vertical, cases: Object.fromEntries(responses.map(({ data }) => [data.useCase.id, data.useCase])) });
-    }).catch(() => { if (live) { retried.current = false; setCatalogError('Actions could not be loaded for this vertical.'); } });
+      if (!live) return;
+      setCatalog({ vertical, cases: Object.fromEntries(responses.map(({ data }) => [data.useCase.id, data.useCase])) });
+      setCatalogErr(null);
+      setRetryingCatalog(false);
+    }).catch(() => {
+      if (live) { setCatalogErr({ vertical, message: 'Actions could not be loaded for this vertical.' }); setRetryingCatalog(false); }
+    });
     return () => { live = false; };
-  }, [vertical, reload]);
+  }, [vertical, catalogTick]);
 
   const verticalName = verticals.find((item) => item.id === vertical)?.displayName || vertical;
+  // catalog.vertical guards the cases: another vertical's actions never show under this one.
   const cases = catalog.vertical === vertical ? catalog.cases : {};
   const selected = cases[selectedId];
+  const catalogFailed = catalogErr?.vertical === vertical && !selected;
+  const catalogError = catalogFailed && !retryingCatalog ? catalogErr.message : '';
+  const listError = listErr && !retryingList ? listErr : '';
   const error = catalogError || listError;
+  const retrying = retryingCatalog || retryingList;
   const loading = !catalogError && catalog.vertical !== vertical;
 
   // Built here, not inside the tag: the pattern check reads a tag's attributes up to the first ">".
   const runButtonRef = (id) => (node) => { runButtons.current[id] = node; };
 
+  // After a retry settles: if it failed, Retry is still mounted and keeps focus. If it worked, Retry is gone, so (unless
+  // focus already moved somewhere else) the selected card's Run button takes it.
   useEffect(() => {
-    if (retried.current && selected) {
-      retried.current = false;
-      runButtons.current[selectedId]?.focus();
-    }
-  }, [selected, selectedId]);
+    if (!retried.current || retrying) return;
+    retried.current = false;
+    const held = document.activeElement;
+    if (!error && selected && (!held || held === document.body)) runButtons.current[selectedId]?.focus();
+  }, [retrying, error, selected, selectedId]);
+
+  function retryLoading() {
+    if (retrying) return;
+    retried.current = true;
+    if (catalogFailed) { setRetryingCatalog(true); setCatalogTick((n) => n + 1); }
+    if (listErr) { setRetryingList(true); setListTick((n) => n + 1); }
+  }
 
   function updateSelection(id, nextVertical = vertical) {
     if (nextVertical !== vertical) {
@@ -129,9 +162,9 @@ export default function WorkloadAgentsPage({ user = null }) {
         <div role="alert" className="wa-alert" data-testid="wa-error">
           {error ? <p className="pu-status-line"><StatusChip tone="danger">Failed</StatusChip><span>{error}</span></p> : null}
         </div>
-        {error ? (
+        {error || retrying ? (
           <div className="pu-actions">
-            <button type="button" className={catalogError ? 'pu-btn pu-btn--primary' : 'pu-btn'} onClick={() => { retried.current = true; setReload((n) => n + 1); }}>Retry loading actions</button>
+            <button type="button" className={catalogFailed ? 'pu-btn pu-btn--primary' : 'pu-btn'} aria-disabled={retrying ? 'true' : undefined} onClick={retryLoading}>Retry loading actions</button>
           </div>
         ) : null}
 

@@ -212,6 +212,98 @@ describe('WorkloadAgentsPage', () => {
       expect(primaries()).toEqual(['Run rental extension']);
     });
 
+    it('keeps focus on Retry when a retry fails again, and the button stays mounted with the same name during the reload', async () => {
+      let release;
+      let fail = true;
+      apiClient.get.mockImplementation((url) => {
+        if (url === '/api/verticals/list') return Promise.resolve({ data: verticals });
+        if (fail) return new Promise((_resolve, reject) => { release = () => reject(new Error('down')); });
+        const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
+        return Promise.resolve({ data: { useCase: scenarios[id] } });
+      });
+      renderPage();
+      await waitFor(() => expect(release).toBeTypeOf('function'));
+      release();
+      const retry = await screen.findByRole('button', { name: /Retry loading actions/ });
+      retry.focus();
+      release = undefined;
+      fireEvent.click(retry);
+      // Reloading: the same node is still mounted and focused, inactive (not hidden), with the error text withheld.
+      const during = screen.getByRole('button', { name: /Retry loading actions/ });
+      expect(during).toBe(retry);
+      expect(document.activeElement).toBe(retry);
+      expect(during.getAttribute('aria-disabled')).toBe('true');
+      expect(screen.getByTestId('wa-error').textContent).toBe('');
+      expect(screen.getByTestId('wa-banner-state').textContent).toMatch(/Loading the catalog/);
+      expect(screen.getAllByText('Loading…').length).toBe(4);
+      await waitFor(() => expect(release).toBeTypeOf('function'));
+      release();
+      await waitFor(() => expect(screen.getByTestId('wa-error').textContent).toMatch(/Failed.*Actions could not be loaded/));
+      expect(screen.getByRole('button', { name: /Retry loading actions/ })).toBe(retry);
+      expect(document.activeElement).toBe(retry);
+      expect(retry.getAttribute('aria-disabled')).toBeNull();
+      expect(screen.getByTestId('wa-banner-state').textContent).toMatch(/did not load/);
+      // A later retry that works still ends on the Run button.
+      fail = false;
+      fireEvent.click(retry);
+      await screen.findByText('list_gear');
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Run this demo: UC38/ })));
+    });
+
+    it('keeps focus on Retry through the reload (it is never unmounted while loading)', async () => {
+      let fail = true;
+      let resolveLoad;
+      apiClient.get.mockImplementation((url) => {
+        if (url === '/api/verticals/list') return Promise.resolve({ data: verticals });
+        if (fail) return Promise.reject(new Error('down'));
+        const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
+        return new Promise((resolve) => { resolveLoad = () => resolve({ data: { useCase: scenarios[id] } }); });
+      });
+      renderPage();
+      const retry = await screen.findByRole('button', { name: /Retry loading actions/ });
+      retry.focus();
+      fail = false;
+      fireEvent.click(retry);
+      expect(document.activeElement).toBe(retry);
+      expect(screen.getByRole('button', { name: /Retry loading actions/ })).toBe(retry);
+      await waitFor(() => expect(resolveLoad).toBeTypeOf('function'));
+    });
+
+    it('retries only the vertical list when only it failed, and hands focus to Run when that works', async () => {
+      let listFails = true;
+      apiClient.get.mockImplementation((url) => {
+        if (url === '/api/verticals/list') return listFails ? Promise.reject(new Error('down')) : Promise.resolve({ data: verticals });
+        const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
+        return Promise.resolve({ data: { useCase: scenarios[id] } });
+      });
+      renderPage();
+      const retry = await screen.findByRole('button', { name: /Retry loading actions/ });
+      await screen.findByText('list_gear');
+      const catalogCalls = apiClient.get.mock.calls.filter(([u]) => u.startsWith('/api/use-cases/')).length;
+      listFails = false;
+      retry.focus();
+      fireEvent.click(retry);
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Retry loading actions/ })).toBeNull());
+      expect(apiClient.get.mock.calls.filter(([u]) => u.startsWith('/api/use-cases/')).length).toBe(catalogCalls);
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Run this demo: UC38/ })));
+    });
+
+    it('does not carry a failed catalog load over to another vertical', async () => {
+      apiClient.get.mockImplementation((url) => {
+        if (url === '/api/verticals/list') return Promise.resolve({ data: verticals });
+        if (url.includes('vertical=sporting-goods')) return Promise.reject(new Error('down'));
+        const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
+        return Promise.resolve({ data: { useCase: bankingScenarios[id] } });
+      });
+      renderPage();
+      await screen.findByRole('button', { name: /Retry loading actions/ });
+      fireEvent.change(screen.getByRole('combobox', { name: /vertical/i }), { target: { value: 'banking' } });
+      await screen.findAllByText('create_transfer');
+      expect(screen.queryByRole('button', { name: /Retry loading actions/ })).toBeNull();
+      expect(screen.getByTestId('wa-error').textContent).toBe('');
+      expect(screen.getByTestId('wa-banner-state').textContent).not.toMatch(/did not load/);
+    });
+
     it('keeps Retry a secondary when only the vertical list failed (the studio owns the primary)', async () => {
       apiClient.get.mockImplementation((url) => {
         if (url === '/api/verticals/list') return Promise.reject(new Error('down'));
