@@ -172,7 +172,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable real pingone authorize/i }),
+      screen.getByRole("button", { name: /^real pingone authorize$/i }),
     );
 
     await waitFor(() => expect(global.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(true));
@@ -195,17 +195,17 @@ describe("FeatureFlagsPage — flag toggle", () => {
     await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable real pingone authorize/i }),
+      screen.getByRole("button", { name: /^real pingone authorize$/i }),
     );
 
-    // After rollback the flag reverts to false → button label returns to "Enable"
+    // After rollback the flag reverts to false → aria-pressed returns to false
     await screen.findByRole("alert");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "ff_authorize_real",
     );
     expect(
-      screen.getByRole("button", { name: /enable real pingone authorize/i }),
-    ).toBeInTheDocument();
+      screen.getByRole("button", { name: /^real pingone authorize$/i }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("shows lastSaved toast after successful toggle", async () => {
@@ -221,11 +221,12 @@ describe("FeatureFlagsPage — flag toggle", () => {
     await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable real pingone authorize/i }),
+      screen.getByRole("button", { name: /^real pingone authorize$/i }),
     );
 
-    await screen.findByText(/ff_authorize_real/);
-    expect(screen.getAllByText(/ff_authorize_real/).length).toBeGreaterThan(0);
+    const toast = await screen.findByText(/saved: now on/);
+    expect(toast).toHaveTextContent("Real PingOne Authorize");
+    expect(toast).not.toHaveTextContent("ff_authorize_real");
   });
 
   it("auto-dismisses lastSaved toast after 2.5 s", async () => {
@@ -244,10 +245,10 @@ describe("FeatureFlagsPage — flag toggle", () => {
     await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable real pingone authorize/i }),
+      screen.getByRole("button", { name: /^real pingone authorize$/i }),
     );
 
-    await screen.findByText(/ff_authorize_real/);
+    await screen.findByText(/saved: now on/);
 
     // Fire the 2500ms auto-dismiss timer
     act(() => {

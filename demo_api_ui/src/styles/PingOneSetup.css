@@ -1,358 +1,105 @@
-/* styles/PingOneSetup.css
-   Was written against --bg-primary/--bg-secondary/--text-primary/
-   --text-secondary/--border-color/--input-bg/--bg-disabled/--text-disabled —
-   none of them defined anywhere, so every var() always fell through to its
-   light literal fallback in both themes. Rewritten onto the real --th-*
-   semantic set (src/index.css). */
+/* PingOne MCP Setup (/pingone-setup): only what is specific to this page. The banner, frame, cards, key-value
+   lists, chips and buttons are the shared Ping UI primitives (src/styles/ping-ui.css, docs/ping-ui-primitives.md).
+   Surfaces, lines and ink are --th-* only, type comes from the --font-size-* scale, no inline styles. Every rule is
+   scoped under .p1setup-page. The PingOne end-user-nano skin sets word-wrap: break-word on code and lists and beats
+   single-class rules, so the wrapping rules use the doubled .pu-page.p1setup-page scope. */
 
-.pingone-setup-page {
-  color: var(--th-text);
+.p1setup-page .p1setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.p1setup-page .p1setup-field {
+  min-width: 0;
+}
+
+.p1setup-page .p1setup-input {
+  display: block;
   width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
   background: var(--th-bg-page);
-  min-height: 100vh;
-  padding: 40px 20px;
-}
-
-.setup-container {
-  max-width: 640px;
-  margin: 0 auto;
-  position: relative;
-}
-
-.setup-theme-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
   color: var(--th-text);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.setup-theme-toggle:hover {
-  color: var(--th-text);
-  background: var(--th-bg-hover);
-}
-
-.setup-container h1 {
-  font-size: 2.5em;
-  margin-bottom: 10px;
-  color: var(--th-text);
-}
-
-.setup-container .subtitle {
-  font-size: 1.1em;
-  color: var(--th-text-muted);
-  margin-bottom: 40px;
-}
-
-.prefill-note {
-  color: var(--th-status-success-text);
-  font-size: 0.9em;
-  margin: -8px 0 16px;
-}
-
-.setup-content {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 30px;
-  align-items: start;
-}
-
-/* Form Section */
-.setup-form-section {
-  color: var(--th-text);
-  background: var(--th-bg-inset);
-  border-radius: var(--radius-lg);
-  padding: 30px;
-  border: 1px solid var(--th-border);
-}
-
-.setup-form-section h2 {
-  font-size: 1.5em;
-  margin-bottom: 25px;
-  color: var(--th-text);
-}
-
-.setup-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-weight: 600;
-  color: var(--th-text);
-  font-size: 0.95em;
-}
-
-.form-group input {
-  color: var(--th-text);
-  padding: 12px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
-  font-size: 1em;
-  background: var(--th-bg-card);
-  transition: border-color 0.2s;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: var(--th-status-info);
-  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.15);
-}
-
-.form-group input:disabled {
-  color: var(--th-text-muted);
-  background: var(--th-bg-inset);
-  cursor: not-allowed;
-}
-
-.btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 1em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 10px;
-}
-
-.btn-primary {
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
-}
-
-.btn-primary:hover:not(:disabled) {
-  color: var(--th-text-on-emphasis);
-  background: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 86, 179, 0.3);
-}
-
-.btn-primary:disabled {
-  color: var(--th-text-muted);
-  background: var(--th-bg-inset);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* Results Section */
-.results-section {
-  color: var(--th-text);
-  background: var(--th-bg-inset);
-  border-radius: var(--radius-lg);
-  padding: 30px;
-  border: 2px solid var(--th-border-strong);
-}
-
-.results-section.success {
-  color: var(--th-status-success-text);
-  border-color: var(--th-status-success-border);
-  background: var(--th-status-success-bg);
-}
-
-.results-section.partial {
-  color: var(--th-status-warning-text);
-  border-color: var(--th-status-warning-border);
-  background: var(--th-status-warning-bg);
-}
-
-.results-section h2 {
-  color: var(--th-text);
-  font-size: 1.5em;
-  margin-bottom: 25px;
-}
-
-.steps-breakdown {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 30px;
-}
-
-.step {
-  color: var(--th-text);
-  padding: 15px;
-  border-radius: var(--radius-sm);
-  border-left: 4px solid var(--th-border-strong);
-  background: var(--th-bg-card);
-}
-
-.step.passed {
-  color: var(--th-status-success-text);
-  border-left-color: var(--th-status-success-border);
-  background: var(--th-status-success-bg);
-}
-
-.step.failed {
-  color: var(--th-status-error-text);
-  border-left-color: var(--th-status-error-border);
-  background: var(--th-status-error-bg);
-}
-
-.step-title {
-  font-weight: 600;
-  color: var(--th-text);
-  margin-bottom: 5px;
-  font-size: 1.05em;
-}
-
-.step-detail {
-  color: var(--th-text-muted);
-  font-size: 0.95em;
-}
-
-.tools-list {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--th-border);
-}
-
-.tools-list strong {
-  color: var(--th-text);
-  display: block;
-  margin-bottom: 8px;
-}
-
-.tools-list ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.tools-list li {
-  color: var(--th-text-muted);
-  padding: 5px 0;
-  padding-left: 20px;
-  font-size: 0.9em;
-  position: relative;
-}
-
-.tools-list li:before {
-  content: '▸';
-  position: absolute;
-  left: 0;
-}
-
-.next-steps {
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  padding: 20px;
-  border-radius: var(--radius-sm);
-  margin-top: 20px;
-  border: 1px solid var(--th-border);
-}
-
-.next-steps h3 {
-  color: var(--th-text);
-  margin-bottom: 12px;
-  font-size: 1.1em;
-}
-
-.next-steps ol {
-  color: var(--th-text-muted);
-  margin: 0;
-  padding-left: 20px;
-}
-
-.next-steps li {
-  margin: 8px 0;
-  line-height: 1.5;
-}
-
-/* Error Section */
-.error-section {
-  color: var(--th-status-error-text);
-  background: var(--th-status-error-bg);
-  border: 2px solid var(--th-status-error-border);
-  border-radius: var(--radius-lg);
-  padding: 30px;
-  grid-column: 1 / -1;
-}
-
-.error-section h3 {
-  color: var(--th-status-error-text);
-  margin-bottom: 12px;
-  font-size: 1.2em;
-}
-
-.error-section p {
-  color: var(--th-text);
-  margin: 8px 0;
-}
-
-.error-hint {
-  color: var(--th-text-muted);
-  font-size: 0.95em;
-  font-style: italic;
-}
-
-/* Help Section */
-.help-section {
-  color: var(--th-text);
-  grid-column: 1 / -1;
-  background: var(--th-bg-inset);
-  border-radius: var(--radius-lg);
-  padding: 25px;
-  border: 1px solid var(--th-border);
-}
-
-.help-section h3 {
-  color: var(--th-text);
-  margin-bottom: 15px;
-  font-size: 1.1em;
-}
-
-.help-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.help-section li {
-  color: var(--th-text);
-  padding: 10px 0;
-  line-height: 1.6;
-  border-bottom: 1px solid var(--th-border);
-}
-
-.help-section li:last-child {
-  border-bottom: none;
-}
-
-.help-section strong {
-  color: var(--th-status-info-text);
-}
-
-.mcp-url {
-  color: var(--th-code-text);
-  display: block;
-  margin-top: 10px;
-  padding: 12px;
-  background: var(--th-code-bg);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.9em;
-  word-break: break-all;
+  font-size: var(--font-size-sm);
 }
 
-@media (max-width: 640px) {
-  .setup-theme-toggle {
-    position: static;
-    display: inline-block;
-    margin-bottom: 12px;
-  }
+.p1setup-page .p1setup-input::placeholder {
+  color: var(--th-text-muted);
+  opacity: 1;
+}
+
+.p1setup-page .p1setup-input:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+/* Locked while a run is in flight (readOnly keeps focus where it is). */
+.p1setup-page .p1setup-input[readonly] {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+/* The pre-fill note is an always-mounted live region; it takes no space until it has text. */
+.p1setup-page .p1setup-defaults:empty {
+  display: none;
+}
+
+.p1setup-page .p1setup-form .pu-actions,
+.p1setup-page .p1setup-form .pu-note {
+  margin-top: 0;
+}
+
+/* The result block: the status line, the summary and the step cards stack with a steady gap. */
+.p1setup-page .p1setup-status {
+  margin-bottom: 12px;
+}
+
+.p1setup-page [data-testid='p1setup-summary'],
+.p1setup-page [data-testid='p1setup-error'],
+.p1setup-page [data-testid='p1setup-next'] {
+  margin: 0 0 12px;
+}
+
+.p1setup-page .p1setup-detail {
+  min-width: 0;
+}
+
+.pu-page.p1setup-page .p1setup-detail,
+.pu-page.p1setup-page .pu-kv dd,
+.pu-page.p1setup-page .pu-status-line {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.pu-page.p1setup-page .p1setup-tools,
+.pu-page.p1setup-page .p1setup-next {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.p1setup-page .p1setup-next li {
+  margin: 6px 0;
+}
+
+/* The IDE address: a long unbroken value wraps inside its card instead of widening the page. */
+.pu-page.p1setup-page .p1setup-url {
+  display: block;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }

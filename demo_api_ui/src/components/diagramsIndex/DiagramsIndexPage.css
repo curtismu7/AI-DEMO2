@@ -1,33 +1,57 @@
-.di-grid {
+/* DiagramsIndexPage.css — only what the shared Ping UI primitives do not cover: a list of whole-card links.
+   Every rule is under .diagrams-index (the page's own class). No colour is set here except borders and the focus
+   ring, all --th-* tokens; the cards, headings and banner come from ping-ui.css. */
+
+.pu-page.diagrams-index .di-grid {
   list-style: none;
-  margin: 0;
+  margin: 12px 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+  align-items: stretch;
 }
-.di-card {
-  display: grid;
-  gap: 4px;
+.pu-page.diagrams-index .di-grid > li {
+  min-width: 0;
+}
+
+.pu-page.diagrams-index .di-card {
+  position: relative; /* anchors the stretched link */
   height: 100%;
+  box-sizing: border-box;
+  margin: 0;
   padding: 12px 14px;
-  border: 1px solid var(--th-border);
-  border-top: 3px solid var(--th-status-info);
-  border-radius: var(--radius-lg);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  text-decoration: none;
 }
-.di-card:hover,
-.di-card:focus-visible {
-  border-color: var(--th-border-strong);
-  border-top-color: var(--th-status-info);
+.pu-page.diagrams-index .di-card:hover {
+  border-color: var(--th-text-muted);
+  box-shadow: var(--shadow-md);
 }
-.di-title {
+
+.pu-page.diagrams-index .di-title {
+  margin: 0 0 4px;
   font-size: var(--font-size-body);
-  font-weight: 600;
 }
-.di-blurb {
-  font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+.pu-page.diagrams-index .di-title a {
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.pu-page.diagrams-index .di-title a:hover {
+  text-decoration: underline;
+}
+/* The link's box covers the whole card, so a click anywhere opens the diagram. */
+.pu-page.diagrams-index .di-title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+}
+/* The focus ring goes round the card, not just the title text (it must beat .pu-page a:focus-visible). */
+.pu-page.diagrams-index .di-title a:focus-visible {
+  outline: none;
+}
+.pu-page.diagrams-index .di-title a:focus-visible::after {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+.pu-page.diagrams-index .di-blurb {
+  margin: 0;
 }

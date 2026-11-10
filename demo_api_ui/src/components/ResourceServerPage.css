@@ -1,548 +1,347 @@
-/* ResourceServerPage.css — OIDC Resource Server + Banking Summary */
+/* ResourceServerPage.css (/resource-server). Page-specific rules only: the banner, frame, cards, chips, key/value
+   lists and buttons come from the shared Ping UI primitives (styles/ping-ui.css). Every rule is scoped under
+   .pu-page.rsv-page, and the prefix is rsv- (the older rsp- prefix is shared with ResourceServerPlacementPage). */
 
-.rsp-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.rsp-view-tabs {
-  display: flex;
-  gap: 8px;
-  margin: 0 0 16px;
-}
-
-.rsp-view-tab {
-  padding: 8px 16px;
-  border-radius: var(--radius-lg);
-  color: var(--th-text-faint);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border-strong);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
-
-.rsp-view-tab:hover {
-  color: var(--th-text-body);
-  border-color: var(--th-border-strong);
-}
-
-.rsp-view-tab--active {
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
-  border-color: var(--th-status-info);
-}
-
-/* Journey page cross-nav */
-.rsp-journey-links {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 24px;
-  color: var(--th-text);
-  background: var(--th-bg-inset);
-  border-bottom: 1px solid var(--th-border);
-}
-.rsp-journey-label { font-size: var(--font-size-3xs); color: var(--th-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.rsp-journey-link {
-  font-size: var(--font-size-xs); padding: 3px 10px; border-radius: var(--radius-sm);
-  text-decoration: none; font-weight: 600; border: 1px solid;
-  transition: opacity 0.15s;
-}
-.rsp-journey-link:hover { opacity: 0.8; }
-.rsp-journey-link--olb { color: var(--th-status-info-text); border-color: var(--th-status-info); background: var(--th-status-info-bg); }
-.rsp-journey-link--invest { color: var(--th-status-success-text); border-color: var(--th-status-success); background: var(--th-status-success-bg); }
-.rsp-journey-link--api { color: var(--th-status-warning-text); border-color: var(--th-status-warning); background: var(--th-status-warning-bg); }
-
-.rsp-hero--inflow .rsp-hero-balance {
-  letter-spacing: 0.02em;
-}
-
-/* Loading */
-.rsp-loading {
+.pu-page.rsv-page .rsv-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  color: var(--th-text-faint);
-}
-
-/* Error */
-.rsp-error {
-  text-align: center;
-  padding: 40px;
-  color: var(--th-status-error-text);
-  background: var(--th-status-error-bg);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--th-status-error-border);
-}
-
-/* Header */
-/* Deliberately literal — a fixed brand banner, always high-contrast white on
-   navy gradient regardless of theme (no gradient token exists to swap in). */
-.rsp-header {
-  position: relative;
-  background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-  border-radius: var(--radius-xl);
-  padding: 28px 32px;
-  margin-bottom: 24px;
-  color: #fff;
-}
-
-.rsp-header-content h1 {
-  margin: 0 0 4px;
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-.rsp-subtitle {
-  margin: 0;
-  color: #ffffff;
-  font-size: 0.95rem;
-}
-
-/* Learning-page explainer */
-.rsp-explainer {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  color: var(--th-status-info-text);
-  background: var(--th-status-info-bg);
-  border: 1px solid var(--th-status-info-border);
-  border-left: 4px solid var(--th-status-info);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  font-size: 0.92rem;
-  line-height: 1.55;
-}
-
-.rsp-explainer-icon {
-  font-size: 1.4rem;
-  line-height: 1;
-}
-
-.rsp-explainer code {
-  color: var(--th-code-text);
-  background: var(--th-code-bg);
-  padding: 1px 5px;
-  border-radius: var(--radius-sm);
-  font-size: 0.86em;
-}
-
-/* Grid layout */
-.rsp-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-@media (max-width: 1024px) {
-  .rsp-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Banking column */
-.rsp-banking-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Hero */
-/* Deliberately literal — same fixed brand-navy gradient treatment as
-   .rsp-header, paired with guaranteed-readable white/near-white text. */
-.rsp-hero {
-  background: linear-gradient(135deg, #051727 0%, #051727 100%);
-  border-radius: var(--radius-xl);
-  padding: 24px;
-  color: #fff;
-  text-align: center;
-}
-
-.rsp-hero-label {
-  font-size: 0.85rem;
-  color: #ffffff;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-
-.rsp-hero-balance {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.rsp-hero-count {
-  font-size: 0.85rem;
-  color: #ffffff;
-}
-
-/* Account cards */
-.rsp-accounts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.rsp-account-card {
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  padding: 16px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.rsp-account-card:hover {
-  border-color: var(--th-status-info);
-  box-shadow: 0 0 12px rgba(18, 83, 141, 0.15);
-}
-
-.rsp-account-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.rsp-account-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--th-text-faint);
-  background: var(--th-bg-inset);
-}
-
-.rsp-account-badge.checking { color: var(--th-status-info-text); background: var(--th-status-info-bg); }
-.rsp-account-badge.savings { color: var(--th-status-success-text); background: var(--th-status-success-bg); }
-/* .investment keeps its red badge — no semantic status token covers it. */
-.rsp-account-badge.investment { background: #3d0e0f; color: #f87171; }
-.rsp-account-badge.car_loan,
-.rsp-account-badge.mortgage { color: var(--th-status-error-text); background: var(--th-status-error-bg); }
-
-.rsp-account-number {
-  font-size: 0.75rem;
-  color: var(--th-text-muted);
-  font-family: inherit;
-}
-
-.rsp-account-balance {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--th-text);
-  margin-bottom: 2px;
-}
-
-.rsp-account-name {
-  font-size: 0.8rem;
-  color: var(--th-text-muted);
-}
-
-/* Transactions */
-.rsp-transactions {
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.rsp-transactions h3 {
-  margin: 0 0 12px;
-  font-size: 0.9rem;
-  color: var(--th-text-faint);
-}
-
-.rsp-txn-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--th-border);
-  font-size: 0.85rem;
-}
-
-.rsp-txn-row:last-child {
-  border-bottom: none;
-}
-
-.rsp-txn-desc {
-  color: var(--th-text-body);
-}
-
-.rsp-txn-amount.positive { color: var(--th-status-success-text); }
-.rsp-txn-amount.negative { color: var(--th-status-error-text); }
-
-/* Tokens column */
-.rsp-tokens-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Token panels */
-.rsp-token-panel {
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  padding: 20px;
-}
-
-.rsp-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.rsp-token-panel h3 {
-  margin: 0 0 12px;
-  font-size: 1rem;
   color: var(--th-text);
 }
 
-.rsp-panel-header h3 {
-  margin-bottom: 0;
-}
-
-/* Deliberately literal — a subtle indigo accent distinguishing the ID token
-   panel from its siblings; no semantic status token covers this hue. */
-.rsp-id-token-panel {
-  border-color: #7f1d1d;
-}
-
-/* ID Token + Resource Server Info paired side by side to cut vertical whitespace. */
-.rsp-token-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-@media (max-width: 640px) {
-  .rsp-token-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Expiry badge */
-.rsp-expiry {
-  font-size: 0.75rem;
-  padding: 3px 8px;
-  border-radius: var(--radius-md);
-  color: var(--th-status-success-text);
-  background: var(--th-status-success-bg);
-  font-weight: 600;
-}
-
-.rsp-expiry.expired {
-  color: var(--th-status-error-text);
-  background: var(--th-status-error-bg);
-}
-
-/* Claim rows */
-.rsp-claim-row {
+/* Login RS / In-flow RS view tabs. The active one is marked by weight and a heavier ink edge, not by colour alone. */
+.pu-page.rsv-page .rsv-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--th-border);
-  font-size: 0.85rem;
+  margin: 24px 0 0;
 }
 
-.rsp-claim-row:last-child {
+.pu-page.rsv-page .rsv-tab {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.pu-page.rsv-page .rsv-tab:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.pu-page.rsv-page .rsv-tab--active,
+.pu-page.rsv-page .rsv-tab[aria-selected='true'] {
+  border: 2px solid var(--th-text);
+  padding: 7px 15px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-weight: 700;
+}
+
+.pu-page.rsv-page .rsv-tab:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Explainer card and journey links */
+.pu-page.rsv-page .rsv-code {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pu-page.rsv-page .rsv-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pu-page.rsv-page .rsv-links-label {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pu-page.rsv-page .rsv-link {
+  padding: 4px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.pu-page.rsv-page .rsv-link:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+/* Accounts and transactions (demo data) */
+.pu-page.rsv-page .rsv-total-label {
+  margin: 8px 0 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pu-page.rsv-page .rsv-total {
+  margin: 0;
+  color: var(--th-text);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+}
+
+.pu-page.rsv-page .rsv-accounts,
+.pu-page.rsv-page .rsv-txns,
+.pu-page.rsv-page .rsv-scopes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pu-page.rsv-page .rsv-accounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pu-page.rsv-page .rsv-account {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.pu-page.rsv-page .rsv-account-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.pu-page.rsv-page .rsv-account-balance {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.pu-page.rsv-page .rsv-txn-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--th-border);
+  font-size: var(--font-size-sm);
+}
+
+.pu-page.rsv-page .rsv-txn-row:last-child {
   border-bottom: none;
 }
 
-.rsp-claim-highlight {
-  color: var(--th-status-info-text);
-  background: var(--th-status-info-bg);
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
+.pu-page.rsv-page .rsv-txn-amount {
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.rsp-claim-key {
-  color: var(--th-text-faint);
-  min-width: 140px;
-  flex-shrink: 0;
-}
+.pu-page.rsv-page .rsv-txn-amount.positive { color: var(--th-status-success-text); }
+.pu-page.rsv-page .rsv-txn-amount.negative { color: var(--th-status-error-text); }
 
-.rsp-claim-value {
-  color: var(--th-text);
-  font-family: inherit;
-  font-size: 0.8rem;
-  word-break: break-all;
+/* Claims */
+.pu-page.rsv-page .rsv-claims dd {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.rsp-muted {
-  color: var(--th-text-faint);
-  font-style: italic;
+.pu-page.rsv-page .rsv-claims dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Audience highlight */
-.rsp-aud-highlight {
-  color: var(--th-status-success-text);
-  background: var(--th-status-success-bg);
-  border: 1px solid var(--th-status-success-border);
-  border-radius: var(--radius-md);
-  padding: 8px !important;
+.pu-page.rsv-page .rsv-term {
+  cursor: help;
+  border-bottom: 1px dotted var(--th-text-muted);
 }
 
-.rsp-aud-tag {
-  font-size: 0.7rem;
-  color: var(--th-text-on-emphasis);
-  background: var(--th-status-success);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-/* Scope badges */
-.rsp-scopes {
+.pu-page.rsv-page .rsv-scopes {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-.rsp-scope-badge {
-  font-size: 0.7rem;
+.pu-page.rsv-page .rsv-scope-badge {
   padding: 2px 8px;
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-xl);
-  color: var(--th-text-faint);
   background: var(--th-bg-inset);
-  font-family: inherit;
-}
-
-.rsp-scope-banking {
-  color: var(--th-status-info-text);
-  background: var(--th-status-info-bg);
-  font-weight: 600;
-}
-
-/* Actor (act) claim box */
-.rsp-act-box {
-  color: var(--th-status-info-text);
-  margin-top: 8px;
-  padding: 12px;
-  border-left: 3px solid var(--th-status-info);
-  background: var(--th-status-info-bg);
-  border-radius: 0 8px 8px 0;
-}
-
-.rsp-act-header {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--th-status-info-text);
-  margin-bottom: 8px;
-}
-
-/* May Act claim box — red family, no semantic status token
-   covers this hue (kept distinct from the blue "act" box on purpose). */
-.rsp-may-act-box {
-  margin-top: 8px;
-  padding: 12px;
-  border-left: 3px solid #d20e0f;
-  background: rgba(210, 14, 15, 0.08);
-  border-radius: 0 8px 8px 0;
-}
-
-.rsp-may-act-box .rsp-act-header {
-  color: #f87171;
-}
-
-/* Resource Server Info box */
-.rsp-info-box {
   color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  padding: 20px;
-}
-
-.rsp-info-box h3 {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  color: var(--th-text);
-}
-
-/* Footer */
-.rsp-footer {
-  margin-top: 24px;
-  padding: 16px 24px;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: 10px;
-  text-align: center;
-}
-
-.rsp-footer p {
-  margin: 0;
-  color: var(--th-text-faint);
-  font-size: 0.85rem;
-}
-
-.rsp-footer code {
-  font-family: inherit;
-  font-size: 0.8rem;
-  color: var(--th-code-text);
-  background: var(--th-code-bg);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-}
-
-/* Phase 266 — credential-path badge for the existing OAuth resource page.
-   Deliberately literal — a solid dark badge, always high-contrast regardless
-   of theme. */
-.rsp-path-badge {
-  display: inline-block;
-  background: #12538d;
-  color: #fff;
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.pu-page.rsv-page .rsv-scope-banking {
+  border-color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 2px;
-  margin-bottom: 12px;
 }
 
-/* ── Theme toggle ─────────────────────────────────────────────────────────── */
-.rsp-theme-toggle {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--th-border-strong);
-  color: var(--th-text);
-  background: var(--th-bg-inset);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
+/* act / may_act: a left edge plus a heading, so the meaning is the words, not the colour */
+.pu-page.rsv-page .rsv-callout {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--th-status-info);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
-.rsp-theme-toggle:hover {
-  color: var(--th-text);
-  background: var(--th-bg-hover);
+.pu-page.rsv-page .rsv-callout--may-act {
+  border-left-color: var(--th-status-warning);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
-@media (max-width: 640px) {
-  .rsp-theme-toggle {
-    position: static;
-    display: block;
-    margin: 0 0 12px auto;
+.pu-page.rsv-page .rsv-callout-title {
+  margin: 0 0 4px;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.pu-page.rsv-page .rsv-callout .pu-kv dt,
+.pu-page.rsv-page .rsv-callout .pu-kv dd {
+  color: inherit;
+}
+
+.pu-page.rsv-page .rsv-audience {
+  margin-top: 12px;
+}
+
+/* The PingOne end-user-nano skin's bare `p` margin beats .pu-kicker, which left no gap under the tabs and the card
+   headings. Page-local restore of the shared kicker spacing (ping-ui.css is not edited). */
+.pu-page.rsv-page .pu-kicker {
+  margin: 32px 0 4px;
+}
+
+/* The shared inspector shell stacks its columns at 768px but its title bar does not wrap, so the token status and
+   the Dark mode button ran past the card at phone width. Page-local wrap (InspectorShell.css is not edited). */
+@media (max-width: 768px) {
+  .pu-page.rsv-page .inspector-shell-topbar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .pu-page.rsv-page .inspector-shell-topbar__right {
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+
+  .pu-page.rsv-page .inspector-shell-topbar__status {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 }
 
-/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
-:root:not([data-theme="dark"]) .rsp-aud-tag {
-  color: #051727;
+/* The page's one live region: mounted in every state, visually hidden. */
+.pu-page.rsv-page .rsv-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus target for the content wrapper after a retry; it is not a control, so no ring. */
+.pu-page.rsv-page .rsv-content:focus {
+  outline: none;
+}
+
+/* --- Tester pieces, page-local (ResourceServerTester.css and the shared inspector shell are not edited) ----------
+   Each rule that sets a ground also sets its own ink. Tokens flip with the theme, so one rule serves both. */
+
+/* The tester's status line (live region), mounted from the first render. */
+.pu-page.rsv-page .rst-live {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+}
+
+/* Why Execute is blocked: error ink that clears 4.5:1 on the card in both themes (was #f87171, 2.8:1 on white). */
+.pu-page.rsv-page .rst-blocked-reason {
+  margin-top: 8px;
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-xs);
+}
+
+/* 401/403 probe row sits straight on the panel: error ink was #aa0005, 2.2:1 on the dark panel. */
+.pu-page.rsv-page .rst-signin-row {
+  color: var(--th-status-error-text);
+}
+
+/* The "*" on a required field: #d20e0f is 3.1:1 on the dark card. */
+.pu-page.rsv-page .inspector-shell-field label .req {
+  color: var(--th-status-error-text);
+}
+
+/* Rule list rows: the ground was a fixed light grey but the detail text took the theme ink (white on grey in dark). */
+.pu-page.rsv-page .rst-rules li {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.pu-page.rsv-page .rst-rules li.fail {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.pu-page.rsv-page .rst-rules .rst-rule-name,
+.pu-page.rsv-page .rst-rules .rst-rule-detail {
+  color: inherit;
+}
+
+/* JSON colours: the shared palette is for white; the tester prints it on the inset (#eff0f1), where the green string
+   and amber number inks are 4.4:1. Darker inks here (6.25 and 6.21), then the .jh-dark values in dark mode (same as
+   TokenChainTraceRail's own dark override), all scoped to this page. */
+.pu-page.rsv-page .inspector-shell-output-code .jh-string { color: #166534; }
+.pu-page.rsv-page .inspector-shell-output-code .jh-number { color: #92400e; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-key { color: #79c0ff; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-string { color: #7ee787; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-number { color: #ffa657; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-critical { color: #ff6b6b; }
+:root[data-theme='dark'] .pu-page.rsv-page .inspector-shell-output-code .jh-focus {
+  background: rgba(255, 82, 82, 0.18);
+  color: #ff8a8a;
 }
