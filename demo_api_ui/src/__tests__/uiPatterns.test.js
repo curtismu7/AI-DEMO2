@@ -455,9 +455,10 @@ export function DashContent({ user }) { return <UserDash user={user} />; }
 
   it('the newly resolvable routes are advisory, never enforced by accident', () => {
     const { pages } = runAll();
-    // '/', '/welcome' and '/dashboard' were resolved to Dashboard.js and TopNav.js before the loader skipped chrome and
-    // took the first entry per path. None of them is converted yet, so none may be on the allowlist by accident.
-    for (const route of ['/agent-gateway-inspector', '/llm-gateway', '/llm-test', '/', '/welcome', '/dashboard']) {
+    // '/dashboard' was resolved to Dashboard.js and TopNav.js before the loader skipped chrome and took the first entry
+    // per path. It is not converted yet, so it may not be on the allowlist by accident. ('/' and '/welcome' were converted
+    // in Wave 6 and are enforced now.)
+    for (const route of ['/agent-gateway-inspector', '/llm-gateway', '/llm-test', '/dashboard']) {
       const page = pages.find((p) => p.routes.includes(route));
       expect(page, route).toBeTruthy();
       expect(page.enforced, route).toBe(false);

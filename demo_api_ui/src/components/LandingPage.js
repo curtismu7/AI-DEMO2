@@ -1,6 +1,7 @@
 import { useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { openSignIn, openAdminSignIn } from "../utils/signInService";
+import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip } from "./pingUi";
 import "./LandingPage.css";
 
 function IconShield() {
@@ -85,7 +86,34 @@ function IconAgent() {
   );
 }
 
-export default function LandingPage({ user, hasTopNav }) {
+const FEATURES = [
+  {
+    Icon: IconShield,
+    title: "3 Auth Flows",
+    description:
+      "Experience OIDC, CIBA push auth, and in-flight step-up challenges — all protecting banking operations",
+  },
+  {
+    Icon: IconTokenExchange,
+    title: "RFC 8693 Token Exchange",
+    description:
+      "Watch secure delegation in action: user tokens transformed to agent tokens with act claims",
+  },
+  {
+    Icon: IconConnect,
+    title: "MCP Spec Integration",
+    description:
+      "See how AI agents connect to banking APIs via the Model Context Protocol with full auth context",
+  },
+  {
+    Icon: IconAgent,
+    title: "AI Agent Demo",
+    description:
+      "Observe real-time agent operations: transfers, balance checks, transaction analysis — all secured by tokens",
+  },
+];
+
+export default function LandingPage({ user }) {
   const navigate = useNavigate();
 
   // The AI Agent FAB and Demo Script launcher are global, fixed-position
@@ -146,99 +174,72 @@ export default function LandingPage({ user, hasTopNav }) {
     }
   };
 
+  // One primary per state (Ping UI P9): the action this visitor most likely wants next.
+  //   signed out -> Use Cases (it opens sign-in, then the live use cases)
+  //   customer   -> Customer Dashboard
+  //   admin      -> Admin Dashboard
+  const isAdmin = user?.role === "admin";
+  const state = !user ? "signed-out" : isAdmin ? "admin" : "customer";
+  const primary = { "signed-out": "use-cases", customer: "customer", admin: "admin" }[state];
+  const stateChip = {
+    "signed-out": { tone: "neutral", word: "Signed out" },
+    customer: { tone: "info", word: "Signed in as customer" },
+    admin: { tone: "info", word: "Signed in as admin" },
+  }[state];
+
   return (
-    <div className="landing-page" data-rd-v2>
-      {/* Logged-out: white marketing header; logged-in: no top nav (sidebar + App.js TopNav handles it) */}
-      {!user && !hasTopNav && (
-        <header className="landing-header">
-          <div className="landing-header-content">
-            <div className="landing-logo">
-              <p className="landing-logo-title">PingOne Identity</p>
-              <p>AI-Powered Demo</p>
-            </div>
-            <div className="landing-header-actions">
-              <button
-                type="button"
-                onClick={handleAdminDashboard}
-                className="btn btn-primary"
-              >
-                Admin Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={handleCustomerDashboard}
-                className="btn btn-secondary"
-              >
-                Customer Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={handleUseCases}
-                className="btn btn-secondary"
-              >
-                Use Cases
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/configure")}
-                className="btn btn-secondary"
-              >
-                Setup
-              </button>
-            </div>
-          </div>
-        </header>
-      )}
+    <PingPage className="landing-page">
+      {/* P2: states the sign-in state the app passed in, and that this page calls no API itself. */}
+      <SimBanner data-testid="landing-banner">
+        <StatusChip tone={stateChip.tone}>{stateChip.word}</StatusChip>{" "}
+        This page makes no API calls of its own; the sign-in state comes from the app.
+      </SimBanner>
 
-      <main className="landing-main">
-        {/* Hero Section */}
-        <section className="landing-hero" aria-label="Hero section">
-          <div className="landing-hero-content">
-            <h1 className="landing-hero-headline">
-              Secure Identity for AI-Powered Applications
-            </h1>
-            <p className="landing-hero-zero-trust">ZERO TRUST</p>
-            <p className="landing-hero-subheadline">
-              A live reference implementation of PingOne OAuth 2.0, RFC 8693
-              token delegation, and MCP-secured AI agents — built for enterprise
-              demos and developer exploration.
-            </p>
-            <div className="landing-hero-actions">
-              <button
-                type="button"
-                onClick={handleAdminDashboard}
-                className="hero-cta hero-cta-primary"
-              >
-                Admin Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={handleCustomerDashboard}
-                className="hero-cta hero-cta-secondary"
-              >
-                Customer Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={handleUseCases}
-                className="hero-cta hero-cta-secondary"
-              >
-                Use Cases
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/configure")}
-                className="hero-cta hero-cta-secondary"
-              >
-                Setup
-              </button>
-            </div>
+      {/* Hero Section. The site header is the app's TopNav: this page adds no second one. */}
+      <section className="landing-hero" aria-label="Hero section">
+        <div className="landing-hero-content">
+          <h1 className="landing-hero-headline">
+            Secure Identity for AI-Powered Applications
+          </h1>
+          <p className="landing-hero-zero-trust">ZERO TRUST</p>
+          <p className="landing-hero-subheadline">
+            A live reference implementation of PingOne OAuth 2.0, RFC 8693
+            token delegation, and MCP-secured AI agents — built for enterprise
+            demos and developer exploration.
+          </p>
+          <div className="landing-hero-actions">
+            <HeroButton
+              onClick={handleAdminDashboard}
+              lead={primary === "admin"}
+            >
+              Admin Dashboard
+            </HeroButton>
+            <HeroButton
+              onClick={handleCustomerDashboard}
+              lead={primary === "customer"}
+            >
+              Customer Dashboard
+            </HeroButton>
+            <HeroButton
+              onClick={handleUseCases}
+              lead={primary === "use-cases"}
+            >
+              Use Cases
+            </HeroButton>
+            <HeroButton
+              onClick={() => navigate("/configure")}
+              lead={primary === "setup"}
+            >
+              Setup
+            </HeroButton>
           </div>
-        </section>
+        </div>
+      </section>
 
+      <PageFrame>
         {/* Identity Evolution Callout */}
         <section className="landing-callout" aria-label="Identity evolution">
-          <div className="landing-callout-content">
+          <Card className="landing-callout-card">
             <p className="landing-callout-lead">
               The identity stack is evolving from <em>"Who are you?"</em> to{" "}
               <em>"What is this agent authorized to do?"</em>
@@ -259,70 +260,34 @@ export default function LandingPage({ user, hasTopNav }) {
               moment — across customers, employees, partners, and non-human
               identities. With Ping, all digital experiences start with trust.
             </p>
-          </div>
+          </Card>
         </section>
 
         {/* Features Section */}
-        <section className="landing-features">
-          <div className="landing-features-heading">
-            <h2>Core Capabilities</h2>
-            <p>
-              See how PingOne secures every layer of an AI-powered banking
-              application
-            </p>
-          </div>
-          <ul className="landing-features-grid">
-            {/* Feature 1: Auth Flows */}
-            <li className="landing-feature-card">
-              <div className="landing-feature-icon">
-                <IconShield />
-              </div>
-              <h3 className="landing-feature-title">3 Auth Flows</h3>
-              <p className="landing-feature-description">
-                Experience OIDC, CIBA push auth, and in-flight step-up
-                challenges — all protecting banking operations
-              </p>
-            </li>
-
-            {/* Feature 2: RFC 8693 */}
-            <li className="landing-feature-card">
-              <div className="landing-feature-icon">
-                <IconTokenExchange />
-              </div>
-              <h3 className="landing-feature-title">RFC 8693 Token Exchange</h3>
-              <p className="landing-feature-description">
-                Watch secure delegation in action: user tokens transformed to
-                agent tokens with act claims
-              </p>
-            </li>
-
-            {/* Feature 3: MCP Integration */}
-            <li className="landing-feature-card">
-              <div className="landing-feature-icon">
-                <IconConnect />
-              </div>
-              <h3 className="landing-feature-title">MCP Spec Integration</h3>
-              <p className="landing-feature-description">
-                See how AI agents connect to banking APIs via the Model Context
-                Protocol with full auth context
-              </p>
-            </li>
-
-            {/* Feature 4: AI Agent */}
-            <li className="landing-feature-card">
-              <div className="landing-feature-icon">
-                <IconAgent />
-              </div>
-              <h3 className="landing-feature-title">AI Agent Demo</h3>
-              <p className="landing-feature-description">
-                Observe real-time agent operations: transfers, balance checks,
-                transaction analysis — all secured by tokens
-              </p>
-            </li>
+        <Section
+          id="landing-capabilities"
+          kicker="What is inside"
+          title="Core Capabilities"
+          lede="See how PingOne secures every layer of an AI-powered banking application"
+        >
+          <ul className="pu-card-grid landing-features-grid" role="list">
+            {FEATURES.map(({ Icon, title, description }) => (
+              <li key={title} className="pu-card landing-feature-card">
+                <div className="landing-feature-icon">
+                  <Icon />
+                </div>
+                <h3 className="pu-h3 landing-feature-title">{title}</h3>
+                <p className="landing-feature-description">{description}</p>
+              </li>
+            ))}
           </ul>
-        </section>
-
-      </main>
-    </div>
+        </Section>
+      </PageFrame>
+    </PingPage>
   );
+}
+
+// One primary per view state (see LandingPage): `lead` is the Ping Red button, every other action is secondary.
+function HeroButton({ lead, ...rest }) {
+  return <button type="button" className={lead ? "pu-btn pu-btn--primary" : "pu-btn"} {...rest} />;
 }
