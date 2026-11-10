@@ -86,7 +86,7 @@ const ROUTES = [
 
 export default function PingGatewayRoutesPage() {
   return (
-    <main className="pg-routes" data-testid="pinggateway-routes">
+    <div className="pg-routes" data-testid="pinggateway-routes">
       <PageHeader
         eyebrow="PingGateway · what we configured"
         title="PingGateway routes & AAM config"
@@ -140,6 +140,6 @@ export default function PingGatewayRoutesPage() {
           handlers, and the JSON audit service.
         </p>
       </section>
-    </main>
+    </div>
   );
 }

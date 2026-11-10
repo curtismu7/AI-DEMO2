@@ -17,7 +17,7 @@ const S = {
     background: on ? '#16a34a' : '#94a3b8',
   }),
   hint: {
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontFamily: 'var(--font-mono)',
     background: '#e2e8f0',
     border: '1px solid #cbd5e1',
     borderRadius: 4,

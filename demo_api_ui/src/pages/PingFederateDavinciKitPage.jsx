@@ -29,7 +29,7 @@ export default function PingFederateDavinciKitPage() {
   }, []);
 
   return (
-    <main className="pf-davinci-page">
+    <div className="pf-davinci-page">
       <DavinciFamilyNav current="pf-kit" />
       <PageHeader className="pf-davinci-hero" eyebrow="PingFederate integration" title="DaVinci Integration Kit" summary={<>Run the DaVinci flow through PingFederate&rsquo;s installed default Integration Kit.
             The kit runs in the PF authentication policy, so start with a fresh PF sign-in.</>}
@@ -120,6 +120,6 @@ export default function PingFederateDavinciKitPage() {
           <a href="https://docs.pingidentity.com/davinci/integrating_flows_into_applications/davinci_how_to_implement_a_flow.html" target="_blank" rel="noreferrer">DaVinci integration methods</a>
         </nav>
       </section>
-    </main>
+    </div>
   );
 }

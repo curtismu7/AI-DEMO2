@@ -23,8 +23,8 @@ const S = {
     background: { PERMIT: '#dcfce7', DENY: '#fee2e2', INDETERMINATE: '#fee2e2' }[d] || '#f1f5f9',
     color:      { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#aa0005' }[d] || '#374151',
   }),
-  toolChip: (write) => ({ padding: '3px 9px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', background: write ? '#fff7ed' : '#f0fdf4', border: `1px solid ${write ? '#fed7aa' : '#bbf7d0'}`, color: write ? '#92400e' : '#166534' }),
-  scopePill: { padding: '2px 7px', borderRadius: '10px', fontSize: '10px', fontWeight: 600, background: '#dbeafe', color: '#1e40af', fontFamily: 'monospace' },
+  toolChip: (write) => ({ padding: '3px 9px', borderRadius: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)', background: write ? '#fff7ed' : '#f0fdf4', border: `1px solid ${write ? '#fed7aa' : '#bbf7d0'}`, color: write ? '#92400e' : '#166534' }),
+  scopePill: { padding: '2px 7px', borderRadius: '10px', fontSize: '10px', fontWeight: 600, background: '#dbeafe', color: '#1e40af', fontFamily: 'var(--font-mono)' },
   divider: { height: '1px', background: '#f1f5f9', margin: '12px 0' },
   testBox: { background: '#f8fafc', borderRadius: '7px', padding: '12px 14px', marginTop: '8px' },
   testLabel: { fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '10px' },
@@ -37,11 +37,11 @@ const S = {
   linkBtn: { background: 'none', border: 'none', padding: '0', fontSize: '11px', color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline', marginTop: '6px' },
   metaBar: { display: 'flex', gap: '16px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '20px', flexWrap: 'wrap' },
   metaItem: { fontSize: '11px', color: '#64748b' },
-  metaVal: { fontWeight: 700, color: '#1e293b', fontFamily: 'monospace' },
+  metaVal: { fontWeight: 700, color: '#1e293b', fontFamily: 'var(--font-mono)' },
   vtabs: { display: 'flex', gap: '0', borderBottom: '2px solid #e2e8f0', marginBottom: '12px' },
   vtab: (active) => ({ padding: '6px 14px', border: 'none', background: 'none', fontSize: '12px', fontWeight: active ? 700 : 500, color: active ? 'var(--brand-blue)' : '#64748b', borderBottom: `2px solid ${active ? 'var(--brand-blue)' : 'transparent'}`, marginBottom: '-2px', cursor: 'pointer' }),
   toolRow: { display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 0', borderBottom: '1px solid #f8fafc' },
-  pre: { margin: 0, padding: '10px', background: '#0f172a', color: '#e2e8f0', borderRadius: '6px', fontSize: '11px', fontFamily: 'monospace', overflowX: 'auto', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all' },
+  pre: { margin: 0, padding: '10px', background: '#0f172a', color: '#e2e8f0', borderRadius: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)', overflowX: 'auto', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all' },
   twoCol: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' },
   colLabel: { fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '4px' },
 };
@@ -81,7 +81,7 @@ function DecisionResult({ result }) {
         {icon} {decision === 'INDETERMINATE' ? 'INDETERMINATE — HITL required' : decision}
       </div>
       {result.reason && <div style={{ fontSize: '11px', color: '#4b5563' }}>Reason: {result.reason}</div>}
-      {result.decision_id && <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>Decision ID: {result.decision_id}</div>}
+      {result.decision_id && <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'var(--font-mono)' }}>Decision ID: {result.decision_id}</div>}
       {result.endpointUrl && <div style={{ fontSize: '10px', color: '#9ca3af' }}>Endpoint: {result.endpointUrl}</div>}
       <button style={S.linkBtn} onClick={() => setShowRaw(v => !v)}>
         {showRaw ? 'Hide' : 'Show'} request / response
@@ -152,7 +152,7 @@ function ActorIdentityCard({ rule }) {
       <div style={S.cardBody}>
         <p style={S.desc}>{rule.description}</p>
         {rule.config.configured
-          ? <div style={{ fontSize: '12px', marginBottom: '8px' }}><span style={{ color: '#6b7280', fontWeight: 600 }}>Authorized actor: </span><code style={{ fontFamily: 'monospace' }}>{rule.config.authorizedActorClientId}</code></div>
+          ? <div style={{ fontSize: '12px', marginBottom: '8px' }}><span style={{ color: '#6b7280', fontWeight: 600 }}>Authorized actor: </span><code style={{ fontFamily: 'var(--font-mono)' }}>{rule.config.authorizedActorClientId}</code></div>
           : <div style={{ fontSize: '12px', color: '#f59e0b', marginBottom: '8px' }}><WarnIcon />{rule.config.note}</div>
         }
         <div style={S.divider} />
@@ -405,7 +405,7 @@ function RulesEditor({ editable, onSaved }) {
       <button
         type="button"
         onClick={() => setToolScopes(tool, on ? cur.filter(s => s !== scope) : [...cur, scope])}
-        style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, fontFamily: 'monospace', cursor: 'pointer', border: `1px solid ${on ? '#1e40af' : '#cbd5e1'}`, background: on ? '#dbeafe' : '#fff', color: on ? '#1e40af' : '#94a3b8' }}
+        style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer', border: `1px solid ${on ? '#1e40af' : '#cbd5e1'}`, background: on ? '#dbeafe' : '#fff', color: on ? '#1e40af' : '#94a3b8' }}
       >
         {scope}
       </button>
@@ -447,7 +447,7 @@ function RulesEditor({ editable, onSaved }) {
         <div style={{ maxHeight: 340, overflowY: 'auto', paddingRight: 6 }}>
           {Object.keys(draft.tools).map(tool => (
             <div key={tool} style={{ ...S.toolRow, gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: 11, minWidth: 190 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, minWidth: 190 }}>
                 {tool}
                 {(editable.tools[tool].requiredScopes.overridden || editable.tools[tool].isWrite.overridden) && <span style={modTag}>mod</span>}
               </span>

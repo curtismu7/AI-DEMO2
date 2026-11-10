@@ -29,7 +29,7 @@
 .sts-message.is-current { border-color: #388bfd; color: #388bfd; outline: 1px solid #388bfd66; }
 .sts-message.is-current::after { color: #388bfd; }
 .sts-message__label { position: absolute; top: -9px; left: 50%; max-width: 90%; padding: 2px 6px; transform: translate(-50%, -100%); border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-size: var(--font-size-3xs); text-align: center; white-space: nowrap; }
-.sts-message__label small { display: block; margin-top: 2px; color: var(--th-text-muted); font: 9px var(--font-mono); }
+.sts-message__label small { display: block; margin-top: 2px; color: var(--th-text-muted); font: var(--font-size-3xs) var(--font-mono); }
 .sts-current-caption { margin: 8px 3px 4px; color: var(--th-text-body); font-size: var(--font-size-3xs); }
 .sts-current-caption span { color: var(--th-text-muted); }
 .sts-reel { display: flex; gap: 9px; overflow-x: auto; padding: 12px; scroll-snap-type: x mandatory; }

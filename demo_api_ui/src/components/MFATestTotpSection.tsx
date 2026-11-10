@@ -106,7 +106,7 @@ const MFATestTotpSection: FC = () => {
           <pre
             className="test-card-raw-json"
             data-testid="mfa-totp-secret"
-            style={{ fontFamily: "monospace", userSelect: "all", margin: "0.5rem 0 0 0" }}
+            style={{ fontFamily: "var(--font-mono)", userSelect: "all", margin: "0.5rem 0 0 0" }}
           >
             {secret}
           </pre>

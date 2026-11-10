@@ -17,6 +17,7 @@
   flex-wrap: wrap;
 }
 
+.canvas-toolbar h1,
 .canvas-toolbar h2 {
   margin: 0;
   font-size: var(--font-size-base);

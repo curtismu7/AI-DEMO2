@@ -997,7 +997,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
                   placeholder='{}'
                   spellCheck={false}
                   rows={6}
-                  style={{ fontFamily: "'SF Mono', monospace" }}
+                  style={{ fontFamily: "var(--font-mono)" }}
                 />
               </div>
               {active && (
@@ -1103,7 +1103,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
                     <>
                       {az ? (
                         <div style={{ padding: '0 0 16px' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'SF Mono', monospace" }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "var(--font-mono)" }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid #cbd5e1' }}>
                                 <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>P1AZ Field</th>
@@ -1184,7 +1184,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
                           <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10, lineHeight: 1.5 }}>
                             <strong style={{ color: '#1e293b' }}>McpAuditFilter 5W1H</strong> - Structured audit event capturing Who, What, When, Where, Why, and How.
                           </div>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'SF Mono', monospace" }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "var(--font-mono)" }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid #cbd5e1' }}>
                                 <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>5W1H</th>

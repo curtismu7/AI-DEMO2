@@ -41,7 +41,7 @@ const GUARDS = [
 
 export default function McpScopeTopologyPage() {
   return (
-    <main className="mcp-topo" data-testid="mcp-scope-topology">
+    <div className="mcp-topo" data-testid="mcp-scope-topology">
       <PageHeader
         eyebrow="MCP gateway · what we configured"
         title="Scope topology & MCP gateway config"
@@ -91,6 +91,6 @@ export default function McpScopeTopologyPage() {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }

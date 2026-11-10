@@ -89,7 +89,7 @@ export default function AdminTokenComplianceAudit() {
                 <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '0.5rem', textAlign: 'center' }}>{statusIcon(check.status)}</td>
                   <td style={{ padding: '0.5rem', fontWeight: 500 }}>{check.name}</td>
-                  <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>{check.rfc}</td>
+                  <td style={{ padding: '0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{check.rfc}</td>
                   <td style={{ padding: '0.5rem', fontSize: '0.9rem', color: '#555' }}>{check.detail}</td>
                 </tr>
               ))}

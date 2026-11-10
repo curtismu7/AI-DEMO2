@@ -31,7 +31,7 @@ export default function IdJagLearnPage() {
   const shownSources = sources.filter((s) => kind === "All" || s.kind === kind);
 
   return (
-    <main className="ijl" data-testid="id-jag-learn">
+    <div className="ijl" data-testid="id-jag-learn">
       <IdJagPathBar />
       <header className="ijl-hero">
         <p className="ijl-eyebrow">Learn</p>
@@ -100,6 +100,6 @@ export default function IdJagLearnPage() {
           </div>
         </section>
       )}
-    </main>
+    </div>
   );
 }

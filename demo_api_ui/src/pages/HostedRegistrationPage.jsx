@@ -38,7 +38,7 @@ export default function HostedRegistrationPage() {
   }
 
   return (
-    <main className="hosted-registration-page">
+    <div className="hosted-registration-page">
       <section className="hosted-registration__card" aria-labelledby="hosted-registration-title">
         <div className="hosted-registration__eyebrow">PingOne hosted access</div>
         <h1 id="hosted-registration-title">Request hosted demo access</h1>
@@ -91,6 +91,6 @@ export default function HostedRegistrationPage() {
       <EmbeddedFlowDiagram config={HOSTED_FLOW} testId="hosted-flow" ariaLabel="Hosted access registration flow"
         title="Hosted access: request, invite, approval"
         lede="Requesters verify an email code, admins can also invite directly, and an admin approval moves the user into the group that opens the hosted-access wall." />
-    </main>
+    </div>
   );
 }

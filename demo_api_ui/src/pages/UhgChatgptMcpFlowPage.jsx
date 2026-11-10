@@ -8,7 +8,7 @@ import { UHG_MCP_FLOW_PAYLOADS, UHG_MCP_FLOW_DETAILS, UHG_MCP_FLOW_SOURCE } from
 
 export default function UhgChatgptMcpFlowPage() {
   return (
-    <main style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px 32px' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px 32px' }}>
       <PageHeader
         eyebrow="Diagrams · Personal agent"
         title="ChatGPT to the UHG Digital Front Door"
@@ -21,6 +21,6 @@ export default function UhgChatgptMcpFlowPage() {
         payloads={UHG_MCP_FLOW_PAYLOADS}
         label="ChatGPT to the UHG Digital Front Door MCP authorization sequence"
       />
-    </main>
+    </div>
   );
 }

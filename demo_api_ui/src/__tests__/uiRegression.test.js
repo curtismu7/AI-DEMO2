@@ -251,19 +251,9 @@ describe("CSS/JS monospace regression", () => {
     expect(violations).toEqual([]);
   });
 
-  // .jsx files used to be skipped entirely (walkFiles was given [".js"] only), so 36 inline monospace
-  // fontFamily values in eight .jsx components were never seen. They are pinned here by count, measured on
-  // this commit: the count may fall (delete or lower the line) and may not rise, and a new .jsx file gets none.
-  const JSX_MONOSPACE_KNOWN = {
-    "components/AdminTokenComplianceAudit.jsx": 1,
-    "components/AgentClientSkin.jsx": 12,
-    "components/ArchitectureTabsPanel.jsx": 4,
-    "components/AuthorizeRulesPanel.jsx": 3,
-    "components/BulkDecisionPanel.jsx": 2,
-    "components/MockAuthzRulesPage.jsx": 8,
-    "components/OAuthHealthDashboard.jsx": 5,
-    "components/PacEditorLaunch.jsx": 1,
-  };
+  // The 36 inline monospace fontFamily values that used to be pinned here (eight .jsx components) now use
+  // var(--font-mono), as do the other 14 inline mono stacks. The pin is empty: a new one fails.
+  const JSX_MONOSPACE_KNOWN = {};
 
   const monospaceFontFamilyByFile = () => {
     const byFile = {};

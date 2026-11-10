@@ -68,7 +68,7 @@ export default function PersonalAgentFlowPage() {
   }
 
   return (
-    <main style={{ maxWidth: 1280, margin: '0 auto', padding: '0 16px 32px' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 16px 32px' }}>
       <PageHeader
         eyebrow="Diagrams"
         title="Personal Agent request flow"
@@ -153,6 +153,6 @@ export default function PersonalAgentFlowPage() {
           Checked {Object.values(proved).filter(Boolean).length} of {PROVE_STEPS.length} claims.
         </p>
       </section>
-    </main>
+    </div>
   );
 }

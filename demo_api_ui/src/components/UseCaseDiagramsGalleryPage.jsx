@@ -14,7 +14,7 @@ const TONE_CLASS = { ok: "ucd-pill--ok", warn: "ucd-pill--warn", err: "ucd-pill-
 
 export default function UseCaseDiagramsGalleryPage() {
   return (
-    <main className="ucd-page ucd-gallery" data-testid="ucd-gallery">
+    <div className="ucd-page ucd-gallery" data-testid="ucd-gallery">
       <PageHeader className="ucd-head" title="Use-case diagrams" summary={<>One walkthrough per demo step: play it, pause it, walk the arrows. For the
           whole demo — steps, inspectors, diagrams, learning topics on one page — open the{' '}
           <Link to="/demo-map" className="ucd-cue" {...diagramLinkProps("/demo-map")}>Demo Map</Link>.</>} />
@@ -38,6 +38,6 @@ export default function UseCaseDiagramsGalleryPage() {
           );
         })}
       </ul>
-    </main>
+    </div>
   );
 }
