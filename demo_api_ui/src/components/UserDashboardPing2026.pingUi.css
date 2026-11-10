@@ -63,18 +63,44 @@
   font-size: var(--font-size-sm);
 }
 
-/* The work area: room around the cards, and enough height that the chat is usable when the dashboard scrolls. */
+/* The work area: room around the cards. Its height is the viewport minus what sits above it (top nav, mode banner, title
+   band, brand bar), with a floor, so the token chain row at the bottom of this grid stays on screen without scrolling
+   (tests/e2e/movie-reel-visible.spec.js pins that on a 700px window: the floor keeps the chat usable, and the row, being at the
+   bottom of the grid, still shows its top part on a short window and all of it from about 830px). The page scrolls past the
+   work area to the explainers.
+   A fixed height rather than content height: a long sequence diagram scrolls inside its card instead of stretching the
+   chat column with it. */
 .udp-page.user-dashboard--split3 .ud-body.ud-body--dashboard-split3 {
-  /* A fixed work height (not content height): a long sequence diagram scrolls inside its card instead of stretching
-     the chat column with it. */
+  --udp-above-work: 420px;
   flex: 0 0 auto;
-  height: max(520px, calc(100vh - 140px));
+  height: max(420px, calc(100vh - var(--udp-above-work)));
   min-height: 0;
   gap: 12px;
   margin: 12px;
   width: auto;
   border: 0;
   background: transparent;
+}
+
+/* Short windows (a laptop with browser chrome): the title band drops its summary line and tightens, and the work floor is
+   lower, so the chain row stays on screen (movie-reel-visible.spec.js, 700px window). The h1 and eyebrow stay. */
+@media (max-height: 800px) {
+  .udp-page .ping-page-header.udp-hero {
+    padding: 8px 20px;
+  }
+
+  .udp-page .ping-page-header.udp-hero .ping-page-header__summary {
+    display: none;
+  }
+
+  .udp-page .ping-page-header.udp-hero .ping-page-header__title {
+    margin-bottom: 0;
+  }
+
+  .udp-page.user-dashboard--split3 .ud-body.ud-body--dashboard-split3 {
+    --udp-above-work: 380px;
+    height: max(360px, calc(100vh - var(--udp-above-work)));
+  }
 }
 
 /* Labelled cards: chat and run trace. Top edge = the vertical; the rest of the edge is the strong line. */
