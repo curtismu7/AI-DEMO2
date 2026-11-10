@@ -17,7 +17,6 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
@@ -31,6 +30,7 @@ import {
   useReactFlow,
   ReactFlowProvider,
 } from "@xyflow/react";
+import ReactFlow from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import ReactFlowSequenceDiagram from "./ReactFlowSequenceDiagram";

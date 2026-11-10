@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  ReactFlow,
   Background,
   Controls,
   MiniMap,
@@ -8,6 +7,7 @@ import {
   useEdgesState,
   MarkerType,
 } from '@xyflow/react';
+import ReactFlow from '../../components/diagram/UniqueReactFlow';
 import '@xyflow/react/dist/style.css';
 import bffAxios from '../../services/bffAxios';
 import './VerticalPipelineMap.css';

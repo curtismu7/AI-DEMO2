@@ -3,7 +3,6 @@
 // nodes appear dynamically while the agent flow runs. Separate from Flow Detail.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  ReactFlow,
   ReactFlowProvider,
   Controls,
   MiniMap,
@@ -15,6 +14,7 @@ import {
   getSmoothStepPath,
   useReactFlow,
 } from '@xyflow/react';
+import ReactFlow from './diagram/UniqueReactFlow';
 import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';

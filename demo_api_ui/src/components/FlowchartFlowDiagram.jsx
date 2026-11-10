@@ -8,11 +8,11 @@ import {
   getSmoothStepPath,
   Handle,
   Position,
-  ReactFlow,
   ReactFlowProvider,
   useReactFlow,
   useStore,
 } from "@xyflow/react";
+import ReactFlow from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { getElk } from "../utils/elkLayout";

@@ -12,7 +12,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import HistoryModal from "./HistoryModal";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import {
-  ReactFlow,
   Background,
   Controls,
   MiniMap,
@@ -22,6 +21,7 @@ import {
   useNodesState,
   useEdgesState,
 } from "@xyflow/react";
+import ReactFlow from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import apiClient from "../services/apiClient";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";

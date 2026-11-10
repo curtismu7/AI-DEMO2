@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { ReactFlow, ReactFlowProvider, Controls, Handle, Position, MarkerType } from '@xyflow/react';
+import { ReactFlowProvider, Controls, Handle, Position, MarkerType } from '@xyflow/react';
+import ReactFlow from './diagram/UniqueReactFlow';
 import '@xyflow/react/dist/style.css';
 import useCanvasLayout from '../hooks/useCanvasLayout';
 import { useDiagramStepper, stepEdges, markNodes } from '../hooks/useDiagramStepper';

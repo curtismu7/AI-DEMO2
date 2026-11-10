@@ -8,7 +8,8 @@
 // step and the headline off buildRunStory, so the map cannot disagree with the
 // rail or the Proof verdict.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ReactFlow, ReactFlowProvider, Controls, Handle, Position, EdgeLabelRenderer, getBezierPath, useStore } from '@xyflow/react';
+import { ReactFlowProvider, Controls, Handle, Position, EdgeLabelRenderer, getBezierPath, useStore } from '@xyflow/react';
+import ReactFlow, { useFlowUid, useRfId } from './diagram/UniqueReactFlow';
 import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
@@ -504,6 +505,7 @@ function HopNode({ data }) {
 // Routed around the boxes by the shared router when it found a way; the bezier
 // is the fallback, and what is drawn while a box is being dragged.
 function HopEdge({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data, style }) {
+  const rfId = useRfId();
   const route = data.route;
   const routed = Boolean(route && route.ok);
   const [bezier, bx, by] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
@@ -511,7 +513,7 @@ function HopEdge({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPos
   const at = routed ? route.label || labelPoint(route.pts) : { x: bx, y: by };
   return (
     <>
-      <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind} style={style} markerEnd={`url(#sfm-arrow-${data.state})`}>
+      <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind} style={style} markerEnd={`url(#${rfId}-sfm-arrow-${data.state})`}>
         <title>{data.title}</title>
       </path>
       <EdgeLabelRenderer>
@@ -534,12 +536,12 @@ const DRAG_THRESHOLD = 5; // px: a wiggle is still a click
 const STATES = ['done', 'active', 'held', 'error', 'skipped'];
 
 // The head of each arrow, one per state so it takes the lane's colour.
-function ArrowDefs() {
+function ArrowDefs({ uid }) {
   return (
     <svg width="0" height="0" aria-hidden="true" className="sfm-defs">
       <defs>
         {STATES.map((state) => (
-          <marker key={state} id={`sfm-arrow-${state}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+          <marker key={state} id={`${uid}-sfm-arrow-${state}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" className={`sfm-arrow sfm-arrow--${state}`} />
           </marker>
         ))}
@@ -554,6 +556,7 @@ function ArrowDefs() {
  * gives it the node store. While a box is being dragged the cheap bezier shows.
  */
 function FlowCanvas({ nodes, onNodesChange, shownEdges, replaying, step }) {
+  const uid = useFlowUid();
   const [dragging, setDragging] = useState(false);
   const nodeLookup = useStore((st) => st.nodeLookup);
   // React Flow moves boxes in place: a string of their absolute boxes re-routes on a drop.
@@ -602,8 +605,9 @@ function FlowCanvas({ nodes, onNodesChange, shownEdges, replaying, step }) {
 
   return (
     <div className="sfm-canvas" data-route-fallbacks={routing.fallbacks ?? undefined}>
-      <ArrowDefs />
+      <ArrowDefs uid={uid} />
       <ReactFlow
+        id={uid}
         nodes={nodes}
         onNodesChange={onNodesChange}
         edges={flowEdges}
