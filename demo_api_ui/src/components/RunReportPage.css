@@ -1,312 +1,159 @@
-.run-report-page {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+/* Run Reports page: only what is specific to this page, the history table and the admin form grid.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). Surfaces, lines and ink are --th-* only (H1), type comes
+   from the --font-size-* scale (H2), no inline styles (H3). Every rule is scoped under the page class and uses the
+   rr- prefix so nothing here reaches another page (the old sheet used global names such as .page-header and .loading).
+   The PingOne end-user-nano skin sets word-wrap: break-word on code and lists, so wrapping is set explicitly here. */
+
+.pu-page.run-report-page .rr-vertical {
+  margin-bottom: 8px;
 }
 
-.page-header {
-  margin-bottom: 2rem;
+/* In flight the select takes aria-disabled (not disabled) so keyboard focus stays on it; same dashed inactive
+   vocabulary as the buttons, no opacity. */
+.pu-page.run-report-page .rr-vertical[aria-disabled='true'] {
+  border-style: dashed;
+  cursor: not-allowed;
 }
 
-.page-header h1 {
-  color: var(--th-text);
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
-}
-
-.page-header p {
-  color: var(--th-text);
-  margin: 0;
-}
-
-.loading,
-.empty-state {
-  padding: 2rem;
-  text-align: center;
-  color: var(--th-text);
-  font-size: 1rem;
-}
-
-.runs-table-container {
-  background: white;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+/* History table: scrolls inside its own wrapper when wide, stacks as labelled rows at phone width. */
+.pu-page.run-report-page .rr-table-wrap {
   overflow-x: auto;
-  margin-bottom: 2rem;
-  --th-text: #051727;
-  color: var(--th-text);
 }
 
-.runs-table {
+.pu-page.run-report-page .rr-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 
-.runs-table thead {
-  background: #f5f5f5;
-  border-bottom: 2px solid #12538d;
-}
-
-.runs-table th {
-  padding: 1rem;
+.pu-page.run-report-page .rr-table th,
+.pu-page.run-report-page .rr-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--th-border-strong);
+  color: var(--th-text);
   text-align: left;
-  font-weight: 600;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+/* Free text (prompt, tool names) may break anywhere so a 100-character value cannot widen the table;
+   the short columns keep whole words. */
+.pu-page.run-report-page .rr-table td.rr-wrap {
+  overflow-wrap: anywhere;
+}
+
+.pu-page.run-report-page .rr-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pu-page.run-report-page .rr-table tbody tr:hover td {
+  background: var(--th-bg-inset);
   color: var(--th-text);
 }
 
-.runs-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.runs-table tbody tr:hover {
-  background: #fafafa;
-}
-
-.vertical-cell {
-  font-weight: 500;
-  color: var(--th-text);
-}
-
-.date-cell {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--th-text);
-}
-
-.prompt-cell {
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.pu-page.run-report-page .rr-table .pu-chip {
   white-space: nowrap;
-  color: #333;
 }
 
-.tools-cell {
-  font-size: 0.85rem;
-  color: var(--th-text);
+.pu-page.run-report-page .rr-strong {
+  font-weight: var(--font-weight-semibold);
 }
 
-.actions-cell {
+.pu-page.run-report-page .rr-muted {
+  color: var(--th-text-muted);
+}
+
+/* Row actions: five compact secondaries that wrap. */
+.pu-page.run-report-page .rr-actions {
   display: flex;
-  gap: 0.5rem;
   flex-wrap: wrap;
+  gap: 6px;
 }
 
-.action-group {
+.pu-page.run-report-page .rr-actions .rr-act {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: var(--font-size-sm);
+}
+
+/* The result of a row action stays with its row. */
+.pu-page.run-report-page .rr-row-status {
   display: flex;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
 }
 
-.action-btn {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: var(--radius-sm);
-  background: white;
-  color: #051727;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+/* Read by screen readers only: the announcement for the last row action (the visible text is in its row). */
+.pu-page.run-report-page .rr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.action-btn:hover {
-  border-color: var(--th-text);
-  background: #eff0f1;
-}
-
-.action-btn.download {
-  border-color: var(--th-text);
-}
-
-.action-btn.share,
-.action-btn.email {
-  border-color: #ddd;
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.admin-section {
-  background: white;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-  margin-top: 2rem;
-}
-
-.admin-section h2 {
-  color: var(--th-text);
-  margin: 0 0 1.5rem 0;
-  font-size: 1.5rem;
-}
-
-.admin-form {
+.pu-page.run-report-page .rr-admin-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
+.pu-page.run-report-page .rr-admin-form > * {
+  min-width: 0;
 }
 
-.form-group label {
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-  color: #333;
-  font-size: 0.9rem;
+.pu-page.run-report-page .rr-admin-form .pu-select {
+  box-sizing: border-box;
 }
 
-.form-group input,
-.form-group select {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  font-family: inherit;
-}
+@media (max-width: 600px) {
+  .pu-page.run-report-page .rr-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
 
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: var(--th-text);
-  box-shadow: 0 0 0 2px rgba(39, 123, 165, 0.1);
-}
+  .pu-page.run-report-page .rr-table,
+  .pu-page.run-report-page .rr-table tbody,
+  .pu-page.run-report-page .rr-table tr,
+  .pu-page.run-report-page .rr-table td {
+    display: block;
+    width: 100%;
+  }
 
-.bulk-export-btn {
-  padding: 0.75rem 1.5rem;
-  background: #d20e0f;
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-weight: 500;
-  align-self: flex-end;
-  transition: background 0.2s ease;
-}
+  .pu-page.run-report-page .rr-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
 
-.bulk-export-btn:hover:not(:disabled) {
-  background: #1f5a80;
-}
+  .pu-page.run-report-page .rr-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
 
-.bulk-export-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  .pu-page.run-report-page .rr-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
 }
-
-.page-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.demo-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
-
-.vertical-picker {
-  padding: 0.6rem 0.9rem;
-  border: 1px solid #12538d;
-  border-radius: var(--radius-sm);
-  background: white;
-  color: #051727;
-  font-size: 0.9rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.vertical-picker:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(39, 123, 165, 0.2);
-}
-
-.vertical-picker:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.run-demo-btn {
-  padding: 0.6rem 1.2rem;
-  background: #d20e0f;
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  transition: background 0.2s ease;
-}
-
-.run-demo-btn:hover:not(:disabled) {
-  background: #1f5a80;
-}
-
-.run-demo-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.demo-result {
-  margin-top: 0.75rem;
-  padding: 0.6rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-}
-
-.demo-result--ok {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #a5d6a7;
-}
-
-.demo-result--err {
-  background: #fdecea;
-  color: #c62828;
-  border: 1px solid #ef9a9a;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.demo-result__login-btn {
-  flex-shrink: 0;
-  padding: 0.3rem 0.85rem;
-  background: #aa0005;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.demo-result__login-btn:hover {
-  background: #7f1d1d;
-}
-
-/* CIBA step-up badge in the runs table */
-.stepup-cell { text-align: center; }
-.stepup-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: #051727;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-.stepup-none { color: #909ea4; }

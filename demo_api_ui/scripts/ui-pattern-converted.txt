@@ -76,6 +76,7 @@
 /ai-products/authorize
 /ai-products/protect
 /owasp
+/reports
 /ai-products/privilege-llm
 /ai-products/privilege-a2a
 /mcp-scanner
