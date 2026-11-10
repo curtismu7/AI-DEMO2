@@ -86,7 +86,6 @@ const EXEMPT = new Set([
   '/pinggateway-inspector',
   '/pinggateway-test',
   '/profile',
-  '/protect-auth-demo',
   '/protect-auth-demo/popout',
   '/request-access',
   '/rs/api',

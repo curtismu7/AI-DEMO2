@@ -144,7 +144,7 @@ describe("DemoMapPage", () => {
 
   it("has a row for the Personal Agent demo, the Digital Worker agent and each Ping product", () => {
     expect(DEMO_MAP_ROWS.map((r) => r.id)).toEqual([
-      "personal-agent", "digital-worker", "pingone", "pingfederate", "pinggateway", "privilege", "authorize",
+      "personal-agent", "digital-worker", "pingone", "pingfederate", "pinggateway", "privilege", "authorize", "protect",
     ]);
     render(
       <MemoryRouter>

@@ -82,4 +82,13 @@ export const DEMO_MAP_ROWS = [
       { label: "Authorize product page", path: "/ai-products/authorize" },
     ],
   },
+  {
+    id: "protect",
+    title: "PingOne Protect",
+    summary: "Risk and bot signals at sign-in, including naming which AI agent is calling.",
+    pages: [
+      { label: "PingOne Protect product page", path: "/ai-products/protect" },
+      { label: "Protect browser demo", path: "/protect-auth-demo" },
+    ],
+  },
 ];
