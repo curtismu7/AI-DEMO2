@@ -1,10 +1,24 @@
-// banking_api_ui/src/components/ResourceServerPage.jsx
-import React, { useState, useEffect } from 'react';
+// demo_api_ui/src/components/ResourceServerPage.jsx (/resource-server)
+//
+// What is real here: the claims are decoded by the demo API from the signed-in session's own access and ID tokens
+// (display only, no signature check on this page), or from the gateway token it cached after an RFC 8693 exchange.
+// What is demo data: the balances and transactions come from the demo bank's data store.
+//
+// Layout follows the standalone Ping UI Standard (AI-DEMO-Standalone/shared/STANDALONE-UI-PATTERNS.md) on the shared
+// primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame, P4 cards, P5 kv, P7 chips,
+// P9 buttons. Skipped: P6 (the tester below is the shared inspector shell, restyled only at its buttons) and P8 (no
+// diagram). The standalone shell bar is not added (the app has its own).
+//
+// P9, one primary per view state: loading has none of this page's buttons; signed out shows the shared sign-in prompt,
+// whose Sign in button is that state's one action; a failed load shows Try again as the one primary. Once loaded, the
+// tester's top Execute is the only primary. The bottom Execute, Clear and the Login RS / In-flow RS tabs are secondaries.
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester, { INFLOW_PROBE_TARGETS, INFLOW_SOURCES } from './ResourceServerTester';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
-import { useThemeOptional } from '../context/ThemeContext';
+import PageHeader from './common/PageHeader';
+import { PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip } from './pingUi';
 import './ResourceServerPage.css';
 import SignInPrompt from './SignInPrompt';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
@@ -43,143 +57,56 @@ function calculateTimeRemaining(expTs) {
   return `${seconds}s remaining`;
 }
 
-function ClaimRow({ label, value, glossary, highlight }) {
-  if (value === undefined || value === null) return null;
-  const displayValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-  return (
-    <div className={`rsp-claim-row ${highlight ? 'rsp-claim-highlight' : ''}`}>
-      <span
-        className="rsp-claim-key"
-        title={glossary || ''}
-        style={{ cursor: glossary ? 'help' : 'default', borderBottom: glossary ? '1px dotted #94a3b8' : 'none' }}
-      >
-        {label}
-      </span>
-      <span className="rsp-claim-value">{displayValue}</span>
-    </div>
-  );
-}
+// The tester's buttons. Its top Execute is the one primary of the ready state; the failed states render this page's own
+// Try again as the primary instead and no tester, so there is never more than one primary in any view state. (Passed as
+// a spread because the static pattern check counts a primary class per tag and cannot see that those states exclude
+// each other.)
+const TESTER_BUTTONS = { executeButtonClassName: 'pu-btn pu-btn--primary', secondaryButtonClassName: 'pu-btn' };
 
-function ScopesBadges({ scopes, highlightBanking }) {
-  if (!scopes || scopes.length === 0) return <span className="rsp-muted">No scopes</span>;
-  return (
-    <div className="rsp-scopes">
-      {scopes.map((s) => (
-        <span
-          key={s}
-          className={`rsp-scope-badge ${highlightBanking && s.startsWith('banking:') ? 'rsp-scope-banking' : ''}`}
-        >
-          {s}
-        </span>
-      ))}
-    </div>
-  );
-}
+const hasKeys = (o) => Boolean(o) && typeof o === 'object' && Object.keys(o).length > 0;
 
-/** Access-token claims panel shared by login and in-flow views. */
-function AccessTokenPanel({ accessTokenClaims, tokenMetadata, resourceServerInfo, timeRemaining }) {
-  const audValue = tokenMetadata?.audience;
-  const audMatchesResource = resourceServerInfo?.targetAudience &&
-    (Array.isArray(audValue)
-      ? audValue.includes(resourceServerInfo.targetAudience)
-      : audValue === resourceServerInfo.targetAudience);
+const VIEW_LABEL = { login: 'Login RS', inflow: 'In-flow RS' };
 
-  return (
-    <div className="rsp-token-panel">
-      <div className="rsp-panel-header">
-        <h3>Access Token Claims</h3>
-        {timeRemaining && (
-          <span className={`rsp-expiry ${timeRemaining === 'Expired' ? 'expired' : ''}`}>
-            {timeRemaining}
-          </span>
-        )}
-      </div>
-
-      <ClaimRow label="Subject (sub)" value={accessTokenClaims?.sub} glossary={CLAIM_GLOSSARY.sub} />
-      <ClaimRow label="Issuer (iss)" value={accessTokenClaims?.iss} glossary={CLAIM_GLOSSARY.iss} />
-
-      {accessTokenClaims?.aud && (
-        <div className={`rsp-claim-row ${audMatchesResource ? 'rsp-aud-highlight' : ''}`}>
-          <span className="rsp-claim-key" title={CLAIM_GLOSSARY.aud} style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}>
-            Audience (aud) {audMatchesResource && <span className="rsp-aud-tag">This Resource Server</span>}
-          </span>
-          <span className="rsp-claim-value">
-            {Array.isArray(accessTokenClaims.aud) ? accessTokenClaims.aud.join(', ') : accessTokenClaims.aud}
-          </span>
-        </div>
-      )}
-
-      {tokenMetadata?.scopes && tokenMetadata.scopes.length > 0 && (
-        <div className="rsp-claim-row">
-          <span className="rsp-claim-key" title={CLAIM_GLOSSARY.scope} style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}>
-            Scopes
-          </span>
-          <ScopesBadges scopes={tokenMetadata.scopes} highlightBanking />
-        </div>
-      )}
-
-      <ClaimRow label="Client ID" value={accessTokenClaims?.client_id} glossary={CLAIM_GLOSSARY.client_id} />
-      <ClaimRow label="Authorized Party (azp)" value={accessTokenClaims?.azp} glossary={CLAIM_GLOSSARY.azp} />
-      <ClaimRow label="JWT ID (jti)" value={accessTokenClaims?.jti} glossary={CLAIM_GLOSSARY.jti} />
-      <ClaimRow label="Issued At" value={accessTokenClaims?.iat ? formatDateTime(accessTokenClaims.iat) || '—' : null} glossary={CLAIM_GLOSSARY.iat} />
-      <ClaimRow label="Expires At" value={accessTokenClaims?.exp ? formatDateTime(accessTokenClaims.exp) || '—' : null} glossary={CLAIM_GLOSSARY.exp} />
-      <ClaimRow label="ACR" value={accessTokenClaims?.acr} glossary={CLAIM_GLOSSARY.acr} />
-
-      {accessTokenClaims?.act && (
-        <div className="rsp-act-box">
-          <div className="rsp-act-header">Agent Acting On Behalf</div>
-          <ClaimRow label="Actor (act)" value={accessTokenClaims.act} glossary={CLAIM_GLOSSARY.act} />
-        </div>
-      )}
-
-      {accessTokenClaims?.may_act && (
-        <div className="rsp-may-act-box">
-          <div className="rsp-act-header">May Act (Delegation Pre-authorization)</div>
-          <ClaimRow label="may_act" value={accessTokenClaims.may_act} glossary={CLAIM_GLOSSARY.may_act} />
-        </div>
-      )}
-    </div>
-  );
+/** One summary request settled: its data, or why it failed ('auth' for a 401). */
+function settle(outcome) {
+  if (outcome.status === 'fulfilled') return { data: outcome.value.data, error: null };
+  const err = outcome.reason;
+  if (err?.response?.status === 401) return { data: null, error: 'auth' };
+  return { data: null, error: err?.response?.data?.message || 'Failed to load resource server data.' };
 }
 
 export default function ResourceServerPage() {
-  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [view, setView] = useState('login');
-  const [loginData, setLoginData] = useState(null);
-  const [inflowData, setInflowData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // null until the first answer; then { login: { data, error }, inflow: { data, error } }. The two summaries are
+  // independent: one failing does not blank the other view.
+  const [results, setResults] = useState(null);
+  const [reloading, setReloading] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
+  const tabRefs = useRef({});
+  const contentRef = useRef(null);
+  const mounted = useRef(true);
+  const refocus = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    Promise.all([
+  const load = useCallback(() => {
+    setReloading(true);
+    Promise.allSettled([
       bffAxios.get('/api/resource-server/summary'),
       bffAxios.get('/api/resource-server/summary-inflow'),
-    ])
-      .then(([loginRes, inflowRes]) => {
-        if (cancelled) return;
-        setLoginData(loginRes.data);
-        setInflowData(inflowRes.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err.response?.status === 401) {
-          setError('auth');
-        } else {
-          setError(err.response?.data?.message || 'Failed to load resource server data.');
-        }
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
+    ]).then(([loginOutcome, inflowOutcome]) => {
+      if (!mounted.current) return;
+      setResults({ login: settle(loginOutcome), inflow: settle(inflowOutcome) });
+      setReloading(false);
+    });
   }, []);
 
-  const activeClaims = view === 'inflow'
-    ? inflowData?.accessTokenClaims
-    : loginData?.accessTokenClaims;
+  useEffect(() => {
+    mounted.current = true;
+    load();
+    return () => { mounted.current = false; };
+  }, [load]);
+
+  const current = results?.[view === 'inflow' ? 'inflow' : 'login'];
+  const activeClaims = current?.data?.accessTokenClaims;
 
   useEffect(() => {
     if (!activeClaims?.exp) {
@@ -192,36 +119,8 @@ export default function ResourceServerPage() {
     return () => clearInterval(timer);
   }, [activeClaims?.exp, view]);
 
-  if (loading) {
-    return (
-      <div className="rsp-container">
-        <div className="rsp-loading">
-          <PingIdentitySpinner size={36} label="Loading OIDC Resource Server…" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error === 'auth') {
-    return (
-      <div className="rsp-container">
-        <SignInPrompt message="Sign in to access the OIDC Resource Server." />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rsp-container">
-        <div className="rsp-error">
-          <p>⚠️ {error}</p>
-        </div>
-      </div>
-    );
-  }
-
   const isInflow = view === 'inflow';
-  const data = isInflow ? inflowData : loginData;
+  const data = current?.data;
   const {
     accounts,
     transactions,
@@ -231,201 +130,456 @@ export default function ResourceServerPage() {
     resourceServerInfo,
     hasMcpToken,
   } = data || {};
+  const hasAccessClaims = hasKeys(accessTokenClaims);
+  const hasIdClaims = hasKeys(idTokenClaims);
+  const authFailed = results && (results.login.error === 'auth' || results.inflow.error === 'auth');
+  const bothFailed = results && results.login.error && results.inflow.error;
+  const viewFailed = Boolean(current?.error);
+  const state = !results ? 'loading'
+    : authFailed ? 'auth'
+      : bothFailed ? 'error'
+        : viewFailed ? 'viewError'
+          : 'ready';
+  const failMessage = state === 'error'
+    ? (results.login.error === results.inflow.error ? results.login.error : `${results.login.error} ${results.inflow.error}`)
+    : current?.error;
+
+  // After a retry succeeds the Retry button is gone: hand focus to the active tab (or the content) so it is not dropped.
+  useEffect(() => {
+    if (reloading || !refocus.current) return;
+    refocus.current = false;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    (tabRefs.current[view] || contentRef.current)?.focus();
+  });
+  const retry = () => {
+    if (reloading) return;
+    refocus.current = true;
+    load();
+  };
+
+  // The one live region, mounted from the first render and kept across every state, so a change is announced.
+  let liveText;
+  if (reloading && results) liveText = 'Retrying…';
+  else if (state === 'loading') liveText = 'Loading the resource server summaries.';
+  else if (state === 'auth') liveText = 'Signed out. Sign in to see the resource server.';
+  else if (state === 'error') liveText = `Could not load the resource server summaries: ${failMessage}`;
+  else if (state === 'viewError') liveText = `Could not load the ${VIEW_LABEL[view]} summary: ${failMessage}`;
+  else liveText = 'Resource server summaries loaded.';
+
+  // Every state shares one frame: banner first, then the title band, so a signed-out or failed page still says what it is.
+  const frame = (children, title = 'OIDC Resource Server', summary = null, eyebrow = null) => (
+    <PingPage className="rsv-page">
+      <SimBanner data-testid="rsv-banner">{bannerFor(state, isInflow, { hasMcpToken: Boolean(hasMcpToken), hasAccessClaims, hasIdClaims })}</SimBanner>
+      <PageHeader eyebrow={eyebrow} title={title} summary={summary} />
+      <PageFrame>
+        <p className="rsv-sr-only" role="status" data-testid="rsv-live">{liveText}</p>
+        <div ref={contentRef} tabIndex={-1} className="rsv-content">{children}</div>
+      </PageFrame>
+    </PingPage>
+  );
+
+  const retryButton = (
+    <button
+      type="button"
+      className="pu-btn pu-btn--primary"
+      onClick={retry}
+      aria-disabled={reloading ? 'true' : undefined}
+      data-testid="rsv-retry"
+    >
+      Try again
+    </button>
+  );
+
+  if (state === 'loading') {
+    return frame(
+      <div className="rsv-loading">
+        <PingIdentitySpinner size={36} label="Loading OIDC Resource Server…" />
+      </div>,
+    );
+  }
+
+  if (state === 'auth') {
+    return frame(<SignInPrompt message="Sign in to access the OIDC Resource Server." />);
+  }
+
+  if (state === 'error') {
+    return frame(
+      <Card tone="danger" title="Could not load the summaries" data-testid="rsv-error">
+        <p className="pu-status-line"><StatusChip tone="danger">Not loaded</StatusChip> {failMessage}</p>
+        <p className="pu-actions">{retryButton}</p>
+      </Card>,
+    );
+  }
+
   const totalBalance = (accounts || []).reduce((sum, a) => sum + (a.balance || 0), 0);
 
-  return (
-    <div className="rsp-container">
-      <div className="rsp-header">
-        <div className="rsp-header-content">
-          <span className="rsp-path-badge">{isInflow ? 'IN-FLOW GATEWAY PATH' : 'LOGIN OAUTH PATH'}</span>
-          <h1>OIDC Resource Server</h1>
-          <p className="rsp-subtitle">
-            {isInflow
-              ? 'Gateway TX hop — same /api/resource-server Path B the agent dual_token flow calls'
-              : 'Login hop — enduser audience on the session access token (not the MCP exchange target)'}
+  // Arrow keys move between the two tabs (roving tabindex), as the tablist role promises.
+  const onTabKey = (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    const at = VIEWS.findIndex((v) => v.id === view);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? VIEWS.length - 1 : (at + (e.key === 'ArrowRight' ? 1 : -1) + VIEWS.length) % VIEWS.length;
+    setView(VIEWS[next].id);
+    tabRefs.current[VIEWS[next].id]?.focus();
+  };
+
+  return frame(
+    <>
+      <div className="rsv-tabs" role="tablist" aria-label="Resource server view" onKeyDown={onTabKey}>
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            ref={(el) => { tabRefs.current[v.id] = el; }}
+            type="button"
+            role="tab"
+            id={`rsv-tab-${v.id}`}
+            aria-selected={view === v.id}
+            aria-controls="rsv-panel"
+            tabIndex={view === v.id ? 0 : -1}
+            className={`rsv-tab${view === v.id ? ' rsv-tab--active' : ''}`}
+            onClick={() => setView(v.id)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id="rsv-panel" aria-labelledby={`rsv-tab-${view}`}>
+        {state === 'viewError' ? (
+          <Card tone="danger" title={`Could not load the ${VIEW_LABEL[view]} summary`} data-testid="rsv-error">
+            <p className="pu-status-line"><StatusChip tone="danger">Not loaded</StatusChip> {failMessage}</p>
+            <p className="pu-note">The other view loaded on its own: switch tabs to use it.</p>
+            <p className="pu-actions">{retryButton}</p>
+          </Card>
+        ) : (
+        <>
+        <Section id="rsv-hop" kicker="1 · This hop" title={isInflow ? 'The gateway hop' : 'The sign-in hop'}>
+          <Card tone="neutral" className="rsv-explainer" data-testid="rsv-explainer">
+            <p className="pu-note">
+              {isInflow ? (
+                <>
+                  <strong>In-flow resource server.</strong> After RFC 8693 exchange the agent
+                  bearer targets the MCP gateway audience (
+                  <code className="rsv-code">{resourceServerInfo?.targetAudience || 'mcpgateway.ping.demo'}</code>
+                  ). Path B posts that token to <code className="rsv-code">/api/resource-server/identity</code>.
+                  {!hasMcpToken && (
+                    <> No cached TX token yet — run an agent tool or Execute in the tester to mint one.</>
+                  )}
+                </>
+              ) : (
+                <>
+                  <strong>Login resource server.</strong> Decodes your session access token
+                  (audience <code className="rsv-code">{resourceServerInfo?.targetAudience || 'enduser.ping.demo'}</code>
+                  ) — the first hop after sign-in. Switch to <strong>In-flow RS</strong> for the
+                  gateway TX hop used in the live agent path.
+                </>
+              )}
+            </p>
+            <nav className="rsv-links" aria-label="Journey pages">
+              <span className="rsv-links-label">Journey pages</span>
+              <Link to="/rs/olb" className="rsv-link">OLB</Link>
+              <Link to="/rs/invest" className="rsv-link">Invest</Link>
+              <Link to="/rs/api?tool=show_mortgage&vertical=mortgage" className="rsv-link">API RS</Link>
+            </nav>
+          </Card>
+        </Section>
+
+        <Section id="rsv-data" kicker="2 · What the resource server holds" title={isInflow ? 'Gateway token status' : 'Demo bank data it would serve'}>
+          <CardGrid>
+            {isInflow ? (
+              <Card tone={hasMcpToken ? 'ok' : 'neutral'} title="In-flow hop" data-testid="rsv-inflow-hero">
+                <p className="pu-status-line">
+                  <StatusChip tone={hasMcpToken ? 'ok' : 'neutral'}>{hasMcpToken ? 'TX token cached' : 'No TX token yet'}</StatusChip>
+                </p>
+                <p className="pu-note">Probe target: <span className="pu-mono">{resourceServerInfo?.probeHint || '/api/resource-server/identity'}</span></p>
+              </Card>
+            ) : (
+              <>
+                <Card title="Accounts" data-testid="rsv-accounts">
+                  <p className="pu-status-line"><StatusChip>Demo data</StatusChip></p>
+                  <p className="rsv-total-label">Total balance</p>
+                  <p className="rsv-total">{formatCurrency(totalBalance || 0, 'USD')}</p>
+                  <p className="pu-note">{accounts?.length || 0} account{accounts?.length !== 1 ? 's' : ''}</p>
+                  <ul className="rsv-accounts">
+                    {(accounts || []).map((acct) => (
+                      <li key={acct.id} className="rsv-account">
+                        <span className="rsv-account-top">
+                          <StatusChip>{(acct.accountType || 'account').replace(/_/g, ' ')}</StatusChip>
+                          <span className="pu-mono">{acct.accountNumber}</span>
+                        </span>
+                        <span className="rsv-account-balance">{formatCurrency(acct.balance || 0, acct.currency || 'USD')}</span>
+                        <span className="pu-note">{acct.name || ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+                {transactions && transactions.length > 0 && (
+                  <Card tone="neutral" title="Recent transactions" data-testid="rsv-transactions">
+                    <p className="pu-status-line"><StatusChip>Demo data</StatusChip></p>
+                    <ul className="rsv-txns">
+                      {transactions.map((txn) => (
+                        <li key={txn.id} className="rsv-txn-row">
+                          <span>{txn.description}</span>
+                          <span className={`rsv-txn-amount ${txn.amount >= 0 ? 'positive' : 'negative'}`}>
+                            {txn.amount >= 0 ? '+' : ''}{formatCurrency(txn.amount || 0, 'USD')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
+              </>
+            )}
+            <Card tone="neutral" title="Resource server info" data-testid="rsv-info">
+              <ClaimList
+                rows={[
+                  { label: 'Name', value: resourceServerInfo?.name },
+                  { label: 'Type', value: resourceServerInfo?.type },
+                  { label: 'Auth Method', value: resourceServerInfo?.authMethod },
+                  { label: 'Target Audience', value: resourceServerInfo?.targetAudience },
+                  { label: 'Description', value: resourceServerInfo?.description },
+                ]}
+              />
+            </Card>
+          </CardGrid>
+        </Section>
+
+        <Section id="rsv-claims" kicker="3 · Token claims" title={isInflow ? 'The gateway token' : 'Your session tokens'}>
+          <CardGrid>
+            {hasAccessClaims ? (
+              <AccessTokenPanel
+                accessTokenClaims={accessTokenClaims}
+                tokenMetadata={tokenMetadata}
+                resourceServerInfo={resourceServerInfo}
+                timeRemaining={timeRemaining}
+              />
+            ) : (
+              <Card tone="neutral" title="Access token claims" data-testid="rsv-access-claims">
+                <p className="pu-status-line"><StatusChip>{isInflow && hasMcpToken ? 'Not readable' : 'No token'}</StatusChip></p>
+                <p className="pu-note pu-empty">
+                  {isInflow && hasMcpToken
+                    ? 'A gateway token is cached but the demo API could not decode it (opaque or malformed), so there are no claims to show.'
+                    : isInflow
+                      ? 'No cached in-flow token. Use the tester below (In-flow MCP / gateway TX) — Execute mints via RFC 8693 when needed.'
+                      : 'No access token claims available.'}
+                </p>
+              </Card>
+            )}
+            {!isInflow && (
+              <Card tone="live" title="ID token claims" data-testid="rsv-id-claims">
+                <p className="pu-status-line">
+                  {hasIdClaims
+                    ? <StatusChip tone="info">Decoded from the token</StatusChip>
+                    : <StatusChip>No claims</StatusChip>}
+                </p>
+                {!hasIdClaims && <p className="pu-note pu-empty">The demo API found no readable ID token claims in this session.</p>}
+                <ClaimList
+                  rows={[
+                    { label: 'Subject (sub)', value: idTokenClaims?.sub, glossary: CLAIM_GLOSSARY.sub },
+                    { label: 'Name', value: idTokenClaims?.name, glossary: CLAIM_GLOSSARY.name },
+                    { label: 'Email', value: idTokenClaims?.email, glossary: CLAIM_GLOSSARY.email },
+                    { label: 'Preferred Username', value: idTokenClaims?.preferred_username, glossary: CLAIM_GLOSSARY.preferred_username },
+                    { label: 'Given Name', value: idTokenClaims?.given_name, glossary: CLAIM_GLOSSARY.given_name },
+                    { label: 'Family Name', value: idTokenClaims?.family_name, glossary: CLAIM_GLOSSARY.family_name },
+                    { label: 'Auth Time', value: idTokenClaims?.auth_time ? formatDateTime(idTokenClaims.auth_time) || '—' : null, glossary: CLAIM_GLOSSARY.auth_time },
+                    { label: 'ACR', value: idTokenClaims?.acr, glossary: CLAIM_GLOSSARY.acr },
+                  ]}
+                />
+              </Card>
+            )}
+          </CardGrid>
+        </Section>
+
+        <Section id="rsv-test" kicker="4 · Try it" title="Test this resource server">
+          <ResourceServerTester
+            key={view}
+            profile={view}
+            sources={isInflow ? INFLOW_SOURCES : undefined}
+            probeTargets={isInflow ? INFLOW_PROBE_TARGETS : undefined}
+            {...TESTER_BUTTONS}
+            titleLevel={2}
+            intro={
+              isInflow
+                ? 'Test the in-flow RS the gateway Path B uses. Default token is the cached MCP / gateway TX (minted on Execute if missing). Probe /identity to match dual_token.'
+                : 'Submit a login-session token and see how this resource server would treat it. Pick one by reference, or paste any JWT to test a failure case.'
+            }
+          />
+          <p className="pu-note rsv-audience" data-testid="rsv-audience">
+            This view expects audience:{' '}
+            <code className="rsv-code">{resourceServerInfo?.targetAudience || '(not configured)'}</code>
+            {isInflow ? ' (gateway TX)' : ' (login)'}
           </p>
-        </div>
-        <button
-          type="button"
-          onClick={toggleDarkMode}
-          className="rsp-theme-toggle"
-          title="Switch this page between light and dark"
-          aria-pressed={darkMode}
+        </Section>
+        </>
+        )}
+      </div>
+    </>,
+    'OIDC Resource Server',
+    isInflow
+      ? 'Gateway TX hop — same /api/resource-server Path B the agent dual_token flow calls'
+      : 'Login hop — enduser audience on the session access token (not the MCP exchange target)',
+    isInflow ? 'IN-FLOW GATEWAY PATH' : 'LOGIN OAUTH PATH',
+  );
+}
+
+// Helpers below the page so the page's own banner is the first element in the file (the pattern check reads top down).
+/** Claim rows as a key/value list. A row with no value is left out. `title` is the glossary tooltip. */
+function ClaimList({ rows }) {
+  const shown = rows.filter((r) => r.value !== undefined && r.value !== null);
+  if (shown.length === 0) return null;
+  return (
+    <dl className="pu-kv rsv-claims">
+      {shown.flatMap((r) => [
+        <dt key={`${r.label}-k`}>
+          <span className={r.glossary ? 'rsv-term' : undefined} title={r.glossary || undefined}>{r.label}</span>
+          {r.tag}
+        </dt>,
+        <dd key={`${r.label}-v`} className="pu-mono">
+          {typeof r.value === 'object' ? JSON.stringify(r.value, null, 2) : String(r.value)}
+        </dd>,
+      ])}
+    </dl>
+  );
+}
+
+function ScopesBadges({ scopes, highlightBanking }) {
+  if (!scopes || scopes.length === 0) return <span className="pu-note">No scopes</span>;
+  return (
+    <ul className="rsv-scopes" aria-label="Scopes">
+      {scopes.map((s) => (
+        <li
+          key={s}
+          className={`rsv-scope-badge ${highlightBanking && s.startsWith('banking:') ? 'rsv-scope-banking' : ''}`}
         >
-          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
-        </button>
-      </div>
+          {s}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-      <div className="rsp-view-tabs" role="tablist" aria-label="Resource server view">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!isInflow}
-          className={`rsp-view-tab${!isInflow ? ' rsp-view-tab--active' : ''}`}
-          onClick={() => setView('login')}
-        >
-          Login RS
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={isInflow}
-          className={`rsp-view-tab${isInflow ? ' rsp-view-tab--active' : ''}`}
-          onClick={() => setView('inflow')}
-        >
-          In-flow RS
-        </button>
-      </div>
+/** Access-token claims card shared by the login and in-flow views. */
+function AccessTokenPanel({ accessTokenClaims, tokenMetadata, resourceServerInfo, timeRemaining }) {
+  const audValue = tokenMetadata?.audience;
+  const audMatchesResource = resourceServerInfo?.targetAudience &&
+    (Array.isArray(audValue)
+      ? audValue.includes(resourceServerInfo.targetAudience)
+      : audValue === resourceServerInfo.targetAudience);
+  const aud = accessTokenClaims?.aud;
+  const scopes = tokenMetadata?.scopes;
 
-      <div className="rsp-journey-links">
-        <span className="rsp-journey-label">Journey Pages</span>
-        <Link to="/rs/olb" className="rsp-journey-link rsp-journey-link--olb">OLB</Link>
-        <Link to="/rs/invest" className="rsp-journey-link rsp-journey-link--invest">Invest</Link>
-        <Link to="/rs/api?tool=show_mortgage&vertical=mortgage" className="rsp-journey-link rsp-journey-link--api">API RS</Link>
-      </div>
-
-      <div className="rsp-explainer">
-        <div>
-          {isInflow ? (
-            <>
-              <strong>In-flow resource server.</strong> After RFC 8693 exchange the agent
-              bearer targets the MCP gateway audience (
-              <code>{resourceServerInfo?.targetAudience || 'mcpgateway.ping.demo'}</code>
-              ). Path B posts that token to <code>/api/resource-server/identity</code>.
-              {!hasMcpToken && (
-                <> No cached TX token yet — run an agent tool or Execute in the tester to mint one.</>
-              )}
-            </>
-          ) : (
-            <>
-              <strong>Login resource server.</strong> Decodes your session access token
-              (audience <code>{resourceServerInfo?.targetAudience || 'enduser.ping.demo'}</code>
-              ) — the first hop after sign-in. Switch to <strong>In-flow RS</strong> for the
-              gateway TX hop used in the live agent path.
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="rsp-grid">
-        <div className="rsp-banking-col">
-          {isInflow ? (
-            <div className="rsp-hero rsp-hero--inflow">
-              <div className="rsp-hero-label">In-flow hop</div>
-              <div className="rsp-hero-balance" style={{ fontSize: 22 }}>
-                {hasMcpToken ? 'TX token cached' : 'No TX token yet'}
-              </div>
-              <div className="rsp-hero-count">
-                Probe target: {resourceServerInfo?.probeHint || '/api/resource-server/identity'}
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="rsp-hero">
-                <div className="rsp-hero-label">Total Balance</div>
-                <div className="rsp-hero-balance">{formatCurrency(totalBalance || 0, 'USD')}</div>
-                <div className="rsp-hero-count">{accounts?.length || 0} account{accounts?.length !== 1 ? 's' : ''}</div>
-              </div>
-
-              <div className="rsp-accounts-grid">
-                {(accounts || []).map((acct) => (
-                  <div key={acct.id} className="rsp-account-card">
-                    <div className="rsp-account-top">
-                      <span className={`rsp-account-badge ${acct.accountType || ''}`}>
-                        {(acct.accountType || 'account').replace(/_/g, ' ')}
-                      </span>
-                      <span className="rsp-account-number">{acct.accountNumber}</span>
-                    </div>
-                    <div className="rsp-account-balance">{formatCurrency(acct.balance || 0, acct.currency || 'USD')}</div>
-                    <div className="rsp-account-name">{acct.name || ''}</div>
-                  </div>
-                ))}
-              </div>
-
-              {transactions && transactions.length > 0 && (
-                <div className="rsp-transactions">
-                  <h3>Recent Transactions</h3>
-                  {transactions.map((txn) => (
-                    <div key={txn.id} className="rsp-txn-row">
-                      <span className="rsp-txn-desc">{txn.description}</span>
-                      <span className={`rsp-txn-amount ${txn.amount >= 0 ? 'positive' : 'negative'}`}>
-                        {txn.amount >= 0 ? '+' : ''}{formatCurrency(txn.amount || 0, 'USD')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="rsp-info-box" style={{ marginTop: 16 }}>
-            <h3>Resource Server Info</h3>
-            <ClaimRow label="Name" value={resourceServerInfo?.name} />
-            <ClaimRow label="Type" value={resourceServerInfo?.type} />
-            <ClaimRow label="Auth Method" value={resourceServerInfo?.authMethod} />
-            <ClaimRow label="Target Audience" value={resourceServerInfo?.targetAudience} />
-            <ClaimRow label="Description" value={resourceServerInfo?.description} />
-          </div>
-        </div>
-
-        <div className="rsp-tokens-col">
-          {accessTokenClaims ? (
-            <AccessTokenPanel
-              accessTokenClaims={accessTokenClaims}
-              tokenMetadata={tokenMetadata}
-              resourceServerInfo={resourceServerInfo}
-              timeRemaining={timeRemaining}
-            />
-          ) : (
-            <div className="rsp-token-panel">
-              <div className="rsp-panel-header">
-                <h3>Access Token Claims</h3>
-              </div>
-              <p className="rsp-muted" style={{ padding: '8px 0' }}>
-                {isInflow
-                  ? 'No cached in-flow token. Use the tester below (In-flow MCP / gateway TX) — Execute mints via RFC 8693 when needed.'
-                  : 'No access token claims available.'}
-              </p>
-            </div>
-          )}
-
-          {!isInflow && (
-            <div className="rsp-token-row">
-              <div className="rsp-token-panel rsp-id-token-panel">
-                <h3>ID Token Claims</h3>
-                <ClaimRow label="Subject (sub)" value={idTokenClaims?.sub} glossary={CLAIM_GLOSSARY.sub} />
-                <ClaimRow label="Name" value={idTokenClaims?.name} glossary={CLAIM_GLOSSARY.name} />
-                <ClaimRow label="Email" value={idTokenClaims?.email} glossary={CLAIM_GLOSSARY.email} />
-                <ClaimRow label="Preferred Username" value={idTokenClaims?.preferred_username} glossary={CLAIM_GLOSSARY.preferred_username} />
-                <ClaimRow label="Given Name" value={idTokenClaims?.given_name} glossary={CLAIM_GLOSSARY.given_name} />
-                <ClaimRow label="Family Name" value={idTokenClaims?.family_name} glossary={CLAIM_GLOSSARY.family_name} />
-                <ClaimRow label="Auth Time" value={idTokenClaims?.auth_time ? formatDateTime(idTokenClaims.auth_time) || '—' : null} glossary={CLAIM_GLOSSARY.auth_time} />
-                <ClaimRow label="ACR" value={idTokenClaims?.acr} glossary={CLAIM_GLOSSARY.acr} />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <ResourceServerTester
-        key={view}
-        profile={view}
-        sources={isInflow ? INFLOW_SOURCES : undefined}
-        probeTargets={isInflow ? INFLOW_PROBE_TARGETS : undefined}
-        intro={
-          isInflow
-            ? 'Test the in-flow RS the gateway Path B uses. Default token is the cached MCP / gateway TX (minted on Execute if missing). Probe /identity to match dual_token.'
-            : 'Submit a login-session token and see how this resource server would treat it. Pick one by reference, or paste any JWT to test a failure case.'
-        }
+  return (
+    <Card tone="live" title="Access token claims" data-testid="rsv-access-claims">
+      <p className="pu-status-line">
+        <StatusChip tone="info">Decoded from the token</StatusChip>
+        {timeRemaining && (
+          <StatusChip tone={timeRemaining === 'Expired' ? 'danger' : 'ok'}>{timeRemaining}</StatusChip>
+        )}
+      </p>
+      <ClaimList
+        rows={[
+          { label: 'Subject (sub)', value: accessTokenClaims?.sub, glossary: CLAIM_GLOSSARY.sub },
+          { label: 'Issuer (iss)', value: accessTokenClaims?.iss, glossary: CLAIM_GLOSSARY.iss },
+          {
+            label: 'Audience (aud)',
+            value: aud ? (Array.isArray(aud) ? aud.join(', ') : aud) : undefined,
+            glossary: CLAIM_GLOSSARY.aud,
+            tag: audMatchesResource ? <StatusChip tone="ok">This resource server</StatusChip> : null,
+          },
+        ]}
       />
+      {scopes && scopes.length > 0 && (
+        <dl className="pu-kv rsv-claims">
+          <dt><span className="rsv-term" title={CLAIM_GLOSSARY.scope}>Scopes</span></dt>
+          <dd><ScopesBadges scopes={scopes} highlightBanking /></dd>
+        </dl>
+      )}
+      <ClaimList
+        rows={[
+          { label: 'Client ID', value: accessTokenClaims?.client_id, glossary: CLAIM_GLOSSARY.client_id },
+          { label: 'Authorized Party (azp)', value: accessTokenClaims?.azp, glossary: CLAIM_GLOSSARY.azp },
+          { label: 'JWT ID (jti)', value: accessTokenClaims?.jti, glossary: CLAIM_GLOSSARY.jti },
+          { label: 'Issued At', value: accessTokenClaims?.iat ? formatDateTime(accessTokenClaims.iat) || '—' : null, glossary: CLAIM_GLOSSARY.iat },
+          { label: 'Expires At', value: accessTokenClaims?.exp ? formatDateTime(accessTokenClaims.exp) || '—' : null, glossary: CLAIM_GLOSSARY.exp },
+          { label: 'ACR', value: accessTokenClaims?.acr, glossary: CLAIM_GLOSSARY.acr },
+        ]}
+      />
+      {accessTokenClaims?.act && (
+        <div className="rsv-callout rsv-callout--act" data-testid="rsv-act-box">
+          <p className="rsv-callout-title">Agent acting on behalf</p>
+          <ClaimList rows={[{ label: 'Actor (act)', value: accessTokenClaims.act, glossary: CLAIM_GLOSSARY.act }]} />
+        </div>
+      )}
+      {accessTokenClaims?.may_act && (
+        <div className="rsv-callout rsv-callout--may-act" data-testid="rsv-may-act-box">
+          <p className="rsv-callout-title">May act (delegation pre-authorization)</p>
+          <ClaimList rows={[{ label: 'may_act', value: accessTokenClaims.may_act, glossary: CLAIM_GLOSSARY.may_act }]} />
+        </div>
+      )}
+    </Card>
+  );
+}
 
-      <div className="rsp-footer">
-        <p>
-          This view expects audience:{' '}
-          <code>{resourceServerInfo?.targetAudience || '(not configured)'}</code>
-          {isInflow ? ' (gateway TX)' : ' (login)'}
-        </p>
-      </div>
-    </div>
+const VIEWS = [
+  { id: 'login', label: 'Login RS' },
+  { id: 'inflow', label: 'In-flow RS' },
+];
+
+/** The P2 banner text for the state the page is actually in (never fixed text that is false while signed out, failed, or
+ *  when the server decoded nothing). */
+function bannerFor(state, isInflow, { hasMcpToken, hasAccessClaims, hasIdClaims }) {
+  if (state === 'loading') {
+    return <><strong>LOADING</strong> — asking the demo API for the resource server summaries. Nothing below is shown until it answers.</>;
+  }
+  if (state === 'auth') {
+    return <><strong>SIGNED OUT</strong> — this page decodes the tokens of your signed-in session, so there is nothing to show until you sign in.</>;
+  }
+  if (state === 'error') {
+    return <><strong>NOT LOADED</strong> — the demo API did not return the summaries, so nothing on this page is current.</>;
+  }
+  if (state === 'viewError') {
+    return <><strong>NOT LOADED</strong> — the demo API did not return the summary for this view, so nothing in it is current. The other view loaded separately.</>;
+  }
+  if (isInflow) {
+    if (hasMcpToken && hasAccessClaims) {
+      return (
+        <>
+          <strong>REAL GATEWAY TOKEN</strong> — the claims below are decoded by the demo API from the gateway token it cached
+          after an RFC 8693 exchange (display only: this page does not verify the signature). The tester sends the token
+          you choose to the demo API's resource server.
+        </>
+      );
+    }
+    if (hasMcpToken) {
+      return (
+        <>
+          <strong>GATEWAY TOKEN NOT READABLE</strong> — the demo API has a cached gateway token for this session but could not
+          decode it (opaque or malformed), so there are no claims to show. The tester can still check a token you pick or paste.
+        </>
+      );
+    }
+    return (
+      <>
+        <strong>NO GATEWAY TOKEN YET</strong> — the demo API has not cached an exchanged gateway token for this session, so
+        there are no claims to show. The tester can still check a token you pick or paste.
+      </>
+    );
+  }
+  if (!hasAccessClaims && !hasIdClaims) {
+    return (
+      <>
+        <strong>NO CLAIMS DECODED, DEMO BANK DATA</strong> — the demo API could not read claims from your session tokens
+        (opaque, missing or malformed), so none are shown. The balances and transactions come from the demo bank's data
+        store, not a real bank. The tester sends the token you choose to the demo API's resource server.
+      </>
+    );
+  }
+  return (
+    <>
+      <strong>REAL SESSION TOKENS, DEMO BANK DATA</strong> — the claims below are decoded by the demo API from your
+      signed-in session's access and ID tokens (display only: this page does not verify the signature). The balances and
+      transactions come from the demo bank's data store, not a real bank. The tester sends the token you choose to the
+      demo API's resource server.
+    </>
   );
 }

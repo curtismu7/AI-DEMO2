@@ -97,7 +97,13 @@ function useRunner(endpoint) {
       setLoading(false);
     }
   };
-  return { loading, result, error, status, run };
+  const reset = () => {
+    setLoading(false);
+    setResult(null);
+    setError(null);
+    setStatus(null);
+  };
+  return { loading, result, error, status, run, reset };
 }
 
 /** Merge profile into every tester POST so validate/decode use the correct RS audience. */
@@ -122,20 +128,20 @@ function RuleList({ rules }) {
   );
 }
 
-function SignInButton({ label = 'Sign in' }) {
+function SignInButton({ label = 'Sign in', className = 'rst-signin' }) {
   return (
-    <button type="button" className="rst-signin" onClick={navigateToCustomerOAuthLogin}>
+    <button type="button" className={className} onClick={navigateToCustomerOAuthLogin}>
       {label}
     </button>
   );
 }
 
-function ErrorLine({ error, status }) {
+function ErrorLine({ error, status, signInClassName }) {
   if (!error) return null;
   return (
     <div className="rst-error">
       <span>{'\u26A0'} {error}</span>
-      {status === 401 && <SignInButton />}
+      {status === 401 && <SignInButton className={signInClassName} />}
     </div>
   );
 }
@@ -146,6 +152,16 @@ export default function ResourceServerTester({
   probeTargets = DEFAULT_PROBE_TARGETS,
   profile = 'login',
   intro = 'Submit a token and see how this resource server would treat it. Pick one by reference, or paste any JWT to test a failure case.',
+  // Opt-in Ping UI mode (the /resource-server page): the class for the one primary (the top Execute) and for
+  // every other button. Unset, the buttons keep their inspector-shell look and `disabled` behaviour unchanged.
+  // The opt-in also gives the tester its own always-mounted status line (a live region), a stable Execute name
+  // while running, a Clear that empties the results without unmounting the form (focus stays on Clear), results
+  // that are dropped when the token source or probe target changes (never shown against the wrong token), and a
+  // secondary Sign in button (the page's one primary stays Execute).
+  executeButtonClassName,
+  secondaryButtonClassName,
+  // 1 (default) renders the shell title as the page's h1; a page that has its own h1 passes 2.
+  titleLevel = 1,
 }) {
   // Token source state
   const [source, setSource] = useState(sources[0].value);
@@ -180,6 +196,27 @@ export default function ResourceServerTester({
   const activeLabel = sources.find((s) => s.value === source)?.label || source;
   const activeSource = sources.find((s) => s.value === source);
 
+  const pingUiMode = Boolean(executeButtonClassName);
+  const resetRunners = () => {
+    revealRunner.reset();
+    validateRunner.reset();
+    decodeRunner.reset();
+    probeRunner.reset();
+  };
+  // A result belongs to the token and target it was run with: in Ping UI mode, changing either drops it.
+  const changeSource = (value) => {
+    if (pingUiMode && value !== source) resetRunners();
+    setSource(value);
+  };
+  const changeProbeTarget = (value) => {
+    if (pingUiMode && value !== probeTarget) probeRunner.reset();
+    setProbeTarget(value);
+  };
+  const changePasted = (value) => {
+    if (pingUiMode) resetRunners();
+    setPasted(value);
+  };
+
   const selectOp = (op) => {
     setSelectedOp(op);
     setOutputTab('result');
@@ -196,6 +233,13 @@ export default function ResourceServerTester({
   }, [selectedOp, payload, probeTarget, profile]);
 
   const clearOutput = () => {
+    if (pingUiMode) {
+      // Keep the operation and its form mounted so focus stays on Clear; only the results go.
+      resetRunners();
+      setOutputTab('result');
+      if (source === 'paste') setPasted('');
+      return;
+    }
     // Reset all runners by re-creating the component state - we reset via deselect + reselect
     setSelectedOp(null);
     setOutputTab('result');
@@ -261,7 +305,7 @@ export default function ResourceServerTester({
           {(result.status === 401 || result.status === 403) && (
             <div className="rst-signin-row">
               <span>This token was rejected - sign in to retry with a fresh session token.</span>
-              <SignInButton />
+              <SignInButton className={pingUiMode ? secondaryButtonClassName : undefined} />
             </div>
           )}
           <pre className="inspector-shell-output-code" style={{ marginTop: 14 }}>
@@ -322,7 +366,7 @@ export default function ResourceServerTester({
             key={s.value}
             label={`${s.label} — ${s.ready === false ? 'enter token' : 'ready'}`}
             active={source === s.value}
-            onClick={() => setSource(s.value)}
+            onClick={() => changeSource(s.value)}
           />
         ))}
       </div>
@@ -333,16 +377,21 @@ export default function ResourceServerTester({
     </>
   );
 
-  const executeButtons = (
+  const pingUiButtons = Boolean(executeButtonClassName);
+  const executeBlocked = !ready || Boolean(currentRunner && currentRunner.loading);
+  // Ping UI mode uses aria-disabled so a blocked Execute keeps keyboard focus; the click is ignored.
+  const executeButtons = (primary) => (
     <>
       <button
-        className="inspector-shell-btn-call"
-        onClick={executeOp}
-        disabled={!ready || (currentRunner && currentRunner.loading)}
+        className={pingUiButtons ? (primary ? executeButtonClassName : secondaryButtonClassName) : 'inspector-shell-btn-call'}
+        onClick={pingUiButtons && executeBlocked ? undefined : executeOp}
+        disabled={pingUiButtons ? undefined : executeBlocked}
+        aria-disabled={pingUiButtons && executeBlocked ? 'true' : undefined}
+        aria-describedby={pingUiButtons && !ready ? 'rst-blocked-reason' : undefined}
       >
-        {currentRunner && currentRunner.loading ? 'Running...' : 'Execute'}
+        {currentRunner && currentRunner.loading && !pingUiMode ? 'Running...' : 'Execute'}
       </button>
-      <button className="inspector-shell-btn-clear" onClick={clearOutput}>Clear</button>
+      <button className={pingUiButtons ? secondaryButtonClassName : 'inspector-shell-btn-clear'} onClick={clearOutput}>Clear</button>
     </>
   );
 
@@ -357,7 +406,7 @@ export default function ResourceServerTester({
         <span><strong>Target audience:</strong> {profile === 'login' ? 'OIDC user resource server' : profile}</span>
       </div>
       <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-        {executeButtons}
+        {executeButtons(true)}
       </div>
       <div className="inspector-shell-form-body">
         {/* Token source display */}
@@ -381,7 +430,7 @@ export default function ResourceServerTester({
             <textarea
               placeholder="eyJ..."
               value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
+              onChange={(e) => changePasted(e.target.value)}
               rows={4}
             />
           </div>
@@ -407,7 +456,7 @@ export default function ResourceServerTester({
                 color: '#1e293b',
               }}
               value={probeTarget}
-              onChange={(e) => setProbeTarget(e.target.value)}
+              onChange={(e) => changeProbeTarget(e.target.value)}
             >
               {probeTargets.map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -418,13 +467,19 @@ export default function ResourceServerTester({
 
         {/* Ready indicator */}
         {!ready && (
-          <div style={{ color: '#f87171', fontSize: 12, marginTop: 8 }}>
-            Paste a JWT token above to enable execution.
-          </div>
+          pingUiMode ? (
+            <div className="rst-blocked-reason" id="rst-blocked-reason">
+              Paste a JWT token above to enable execution.
+            </div>
+          ) : (
+            <div style={{ color: '#f87171', fontSize: 12, marginTop: 8 }}>
+              Paste a JWT token above to enable execution.
+            </div>
+          )
         )}
       </div>
       <div className="inspector-shell-form-actions">
-        {executeButtons}
+        {executeButtons(false)}
         {currentRunner && currentRunner.error && (
           <span className="inspector-shell-form-error">Error</span>
         )}
@@ -435,6 +490,20 @@ export default function ResourceServerTester({
       Select an operation from the tree to inspect and execute it.
     </div>
   );
+
+  // Ping UI mode: one status line, mounted from the first render so a later change is announced.
+  let liveText = '';
+  if (pingUiMode && selectedOp) {
+    if (currentRunner?.loading) liveText = `Running ${selectedOp.name}...`;
+    else if (currentRunner?.error) liveText = `${selectedOp.name} failed${currentRunner.status ? ` (${currentRunner.status})` : ''}: ${currentRunner.error}`;
+    else if (currentRunner?.result) {
+      const r = currentRunner.result;
+      const outcome = selectedOp.id === 'probe'
+        ? (r.error ? `could not send (${r.message})` : `HTTP ${r.status}`)
+        : selectedOp.id === 'reveal' ? 'token shown' : (VERDICT_TEXT[r.decision] || r.decision || 'done');
+      liveText = `${selectedOp.name} finished: ${outcome}.`;
+    } else liveText = `${selectedOp.name} has not run yet.`;
+  }
 
   const right = (
     <>
@@ -447,11 +516,14 @@ export default function ResourceServerTester({
         activeKey={outputTab}
         onChange={setOutputTab}
       />
+      {pingUiMode && (
+        <div className="rst-live" role="status" data-testid="rst-live">{liveText}</div>
+      )}
       {currentRunner && (currentRunner.result || currentRunner.error) ? (
         <>
           <div className="inspector-shell-output-body">
             {currentRunner.error && (
-              <ErrorLine error={currentRunner.error} status={currentRunner.status} />
+              <ErrorLine error={currentRunner.error} status={currentRunner.status} signInClassName={pingUiMode ? secondaryButtonClassName : undefined} />
             )}
             {currentRunner.result && outputTab === 'result' && renderResultTab()}
             {currentRunner.result && outputTab === 'claims' && renderClaimsTab()}
@@ -478,6 +550,7 @@ export default function ResourceServerTester({
   return (
     <InspectorShell
       title="Resource Server Tester"
+      titleLevel={titleLevel}
       statusText={`Token: ${activeLabel}`}
       actions={
         <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>
