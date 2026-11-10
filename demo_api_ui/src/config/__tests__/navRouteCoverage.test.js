@@ -56,7 +56,6 @@ const EXEMPT = new Set([
   '/ciba-email-approve',
   '/compliance-modal-popout',
   '/config',
-  '/copilot',
   '/dashboard',
   '/davinci-login/callback',
   '/davinci-login/confirmed',

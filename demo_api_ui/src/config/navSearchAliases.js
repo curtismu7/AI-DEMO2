@@ -233,4 +233,5 @@ export const NAV_SEARCH_ALIASES = {
   "/pingfederate-id-jag/inspect": "id-jag inspect token decode paste jwt claims typ pingfederate",
   "/personal-agent/learn": "personal agent studio learn build try",
   "/intent-binding-learning": "intent binding learning agent checked step pipeline par rar authorization_details transfer",
+  "/copilot": "copilot studio agent microsoft entra msal m365 power platform chat",
 };
