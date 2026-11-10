@@ -10,7 +10,8 @@
 // Every status here is recorded sample data, not something this page checked, so state chips are neutral; only the
 // what-if plan chips (computed by this page from each workload's role) use the info tone.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Controls, Handle, Position, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from "@xyflow/react";
+import { Controls, Handle, Position, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from "@xyflow/react";
+import ReactFlow from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import PageHeader from "./common/PageHeader";
 import { PingPage, SimBanner, PageFrame, Section, StatusChip } from "./pingUi";

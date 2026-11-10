@@ -1,7 +1,6 @@
 // demo_api_ui/src/components/A2ATokenFlowDiagram.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ReactFlow,
   ReactFlowProvider,
   Background,
   BackgroundVariant,
@@ -12,6 +11,7 @@ import {
   useReactFlow,
   ReactFlowProvider as RFProvider,
 } from '@xyflow/react';
+import ReactFlow from './diagram/UniqueReactFlow';
 import '@xyflow/react/dist/style.css';
 import { DiagramControls, STEP_TIME_OPTIONS, DEFAULT_STEP_MS } from './diagram';
 import { useThemeOptional } from '../context/ThemeContext';

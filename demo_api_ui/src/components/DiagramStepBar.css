@@ -51,5 +51,38 @@
   font-weight: 600;
   cursor: pointer;
 }
-.dstep-reset:disabled { opacity: 0.5; cursor: default; }
+/* Disabled is not a faded copy: opacity .5 took the label to 3.46:1 and the edge to 1.89:1 in the light theme. The
+   label stays full strength on the inset ground (it is dimmed by that ground and a dashed edge, not by alpha),
+   and the edge stays --control-border, so both clear 4.5:1 and 3:1 in both themes (DiagramStepBar.contrast.test). */
+.dstep-reset:disabled {
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  border-style: dashed;
+  cursor: default;
+}
+.dstep-reset:not(:disabled):hover { border-color: var(--btn-accent); }
 .dstep-reset:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+
+/* Several bars on one page (one per diagram): none of them is the view's primary, so every step button is a
+   bordered secondary, the same edge, ground and ring as .pu-btn (see the P9 block in ping-ui.css, which does this
+   for .pu-page). DiagramStepBar sets data-multi when more than one bar is mounted. */
+.dstep-bar[data-multi="true"] .dc-toolbar .dc-ctrl-btn {
+  border: 1px solid var(--control-border);
+  background: var(--th-bg-card);
+  background-image: none;
+  color: var(--th-text);
+}
+.dstep-bar[data-multi="true"] .dc-toolbar .dc-ctrl-btn:hover:not(:disabled) {
+  border-color: var(--btn-accent);
+  background-color: var(--th-bg-card);
+  color: var(--th-text);
+}
+.dstep-bar[data-multi="true"] .dc-toolbar .dc-ctrl-btn:disabled {
+  background: var(--th-bg-inset) !important;
+  color: var(--th-text-muted) !important;
+  border-style: dashed;
+}
+.dstep-bar[data-multi="true"] .dc-toolbar .dc-ctrl-btn:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}

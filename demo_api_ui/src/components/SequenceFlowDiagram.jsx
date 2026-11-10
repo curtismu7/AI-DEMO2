@@ -8,10 +8,10 @@ import {
   getStraightPath,
   Handle,
   Position,
-  ReactFlow,
   ReactFlowProvider,
   useReactFlow,
 } from "@xyflow/react";
+import ReactFlow from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { parseSequence } from "../utils/parseSequence";

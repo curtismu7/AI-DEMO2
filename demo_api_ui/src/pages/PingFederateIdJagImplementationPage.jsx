@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ReactFlow, ReactFlowProvider, useReactFlow, useNodesState, NodeResizer, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Background, Controls, Handle, Position, ConnectionMode, MarkerType } from "@xyflow/react";
+import { ReactFlowProvider, useReactFlow, useNodesState, NodeResizer, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Background, Controls, Handle, Position, ConnectionMode, MarkerType } from "@xyflow/react";
+import ReactFlow from "../components/diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import "./PingFederateIdJagImplementationPage.css";
 import IdJagPathBar from "../components/IdJagPathBar";

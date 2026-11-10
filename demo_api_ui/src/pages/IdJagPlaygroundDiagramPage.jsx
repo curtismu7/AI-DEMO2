@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ReactFlow, ReactFlowProvider, useReactFlow, useNodesInitialized, Background, Controls, ConnectionMode, MarkerType } from "@xyflow/react";
+import { ReactFlowProvider, useReactFlow, useNodesInitialized, Background, Controls, ConnectionMode, MarkerType } from "@xyflow/react";
+import ReactFlow from "../components/diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import "./PingFederateIdJagImplementationPage.css";
 import IdJagPathBar from "../components/IdJagPathBar";

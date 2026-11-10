@@ -1,7 +1,6 @@
 // demo_api_ui/src/components/TokenChainFlowDiagram.jsx
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  ReactFlow,
   ReactFlowProvider,
   Background,
   BackgroundVariant,
@@ -12,6 +11,7 @@ import {
   getSmoothStepPath,
   useStore,
 } from '@xyflow/react';
+import ReactFlow from './diagram/UniqueReactFlow';
 import { orthoRoute, pathFromPoints, labelPoint } from '../utils/orthoRoute';
 import '@xyflow/react/dist/style.css';
 import { markNodes, stepEdges } from '../hooks/useDiagramStepper';
