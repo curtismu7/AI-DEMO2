@@ -899,7 +899,7 @@ export default function AdminSideNav({
           adminOnly: true,
         },
         {
-          label: "CIMD Simulation",
+          label: "CIMD Client Registration",
           path: "/client-registration",
           icon: "edt",
           adminOnly: true,
@@ -1834,7 +1834,7 @@ export default function AdminSideNav({
       "Secret Rotation",
       "App Configuration",
       "Security Settings",
-      "CIMD Simulation",
+      "CIMD Client Registration",
       "Demo Config",
       "PingOne Admin",
       "Banking Ops",

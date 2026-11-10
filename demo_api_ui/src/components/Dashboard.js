@@ -17,9 +17,8 @@ import { useCurrentUserTokenEvent } from "../hooks/useCurrentUserTokenEvent";
 import { navigateToAdminOAuthLogin } from "../utils/authUi";
 import { toastAdminSessionError } from "../utils/dashboardToast";
 // The shell and toolbar rules this page used to take from styles/appShellPages.css now live in Dashboard.css under
-// .admin-dashboard-page. That file also styles .app-page-toolbar-btn--theme with a vertical colour (other pages use
-// it), and the Ping UI pattern check follows imports, so importing it here would fail P9 for this page. Keeping the
-// rules here also keeps them in the initial CSS: without the import the file moves to a lazy chunk.
+// .admin-dashboard-page. Keeping the rules here keeps them in the initial CSS: without the import the file moves to a
+// lazy chunk.
 import "./Dashboard.css";
 // Console visual language for this page — additive CSS only, scoped to
 // .admin-dashboard-page. See the file header for why the look moved here

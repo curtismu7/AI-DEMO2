@@ -111,7 +111,7 @@ export const NAV_PAGE_PATHS = {
   "Resource Server Checkpoint": "/resource-server-checkpoint",
   "Security Settings": "/settings",
   "OAuth Debug": "/oauth-debug-logs",
-  "CIMD Simulation": "/client-registration",
+  "CIMD Client Registration": "/client-registration",
   "Banking Ops": "/admin/banking",
   "Healthcare Ops": "/admin/healthcare",
   "Retail Ops": "/admin/retail",

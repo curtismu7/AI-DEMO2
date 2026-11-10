@@ -13344,7 +13344,11 @@ export default function BankingAgent({
             )}
             <div className="ba-right-col">
               {isInline && isLoggedIn && agentTab === "trace" && <OpikTracePanel />}
-              <UseCaseRunContextCard runContext={runContext} />
+              {/* On the dashboard the agent sits inside the "Banking assistant" h2 card (ud-dashboard-inline-agent-host): the title is an h3 there. */}
+              <UseCaseRunContextCard
+                runContext={runContext}
+                headingLevel={surfaceHostEl?.classList?.contains("ud-dashboard-inline-agent-host") ? 3 : 2}
+              />
               {/* Live agent reasoning visibility (renders only while a run reports a phase) */}
               {aguiEnabled && <ReasoningPanel reasoningState={aguiState.reasoningState} />}
               {/* Earlier-in-this-conversation summaries (renders only when summaries exist) */}

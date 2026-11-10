@@ -868,8 +868,19 @@ body {
   color: var(--brand-dark-gray);
 }
 
-.table th {
-  background-color: var(--th-text);
+/* Header ground and ink come from two different themed surface tokens, so both clear 4.5:1 in light and dark (they
+   were the same token, --th-text, patched per theme further down). The PingOne end-user-nano skin paints every
+   cell white and beats a plain `.table th` / `.table td`, hence the :root prefix on the cell rules below. */
+.table {
+  --bs-table-bg: var(--th-bg-card);
+  --bs-table-color: var(--th-text);
+  --bs-table-hover-bg: var(--th-bg-inset);
+  --bs-table-hover-color: var(--th-text);
+  color: var(--th-text);
+}
+
+:root .table th {
+  background-color: var(--th-bg-inset);
   font-weight: 600;
   color: var(--th-text);
   text-transform: uppercase;
@@ -877,17 +888,19 @@ body {
   letter-spacing: 0.05em;
 }
 
-.table tr:hover {
-  background-color: var(--th-text);
+:root .table td {
+  background-color: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+:root .table tbody tr:hover td {
+  background-color: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .table tr.clickable {
   cursor: pointer;
   transition: background-color 0.2s;
-}
-
-.table tr.clickable:hover {
-  background-color: var(--th-text);
 }
 
 .btn {
@@ -1715,15 +1728,6 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
-:root:not([data-theme="dark"]) .table th {
-  color: #ffffff;
-}
-
-:root[data-theme="dark"] .table th {
-  color: #051727;
 }
 
 /* ── Contrast overrides (generated from scripts/audit-contrast-runtime.mjs) ─────────────────────

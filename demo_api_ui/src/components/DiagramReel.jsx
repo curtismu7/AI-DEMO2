@@ -57,6 +57,10 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
   if (!steps?.length) return null;
 
   const current = step >= 0 ? steps[step] : null;
+  // While Simulate is auto-advancing, the step bar's always-mounted polite caption ("Step 3 of 8 · ...") announces each
+  // step. This row follows the same step, so a second polite region would read every step twice: it goes quiet until the
+  // walkthrough is paused or stopped, and a card or node click (not playing) is still announced here.
+  const autoPlaying = Boolean(stepper?.active && !stepper?.paused);
   const panel = nodeDetail || (open && current ? { title: current.title, label: current.label, lines: current.lines, refs: current.refs } : null);
   const close = () => {
     setOpen(false);
@@ -94,7 +98,7 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
         ))}
       </ol>
       {panel && (
-        <section className="dreel-detail" aria-live="polite" data-font-size={fontSize} data-testid={`${testId}-detail`}>
+        <section className="dreel-detail" aria-live={autoPlaying ? "off" : "polite"} data-font-size={fontSize} data-testid={`${testId}-detail`}>
           <header>
             <h3>{panel.title}</h3>
             <span className="dreel-font" role="group" aria-label="Details font size">

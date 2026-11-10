@@ -771,19 +771,6 @@
   -webkit-text-fill-color: var(--th-text-invert) !important;
 }
 
-/* Landing-page header secondary button must show red text on white, not white-on-white.
-   Specificity matches the :is() rule above (0,4,0) so source-order wins here. */
-.App.end-user-nano .landing-header-actions .btn-secondary,
-.App.end-user-nano .landing-header-actions .btn-secondary:hover,
-.App.end-user-nano .landing-header-actions .btn-secondary:focus,
-.App.end-user-nano .landing-header-actions .btn-secondary:focus-visible,
-.App.end-user-nano .landing-header-actions .btn-secondary:active,
-.App.end-user-nano .landing-header-actions .btn-secondary:visited {
-  /* Brand colour as TEXT on a pale button was 1.2:1 when the vertical's colour is yellow. */
-  color: var(--th-text) !important;
-  -webkit-text-fill-color: var(--th-text) !important;
-}
-
 /* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#12538d)
    and inline code (#d20e0f). On the dark app ground those measured 1.0 to 3.4:1 across 22
    routes, so redefine the three variables it reads once, here, instead of per page. */
@@ -806,18 +793,6 @@
 /* Inline-code pink is for light grounds; inside a <pre> the block already sets its own ink. */
 .App.end-user-nano pre code {
   color: inherit;
-}
-
-/* The red text above assumes a white button. In dark mode that button is navy, where
-   red measured 2.34:1. */
-:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary,
-:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:hover,
-:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:focus,
-:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:focus-visible,
-:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:active,
-:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:visited {
-  color: var(--th-text) !important;
-  -webkit-text-fill-color: var(--th-text) !important;
 }
 
 /* PingOne's own .btn-primary fill is its default blue (#12538d), which this app never meant to show:
@@ -899,18 +874,6 @@
 .App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger:hover {
   color: var(--btn-accent-text) !important;
   -webkit-text-fill-color: var(--btn-accent-text) !important;
-}
-
-/* Toolbar uses <button> on MCP Inspector / Demo config — nano still paints link-blue on buttons */
-.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme,
-.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:hover,
-.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:focus,
-.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:focus-visible,
-.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:active {
-  /* This variant is filled with --app-primary-BLUE (the vertical accent), not the red the rule
-     below assumes: black on a dark fill measured 1.0:1 on admin pages. */
-  color: var(--app-primary-blue-text, #fff) !important;
-  -webkit-text-fill-color: var(--app-primary-blue-text, #fff) !important;
 }
 
 .App.end-user-nano button.app-page-toolbar-btn,

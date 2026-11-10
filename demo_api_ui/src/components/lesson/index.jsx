@@ -132,9 +132,10 @@ export function LessonLayout({
                 onClick={toggleDarkMode}
                 title="Switch between light and dark mode"
                 aria-pressed={darkMode}
-                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
               >
-                {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+                {/* The name is fixed; aria-pressed carries on/off. A label that flips with the state reads as
+                    "Light mode, pressed" while the page is dark. */}
+                <span aria-hidden="true">🌙</span> Dark mode
               </button>
               <button type="button" className="lesson-export" onClick={() => exportPdf(title)}>
                 Export PDF

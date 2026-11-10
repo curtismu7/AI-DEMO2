@@ -104,7 +104,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Intent binding (learn)", "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",
   ] },
   { label: "Administration", children: [
-    "Feature Flags", "LLM Config", "Secret Rotation", "App Configuration", "Security Settings", "CIMD Simulation",
+    "Feature Flags", "LLM Config", "Secret Rotation", "App Configuration", "Security Settings", "CIMD Client Registration",
     "Demo Config", "PingOne Admin", "Banking Ops", "Healthcare Ops", "Retail Ops", "Sporting Goods Ops", "Workforce Ops",
     "Vertical Editor", "Mortgage Path", "Users", "Accounts", "Transactions", "OIDC Resource Server", "CC Resource Server",
     "Hosted Registrations", "Token Compliance Audit",

@@ -7,7 +7,9 @@ import DraggableModal from './DraggableModal';
  * @param {string}    message
  * @param {string}    [confirmLabel]  default "Confirm"
  * @param {string}    [cancelLabel]   default "Cancel"
- * @param {boolean}   [danger]        if true, confirm button is red
+ * @param {boolean}   [danger]        destructive action: the confirm button is still the dialog's single primary
+ *                                    (fixed Ping Red gradient, never a vertical's colour) and Cancel stays the secondary;
+ *                                    `data-danger` marks it. Focus handling is DraggableModal's and is unchanged.
  * @param {Function}  onConfirm
  * @param {Function}  onCancel
  */
@@ -28,7 +30,8 @@ export default function ConfirmModal({
       </button>
       <button
         type="button"
-        className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
+        className="btn btn-primary"
+        data-danger={danger ? 'true' : undefined}
         onClick={onConfirm}
       >
         {confirmLabel}

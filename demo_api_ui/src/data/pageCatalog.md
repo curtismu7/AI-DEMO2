@@ -1037,7 +1037,7 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 - **What it teaches:** How step-up MFA policy (amount thresholds, ACR, method) governs high-value transactions.
 - **What it demos:** Changing step-up settings live, for example requiring MFA on all withdrawals, with a last-50-changes audit list.
 
-### CIMD Simulation
+### CIMD Client Registration
 - **Route:** `/client-registration` · **Auth:** admin
 - **What it does:** Form for client identity, OAuth flow, redirect URIs and contact in Client ID Metadata Document format; the backend creates the PingOne app and hosts the document.
 - **What it teaches:** How a client identifies itself by metadata document (CIMD) rather than manual registration.

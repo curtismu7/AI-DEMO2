@@ -193,26 +193,6 @@
   color: var(--btn-accent-text);
 }
 
-.app-page-toolbar-btn--theme {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-blue-mid) 0%,
-    var(--app-primary-blue) 100%
-  );
-  border-color: var(--app-primary-blue-border);
-  color: var(--app-primary-blue-text, #fff);
-}
-
-.app-page-toolbar-btn--theme:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-blue) 0%,
-    var(--app-primary-blue-hover) 100%
-  );
-  border-color: var(--app-primary-blue-hover);
-  color: var(--app-primary-blue-text, #fff);
-}
-
 .admin-dashboard__intro {
   display: flex;
   flex-direction: row;
