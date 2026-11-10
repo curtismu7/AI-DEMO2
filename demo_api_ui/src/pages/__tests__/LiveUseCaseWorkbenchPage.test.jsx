@@ -127,6 +127,8 @@ describe('LiveUseCaseWorkbenchPage — attack simulator trace continuity', () =>
     const postTraceId = apiClient.post.mock.calls[0][1].flowTraceId;
     expect(streamTraceId).toBe(postTraceId);
     expect(beginTraceId).toBe(postTraceId);
+    // The sim runs a real token exchange + gateway call, so the trace must not be tagged 'mock'.
+    expect(tokenChainTraceStore.beginTrace.mock.calls[0][0].provenance).toBe('live');
     expect(boundTraceId).toBe(postTraceId);
     expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(false, postTraceId);
   });

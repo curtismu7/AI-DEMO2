@@ -8426,7 +8426,7 @@ export default function BankingAgent({
       if (uc.id === "UC14b" && opts?.quickResult) {
         addMessage("user", stepLabel);
         setNlLoading(true);
-        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel, provenance: "mock" }); } catch (_) {}
+        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel, provenance: "live" }); } catch (_) {}
         try {
           const { data } = await apiClient.post("/api/demo/intent-binding/run", {
             action: "permit",
@@ -8518,7 +8518,7 @@ export default function BankingAgent({
       addMessage("user", stepLabel);
       setNlLoading(true);
       // Reset token chain trace so the proof strip shows this use case, not a stale one
-      try { tokenChainTraceStore.beginTrace({ prompt: stepLabel, provenance: "mock" }); } catch (_) {}
+      try { tokenChainTraceStore.beginTrace({ prompt: stepLabel, provenance: "live" }); } catch (_) {}
       try {
         const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
         const status = data?.status;
