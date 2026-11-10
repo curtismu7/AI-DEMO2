@@ -103,7 +103,7 @@ describe('OAuthAcademyPage (Ping UI Standard)', () => {
     const log = await screen.findByRole('log', { name: /conversation with the oauth teacher/i });
     expect(log.getAttribute('aria-live')).toBe('polite');
     expect(log.getAttribute('tabindex')).toBe('0');
-    expect(log.textContent).toContain('OAuth is a delegation framework.');
+    await waitFor(() => expect(log.textContent).toContain('OAuth is a delegation framework.'));
   });
 
   it('sends pinned to the oauth-teaching vertical and keeps focus where it was while the agent works', async () => {

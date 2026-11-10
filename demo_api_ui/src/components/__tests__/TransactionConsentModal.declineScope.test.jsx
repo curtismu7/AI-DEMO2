@@ -31,6 +31,7 @@ import bffAxios from '../../services/bffAxios';
 import { setAgentBlockedByConsentDecline } from '../../services/agentAccessConsent';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 import TransactionConsentModal from '../TransactionConsentModal';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 const USER = { id: 'user-1', email: 'demo@ping.demo' };
 const SNAPSHOT = { amount: 600, type: 'transfer', description: 'Checking to savings' };
@@ -63,6 +64,7 @@ describe('TransactionConsentModal — what counts as a decline', () => {
     renderModal({ onDeclinedConfirmed });
     await screen.findByText(/agree & continue/i);
 
+    await flushEffects(); // the Escape listener is attached by an effect of the step that just rendered
     pressEscape();
 
     fireEvent.click(await screen.findByText(/confirm decline/i));
@@ -83,6 +85,7 @@ describe('TransactionConsentModal — what counts as a decline', () => {
     fireEvent.click(await screen.findByText(/agree & continue/i));
     await screen.findByLabelText(/6-digit verification code/i);
 
+    await flushEffects(); // the Escape listener is attached by an effect of the step that just rendered
     pressEscape();
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());

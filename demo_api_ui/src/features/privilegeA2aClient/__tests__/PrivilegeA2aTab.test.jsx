@@ -401,7 +401,7 @@ describe('PrivilegeA2aTab', () => {
     resolveFetch(streamResponse([{ event: 'done', data: { sessionId: 'session-1' } }]));
     const input = screen.getByRole('textbox', { name: 'Your question' });
     await waitFor(() => expect(input).not.toBeDisabled());
-    expect(screen.getByRole('button', { name: 'Send question' })).not.toHaveAttribute('aria-disabled');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send question' })).not.toHaveAttribute('aria-disabled'));
   });
 
   test('Send question keeps keyboard focus after it is pressed with the keyboard, and ignores an empty box', async () => {
