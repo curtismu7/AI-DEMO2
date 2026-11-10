@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -32,5 +34,12 @@ describe('PageHeader', () => {
     expect(container.querySelector('.ping-back-link')).toBeNull();
     expect(container.querySelector('.ping-page-header__eyebrow')).toBeNull();
     expect(container.querySelector('.ping-page-header__side')).toBeNull();
+  });
+
+  it('phone: the copy is sized to its content, not a 360px flex-basis that becomes a height in the column layout', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/components/common/PageHeader.css'), 'utf8');
+    const phone = css.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(phone).toContain('flex-direction: column');
+    expect(phone).toMatch(/\.ping-page-header__copy \{[^}]*flex: 0 1 auto;/);
   });
 });
