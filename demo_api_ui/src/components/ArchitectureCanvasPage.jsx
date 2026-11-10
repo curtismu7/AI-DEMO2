@@ -454,7 +454,7 @@ function CanvasEditor() {
     <div className="canvas-page">
       {/* Toolbar */}
       <div className="canvas-toolbar">
-        <h2>Architecture Canvas</h2>
+        <h1>Architecture Canvas</h1>
         {renaming ? (
           <>
             <input className="rename-input" type="text" autoFocus value={renaming.value}

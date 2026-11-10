@@ -17,6 +17,7 @@
   box-shadow: inset 0 0 0 100vmax var(--rfp-bg, #0b1220);
 }
 
+.rfpc-header h1,
 .rfpc-header h2 {
   margin: 0 0 4px;
   font-size: 1.5rem;

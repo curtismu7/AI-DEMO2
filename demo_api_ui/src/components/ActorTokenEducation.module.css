@@ -7,6 +7,7 @@
   font-family: var(--font-primary);
 }
 
+.actorTokenEducation h1,
 .actorTokenEducation h2 {
   color: var(--th-text);
   margin-top: 0;
@@ -298,6 +299,7 @@
     padding: 16px;
   }
 
+  .actorTokenEducation h1,
   .actorTokenEducation h2 {
     font-size: var(--font-size-xl);
   }

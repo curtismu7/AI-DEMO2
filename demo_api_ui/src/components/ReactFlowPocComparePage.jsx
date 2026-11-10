@@ -49,7 +49,7 @@ export default function ReactFlowPocComparePage() {
   return (
     <div className={`rfpc-page${dark ? " rfp-dark rfpc-dark" : ""}`} data-testid="rfpc-page">
       <div className="rfpc-header">
-        <h2>Architecture diagram POC</h2>
+        <h1>Architecture diagram POC</h1>
         <p>
           The complete architecture as an interactive flow diagram or a guided
           sequence diagram — both driven by the same steps, scenarios, and
