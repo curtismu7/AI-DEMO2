@@ -81,7 +81,7 @@ describe("FeatureFlagsPage — Ping UI Standard", () => {
   it("a switch takes aria-disabled (not disabled) while saving, keeps focus and ignores a second press", async () => {
     const { release, calls } = stubFetch();
     render(<FeatureFlagsPage />);
-    const toggle = await screen.findByRole("button", { name: /enable flag one/i });
+    const toggle = await screen.findByRole("button", { name: "Flag One" });
     toggle.focus();
     fireEvent.click(toggle);
     await waitFor(() => expect(toggle).toHaveAttribute("aria-disabled", "true"));
@@ -89,7 +89,7 @@ describe("FeatureFlagsPage — Ping UI Standard", () => {
     expect(document.activeElement).toBe(toggle);
     fireEvent.click(toggle);
     release();
-    await screen.findByText(/ff_one/, { selector: "strong" });
+    await screen.findByText(/saved: now on/);
     expect(toggle).not.toHaveAttribute("aria-disabled");
     expect(document.activeElement).toBe(toggle);
     expect(calls.filter(([, init]) => init.method === "PATCH")).toHaveLength(1);
@@ -169,8 +169,8 @@ describe("FeatureFlagsPage — webhook card", () => {
     expect(posts).toHaveLength(1);
     expect(JSON.parse(posts[0][1].body)).toEqual({ EXTERNAL_GUARDRAIL_WEBHOOK_URL: "https://hook.test/x" });
     expect(document.activeElement).toBe(save);
-    // Now stored: the same button reads Clear and the card says Configured.
-    expect(save).toHaveTextContent("Clear");
+    // Now stored: the same button keeps its name and the card says Configured.
+    expect(save).toHaveTextContent("Save");
     expect(screen.getByTestId("ff-webhook")).toHaveTextContent("Configured");
   });
 
@@ -188,7 +188,88 @@ describe("FeatureFlagsPage — webhook card", () => {
     render(<FeatureFlagsPage />);
     const card = await screen.findByTestId("ff-webhook");
     await waitFor(() => expect(card).toHaveTextContent("https://hook.test/stored"));
-    const btn = within(card).getByRole("button", { name: "Clear" });
+    const btn = within(card).getByRole("button", { name: "Save" });
     expect(btn).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByText(/press save to remove the stored url/i)).toBeInTheDocument();
+  });
+});
+
+describe("FeatureFlagsPage — skeptic fixes (focus, names, wording)", () => {
+  it("Dismiss moves focus to the Refresh flags button instead of dropping it to the body", async () => {
+    stubFetch({ flagsStatus: 500 });
+    render(<FeatureFlagsPage />);
+    const dismiss = await screen.findByRole("button", { name: /dismiss/i });
+    dismiss.focus();
+    fireEvent.click(dismiss);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Refresh flags" }));
+  });
+
+  it("the switch name is the flag name and never changes; state is aria-pressed only", async () => {
+    const { release } = stubFetch();
+    render(<FeatureFlagsPage />);
+    const toggle = await screen.findByRole("button", { name: "Flag One" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+    expect(toggle).toHaveAccessibleName("Flag One");
+    release();
+    await screen.findByText(/saved: now on/);
+    expect(toggle).toHaveAccessibleName("Flag One");
+  });
+
+  it("the toast names the flag and the new state, not the raw id", async () => {
+    const { release } = stubFetch();
+    const { container } = render(<FeatureFlagsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Flag Two" }));
+    release();
+    const toast = await screen.findByText(/saved: now off/);
+    expect(toast).toHaveTextContent("Flag Two");
+    expect(container.querySelector(".ff-saved-region")).toHaveTextContent(/Flag Two\s*saved: now off/);
+    expect(container.querySelector(".ff-saved-region")).not.toHaveTextContent("ff_two");
+  });
+
+  it("button names do not change while a status region announces: Refresh and Save keep their names", async () => {
+    stubFetch();
+    render(<FeatureFlagsPage />);
+    const refresh = screen.getByTitle(/refresh flags from server/i);
+    expect(refresh).toHaveTextContent(/^Refresh flags$/);
+    await waitFor(() => expect(screen.getByTestId("ff-status")).toHaveTextContent("Loaded"));
+    expect(refresh).toHaveTextContent(/^Refresh flags$/);
+    const save = await screen.findByRole("button", { name: "Save" });
+    fireEvent.change(document.getElementById("egw-url"), { target: { value: "https://hook.test/x" } });
+    fireEvent.click(save);
+    expect(save).toHaveTextContent(/^Save$/);
+    expect(save).toHaveAttribute("aria-busy", "true");
+    await screen.findByText(/webhook url saved/i);
+    expect(save).toHaveTextContent(/^Save$/);
+  });
+
+  it("two saves in flight keep their own Saving state", async () => {
+    const { release } = stubFetch();
+    render(<FeatureFlagsPage />);
+    const one = await screen.findByRole("button", { name: "Flag One" });
+    const two = await screen.findByRole("button", { name: "Flag Two" });
+    fireEvent.click(one);
+    fireEvent.click(two);
+    await waitFor(() => {
+      expect(one).toHaveAttribute("aria-disabled", "true");
+      expect(two).toHaveAttribute("aria-disabled", "true");
+    });
+    release();
+    await waitFor(() => {
+      expect(one).not.toHaveAttribute("aria-disabled");
+      expect(two).not.toHaveAttribute("aria-disabled");
+    });
+  });
+
+  it("the banner stays true when the registry could not be read", async () => {
+    stubFetch({ flagsStatus: 401 });
+    render(<FeatureFlagsPage />);
+    await screen.findByRole("alert");
+    const banner = screen.getByTestId("ff-banner");
+    expect(banner).toHaveTextContent(/nothing on this page is simulated/i);
+    expect(banner).toHaveTextContent(/could not be read/i);
+    expect(banner).not.toHaveTextContent(/each switch writes the flag/i);
   });
 });

@@ -13,12 +13,13 @@
 // through the shared primitives (components/pingUi, docs/ping-ui-primitives.md): P2 banner first, P3 frame,
 // P4 cards, P7 chips, P9 buttons. P5 (key-value) is used only in the overview and webhook cards: a flag
 // card is a switch plus prose, not a record. P9 "one primary per view": the only primary is the webhook
-// form's Save / Clear (the one button that commits a typed value), in every state; it reads inactive while
-// there is nothing to save. Refresh and Dismiss are secondaries. The flag switches and the choice dropdowns
+// form's Save (the one button that commits a typed value; an empty field removes the stored URL), in every state;
+// it reads inactive while there is nothing to save. Button names are stable (a name never changes while a status
+// region announces the result); the switch is named for the flag and carries aria-pressed. Refresh and Dismiss are secondaries. The flag switches and the choice dropdowns
 // are controls, not buttons in the P9 sense, and take aria-disabled (not disabled) while saving so keyboard
 // focus stays on them. Page CSS (FeatureFlagsPage.css) keeps only the switch and the card header.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './FeatureFlagsPage.css';
 import InlineSpinner from './shared/InlineSpinner';
 import PageHeader from './common/PageHeader';
@@ -37,8 +38,12 @@ export default function FeatureFlagsPage() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [saving,     setSaving]     = useState(null);
+  // Ids of the flags with a save in flight. A list, not one id: pressing a second switch while the first save is
+  // running must not move the Saving state off the first one or let its finish clear the second early.
+  const [saving,     setSaving]     = useState([]);
   const [lastSaved,  setLastSaved]  = useState(null);
+  const refreshRef = useRef(null);
+  const flagNameRef = useRef({});
 
   /** Auto-dismiss the save toast after 2.5 s */
   useEffect(() => {
@@ -60,6 +65,7 @@ export default function FeatureFlagsPage() {
           ? `${reason}. Sign in as an admin to view and change flags.`
           : reason);
       }
+      flagNameRef.current = Object.fromEntries((data.flags || []).map(f => [f.id, f.name]));
       setFlags(data.flags || []);
       setCategories(data.categories || []);
     } catch (err) {
@@ -73,7 +79,7 @@ export default function FeatureFlagsPage() {
   useEffect(() => { loadFlags(); }, [loadFlags]);
 
   const handleToggle = useCallback(async (flagId, newValue) => {
-    setSaving(flagId);
+    setSaving(prev => (prev.includes(flagId) ? prev : [...prev, flagId]));
     let oldValue;
     setFlags(prev => {
       const flag = prev.find(f => f.id === flagId);
@@ -93,12 +99,19 @@ export default function FeatureFlagsPage() {
         const confirmed = data.flags?.find(u => u.id === f.id);
         return confirmed ? { ...f, value: confirmed.value } : f;
       }));
-      setLastSaved({ flagId, timestamp: Date.now() });
+      // The toast names the flag and the value the server confirmed, not the raw id.
+      const confirmedFlag = data.flags?.find(u => u.id === flagId);
+      setLastSaved({
+        flagId,
+        name:  confirmedFlag?.name || flagNameRef.current[flagId] || flagId,
+        value: confirmedFlag ? confirmedFlag.value : newValue,
+        timestamp: Date.now(),
+      });
     } catch (err) {
       setFlags(prev => prev.map(f => f.id === flagId ? { ...f, value: oldValue } : f));
       setError(`Failed to save "${flagId}": ${err.message}`);
     } finally {
-      setSaving(null);
+      setSaving(prev => prev.filter(id => id !== flagId));
     }
   }, []);
 
@@ -112,6 +125,8 @@ export default function FeatureFlagsPage() {
   const enabledCount  = boolFlags.filter(f => f.value === true).length;
   const disabledCount = boolFlags.filter(f => f.value === false).length;
 
+  const registryUnavailable = loadFailed && flags.length === 0;
+
   // What the page actually knows, in words. Green only once the registry was read.
   let status;
   if (loading && flags.length === 0) status = { tone: 'neutral', word: 'Loading', text: 'Reading the flag registry from the server.' };
@@ -123,10 +138,19 @@ export default function FeatureFlagsPage() {
   return (
     <PingPage className="feature-flags-page">
       <SimBanner data-testid="ff-banner">
-        <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. The list is this app&apos;s own flag
-        registry, and each switch writes the flag to the server configuration store, so a change is stored at once
-        and survives a restart. Some flags choose between a real PingOne service and a local mock (for example Real
-        PingOne Authorize); the card of each flag says what it changes. Changing flags needs an admin session.
+        {registryUnavailable ? (
+          <>
+            <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. The flag registry could not be read,
+            so no switches are shown and nothing was changed. Changing flags needs an admin session.
+          </>
+        ) : (
+          <>
+            <strong>LIVE SETTINGS</strong> — nothing on this page is simulated. The list is this app&apos;s own flag
+            registry, and each switch writes the flag to the server configuration store, so a change is stored at once
+            and survives a restart. Some flags choose between a real PingOne service and a local mock (for example Real
+            PingOne Authorize); the card of each flag says what it changes. Changing flags needs an admin session.
+          </>
+        )}
       </SimBanner>
       <PageHeader
         eyebrow="Developer Tools"
@@ -137,14 +161,21 @@ export default function FeatureFlagsPage() {
         {error && (
           <div className="ff-error" role="alert">
             <p className="ff-error__text"><strong>Error:</strong> {error}</p>
-            <button type="button" className="pu-btn" onClick={() => setError(null)}>Dismiss ✕</button>
+            <button
+              type="button"
+              className="pu-btn"
+              onClick={() => { setError(null); if (refreshRef.current) refreshRef.current.focus(); }}
+            >Dismiss ✕</button>
           </div>
         )}
 
         <div className="ff-saved-region" role="status">
           {lastSaved && (
             <div className="ff-saved-toast" key={lastSaved.timestamp}>
-              ✅ <strong>{lastSaved.flagId}</strong> saved
+              ✅ <strong>{lastSaved.name}</strong>{' '}
+              {typeof lastSaved.value === 'boolean'
+                ? `saved: now ${lastSaved.value ? 'on' : 'off'}`
+                : `saved: set to ${lastSaved.value}`}
             </div>
           )}
         </div>
@@ -178,11 +209,12 @@ export default function FeatureFlagsPage() {
                 <button
                   type="button"
                   className="pu-btn"
+                  ref={refreshRef}
                   onClick={refresh}
                   aria-disabled={loading ? 'true' : undefined}
                   title="Refresh flags from server"
                 >
-                  {loading ? 'Refreshing…' : 'Refresh flags'}
+                  Refresh flags
                 </button>
               </div>
             </Card>
@@ -243,7 +275,7 @@ export function FlagCard({ flag, onToggle, saving }) {
   // the place you SEE every flag without becoming a second place to set them.
   const managedOn = flag.managedOn;
   const isOn     = !isEnum && flag.value === true;
-  const isSaving = saving === flag.id;
+  const isSaving = Array.isArray(saving) ? saving.includes(flag.id) : saving === flag.id;
   const showWarn = !isEnum && ((!isOn && flag.warnIfDisabled) || (isOn && flag.warnIfEnabled));
   const warnMsg  = flag.warnIfDisabled
     ? 'Disabling this flag may break transactions or reduce security.'
@@ -287,7 +319,7 @@ export function FlagCard({ flag, onToggle, saving }) {
             className={`ff-toggle${isOn ? ' ff-toggle--on' : ''}`}
             onClick={() => { if (!isSaving) onToggle(flag.id, !isOn); }}
             aria-disabled={isSaving ? 'true' : undefined}
-            aria-label={`${isOn ? 'Disable' : 'Enable'} ${flag.name}`}
+            aria-label={flag.name}
             aria-pressed={isOn}
           >
             <span className="ff-toggle__thumb" aria-hidden="true" />
@@ -363,7 +395,6 @@ function ExternalGuardrailWebhookConfig() {
   // The button keeps keyboard focus while it cannot act (aria-disabled, not disabled), so the handler enforces it.
   const nothingToSave = !url.trim() && !currentUrl;
   const inactive = saving || nothingToSave;
-  const clearing = !url.trim() && !!currentUrl;
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -402,7 +433,7 @@ function ExternalGuardrailWebhookConfig() {
   let hint;
   if (saving) hint = 'Saving the webhook URL.';
   else if (url.trim()) hint = 'Save replaces the stored URL.';
-  else if (currentUrl) hint = 'Leave the field empty and press Clear to remove the stored URL.';
+  else if (currentUrl) hint = 'Leave the field empty and press Save to remove the stored URL.';
   else hint = 'Enter a URL to enable Save.';
 
   return (
@@ -456,8 +487,9 @@ function ExternalGuardrailWebhookConfig() {
                 className="pu-btn pu-btn--primary"
                 aria-disabled={inactive ? 'true' : undefined}
                 aria-describedby="egw-hint"
+                aria-busy={saving ? 'true' : undefined}
               >
-                {saving ? 'Saving…' : (clearing ? 'Clear' : 'Save')}
+                Save
               </button>
               <span className={`ff-webhook__result${saveResult === 'ok' ? ' ff-webhook__result--ok' : ''}${saveResult === 'error' ? ' ff-webhook__result--err' : ''}`} role="status">
                 {saveResult === 'ok'    && `✅ ${saveMsg}`}
