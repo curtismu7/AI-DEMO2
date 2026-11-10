@@ -265,6 +265,26 @@ describe("✓ only after the step ran", () => {
   });
 });
 
+describe("signed in, an attack sim trace is not tagged mock", () => {
+  it("runs the sim and marks the trace live (real exchange + gateway call)", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={{ id: "u1", username: "demo", role: "customer" }} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+    await runStep(UC12);
+
+    await waitFor(() => {
+      expect(apiPost).toHaveBeenCalledWith("/api/demo/attack-sim/run", expect.objectContaining({ sim: "replayed-token" }));
+    });
+    expect(tokenChainTraceStore.getState().trace.provenance).toBe("live");
+  });
+});
+
 describe("a page-type step clears the live trace before it opens its page", () => {
   it("drops the previous run so the dashboard diagram does not keep showing it", async () => {
     // Seed a previous run, as a chat turn would have left it.
@@ -316,6 +336,15 @@ describe("UC14b quick result says when it is simulated", () => {
       expect(document.body.textContent).toContain("Simulated: the RAR check runs through the demo gateway");
     });
     expect(apiPost).toHaveBeenCalledWith("/api/demo/intent-binding/run", expect.objectContaining({ action: "permit" }));
+  });
+
+  it("tags the trace live: the check does a real token exchange and gateway call", async () => {
+    apiPost.mockResolvedValue({ data: { status: 200, errorCode: null, live: false, tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/demo/intent-binding/run", expect.anything()));
+    expect(tokenChainTraceStore.getState().trace.provenance).toBe("live");
   });
 
   it("says PERMIT was expected when the permit check is denied", async () => {
