@@ -186,7 +186,7 @@ const LIVE_PERMIT = {
   parResponse: { request_uri: "urn:x", expires_in: 60 },
   tokenChainEvents: [
     { id: "par-push", label: "PAR Endpoint Push", status: "active" },
-    { id: "p1az-permit", label: "PingOne Authorize — PERMIT", status: "active" },
+    { id: "p1az-permit", label: "Amount check — PERMIT (made by this app's backend)", status: "active" },
   ],
 };
 

@@ -50,7 +50,7 @@ describe("buildTraceSteps — intent-binding step", () => {
         { id: "par-push", label: "PAR Endpoint Push", status: "active" },
         { id: "request-uri", label: "Received request_uri", status: "active" },
         { id: "intent-check", label: "Intent cap $80 <= $100", status: "active" },
-        { id: "p1az-permit", label: "PingOne Authorize — PERMIT", status: "active" },
+        { id: "p1az-permit", label: "Amount check — PERMIT (made by this app's backend)", status: "active" },
       ],
     });
     const ids = steps.map((s) => s.id);
