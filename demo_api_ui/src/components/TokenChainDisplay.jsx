@@ -1952,7 +1952,9 @@ function AuthorizeDecisionEduBox({ event }) {
             <span>
               {engine === "pingone"
                 ? "PingOne Authorize (live policy)"
-                : "Simulated policy engine (demo mode)"}
+                : engine === "unknown"
+                  ? "Engine not reported"
+                  : "Simulated policy engine (demo mode)"}
             </span>
           </li>
           <li>
