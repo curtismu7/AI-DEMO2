@@ -62,8 +62,11 @@
 .admin-dashboard-page .dash-shell-card {
   background: var(--admin-surface);
   color: var(--admin-ink);
-  border: 1px solid var(--admin-line);
-  border-radius: 14px;
+  /* Border, 4px accent top edge, radius and shadow come from .pu-card (every dash-shell-card also carries it).
+     This page's cards own their inner padding (title band, then 16px sides), so the shared padding and margin
+     are zeroed here; the column's gap spaces the cards. */
+  padding: 0;
+  margin: 0;
   /* No margin-bottom. .admin-dash-col2 is a flex column with gap: 1rem and
      overflow-y: auto; a bottom margin on the last card is clipped by that
      scroll container, which cut off the end of the page. The gap already
@@ -87,8 +90,7 @@
   letter-spacing: 0.01em;
   color: var(--admin-ink);
   background: var(--admin-surface);
-  /* Clips its own top corners, since the card no longer clips for it. */
-  border-radius: 14px 14px 0 0;
+
 }
 
 /* Everything after the title gets the card's inner padding. */

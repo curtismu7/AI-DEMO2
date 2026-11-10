@@ -86,4 +86,5 @@
 /audit
 /pingfederate-id-jag/implementation
 /privilege-for-ai
+/admin
 /privilege-ai-policies

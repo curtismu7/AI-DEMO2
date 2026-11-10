@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import bffAxios from "../services/bffAxios";
 import { adminCustomerContext } from "../services/adminCustomerContext";
+import { KvList } from "./pingUi";
 import "./AdminCustomerPanel.css";
 
 const API = "/api/admin/agent";
@@ -26,7 +27,10 @@ function errMessage(err, fallback) {
   );
 }
 
-const AdminCustomerPanel = () => {
+// primaryAction: whether this panel holds the page's one primary button (Dashboard turns it off while its own
+// Retry card is the primary). Inside the panel the primary is "View Profile", or "Apply adjustment" while the
+// adjust form is open; every other action is a secondary.
+const AdminCustomerPanel = ({ primaryAction = true }) => {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -210,10 +214,20 @@ const AdminCustomerPanel = () => {
 
   const busy = actionLoading !== null;
   const disabled = !selectedCustomer || busy;
+  const adjusting = result?.kind === "adjust-accounts";
+  const profilePrimary = primaryAction && !adjusting;
+  // aria-disabled, not disabled: the button that was just pressed keeps keyboard focus while its action runs.
+  // The click is ignored here, and the visible reason is the "Search and select a customer" line (or "Loading…").
+  const actionProps = (run) => ({
+    type: "button",
+    "aria-disabled": disabled ? "true" : undefined,
+    "aria-describedby": selectedCustomer ? undefined : "acp-select-hint",
+    onClick: disabled ? undefined : run,
+  });
 
   return (
     <section
-      className="dash-shell-card acp-panel"
+      className="dash-shell-card pu-card acp-panel"
       aria-labelledby="acp-heading"
     >
       <h2 id="acp-heading" className="dash-shell-card__title">
@@ -304,7 +318,7 @@ const AdminCustomerPanel = () => {
           </button>
         </div>
       ) : (
-        <p className="acp-hint acp-hint--select">
+        <p id="acp-select-hint" className="acp-hint acp-hint--select">
           Search and select a customer above to enable admin actions.
         </p>
       )}
@@ -321,16 +335,11 @@ const AdminCustomerPanel = () => {
           {lookup.pingOne && (
             <>
               <h3 className="acp-lookup__h">PingOne record</h3>
-              <dl className="acp-kv">
-                {Object.entries(lookup.pingOne)
+              <KvList
+                items={Object.entries(lookup.pingOne)
                   .filter(([, v]) => v !== null && typeof v !== "object")
-                  .map(([k, v]) => (
-                    <div className="acp-kv__row" key={k}>
-                      <dt>{k}</dt>
-                      <dd>{String(v)}</dd>
-                    </div>
-                  ))}
-              </dl>
+                  .map(([k, v]) => ({ label: k, value: String(v) }))}
+              />
             </>
           )}
 
@@ -345,42 +354,32 @@ const AdminCustomerPanel = () => {
       {/* Action buttons */}
       <div className="acp-actions" role="group" aria-label="Customer admin actions">
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={viewProfile}
+          className={`pu-btn acp-action-btn${profilePrimary ? " pu-btn--primary" : ""}`}
+          {...actionProps(viewProfile)}
         >
           {actionLoading === "profile" ? "Loading…" : "View Profile"}
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={viewAccounts}
+          className="pu-btn acp-action-btn"
+          {...actionProps(viewAccounts)}
         >
           {actionLoading === "accounts" ? "Loading…" : "View Accounts"}
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={viewTransactions}
+          className="pu-btn acp-action-btn"
+          {...actionProps(viewTransactions)}
         >
           {actionLoading === "transactions" ? "Loading…" : "View Transactions"}
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={resetPassword}
+          className="pu-btn acp-action-btn"
+          {...actionProps(resetPassword)}
         >
           {actionLoading === "reset" ? "Working…" : "Reset Password"}
         </button>
         <button
-          type="button"
-          className="btn btn-primary acp-action-btn"
-          disabled={disabled}
-          onClick={loadAccountsForAdjust}
+          className="pu-btn acp-action-btn"
+          {...actionProps(loadAccountsForAdjust)}
         >
           {actionLoading === "adjust-accounts" ? "Loading…" : "Adjust Balance"}
         </button>
@@ -427,6 +426,7 @@ const AdminCustomerPanel = () => {
               onAmountChange={setAdjustAmount}
               onSubmit={submitAdjust}
               submitting={actionLoading === "adjust"}
+              primary={primaryAction}
             />
           )}
         </div>
@@ -443,16 +443,12 @@ function ProfileResult({ user }) {
   return (
     <div>
       <h3 className="acp-result-title">Profile</h3>
-      <dl className="acp-dl">
-        {entries.map(([k, v]) => (
-          <div key={k} className="acp-dl__row">
-            <dt className="acp-dl__key">{k}</dt>
-            <dd className="acp-dl__val">
-              {v === null || v === "" ? "—" : String(v)}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <KvList
+        items={entries.map(([k, v]) => ({
+          label: k,
+          value: v === null || v === "" ? "—" : String(v),
+        }))}
+      />
     </div>
   );
 }
@@ -551,6 +547,7 @@ function AdjustForm({
   onAmountChange,
   onSubmit,
   submitting,
+  primary,
 }) {
   if (!accounts || accounts.length === 0)
     return (
@@ -597,9 +594,9 @@ function AdjustForm({
         </div>
         <button
           type="button"
-          className="btn btn-primary acp-action-btn"
-          onClick={onSubmit}
-          disabled={submitting || !accountId || amount === ""}
+          className={`pu-btn acp-action-btn${primary ? " pu-btn--primary" : ""}`}
+          onClick={submitting || !accountId || amount === "" ? undefined : onSubmit}
+          aria-disabled={submitting || !accountId || amount === "" ? "true" : undefined}
         >
           {submitting ? "Applying…" : "Apply adjustment"}
         </button>

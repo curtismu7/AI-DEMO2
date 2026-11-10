@@ -16,7 +16,10 @@ import ExchangeModeToggle from "./ExchangeModeToggle";
 import { useCurrentUserTokenEvent } from "../hooks/useCurrentUserTokenEvent";
 import { navigateToAdminOAuthLogin } from "../utils/authUi";
 import { toastAdminSessionError } from "../utils/dashboardToast";
-import "../styles/appShellPages.css";
+// The shell and toolbar rules this page used to take from styles/appShellPages.css now live in Dashboard.css under
+// .admin-dashboard-page. That file also styles .app-page-toolbar-btn--theme with a vertical colour (other pages use
+// it), and the Ping UI pattern check follows imports, so importing it here would fail P9 for this page. Keeping the
+// rules here also keeps them in the initial CSS: without the import the file moves to a lazy chunk.
 import "./Dashboard.css";
 // Console visual language for this page — additive CSS only, scoped to
 // .admin-dashboard-page. See the file header for why the look moved here
@@ -39,7 +42,12 @@ import ThresholdControls from "./ThresholdControls";
 import AdminCustomerPanel from "./AdminCustomerPanel";
 import AdminDemoControlStrip from "./AdminDemoControlStrip";
 import GroupMembershipToggle from "./GroupMembershipToggle";
+import PageHeader from "./common/PageHeader";
+import { PingPage, SimBanner, StatusChip } from "./pingUi";
 
+// P9, one primary per view state. Loaded: "View Profile" in the customer panel (AdminCustomerPanel). Key metrics
+// unavailable (including the 403 help): Retry, and the panel's own buttons all become secondaries. Sign out is a
+// secondary in every state. Loading: the spinner has no buttons.
 const Dashboard = ({ user, onLogout }) => {
   const { size: tokenColWidth, handleProps: tokenColHandleProps } = useDividerDrag({
     min: 320,
@@ -57,6 +65,12 @@ const Dashboard = ({ user, onLogout }) => {
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  // The full-page spinner is for the first load only. A Retry or a post-reset reload keeps the cards mounted so
+  // the control the keyboard user just pressed is still there.
+  const [loadedOnce, setLoadedOnce] = useState(false);
+  const [activityFailed, setActivityFailed] = useState(false);
+  const retryRequestedRef = React.useRef(false);
+  const metricsRef = React.useRef(null);
   const [forbidden403, setForbidden403] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const { registerTokenModalOpener } = useSessionToken();
@@ -245,6 +259,7 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const handleResetDemo = async () => {
+    if (resettingDemo) return; // aria-disabled keeps focus on the button; the click is ignored
     setConfirmReset(true);
   };
 
@@ -346,6 +361,7 @@ const Dashboard = ({ user, onLogout }) => {
 
         if (activityResult.status === "fulfilled") {
           setRecentActivity(activityResult.value.data?.logs ?? []);
+          setActivityFailed(false);
         } else {
           console.error(
             "Dashboard activity error:",
@@ -353,6 +369,7 @@ const Dashboard = ({ user, onLogout }) => {
               activityResult.reason?.message,
           );
           setRecentActivity([]);
+          setActivityFailed(true);
         }
       } catch (err) {
         console.error("Dashboard error:", err);
@@ -362,6 +379,7 @@ const Dashboard = ({ user, onLogout }) => {
         setStats(null);
       } finally {
         setLoading(false);
+        setLoadedOnce(true);
         fetchingRef.current = false;
       }
     },
@@ -401,6 +419,20 @@ const Dashboard = ({ user, onLogout }) => {
   }, [location.state, location.pathname, navigate, fetchDashboardData]);
 
 
+  // A Retry that succeeds replaces the Retry card with the metrics, so the button the keyboard user pressed is
+  // gone. Hand focus to the metrics region (role=region with a name) instead of dropping it to the page.
+  useEffect(() => {
+    if (!retryRequestedRef.current || loading) return;
+    retryRequestedRef.current = false;
+    if (stats) metricsRef.current?.focus();
+  }, [loading, stats]);
+
+  const retryLoad = () => {
+    if (loading) return; // aria-disabled keeps focus on the button; the click is ignored
+    retryRequestedRef.current = true;
+    fetchDashboardData(0);
+  };
+
   // Function to open token modal
   const openTokenModal = () => {
     setShowTokenModal(true);
@@ -415,7 +447,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Check if scope injection is enabled (Phase 146 — D-04)
 
-  if (loading) {
+  if (loading && !loadedOnce) {
     return (
       <div className="loading" role="status" aria-live="polite">
         <PingIdentitySpinner size={40} label="Loading dashboard…" />
@@ -424,10 +456,25 @@ const Dashboard = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="admin-dashboard-page app-page-shell app-page-shell--toolbar-room app-page-shell--dash2026">
+    <PingPage className="admin-dashboard-page app-page-shell app-page-shell--toolbar-room app-page-shell--dash2026">
+      <SimBanner data-testid="admin-banner">
+        <strong>DEMO DATA</strong> — the customers, accounts, balances and activity on this page are demo records held
+        in the BFF&apos;s memory, not a real bank. <strong>Reset Demo</strong> overwrites every demo balance and{" "}
+        <strong>Export seed JSON</strong> downloads that data. The token chain, PingOne group membership and PingOne
+        customer record are requested from PingOne through the BFF for the signed-in admin session, and each panel
+        shows its own error when its request fails.{" "}
+        {stats
+          ? "Key metrics were loaded from the BFF."
+          : "Key metrics could not be loaded, so no figures are shown and nothing below reflects current data."}
+      </SimBanner>
       <a href="#admin-dashboard-main" className="dash-skip-link">
         Skip to admin content
       </a>
+      <PageHeader
+        eyebrow="PingOne Admin"
+        title="Admin dashboard"
+        summary="Demo-bank totals and recent activity, customer lookup and admin actions, and the token chain for this session."
+      />
       <div
         className={`app-page-shell__body app-page-shell__body--wide ${agentPlacement === "bottom" ? "app-page-shell__body--embed-agent" : ""}`}
       >
@@ -460,24 +507,11 @@ const Dashboard = ({ user, onLogout }) => {
               role="toolbar"
               aria-label="Admin actions"
             >
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
-                  cursor: "pointer",
-                  padding: "0.3rem 0.5rem",
-                  borderRadius: "6px",
-                  fontSize: "0.85rem",
-                  fontWeight: 500,
-                  userSelect: "none",
-                }}
-              >
+              <label className="dash-toolbar-check">
                 <input
                   type="checkbox"
                   checked={showEventStream}
                   onChange={(e) => setShowEventStream(e.target.checked)}
-                  style={{ cursor: "pointer" }}
                   aria-label="Toggle What's Happening event stream"
                 />
                 What's Happening:
@@ -489,16 +523,16 @@ const Dashboard = ({ user, onLogout }) => {
               <button
                 type="button"
                 onClick={toggleDarkMode}
-                className="app-page-toolbar-btn"
+                className="pu-btn"
                 title="Switch the dashboard between light and dark"
                 aria-pressed={darkMode}
               >
-                {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+                <span aria-hidden="true">{darkMode ? "☀️" : "🌙"}</span> Dark mode
               </button>
               <button
                 type="button"
                 onClick={() => setApiCallsModalOpen(true)}
-                className="app-page-toolbar-btn"
+                className="pu-btn"
                 title="View API calls history"
               >
                 API Calls
@@ -507,8 +541,9 @@ const Dashboard = ({ user, onLogout }) => {
               <button
                 type="button"
                 onClick={openTokenModal}
-                className="app-page-toolbar-btn app-page-toolbar-btn--icon"
+                className="pu-btn dash-toolbar-icon-btn"
                 title="View OAuth Token Info"
+                aria-label="View OAuth token info"
               >
                 <svg
                   width="18"
@@ -523,7 +558,7 @@ const Dashboard = ({ user, onLogout }) => {
               <button
                 type="button"
                 onClick={handleDownloadBootstrap}
-                className="app-page-toolbar-btn"
+                className="pu-btn"
                 title="Download current in-memory data as bootstrapData.json for the next deploy"
               >
                 Export seed JSON
@@ -532,7 +567,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <button
                   type="button"
                   onClick={handleWriteBootstrap}
-                  className="app-page-toolbar-btn"
+                  className="pu-btn"
                   title="Write data/bootstrapData.json on the server (requires ALLOW_BOOTSTRAP_EXPORT_WRITE in production)"
                 >
                   Save seed on server
@@ -541,8 +576,8 @@ const Dashboard = ({ user, onLogout }) => {
               <button
                 type="button"
                 onClick={handleResetDemo}
-                disabled={resettingDemo}
-                className="app-page-toolbar-btn"
+                aria-disabled={resettingDemo ? "true" : undefined}
+                className="pu-btn"
                 title="Reset all OAuth demo accounts to $5,000 starting balance"
               >
                 {resettingDemo ? "Resetting…" : "Reset Demo"}
@@ -552,15 +587,18 @@ const Dashboard = ({ user, onLogout }) => {
                 presenting this page. The agent hides its own copies here (see
                 pageOwnsAgentChrome in AIAgent.js). */}
             <AdminDemoControlStrip />
-            <main
+            {/* A region, not a second <main>: the app shell already renders the page's <main>. */}
+            <div
               id="admin-dashboard-main"
+              role="region"
+              aria-label="Admin dashboard"
               tabIndex={-1}
               className="admin-dash-main--split"
               style={{ "--admin-token-col-w": `${tokenColWidth}px` }}
             >
               {/* Token chain — grouped card (inspector includes its own title) */}
               <section
-                className="dash-shell-card dash-shell-card--token"
+                className="dash-shell-card dash-shell-card--token pu-card pu-card--neutral"
                 aria-label="Security and token chain"
               >
                 <ExchangeModeToggle hideTable />
@@ -572,7 +610,7 @@ const Dashboard = ({ user, onLogout }) => {
               {/* Col-2 wrapper: all right-column sections scroll together */}
               <div className="admin-dash-col2">
               <section
-                className="dash-shell-card"
+                className="dash-shell-card pu-card"
                 aria-labelledby="pingone-admin-access-heading"
               >
                 <h2 id="pingone-admin-access-heading" className="dash-shell-card__title">
@@ -580,7 +618,7 @@ const Dashboard = ({ user, onLogout }) => {
                 </h2>
                 <GroupMembershipToggle verticalId="pingone-admin" />
               </section>
-              <AdminCustomerPanel />
+              <AdminCustomerPanel primaryAction={Boolean(stats)} />
               {/* The Customer lookup card lived here. It duplicated the
                   search, profile, accounts and transactions of the
                   Customer lookup & admin panel below, which now also
@@ -591,7 +629,9 @@ const Dashboard = ({ user, onLogout }) => {
               {/* Statistics Cards */}
               {stats ? (
                 <section
-                  className="dash-shell-card"
+                  ref={metricsRef}
+                  tabIndex={-1}
+                  className="dash-shell-card pu-card"
                   aria-labelledby="dash-kpi-heading"
                 >
                   <h2 id="dash-kpi-heading" className="dash-shell-card__title">
@@ -661,28 +701,31 @@ const Dashboard = ({ user, onLogout }) => {
                   </div>
                 </section>
               ) : (
-                <div className="card" style={{ marginBottom: "1rem" }}>
-                  <p style={{ marginTop: 0 }}>
-                    Could not load admin statistics. Check the toast for
-                    details.
+                <section
+                  className="dash-shell-card pu-card pu-card--danger"
+                  aria-labelledby="dash-kpi-heading"
+                  data-testid="admin-stats-unavailable"
+                >
+                  <h2 id="dash-kpi-heading" className="dash-shell-card__title">
+                    Key metrics
+                  </h2>
+                  <p className="pu-status-line" role="alert">
+                    <StatusChip tone="danger">Unavailable</StatusChip>
+                    Could not load admin statistics. Check the toast for details.
                   </p>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => fetchDashboardData(0)}
-                  >
-                    Retry
-                  </button>
-                  {forbidden403 && (
-                    <div
-                      style={{
-                        marginTop: "1rem",
-                        fontSize: "0.9rem",
-                        color: "var(--th-text)",
-                        lineHeight: 1.5,
-                      }}
+                  <div className="pu-actions">
+                    <button
+                      type="button"
+                      className="pu-btn pu-btn--primary"
+                      aria-disabled={loading ? "true" : undefined}
+                      onClick={retryLoad}
                     >
-                      <p style={{ marginTop: 0 }}>
+                      {loading ? "Retrying…" : "Retry"}
+                    </button>
+                  </div>
+                  {forbidden403 && (
+                    <div className="dash-forbidden-help">
+                      <p>
                         The API rejected this request. Common causes: the access
                         token was issued to the <strong>end-user</strong>{" "}
                         PingOne app but the admin dashboard requires the{" "}
@@ -707,42 +750,48 @@ const Dashboard = ({ user, onLogout }) => {
                         otherwise <strong>Admin Sign in</strong> may fail before
                         you reach PingOne.
                       </p>
-                      <p style={{ marginBottom: 0 }}>
+                      <div className="pu-actions">
                         <button
                           type="button"
-                          className="btn btn-primary"
+                          className="pu-btn"
                           onClick={onLogout}
                         >
                           Sign out
                         </button>
-                        <span style={{ marginLeft: "0.5rem" }}>
+                        <span>
                           then open <strong>Admin Sign in</strong> again on the
                           login page.
                         </span>
-                      </p>
+                      </div>
                     </div>
                   )}
-                </div>
+                </section>
               )}
 
               {/* Recent Activity */}
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">
-                    Recent Activity (Last 24 Hours)
-                  </h2>
-                </div>
+              <section
+                className="dash-shell-card pu-card pu-card--neutral"
+                aria-labelledby="dash-activity-heading"
+              >
+                <h2 id="dash-activity-heading" className="dash-shell-card__title">
+                  Recent Activity (Last 24 Hours)
+                </h2>
 
                 {recentActivity.length > 0 ? (
-                  <div className="table-container">
-                    <table className="table">
+                  <div
+                    className="table-container"
+                    role="region"
+                    aria-label="Recent activity table"
+                    tabIndex={0}
+                  >
+                    <table className="table dash-activity-table">
                       <thead>
                         <tr>
-                          <th>Time</th>
-                          <th>User</th>
-                          <th>Action</th>
-                          <th>Endpoint</th>
-                          <th>Status</th>
+                          <th scope="col">Time</th>
+                          <th scope="col">User</th>
+                          <th scope="col">Action</th>
+                          <th scope="col">Endpoint</th>
+                          <th scope="col">Status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -756,43 +805,16 @@ const Dashboard = ({ user, onLogout }) => {
                             </td>
                             <td>{log.username || "Unknown"}</td>
                             <td>
-                              <span
-                                style={{
-                                  padding: "0.25rem 0.5rem",
-                                  borderRadius: "0.25rem",
-                                  fontSize: "0.75rem",
-                                  fontWeight: "500",
-                                  backgroundColor: getActionColor(log.action),
-                                  color: "white",
-                                }}
-                              >
-                                {log.action}
-                              </span>
+                              <StatusChip tone="neutral">{log.action}</StatusChip>
                             </td>
-                            <td
-                              style={{
-                                fontFamily: "inherit",
-                                fontSize: "0.875rem",
-                              }}
-                            >
-                              {log.endpoint}
-                            </td>
+                            <td className="dash-activity-endpoint">{log.endpoint}</td>
                             <td>
-                              <span
-                                style={{
-                                  padding: "0.25rem 0.5rem",
-                                  borderRadius: "0.25rem",
-                                  fontSize: "0.75rem",
-                                  fontWeight: "500",
-                                  backgroundColor:
-                                    log.responseStatus >= 400
-                                      ? "#ef4444"
-                                      : "#10b981",
-                                  color: "white",
-                                }}
+                              <StatusChip
+                                tone={log.responseStatus >= 400 ? "danger" : "ok"}
                               >
-                                {log.responseStatus}
-                              </span>
+                                {log.responseStatus}{" "}
+                                {log.responseStatus >= 400 ? "Error" : "OK"}
+                              </StatusChip>
                             </td>
                           </tr>
                         ))}
@@ -800,14 +822,22 @@ const Dashboard = ({ user, onLogout }) => {
                     </table>
                   </div>
                 ) : (
-                  <div className="empty-state">
-                    <h3>No recent activity</h3>
-                    <p>No activity has been recorded in the last 24 hours.</p>
+                  <div className="empty-state pu-note pu-empty">
+                    <h3>
+                      {activityFailed
+                        ? "Recent activity could not be loaded"
+                        : "No recent activity"}
+                    </h3>
+                    <p>
+                      {activityFailed
+                        ? "The activity request failed, which does not mean nothing happened. Refresh the page to try again."
+                        : "No activity has been recorded in the last 24 hours."}
+                    </p>
                   </div>
                 )}
-              </div>
+              </section>
               </div>{/* end admin-dash-col2 */}
-            </main>
+            </div>
           </div>
         </div>
 
@@ -897,25 +927,8 @@ const Dashboard = ({ user, onLogout }) => {
           )}
         </DraggableModal>
       </div>
-    </div>
+    </PingPage>
   );
-};
-
-const getActionColor = (action) => {
-  const colors = {
-    LOGIN: "#10b981",
-    REGISTER: "var(--brand-navy)",
-    TRANSFER_MONEY: "#f59e0b",
-    CHECK_BALANCE: "#d20e0f",
-    GET_TRANSACTIONS: "#06b6d4",
-    CREATE_USER: "#84cc16",
-    UPDATE_USER: "#f97316",
-    DELETE_USER: "#ef4444",
-    ADMIN_ACCESS: "#d20e0f",
-    VIEW_ACTIVITY_LOGS: "#ec4899",
-  };
-
-  return colors[action] || "#6b7280";
 };
 
 export default Dashboard;
