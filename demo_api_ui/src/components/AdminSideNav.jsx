@@ -1740,6 +1740,8 @@ export default function AdminSideNav({
       "MCP Scanner",
       "LibreChat (browser)",
       "LM Studio (Mac)",
+      // Off until copilot_mode_enabled is set on the Configuration page; the page says so itself.
+      { label: "Copilot Studio Agent", path: "/copilot", icon: "agt" },
     ], "mcp"),
     productGroup("AIC", [
       {
