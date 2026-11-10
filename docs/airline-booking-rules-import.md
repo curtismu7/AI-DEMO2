@@ -19,7 +19,44 @@ through PingGateway, and each is reported by its own statement code.
 
 Exactly 500 and exactly 750 are allowed (both rules say "over", strict `>`). When both fail, the
 booking is stopped once and both rules are listed. A booking that passes both rules still meets
-the existing consent gate (`RequiresHitlConsent`); it is not bypassed.
+the existing consent gate (`RequiresHitlConsent`) unless it is pre-approved by the user's own
+limit (next section); the BFF airline demo (UC48) does not send the pre-approval and is unchanged.
+
+## Inside the user's limit: pre-approved, no human-approval hold (X-Hitl-Preapproved)
+
+Without this, a booking that passed both rules was still held: `book_airline_flight` is on the
+consent-gated list, so Authorize answered PERMIT with an unfulfilled HITL obligation and the gateway
+returned `428 consent_pending` (the MCP server was never reached). Owner decision: a booking
+**inside the user's own dollar limit counts as pre-approved by that limit**, so it goes straight through.
+Over the limit nothing changes: Authorize's user-limit rule (RULE A) still denies it with its reason.
+
+- **Header:** `X-Hitl-Preapproved: user-limit` (exact value, case-sensitive). Optional second header
+  `X-Agent-Spend-Limit: <dollars>`: a strict positive number, digits and at most one decimal point, at
+  most 7 characters (`300`, `500.01`); anything else (`NaN`, `-5`, `1e9`, ` 500`, `500,0`, `0x1F`, `0`) is ignored.
+- **Who may send it:** only a caller presenting the correct `x-internal-gateway-secret` (the same
+  trusted-caller gate as `X-Authz-Simulated`). From any other caller both
+  headers are ignored and stripped, and the booking is held exactly as before.
+- **The rule** (`decideHitlPreapproval` in `p1az-decision.groovy`): pre-approved only when the caller is
+  trusted AND the tool is `book_airline_flight` AND the header is exactly `user-limit` AND there is no
+  `_hitl_challenge_id` (a real receipt always takes the receipt path) AND the **catalogue fare** (the
+  gateway's own amount, never the caller's `amount`) is **less than or equal to** the limit. The limit is
+  `X-Agent-Spend-Limit` when valid, else the data-file default (`agentSpendLimitUsd`, 500). A missing fare
+  or limit fails closed: no pre-approval. Exactly equal to the limit IS pre-approved (RULE A is strict `>`).
+- **Effect:** the gateway sets `HitlApproved=true` in the Authorize request, so `RequiresHitlConsent` does
+  not attach the HITL obligation. Both headers are removed before the request is proxied to the MCP server.
+- **Audit:** `X-Gw-Audit-Trail` gets `hitlPreapproved: {basis:'user-limit', fare, limit, limitSource:'header'|'default'}`
+  only when granted; otherwise the field is `null`.
+- **The header can only skip the hold, never widen what is allowed.** The DENY is Authorize's: the
+  attribute resolved from the PingOne user field `agentSpendLimit` is the source of truth for RULE A, and
+  Authorize denies an agent booking over it whatever this header says. The gateway still sends
+  `AgentSpendLimit` (from the data file) unchanged; a request parameter is ignored by an attribute that
+  resolves from the PingOne user. A header limit higher than the PingOne limit therefore pre-approves
+  nothing that Authorize will not also deny; a lower one is more conservative (the booking is held instead).
+- **UC48 unaffected:** the BFF airline booking demo does not send `X-Hitl-Preapproved`, so it keeps the
+  tenant's human-approval hold (428, then the receipt retry) unchanged. Rule B (premium-only over 750) is untouched.
+- **UNVERIFIED:** that the live tenant, with the PingOne `agentSpendLimit` attribute in place, returns a plain
+  PERMIT for a booking carrying `HitlApproved=true` (policy source: `RequiresHitlConsent` is false when
+  `HitlApproved` is true). The Groovy decision is executed offline in tests; no tenant or gateway was called.
 
 ## Where the facts come from (the caller never sets the price or the tier)
 
@@ -183,7 +220,7 @@ rules into an export of the live policy instead.
 
 ```bash
 node --test snapshots/*.test.js                                       # includes airlineBookingRules.test.js
-node --test ping-gateway/scripts/check-airline-booking-data.test.js   # data copy, no tier in the gateway, Groovy source
+node --test ping-gateway/scripts/check-airline-booking-data.test.js   # data copy, no tier in the gateway, Groovy source, HITL pre-approval (runs the Groovy in the IG image offline when groovy is absent)
 node --test scripts/set-airline-member-tier.test.js                   # owner script against a stubbed PingOne
 bash ping-gateway/scripts/check-groovy-params.sh
 (cd demo_mcp_resource_server && npx jest tests/airlinesBook.test.ts)

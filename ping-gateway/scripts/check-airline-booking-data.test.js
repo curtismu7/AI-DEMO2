@@ -134,3 +134,97 @@ test('Groovy lookupBookingFacts runs in isolation against the real data file', {
   assert.strictEqual(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /ALL OK/);
 });
+
+// ── HITL pre-approval by the user's own limit (X-Hitl-Preapproved: user-limit) ─────────────────────
+// The decision (decideHitlPreapproval) is a pure closure and is EXECUTED by
+// check-airline-booking-preapproval.groovy: with a local `groovy`, else in the already-present IG image
+// (docker run --network none, the scripts mounted read-only, nothing else). The wiring around it (header
+// read and strip, the call arguments, HitlApproved, the audit field) lives in the script body and cannot be
+// run without IG, so it is pinned below by exact statements. Neither runner available = skipped, UNVERIFIED.
+const IG_IMAGE = 'us-docker.pkg.dev/forgeops-public/images-base/ig:latest';
+function runGroovy(script) {
+  if (hasGroovy) return spawnSync('groovy', [path.join(PG, 'scripts', script), PG], { encoding: 'utf8' });
+  const hasImage = spawnSync('docker', ['image', 'inspect', IG_IMAGE], { encoding: 'utf8' }).status === 0;
+  if (!hasImage) return null;
+  return spawnSync('docker', ['run', '--rm', '--network', 'none', '-v', `${PG}:/pg:ro`, '--entrypoint', 'java', IG_IMAGE,
+    '-cp', '/opt/gateway/lib/*', 'groovy.ui.GroovyMain', `/pg/scripts/${script}`, '/pg'], { encoding: 'utf8' });
+}
+const preapprovalRun = runGroovy('check-airline-booking-preapproval.groovy');
+test('Groovy decideHitlPreapproval: granted only for trust + tool + header + no receipt + fare <= limit; header limit rules',
+  { skip: preapprovalRun ? false : 'neither groovy nor the IG image is available (UNVERIFIED here)' }, () => {
+    assert.strictEqual(preapprovalRun.status, 0, preapprovalRun.stdout + preapprovalRun.stderr);
+    assert.match(preapprovalRun.stdout, /ALL OK/);
+    assert.ok(!/^FAIL/m.test(preapprovalRun.stdout));
+    assert.ok((preapprovalRun.stdout.match(/^ok /gm) || []).length >= 60, 'the case list must not have shrunk');
+  });
+
+// Source text of the decideHitlPreapproval closure, by the same end marker the Groovy runner uses.
+function preapprovalClosure() {
+  const start = GROOVY.indexOf('def decideHitlPreapproval = {');
+  assert.ok(start >= 0, 'decideHitlPreapproval is missing');
+  return GROOVY.slice(start, GROOVY.indexOf('\n}\n', start) + 2);
+}
+
+test('p1az-decision.groovy: both pre-approval headers are read once, at top level, and stripped before anything can return or proxy', () => {
+  for (const stmt of [
+    "def hitlPreapprovedHeader = request.headers.getFirst('X-Hitl-Preapproved')",
+    "def agentSpendLimitHeader = request.headers.getFirst('X-Agent-Spend-Limit')",
+    "request.headers.remove('X-Hitl-Preapproved')",
+    "request.headers.remove('X-Agent-Spend-Limit')",
+  ]) {
+    // Whole line, no indentation: top-level, not inside a conditional that could skip the strip.
+    assert.ok(GROOVY.split('\n').includes(stmt), `expected the top-level statement: ${stmt}`);
+    assert.strictEqual(GROOVY.split(stmt).length - 1, 1, `${stmt} must appear exactly once`);
+  }
+  const firstReturn = GROOVY.indexOf('return Promises');
+  assert.ok(firstReturn >= 0);
+  assert.ok(GROOVY.indexOf("request.headers.remove('X-Hitl-Preapproved')") < firstReturn, 'strip must precede the first response/return');
+  assert.ok(GROOVY.indexOf("request.headers.remove('X-Agent-Spend-Limit')") < firstReturn);
+  // Neither header is read anywhere else (so no second, ungated reader exists).
+  assert.strictEqual(GROOVY.split("getFirst('X-Hitl-Preapproved')").length - 1, 1);
+  assert.strictEqual(GROOVY.split("getFirst('X-Agent-Spend-Limit')").length - 1, 1);
+});
+
+test('p1az-decision.groovy: the pre-approval call passes the trust flag, the tool, the AUTHORITATIVE fare and the file default', () => {
+  const call = GROOVY.match(/hitlPreapproval = decideHitlPreapproval\(([^)]*)\)/);
+  assert.ok(call, 'the decideHitlPreapproval call is missing');
+  const argv = call[1].split(',').map((a) => a.trim());
+  // trusted, tool, preapproved header, challenge id, authoritative fare, data-file default, limit header
+  assert.deepStrictEqual(argv, ['trustedCaller', 'toolName', 'hitlPreapprovedHeader', 'hitlChallengeId',
+    'bookingFare', 'bookingLimit', 'agentSpendLimitHeader']);
+  // It runs after receipt verification (so the receipt path wins) and before the Authorize request is built.
+  const iReceipt = GROOVY.indexOf('verdict');
+  const iCall = GROOVY.indexOf('hitlPreapproval = decideHitlPreapproval(');
+  const iBody = GROOVY.indexOf('def requestBody = JsonOutput.toJson');
+  assert.ok(iReceipt >= 0 && iCall > iReceipt && iBody > iCall);
+  // Guarded by `if (!hitlApproved)` and the only new way to set hitlApproved is a non-null decision.
+  assert.ok(/if \(!hitlApproved\) \{\s*hitlPreapproval = decideHitlPreapproval\(/.test(GROOVY));
+  assert.ok(/if \(hitlPreapproval != null\) hitlApproved = true/.test(GROOVY));
+  assert.strictEqual(GROOVY.split('hitlApproved = true').length - 1, 2, 'hitlApproved may be set true in exactly two places: a verified receipt and this decision');
+  assert.ok(hasLine(GROOVY, 'def hitlPreapproval = null'));
+});
+
+test('p1az-decision.groovy: HitlApproved reaches Authorize only through hitlApproved; the audit trail records the basis only when granted', () => {
+  assert.strictEqual(GROOVY.split('parameters.HitlApproved').length - 1, 1);
+  assert.ok(/if \(hitlApproved\) \{\s*parameters\.HitlApproved = 'true'/.test(GROOVY));
+  // The audit field is the closure result itself (null when not granted), never a literal.
+  assert.ok(hasLine(GROOVY, 'hitlPreapproved: hitlPreapproval,'));
+  assert.strictEqual(GROOVY.split('hitlPreapproved:').length - 1, 1);
+  // The audit field sits inside auditTrail, which is serialised into every X-Gw-Audit-Trail.
+  const iTrail = GROOVY.indexOf('def auditTrail = [');
+  assert.ok(iTrail >= 0 && GROOVY.indexOf('hitlPreapproved: hitlPreapproval,') > iTrail);
+  // Pre-existing behaviour is untouched: the user limit still goes to Authorize unchanged.
+  assert.ok(hasLine(GROOVY, 'parameters.AgentSpendLimit = bookingLimit.toPlainString()'));
+});
+
+test('p1az-decision.groovy: the decision closure itself carries the gate, the exact header value, the receipt rule, and fare <= limit', () => {
+  const c = preapprovalClosure();
+  for (const needle of [
+    '!trusted', "tool != 'book_airline_flight'", "preapprovedHdr != 'user-limit'", 'challengeId', 'fare == null',
+    'limit == null', 'fare.compareTo(limit) > 0', '[0-9]+(\\.[0-9]+)?', 'limitHdr.length() <= 7', 'signum() > 0',
+  ]) assert.ok(c.includes(needle), `closure must contain ${needle}`);
+  // Fare over the limit is the only comparison, strict: exactly equal passes.
+  assert.ok(!/compareTo\(limit\)\s*>=/.test(c));
+  // No caller-supplied amount can reach the decision: the closure never sees one.
+  assert.ok(!/amt|amount|claimed/i.test(c.replace(/\/\/.*$/gm, '')), 'the decision must not read any caller amount');
+});

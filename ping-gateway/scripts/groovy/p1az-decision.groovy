@@ -79,6 +79,13 @@ if (internalSecret && presentedSecret) {
     trustedCaller = java.security.MessageDigest.isEqual(
         internalSecret.getBytes('UTF-8'), presentedSecret.getBytes('UTF-8'))
 }
+// HITL pre-approval control headers (book_airline_flight only; see decideHitlPreapproval below).
+// Read once here and ALWAYS stripped, trusted or not, so neither can travel on to the MCP server.
+// Only a trustedCaller's values are ever acted on.
+def hitlPreapprovedHeader = request.headers.getFirst('X-Hitl-Preapproved')
+def agentSpendLimitHeader = request.headers.getFirst('X-Agent-Spend-Limit')
+request.headers.remove('X-Hitl-Preapproved')
+request.headers.remove('X-Agent-Spend-Limit')
 if (!trustedCaller && (request.headers.getFirst('X-Authz-Simulated') != null
         || request.headers.getFirst('X-Act-Client-Id') != null
         || request.headers.getFirst('X-Demo-Force-Actor') != null)) {
@@ -390,6 +397,29 @@ def lookupBookingFacts = { Object data, Object flightArg, String subject ->
         limit : new BigDecimal(String.valueOf(limitRaw != null ? limitRaw : 500)),
         source: member != null ? 'sub' : 'default',
     ]
+}
+// Pre-approval of a booking by the user's OWN spend limit: inside the limit the booking skips the
+// tenant's human-approval hold (RequiresHitlConsent). Returns [basis:, fare:, limit:, limitSource:]
+// when granted, else null (every other case behaves exactly as before). Pure, so it can be run alone
+// (check-airline-booking-preapproval.groovy). Granted only when ALL hold: trusted caller, tool
+// book_airline_flight, header X-Hitl-Preapproved exactly 'user-limit', no _hitl_challenge_id (the
+// receipt path wins), and the AUTHORITATIVE catalogue fare <= the user's limit. The limit is the
+// trusted X-Agent-Spend-Limit header when it is a strict positive number (digits and one optional
+// decimal point, at most 7 characters, no sign, space, exponent or hex), else the data-file default.
+// Missing fare or limit fails closed. This can only SKIP the hold: PingOne Authorize still denies a
+// booking over the user's PingOne limit (agentSpendLimit), so a header can never raise what is allowed.
+def decideHitlPreapproval = { boolean trusted, Object tool, Object preapprovedHdr, String challengeId,
+                              BigDecimal fare, BigDecimal fileLimit, Object limitHdr ->
+    if (!trusted || tool != 'book_airline_flight' || preapprovedHdr != 'user-limit' || challengeId || fare == null) return null
+    def hdrLimit = null
+    if (limitHdr instanceof CharSequence && limitHdr.length() <= 7 && limitHdr.toString() ==~ /[0-9]+(\.[0-9]+)?/) {
+        def parsed = new BigDecimal(limitHdr.toString())
+        if (parsed.signum() > 0) hdrLimit = parsed
+    }
+    def limit = hdrLimit != null ? hdrLimit : fileLimit
+    if (limit == null || fare.compareTo(limit) > 0) return null
+    return [basis: 'user-limit', fare: fare.toPlainString(), limit: limit.toPlainString(),
+            limitSource: hdrLimit != null ? 'header' : 'default']
 }
 try {
     def bodyStr = request.entity.string
@@ -827,6 +857,13 @@ if (hitlChallengeId) {
         return Promises.newResultPromise(rejected)
     }
     hitlApproved = true
+}
+// Pre-approved by the user's own limit (see decideHitlPreapproval). Only when no receipt approved it.
+def hitlPreapproval = null
+if (!hitlApproved) {
+    hitlPreapproval = decideHitlPreapproval(trustedCaller, toolName, hitlPreapprovedHeader, hitlChallengeId,
+        bookingFare, bookingLimit, agentSpendLimitHeader)
+    if (hitlPreapproval != null) hitlApproved = true   // Authorize then receives HitlApproved=true
 }
 
 // ── X-TraT-Context (F4) ───────────────────────────────────────────────────────
@@ -1275,6 +1312,8 @@ def auditTrail = [
     mcpAudit: mcpAudit,
     // Airline booking rules: what the gateway used instead of the caller's word. Null for other tools.
     fareOverride: bookingOverride,
+    // Set only when the booking skipped the human-approval hold because it was inside the user's limit.
+    hitlPreapproved: hitlPreapproval,
     bookingFacts: bookingFare != null ? [
         profileSource     : bookingSource,
         agentSpendLimitUsd: bookingLimit.toPlainString(),
