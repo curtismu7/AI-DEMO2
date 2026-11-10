@@ -412,11 +412,13 @@
 }
 
 /* The base disabled rule is `background: #eff0f1 !important; color: #051727 !important` (a light chip with dark
-   ink on a dark page). Tokens, with !important only because the rule it replaces has it. */
+   ink on a dark page). Tokens, with !important only because the rule it replaces has it. No opacity: 0.75 over the
+   ground took the --control-border edge to 2.64:1 (page) / 2.76:1 (card) in light. Full opacity keeps it at 3.98 / 4.26;
+   the dashed edge and the inset ground (same as .dstep-bar[data-multi] in DiagramStepBar.css) say it is not ready. */
 .pu-page .dc-toolbar .dc-ctrl-btn:disabled {
   background: var(--th-bg-inset) !important;
   color: var(--th-text-muted) !important;
-  opacity: 0.75;
+  border-style: dashed;
 }
 
 .pu-page .dc-toolbar .dc-ctrl-btn:focus-visible {
