@@ -8,14 +8,18 @@
 .jh-key { color: #0550ae; }
 .jh-string { color: #15803d; }
 .jh-number { color: #b45309; }
-.jh-keyword { color: #d20e0f; font-weight: 600; }
+/* true / false / null: neutral body ink, regular weight. Red bold read as an error inside success cards;
+   red is kept for .jh-critical (error, status, result...). Theme token, so it flips with the theme. */
+.jh-keyword { color: var(--th-text-body); font-weight: 400; }
 .jh-punct { color: var(--th-text); }
 .jh-plain { color: inherit; }
 .jh-empty { color: var(--th-text); font-style: italic; }
 /* Bright red, not amber-on-amber: the old #92400e ink on the #fef3c7 wash was
    unreadable in the token-claims blocks ("look for this yellow text, you can
    not read it. Make bright red", 2026-08-10). */
-.jh-focus { background: rgba(210, 14, 15, 0.10); color: #d20e0f; font-weight: 700; border-radius: 3px; }
+/* Ink and wash are measured together (the ink sits on its own wash): #b91c1c on the 0.10 wash is 5.44:1 on the
+   white card and 4.79:1 on the light inset (#d20e0f was 4.63 / 4.08). jsonHighlightContrast.test.js pins it. */
+.jh-focus { background: rgba(210, 14, 15, 0.10); color: #b91c1c; font-weight: 700; border-radius: 3px; }
 
 /* Critical fields (decision, outcome, error, status, result) — red */
 .jh-critical { color: #d20e0f; font-weight: 600; }
@@ -24,11 +28,13 @@
 .jh-dark .jh-key { color: #79c0ff; }
 .jh-dark .jh-string { color: #7ee787; }
 .jh-dark .jh-number { color: #ffa657; }
-.jh-dark .jh-keyword { color: #fecaca; }
+/* jh-dark sits on a dark ground in either theme, so it takes the always-white token, not the theme ink. */
+.jh-dark .jh-keyword { color: var(--th-text-invert); font-weight: 400; }
 .jh-dark .jh-punct { color: #ffffff; }
 .jh-dark .jh-plain { color: inherit; }
 .jh-dark .jh-empty { color: #ffffff; }
-.jh-dark .jh-focus { background: rgba(255, 82, 82, 0.18); color: #ff5252; }
+/* #ff5252 on its own 0.18 wash was 4.31:1 on the dark card and 3.86:1 on the dark inset. #ff8a8a: 6.07 / 5.43. */
+.jh-dark .jh-focus { background: rgba(255, 82, 82, 0.18); color: #ff8a8a; }
 
 /* Critical fields in dark mode */
 .jh-dark .jh-critical { color: #ff6b6b; font-weight: 600; }

@@ -12,6 +12,8 @@
   --tctr-row-hover: var(--th-bg-inset);
   --tctr-step-body-bg: var(--th-bg-inset);
   --tctr-pill-bg: var(--th-bg-inset);
+  /* The More tray read this var but nothing defined it, so the tray stayed #fff in dark mode (white-on-white zoom/Legend). */
+  --tctr-card-bg: var(--th-bg-card);
 
   background: var(--th-bg-card);
   font-size: 13.5px;
@@ -157,6 +159,9 @@
 .tctr-more-pop .tctr-view-mode button { color: var(--tctr-muted); }
 .tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #051727; }
 .tctr-more-pop .tctr-zoom { margin-right: 0; padding-right: 0; border-right: 0; }
+/* The tray is a card, not the header band: its zoom buttons took the band's white ink (1:1 on the card). */
+.tctr-more-pop .tctr-zoom-btn,
+.tctr-more-pop .tctr-zoom-pct { border-color: var(--tctr-border); color: var(--tctr-text); }
 .tctr-more-pop .tctr-legend-btn,
 .tctr-more-pop .tctr-clear-btn {
   border-color: var(--tctr-border); color: var(--tctr-text);
@@ -225,9 +230,9 @@
 .tctr-step > summary::-webkit-details-marker { display: none; }
 .tctr-step > summary:hover { background: var(--tctr-row-hover); }
 .tctr-ic { width: 15px; text-align: center; flex-shrink: 0; }
-.tctr-ic--done { color: #16a34a; }
+.tctr-ic--done { color: #15803d; } /* #16a34a was 3.14:1 on the light done row */
 .tctr-ic--active { color: var(--brand-navy, #12538d); }
-.tctr-ic--pending { color: #ffffff; }
+.tctr-ic--pending { color: var(--th-text-muted); } /* was #fff: 1:1 on the light card */
 .tctr-ic--error { color: #d20e0f; }
 .tctr-ic--notinpath { color: var(--th-text-muted); }
 .tctr-step-title { flex: 1; min-width: 0; }
@@ -309,7 +314,7 @@
 .tctr-story-bits li { margin: 2px 0; }
 .tctr-evidence-inline { margin: 8px 0 4px; }
 .tctr-evidence-hint {
-  margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: #b45309;
+  margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: #92400e;
 }
 .tctr-before-after {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-top: 8px;
@@ -358,7 +363,7 @@
    `error` (a stage that refused). Numbered because the ORDER is the teaching
    point: introspection before policy before the decision before the exchange. */
 .tctr-stages { list-style: decimal; margin: 6px 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
-.tctr-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cdd1d4); background: var(--th-surface-2, #f7f8f8); border-radius: 0 4px 4px 0; }
+.tctr-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cdd1d4); background: var(--th-bg-card); color: var(--th-text); border-radius: 0 4px 4px 0; }
 .tctr-stage[data-status="done"] { border-left-color: #22c55e; }
 .tctr-stage[data-status="error"] { border-left-color: #d20e0f; }
 .tctr-stage[data-status="notinpath"] { border-left-color: #cdd1d4; opacity: .65; }
@@ -536,6 +541,19 @@
   color: #fdba74;
 }
 
+:root[data-theme="dark"] .tctr .tctr-evidence-hint {
+  color: #fdba74;
+}
+
+/* Step icons: error #d20e0f was 3.09:1 and active (--brand-navy = #051727) 1.06:1 on the dark card; done #15803d is 3.4:1 on the dark done row. */
+:root[data-theme="dark"] .tctr .tctr-ic--done   { color: #4ade80; }
+:root[data-theme="dark"] .tctr .tctr-ic--error  { color: #f87171; }
+:root[data-theme="dark"] .tctr .tctr-ic--active { color: #93c5fd; }
+
+/* Clear sits in the tray (now a dark card): the light-tray red is 3.09:1 there. */
+:root[data-theme="dark"] .tctr .tctr-more-pop .tctr-clear-btn { color: #f87171; border-color: rgba(248, 113, 113, 0.55); }
+:root[data-theme="dark"] .tctr .tctr-more-pop .tctr-clear-btn:hover:not(:disabled) { background: rgba(248, 113, 113, 0.15); color: #fca5a5; }
+
 /* Token names: the light-theme ink (#be185d, #aa0005, #047857) is 2.4:1 on the dark card. */
 :root[data-theme="dark"] .tctr .tctr-tok--user .tctr-tok-name  { color: #f9a8d4; }
 :root[data-theme="dark"] .tctr .tctr-tok--agent .tctr-tok-name { color: #fca5a5; }
@@ -690,10 +708,21 @@
 :root[data-theme="dark"] .tctr .jh-key     { color: #79c0ff; }
 :root[data-theme="dark"] .tctr .jh-string  { color: #7ee787; }
 :root[data-theme="dark"] .tctr .jh-number  { color: #ffa657; }
-:root[data-theme="dark"] .tctr .jh-keyword { color: #fecaca; }
+:root[data-theme="dark"] .tctr .jh-keyword { color: var(--th-text-body); font-weight: 400; }
 :root[data-theme="dark"] .tctr .jh-punct,
 :root[data-theme="dark"] .tctr .jh-empty   { color: #ffffff; }
-:root[data-theme="dark"] .tctr .jh-focus    { background: rgba(255, 82, 82, 0.18); color: #ff5252; }
+:root[data-theme="dark"] .tctr .jh-focus    { background: rgba(255, 82, 82, 0.18); color: #ff8a8a; }
 :root[data-theme="dark"] .tctr .jh-critical { color: #ff6b6b; }
 :root[data-theme="dark"] .tctr .jh-guide    { border-left-color: rgba(255, 255, 255, 0.14); }
 
+/* Light theme: the step pre is a white card but TraceStepCard marks it jh-dark, so punctuation was #fff on #fff (1:1),
+   keys 1.95:1, strings 1.54:1. In light it takes the light palette; dark keeps .jh-dark. */
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-key      { color: #0550ae; }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-string   { color: #166534; }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-number   { color: #92400e; }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-keyword  { color: var(--th-text-body); }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-punct,
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-empty    { color: var(--th-text); }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-critical { color: #d20e0f; }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-focus    { background: rgba(210, 14, 15, 0.10); color: #b91c1c; }
+:root:not([data-theme="dark"]) .tctr-code.jh-dark .jh-guide    { border-left-color: rgba(0, 0, 0, 0.1); }

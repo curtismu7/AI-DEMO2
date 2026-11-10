@@ -19,7 +19,9 @@
 .tcnr-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Wrap: at a 371px phone the Detailed/Compact switch ran 163px past the card edge (page scrolled sideways). */
+  flex-wrap: wrap;
+  gap: 6px 8px;
   padding: 0 2px 6px;
 }
 
