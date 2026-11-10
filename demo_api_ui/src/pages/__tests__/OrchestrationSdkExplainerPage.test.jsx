@@ -7,6 +7,8 @@
 // The lifecycle diagram is drawn with React Flow, which needs ResizeObserver in jsdom
 // (same stub A2AFlowVisualizer.test.jsx uses); its source is checked with expectDrawable.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import { expectDrawable } from "../../utils/__tests__/diagramSource";
 import OrchestrationSdkExplainerPage, { LIFECYCLE_DIAGRAM } from "../OrchestrationSdkExplainerPage";
@@ -107,5 +109,68 @@ describe("OrchestrationSdkExplainerPage", () => {
     const traps = document.querySelectorAll("details.osx-trap");
     expect(traps.length).toBe(5);
     for (const trap of traps) expect(trap.open).toBe(false);
+  });
+
+  describe("Ping UI Standard", () => {
+    it("opens with a role=note banner that says the page is static and what is simulated", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const root = container.querySelector(".pu-page.osx-page");
+      expect(root).toBeTruthy();
+      const banner = within(root).getByRole("note");
+      expect(banner).toHaveAttribute("data-testid", "osx-banner");
+      expect(root.firstElementChild).toContainElement(banner);
+      // Honest copy: nothing live here, the diagram is a drawn sequence, the demos make the real calls.
+      expect(banner.textContent).toMatch(/Static lesson/);
+      expect(banner.textContent).toMatch(/Simulate steps through a drawn sequence, not a live flow/);
+      // Not an unconditional promise: the live pages only run the real flow where DaVinci is set up.
+      expect(banner.textContent).toMatch(/real flows when DaVinci is configured/);
+      expect(banner.textContent).not.toMatch(/run the real flows\./);
+      // The banner comes before the title band.
+      const h1 = screen.getByRole("heading", { level: 1 });
+      expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("does not promise a real flow without the setup it needs, next to the primary link either", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const note = container.querySelector(".osx-cta-note");
+      expect(note.textContent).toMatch(/when DaVinci is configured/i);
+    });
+
+    it("lets the primary link's note wrap a long value inside a narrow column", () => {
+      const css = readFileSync(resolve(__dirname, "../OrchestrationSdkExplainerPage.css"), "utf8");
+      const rule = css.match(/\.osx-page \.osx-cta-note\s*\{[^}]*\}/)[0];
+      expect(rule).toMatch(/overflow-wrap:\s*anywhere/);
+    });
+
+    it("has exactly one primary: the live SDK login, a link that takes the shared primary class", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const primaries = container.querySelectorAll(".pu-btn--primary");
+      expect(primaries).toHaveLength(1);
+      expect(primaries[0].tagName).toBe("A");
+      expect(primaries[0]).toHaveAttribute("href", "/davinci-orchestration-sdk");
+    });
+
+    it("labels every section by its h2 and keeps one h1 and no second main", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const sections = container.querySelectorAll(".pu-frame > section");
+      expect(sections.length).toBe(7);
+      for (const section of sections) {
+        const id = section.getAttribute("aria-labelledby");
+        expect(id).toBeTruthy();
+        expect(section.querySelector(`h2#${id}`)).toBeTruthy();
+      }
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(container.querySelector("main")).toBeNull();
+    });
+
+    it("shows each mode and category as a card with a key-value list, and the subject chip carries a word", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      expect(container.querySelectorAll(".osx-modes > .pu-card .pu-kv")).toHaveLength(3);
+      expect(container.querySelectorAll(".osx-cat.pu-card .pu-kv")).toHaveLength(4);
+      const chips = container.querySelectorAll(".pu-chip");
+      expect(chips).toHaveLength(1);
+      expect(chips[0].textContent.trim()).toBe("Subject of this lesson");
+      expect(chips[0].closest(".osx-mode")).toHaveClass("is-featured");
+    });
   });
 });
