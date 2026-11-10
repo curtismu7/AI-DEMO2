@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 const SRC = path.resolve(__dirname, '..');
 const SKIP = ['aiFootprintMocks', 'agent-clinical', 'ChatgptLoginPage', 'FootprintMockGallery', 'ConsentMockPhoneFlow', 'PrivilegeMcpClientPage'];
 const MAX_LITERAL_RADIUS = 587;
-const MAX_LITERAL_FONT_SIZE = 2025;
+const MAX_LITERAL_FONT_SIZE = 2023;
 
 function cssFiles(dir) {
   const out = [];
