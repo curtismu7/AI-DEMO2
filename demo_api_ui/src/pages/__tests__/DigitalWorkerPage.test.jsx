@@ -355,7 +355,7 @@ describe("DigitalWorkerPage consent phone", () => {
       expect(el).toBeTruthy();
       return el;
     });
-    expect(within(host).getByText("Sign-in needed")).toBeTruthy();
+    await waitFor(() => expect(within(host).getByText("Sign-in needed")).toBeTruthy());
     expect(within(host).getByRole("button", { name: "Sign in" }).classList.contains("pu-btn--primary")).toBe(false);
     expect(host.querySelectorAll(".pu-btn--primary")).toHaveLength(0);
     // the phone card the visitor was in is gone: focus lands on the named sign-in group, not the body

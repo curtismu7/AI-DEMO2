@@ -463,7 +463,7 @@ describe('DigitalWorkerRunPanel on the Ping UI Standard', () => {
       const onNeedsSignIn = vi.fn();
       render(<DigitalWorkerRunPanel onNeedsSignIn={onNeedsSignIn} />);
       await screen.findByText(/sign in to arm the worker/i);
-      expect(onNeedsSignIn).toHaveBeenCalledWith(true);
+      await waitFor(() => expect(onNeedsSignIn).toHaveBeenCalledWith(true));
     });
   });
 });

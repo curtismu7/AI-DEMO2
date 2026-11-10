@@ -406,9 +406,58 @@ const r = (
     expect(r['/davinci-widget']).not.toMatch(/PingOneProviderGuard/);
   });
 
+  it('the real App.js resolves / and /welcome to the landing page, /dashboard to the user dashboard, /admin to Dashboard', () => {
+    const r = loadRoutes();
+    expect(r['/']).toContain(path.join('src', 'components', 'LandingPage.'));
+    expect(r['/welcome']).toContain(path.join('src', 'components', 'LandingPage.'));
+    expect(r['/dashboard']).toContain(path.join('src', 'components', 'UserDashboardPing2026.'));
+    expect(r['/admin']).toContain(path.join('src', 'components', 'Dashboard.'));
+    expect(r['/demo/:shellSlug']).toContain(path.join('src', 'pages', 'FootprintLiveShellPage.'));
+    // chrome is never the page, for any route
+    for (const [route, file] of Object.entries(r)) expect(path.basename(file), route).not.toMatch(/^(?:TopNav|AppShell|ErrorBoundary)\./);
+  });
+
+  it('chrome next to the page is skipped, and the first entry that resolves to a page wins a shared path', () => {
+    const root = tree({
+      'src/App.js': `import lazyWithRetry from "./utils/lazyWithRetry";
+import TopNav from "./components/TopNav";
+import ErrorBoundary from "./components/ErrorBoundary";
+import Landing from "./components/Landing";
+import Dashboard from "./components/Dashboard";
+import { DashContent } from "./routes/CustomerRoutes";
+import RequireAdminLogin from "./routes/RequireAdminLogin";
+const r = (
+  <Routes>
+    <Route path="/" element={<><TopNav /><main><Landing /></main></>} />
+    <Route path="/dash" element={<><TopNav /><main><DashContent /></main></>} />
+    <Route path="/boundary" element={<><TopNav /><ErrorBoundary><Landing /></ErrorBoundary></>} />
+    <Route path="/nav-only" element={<><TopNav /></>} />
+    <Route path="*" element={<><TopNav /><Routes>
+      <Route path="/" element={user ? <Dashboard /> : <Landing />} />
+      <Route path="/admin" element={<RequireAdminLogin><Dashboard /></RequireAdminLogin>} />
+    </Routes></>} />
+  </Routes>
+);
+`,
+      'src/routes/CustomerRoutes.js': `const UserDash = lazyWithRetry(() => import("../components/UserDash"));
+export function DashContent({ user }) { return <UserDash user={user} />; }
+`,
+      'src/routes/RequireAdminLogin.js': 'export default function RequireAdminLogin() { return null; }\n',
+      ...Object.fromEntries(['TopNav', 'ErrorBoundary', 'Landing', 'Dashboard', 'UserDash'].map((n) => [`src/components/${n}.js`, `export default function ${n}() { return null; }\n`])),
+    });
+    const r = loadRoutes(root);
+    expect(rel(root, r['/'])).toBe('src/components/Landing.js');
+    expect(rel(root, r['/dash'])).toBe('src/components/UserDash.js');
+    expect(rel(root, r['/boundary'])).toBe('src/components/Landing.js');
+    expect(rel(root, r['/admin'])).toBe('src/components/Dashboard.js');
+    expect(r['/nav-only'], 'TopNav alone is chrome, not a page').toBeUndefined();
+  });
+
   it('the newly resolvable routes are advisory, never enforced by accident', () => {
     const { pages } = runAll();
-    for (const route of ['/agent-gateway-inspector', '/llm-gateway', '/llm-test']) {
+    // '/', '/welcome' and '/dashboard' were resolved to Dashboard.js and TopNav.js before the loader skipped chrome and
+    // took the first entry per path. None of them is converted yet, so none may be on the allowlist by accident.
+    for (const route of ['/agent-gateway-inspector', '/llm-gateway', '/llm-test', '/', '/welcome', '/dashboard']) {
       const page = pages.find((p) => p.routes.includes(route));
       expect(page, route).toBeTruthy();
       expect(page.enforced, route).toBe(false);

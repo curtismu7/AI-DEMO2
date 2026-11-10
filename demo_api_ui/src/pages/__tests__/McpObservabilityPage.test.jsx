@@ -70,7 +70,7 @@ describe("McpObservabilityPage", () => {
     render(<McpObservabilityPage />);
 
     expect(await screen.findByRole("heading", { name: /MCP traffic, with the why attached/i })).toBeInTheDocument();
-    expect(screen.getAllByText("transfer_funds").length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText("transfer_funds").length).toBeGreaterThan(0));
     expect(screen.getAllByText("approve_transfer").length).toBeGreaterThan(0);
     expect(screen.getByText("50.0%")).toBeInTheDocument();
     expect(apiClient.get).toHaveBeenCalledWith("/api/mcp/audit?limit=100", { _silent: true });
