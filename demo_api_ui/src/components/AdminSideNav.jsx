@@ -1780,6 +1780,7 @@ export default function AdminSideNav({
       "Grafana",
     ], "log"),
     productGroup("Diagrams", [
+      "Demo Map",
       "All Diagrams",
       "Use-case diagrams",
       "Server Topology (Interactive)",
