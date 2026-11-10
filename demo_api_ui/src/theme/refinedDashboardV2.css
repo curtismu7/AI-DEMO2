@@ -217,7 +217,7 @@
   font-variant-numeric: tabular-nums;
 }
 [data-rd-v2] .ud-stat__value small {
-  font-size: 0.6em;
+  font-size: 0.625em;
   color: var(--rd2-ink-3);
   font-family: inherit;
 }
