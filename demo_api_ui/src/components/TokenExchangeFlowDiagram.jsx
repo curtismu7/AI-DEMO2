@@ -1,5 +1,5 @@
 // banking_api_ui/src/components/TokenExchangeFlowDiagram.jsx
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import { useEducationUIOptional } from '../context/EducationUIContext';
 import StaticFlowDiagram from './StaticFlowDiagram';
 import './TokenExchangeFlowDiagram.css';
@@ -67,6 +67,8 @@ function computeLayout(actors) {
 
 export default function TokenExchangeFlowDiagram({ mode = 'single', className = '', onEducation, interactive = false }) {
   const [hoveredStep, setHoveredStep] = useState(null);
+  // Per-instance marker ids: two diagrams on one page must not share an id.
+  const uid = `rf${useId().replace(/[^A-Za-z0-9]/g, '')}`;
   const edu = useEducationUIOptional();
 
   const safeMode = VALID_MODES.includes(mode) ? mode : 'single';
@@ -112,7 +114,7 @@ export default function TokenExchangeFlowDiagram({ mode = 'single', className = 
           <title>{safeMode === 'double' ? 'RFC 8693 2-Exchange: User to AI Agent to BFF to PingOne to MCP Server' : 'RFC 8693 1-Exchange: User to BFF to PingOne to MCP Server'}</title>
           <defs>
             {['user', 'agent', 'mcp'].map(type => (
-              <marker key={type} id={`tefd-arrow-${type}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <marker key={type} id={`${uid}-tefd-arrow-${type}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 z" className={`tefd-arrowhead tefd-arrowhead--${type}`} />
               </marker>
             ))}
@@ -133,7 +135,7 @@ export default function TokenExchangeFlowDiagram({ mode = 'single', className = 
             const active = hoveredStep === arrow.step;
             return (
               <g key={arrow.step} className={`tefd-arrow-group${active ? ' tefd-arrow-group--active' : ''}`} onMouseEnter={() => setHoveredStep(arrow.step)} onMouseLeave={() => setHoveredStep(null)} onClick={() => openEducation(arrow.edu)} role="button" tabIndex={0} aria-label={`Step ${arrow.step}: ${arrow.label}`} onKeyDown={e => e.key === 'Enter' && openEducation(arrow.edu)} style={{ cursor: 'pointer' }}>
-                <line x1={x1} y1={ARROW_Y} x2={x2} y2={ARROW_Y} className={`tefd-arrow-line tefd-arrow-line--${arrow.tokenType}`} markerEnd={`url(#tefd-arrow-${arrow.tokenType})`} />
+                <line x1={x1} y1={ARROW_Y} x2={x2} y2={ARROW_Y} className={`tefd-arrow-line tefd-arrow-line--${arrow.tokenType}`} markerEnd={`url(#${uid}-tefd-arrow-${arrow.tokenType})`} />
                 <circle cx={midX} cy={ARROW_Y} r={10} className={`tefd-step-circle tefd-step-circle--${arrow.tokenType}`} />
                 <text x={midX} y={ARROW_Y + 4} textAnchor="middle" className="tefd-step-num">{arrow.step}</text>
                 <line x1={midX} y1={ARROW_Y + 11} x2={midX} y2={DROP_Y} className="tefd-drop-line" />

@@ -371,8 +371,14 @@ button.dcom-modal-btn.dcom-modal-btn--confirm:hover:not([aria-disabled="true"]) 
   background-image: var(--btn-accent-gradient-hover);
 }
 
+/* Not ready: the same muted Ping Red, white label and dashed edge as the shared disabled primary (ping-ui.css), at
+   full opacity (no fade). The dialog sits outside .pu-page, so it carries its own copy. */
 button.dcom-modal-btn.dcom-modal-btn--confirm[aria-disabled="true"] {
-  opacity: 0.88;
+  opacity: 1;
+  background-color: var(--btn-accent-inactive);
+  background-image: var(--btn-accent-inactive-gradient);
+  border: 1px dashed var(--btn-accent-edge);
+  color: var(--btn-accent-text);
   cursor: not-allowed;
 }
 
