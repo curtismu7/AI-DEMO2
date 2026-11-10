@@ -146,6 +146,12 @@ export default function ResourceServerTester({
   probeTargets = DEFAULT_PROBE_TARGETS,
   profile = 'login',
   intro = 'Submit a token and see how this resource server would treat it. Pick one by reference, or paste any JWT to test a failure case.',
+  // Opt-in Ping UI buttons (the /resource-server page): the class for the one primary (the top Execute) and for
+  // every other button. Unset, the buttons keep their inspector-shell look and `disabled` behaviour unchanged.
+  executeButtonClassName,
+  secondaryButtonClassName,
+  // 1 (default) renders the shell title as the page's h1; a page that has its own h1 passes 2.
+  titleLevel = 1,
 }) {
   // Token source state
   const [source, setSource] = useState(sources[0].value);
@@ -333,16 +339,20 @@ export default function ResourceServerTester({
     </>
   );
 
-  const executeButtons = (
+  const pingUiButtons = Boolean(executeButtonClassName);
+  const executeBlocked = !ready || Boolean(currentRunner && currentRunner.loading);
+  // Ping UI mode uses aria-disabled so a blocked Execute keeps keyboard focus; the click is ignored.
+  const executeButtons = (primary) => (
     <>
       <button
-        className="inspector-shell-btn-call"
-        onClick={executeOp}
-        disabled={!ready || (currentRunner && currentRunner.loading)}
+        className={pingUiButtons ? (primary ? executeButtonClassName : secondaryButtonClassName) : 'inspector-shell-btn-call'}
+        onClick={pingUiButtons && executeBlocked ? undefined : executeOp}
+        disabled={pingUiButtons ? undefined : executeBlocked}
+        aria-disabled={pingUiButtons && executeBlocked ? 'true' : undefined}
       >
         {currentRunner && currentRunner.loading ? 'Running...' : 'Execute'}
       </button>
-      <button className="inspector-shell-btn-clear" onClick={clearOutput}>Clear</button>
+      <button className={pingUiButtons ? secondaryButtonClassName : 'inspector-shell-btn-clear'} onClick={clearOutput}>Clear</button>
     </>
   );
 
@@ -357,7 +367,7 @@ export default function ResourceServerTester({
         <span><strong>Target audience:</strong> {profile === 'login' ? 'OIDC user resource server' : profile}</span>
       </div>
       <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-        {executeButtons}
+        {executeButtons(true)}
       </div>
       <div className="inspector-shell-form-body">
         {/* Token source display */}
@@ -424,7 +434,7 @@ export default function ResourceServerTester({
         )}
       </div>
       <div className="inspector-shell-form-actions">
-        {executeButtons}
+        {executeButtons(false)}
         {currentRunner && currentRunner.error && (
           <span className="inspector-shell-form-error">Error</span>
         )}
@@ -478,6 +488,7 @@ export default function ResourceServerTester({
   return (
     <InspectorShell
       title="Resource Server Tester"
+      titleLevel={titleLevel}
       statusText={`Token: ${activeLabel}`}
       actions={
         <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>
