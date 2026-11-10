@@ -1,628 +1,45 @@
 /* ============================================================================
-   Landing Page — Professional B2B identity platform theme
-   Palette: navy #051727 primary, blue #12538d CTA, white/gray-50 background
+   Landing page ("/" and "/welcome"), on the shared Ping UI primitives.
 
-   READ BEFORE EDITING — the plain rules in this file are usually NOT what
-   renders. LandingPage.js sets `data-rd-v2` unconditionally on the page root,
-   so every `[data-rd-v2] .foo` rule below always applies, and those rules use
-   !important. Sixteen selectors have such a twin — .landing-hero,
-   .landing-header, .landing-logo, .hero-cta-primary, the feature cards, the
-   token chain — so for any property the twin also sets, editing the plain rule
-   changes nothing on screen.
+   Banner, frame, cards, chips and every button come from src/styles/ping-ui.css
+   (.pu-*), so this file keeps only what is specific to the page: the hero, the
+   callout copy, the feature-card layout and the phone rule that hides the two
+   floating launchers. Every rule starts at .pu-page.landing-page so nothing
+   leaks to another page (the PingOne end-user-nano skin sets bare h1/p/ul
+   styles that beat a single-class rule).
 
-   Editing a `.landing-*` rule? Search this file for its `[data-rd-v2]` twin
-   (there are twins at the 768px and 480px breakpoints too) and change that one
-   as well. Then confirm with getComputedStyle on the running page, not by
-   re-reading this file — check your new value is present in the loaded CSS so
-   a stale container can't look like a working fix. PR #2816 skipped this and
-   merged a padding fix that did nothing; #2818 repaired it.
+   Colour ownership: the vertical drives the card top edges (--pu-accent, in
+   ping-ui.css). Buttons never take it: they are .pu-btn / .pu-btn--primary
+   (fixed Ping Red, --btn-accent*). The page no longer sets data-rd-v2, so the
+   old "[data-rd-v2] ..." twin rules (in this file and refinedDashboardV2.css)
+   no longer apply to it.
    ============================================================================ */
 
-/* ---- Design tokens ---- */
-:root {
-  --lp-bg: #f7f8f8;
-  --lp-surface: #ffffff;
-  --lp-border: var(--th-border);
-  --lp-muted: #ffffff;
-  --lp-text-primary: #020617;
-  --lp-text-secondary: #5c646b;
-  --lp-text-muted: #909ea4;
-  --lp-navy: #051727;
-  --lp-navy-2: #263746;
-  --lp-accent: #12538d;
-  --lp-accent-hover: #051727;
-  --lp-destructive: #d20e0f;
-  --lp-shadow-sm:
-    0 1px 3px rgba(2, 6, 23, 0.08), 0 1px 2px rgba(2, 6, 23, 0.06);
-  --lp-shadow-md:
-    0 4px 12px rgba(2, 6, 23, 0.08), 0 2px 6px rgba(2, 6, 23, 0.05);
-  --lp-shadow-lg:
-    0 8px 24px rgba(2, 6, 23, 0.1), 0 4px 10px rgba(2, 6, 23, 0.06);
-  --lp-radius: 10px;
-  --lp-radius-lg: 14px;
-  --lp-font: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-/* Note: when [data-rd-v2] is present, refinedDashboardV2.css overrides these styles */
-.landing-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--lp-bg);
-  color: var(--lp-text-primary);
-  font-family: var(--lp-font);
-}
-
-/* V2 override: use warm-paper background and institutional design */
-.landing-page[data-rd-v2] {
-  /* Ping-owned page: ignore the active vertical's --theme-accent. */
-  --rd2-accent: #051727;
-  background-color: #f7f7f5 !important;
-  color: #111110 !important;
-  font-family: var(--font-primary) !important;
-}
-
-/* ========== Header (logged-out only) ========== */
-.landing-header {
-  background: var(--lp-surface);
-  border-bottom: 1px solid var(--lp-border);
-  padding: 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: var(--lp-shadow-sm);
-}
-.landing-header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 14px 32px;
-  gap: 24px;
-}
-.landing-logo {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex-shrink: 0;
-}
-.landing-logo .landing-logo-title {
-  margin: 0;
-  font-size: var(--font-size-h3);
-  font-weight: 700;
-  color: var(--lp-navy);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-.landing-logo p:not(.landing-logo-title) {
-  margin: 2px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--lp-text-secondary);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.landing-nav {
-  display: none;
-}
-
-.landing-header-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.landing-header-actions .btn {
-  padding: 8px 20px;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  border-radius: var(--lp-radius);
-  text-decoration: none;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-  white-space: nowrap;
-  cursor: pointer;
-  border: 1.5px solid transparent;
-  line-height: 1.4;
-}
-.landing-header-actions .btn-primary {
-  background: var(--lp-accent);
-  color: var(--th-text-invert);
-  border-color: var(--lp-accent);
-}
-.landing-header-actions .btn-primary:hover {
-  background: var(--lp-accent-hover);
-  border-color: var(--lp-accent-hover);
-  box-shadow: var(--lp-shadow-sm);
-}
-.landing-header-actions .btn-primary:focus-visible {
-  outline: 2px solid var(--lp-accent);
-  outline-offset: 2px;
-}
-.landing-header-actions .btn-secondary {
-  background: transparent;
-  color: var(--lp-navy-2);
-  border-color: var(--lp-border);
-}
-.landing-header-actions .btn-secondary:hover {
-  background: var(--lp-muted);
-  border-color: var(--th-border-strong);
-}
-.landing-header-actions .btn-secondary:focus-visible {
-  color: var(--lp-navy-2);
-  outline: 2px solid var(--lp-accent);
-  outline-offset: 2px;
-}
-
-/* Override App.css blanket white-text rule */
-.App.end-user-nano .landing-header-actions .btn-secondary,
-.App.end-user-nano .landing-header-actions .btn-secondary:hover,
-.App.end-user-nano .landing-header-actions .btn-secondary:focus,
-.App.end-user-nano .landing-header-actions .btn-secondary:focus-visible,
-.App.end-user-nano .landing-header-actions .btn-secondary:active,
-.App.end-user-nano .landing-header-actions .btn-secondary:visited {
-  color: var(--lp-navy-2) !important;
-  -webkit-text-fill-color: var(--lp-navy-2) !important;
-}
-
-/* ========== Hero Section ========== */
-.landing-hero {
-  /* Brand-hub arcs pattern (public/branding/pattern-arcs.jpg) anchored to the
-     top-right, over the surface color — whisper-light texture, never noise. */
-  background:
-    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
-    var(--lp-surface);
-  border-bottom: 1px solid var(--lp-border);
-  padding: 96px 32px 88px;
-  text-align: center;
-}
-@media (max-width: 720px) {
-  .landing-hero { background-image: none; }
-}
-.landing-hero-content {
-  max-width: 720px;
-  margin: 0 auto;
-}
-.landing-hero-headline {
-  font-size: 52px;
-  font-weight: 800;
-  margin: 0 0 8px;
-  color: var(--lp-navy);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-.landing-hero-zero-trust {
-  font-size: 64px;
-  font-weight: 800;
-  margin: 0 0 24px;
-  color: var(--lp-navy);
-  line-height: 1;
-  letter-spacing: 0.08em;
-}
-.landing-hero-subheadline {
-  font-size: var(--font-size-h3);
-  color: var(--lp-text-secondary);
-  margin: 0 0 44px;
-  line-height: 1.7;
-  font-weight: 400;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.landing-hero-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.hero-cta {
-  padding: 13px 32px;
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  border-radius: var(--lp-radius);
-  text-decoration: none;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 160px;
-  border: 1.5px solid transparent;
-  letter-spacing: -0.01em;
-  line-height: 1.4;
-}
-.hero-cta-primary {
-  background: linear-gradient(180deg, #d20e0f 0%, #aa0005 100%);
-  color: var(--th-text-invert);
-  border-color: #7c0003;
-  box-shadow: var(--lp-shadow-sm);
-}
-.hero-cta-primary:hover {
-  background: linear-gradient(180deg, #aa0005 0%, #8f0004 100%);
-  border-color: #7c0003;
-  box-shadow: var(--lp-shadow-md);
-}
-.hero-cta-secondary {
-  background: var(--lp-surface);
-  color: var(--lp-navy-2);
-  border-color: var(--lp-border);
-  box-shadow: var(--lp-shadow-sm);
-}
-.hero-cta-secondary:hover {
-  background: var(--lp-muted);
-  border-color: var(--th-border-strong);
-}
-.hero-cta-primary:focus-visible,
-.hero-cta-secondary:focus-visible {
-  outline: 2px solid var(--lp-accent);
-  outline-offset: 2px;
-}
-
-/* ========== Feature Grid ========== */
-.landing-features {
-  padding: 72px 32px 80px;
-  background: var(--lp-bg);
-}
-.landing-features-heading {
-  text-align: center;
-  margin-bottom: 52px;
-}
-.landing-features-heading h2 {
-  font-size: 34px;
-  font-weight: 800;
-  margin: 0 0 12px;
-  color: var(--lp-navy);
-  letter-spacing: -0.02em;
-}
-.landing-features-heading p {
-  font-size: var(--font-size-md);
-  color: var(--lp-text-secondary);
-  margin: 0;
-  line-height: 1.6;
-}
-.landing-features-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.landing-feature-card {
-  background: var(--lp-surface);
-  border: 1px solid var(--lp-border);
-  border-radius: var(--lp-radius-lg);
-  padding: 28px 24px;
-  text-align: left;
-  transition:
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-  box-shadow: var(--lp-shadow-sm);
-}
-.landing-feature-card:hover {
-  box-shadow: var(--lp-shadow-lg);
-  border-color: var(--th-border-strong);
-}
-.landing-feature-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: #fcfcfc;
-  color: var(--lp-accent);
-  margin-bottom: 18px;
-  flex-shrink: 0;
-}
-.landing-feature-title {
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  margin: 0 0 10px;
-  color: var(--lp-navy);
-  letter-spacing: -0.01em;
-}
-.landing-feature-description {
-  font-size: var(--font-size-body);
-  color: var(--lp-text-secondary);
-  margin: 0;
-  line-height: 1.65;
-}
-
-/* ========== Dev Tools Section ========== */
-.landing-token-chain {
-  padding: 64px 32px 80px;
-  background: var(--lp-surface);
-  border-top: 1px solid var(--lp-border);
-}
-.landing-token-chain-heading {
-  text-align: left;
-  margin-bottom: 32px;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.landing-token-chain-heading h2 {
-  font-size: var(--font-size-h1);
-  font-weight: 800;
-  margin: 0 0 10px;
-  color: var(--lp-navy);
-  letter-spacing: -0.02em;
-}
-.landing-token-chain-heading p {
-  font-size: var(--font-size-base);
-  color: var(--lp-text-secondary);
-  margin: 0;
-  max-width: 600px;
-  line-height: 1.65;
-}
-.landing-token-chain-wrapper {
-  max-width: 600px;
-  margin: 0;
-}
-.landing-panels-row {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.fp-token-chain {
-  flex: 0 0 auto;
-}
-.fp-token-inspector {
-  flex: 0 0 auto;
-}
-.fp-token-inspector .otdp-container {
-  max-width: 100%;
-  padding: 1rem;
-}
-.fp-token-inspector .otdp-grid {
-  grid-template-columns: 1fr;
-}
-.landing-agent-dock-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 200;
-  max-width: 400px;
-  max-height: 600px;
-  pointer-events: auto;
-}
-
-/* ========== Responsive: Tablet (768px) ========== */
-@media (max-width: 768px) {
-  .landing-header-content {
-    flex-wrap: wrap;
-    padding: 12px 16px;
-  }
-  .landing-hero {
-    /* Extra bottom padding keeps hero copy clear of the fixed Demo Script /
-       AI Agent launcher buttons, which float at the viewport's bottom edge
-       and would otherwise sit on top of the last lines of text on load. */
-    padding: 64px 16px 100px;
-  }
-  .landing-hero-headline {
-    font-size: var(--font-size-4xl);
-  }
-  .landing-hero-zero-trust {
-    font-size: 44px;
-  }
-  .landing-hero-subheadline {
-    font-size: var(--font-size-md);
-  }
-  .hero-cta {
-    min-width: 140px;
-    padding: 11px 24px;
-    font-size: var(--font-size-body);
-  }
-  .landing-features {
-    padding: 48px 16px 56px;
-  }
-  .landing-features-heading h2 {
-    font-size: 26px;
-  }
-  .landing-features-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-  }
-  .landing-feature-card {
-    padding: 20px 18px;
-  }
-  .landing-token-chain {
-    padding: 48px 16px 64px;
-  }
-  .landing-agent-dock-container {
-    position: static;
-    max-width: 100%;
-    max-height: none;
-    margin-top: 32px;
-  }
-}
-
-/* ========== Responsive: Mobile (480px) ========== */
-@media (max-width: 480px) {
-  .landing-hero-headline {
-    font-size: var(--font-size-h1);
-  }
-  .landing-hero-zero-trust {
-    font-size: 34px;
-  }
-  .landing-features-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  .landing-header-actions .btn {
-    padding: 7px 14px;
-    font-size: var(--font-size-2xs);
-  }
-  .hero-cta {
-    min-width: 100%;
-  }
-  .landing-feature-icon {
-    width: 40px;
-    height: 40px;
-  }
-}
-
-/* AI Agent FAB / Demo Script launcher are global, fixed-position buttons
-   portaled to document.body. LandingPage.js's IntersectionObserver adds this
-   class to <body> only while the hero's CTA row is on screen, so the two
-   floats never overlap it regardless of viewport height (a padding-only fix
-   can clear one device height but not all — see TECH_DEBT.md 2026-09-05).
-   Scoped to phone/tablet widths: above 768px the hero is short enough that
-   it never reaches the floats in the first place. */
-@media (max-width: 768px) {
-  /* !important to win over AIAgent.css's own
-     `visibility: visible !important; opacity: 1 !important;` (forces the FAB
-     visible against Ping's end-user-nano widget) — same specificity, so
-     without !important here that rule silently wins and the FAB never hides. */
-  body.landing-hero-ctas-in-view .banking-agent-fab,
-  body.landing-hero-ctas-in-view .demo-script-launch {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    transition: opacity 0.15s ease;
-  }
-}
-
-/* ========== Session Banner ========== */
-.landing-session-banner {
-  background: var(--lp-surface);
-  border-bottom: 1px solid var(--lp-border);
-  padding: 8px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--font-size-sm);
-  color: var(--lp-text-secondary);
-}
-.landing-session-banner-text {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.landing-session-banner-link {
-  color: var(--lp-accent);
-  font-weight: 600;
-}
-.landing-session-banner-link:hover {
-  text-decoration: underline;
-}
-.landing-session-banner-logout {
-  font-size: var(--font-size-2xs);
-  padding: 4px 12px;
-  border-radius: 20px;
-  color: var(--lp-text-secondary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.landing-session-banner-logout:hover {
-  background: var(--lp-muted);
-}
-
-/* Respect user reduced-motion preference: drop transitions and hover transforms */
-@media (prefers-reduced-motion: reduce) {
-  .landing-page *,
-  .landing-page *::before,
-  .landing-page *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
-  .landing-feature-card:hover {
-    transform: none;
-  }
-}
-
-/* ============================================================================
-   V2 Design Overrides — When [data-rd-v2] is present, use institutional design
-   ============================================================================ */
-
-/* V2: Warm-paper background bleeding across entire page */
-[data-rd-v2].landing-page {
-  background: var(--rd2-bg, #f7f7f5) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
-}
-
-[data-rd-v2] .landing-header {
-  background: var(--rd2-surface, #ffffff) !important;
-  border-bottom: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-  box-shadow: var(--rd2-shadow-1, 0 1px 3px rgba(0,0,0,.06)) !important;
-}
-
-[data-rd-v2] .landing-logo-title {
-  color: var(--rd2-ink-1, #111110) !important;
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
-}
-
-[data-rd-v2] .landing-logo p {
-  color: var(--rd2-ink-3, #8c8c88) !important;
-  font-family: var(--font-mono);
-}
-
-[data-rd-v2] .landing-btn,
-[data-rd-v2] .btn {
-  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
-}
-
-[data-rd-v2] .btn-primary {
-  background: var(--rd2-accent, #051727) !important;
-  color: var(--th-text-invert) !important;
-  border: none !important;
-  box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
-}
-
-[data-rd-v2] .btn-primary:hover {
-  background: color-mix(in srgb, var(--rd2-accent, #051727) 85%, #000000) !important;
-  box-shadow: var(--rd2-shadow-3, 0 4px 12px rgba(0,0,0,.15)) !important;
-}
-
-[data-rd-v2] .btn-secondary {
-  background: var(--rd2-surface-2, #f3f3f1) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-}
-
-[data-rd-v2] .btn-secondary:hover {
-  background: var(--rd2-surface-3, #e8e8e4) !important;
-  border-color: var(--rd2-ink-3, #8c8c88) !important;
-}
-
-/* V2: Hero section with warm background and serif headline */
-[data-rd-v2] .landing-hero {
-  /* V2 transparentizes the base hero ground but keeps the brand-hub arcs
-     pattern (it sits on the page surface, not the hero's own fill).
-     multiply makes the JPEG's white ground disappear into the surface —
-     no rectangular seam. */
-  background:
-    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
-    transparent !important;
-  background-blend-mode: multiply;
-  border-bottom: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-  padding: 96px 32px 88px !important;
-}
-
-/* The arcs JPEG has an opaque white ground; multiply only hides it on a light
-   page. On dark, draw it small in the top-right corner, inverted + screen-
-   blended so the white ground goes black (invisible) and the arcs go light.
-   Hidden below 1200px, where a corner image would reach the centered copy. */
-:root[data-theme="dark"] [data-rd-v2] .landing-hero {
-  background-image: none !important;
+/* ---- Hero ---- */
+.pu-page.landing-page .landing-hero {
+  /* Brand-hub arcs pattern (public/branding/pattern-arcs.jpg), top right, over the
+     page ground. multiply makes the JPEG's white ground vanish into that ground. */
   position: relative;
+  padding: 72px 24px 64px;
+  border-bottom: 1px solid var(--th-border);
+  background-color: var(--th-bg-page);
+  background-image: url('/branding/pattern-arcs.jpg');
+  background-position: right top;
+  background-size: 720px auto;
+  background-repeat: no-repeat;
+  background-blend-mode: multiply;
+  color: var(--th-text);
+  text-align: center;
 }
-:root[data-theme="dark"] [data-rd-v2] .landing-hero::before {
+
+/* The arcs JPEG has an opaque white ground, so multiply only hides it on a light page. On dark, draw it small in
+   the top-right corner, inverted and screen-blended (white goes black, the arcs go light). Hidden below 1200px,
+   where a corner image would reach the centred copy. */
+:root[data-theme="dark"] .pu-page.landing-page .landing-hero {
+  background-image: none;
+}
+
+:root[data-theme="dark"] .pu-page.landing-page .landing-hero::before {
   content: "";
   position: absolute;
   top: 0;
@@ -635,229 +52,195 @@
   opacity: 0.5;
   pointer-events: none;
 }
-:root[data-theme="dark"] [data-rd-v2] .landing-hero-content {
+
+.pu-page.landing-page .landing-hero-content {
   position: relative;
-}
-@media (max-width: 1200px) {
-  :root[data-theme="dark"] [data-rd-v2] .landing-hero::before { display: none; }
-}
-
-/* The rd-v2 padding above is !important and unconditional (data-rd-v2 is
-   always set on the landing page), so it silently wins over the responsive
-   .landing-hero padding rules below in the mobile/tablet media queries.
-   Restore responsiveness for the skin that's actually active. */
-@media (max-width: 768px) {
-  [data-rd-v2] .landing-hero {
-    /* 100px, not 56px: the fixed Demo Script / AI Agent launcher buttons sit at
-       the viewport's bottom edge and overlap the last lines of hero copy. Must
-       match the unskinned .landing-hero rule above — this one carries
-       !important, so whatever it says is what actually renders. */
-    padding: 64px 16px 100px !important;
-  }
-}
-@media (max-width: 480px) {
-  [data-rd-v2] .landing-hero {
-    padding: 0 16px 100px !important;
-  }
-  [data-rd-v2] .landing-hero-actions {
-    gap: 8px !important;
-  }
-}
-
-[data-rd-v2] .landing-hero-headline {
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  font-size: 52px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.03em !important;
-}
-
-[data-rd-v2] .landing-hero-zero-trust {
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  font-size: 64px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
-}
-@media (max-width: 768px) {
-  [data-rd-v2] .landing-hero-zero-trust {
-    font-size: 44px !important;
-  }
-}
-@media (max-width: 480px) {
-  [data-rd-v2] .landing-hero-zero-trust {
-    font-size: 34px !important;
-  }
-}
-
-[data-rd-v2] .landing-hero-subheadline {
-  color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
-}
-
-[data-rd-v2] .hero-cta-primary {
-  background: var(--rd2-accent, #051727) !important;
-  color: var(--rd2-accent-text, #ffffff) !important;
-  border: none !important;
-  box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
-}
-
-[data-rd-v2] .hero-cta-primary:hover {
-  background: color-mix(in srgb, var(--rd2-accent, #051727) 85%, #000000) !important;
-  box-shadow: var(--rd2-shadow-3, 0 4px 12px rgba(0,0,0,.15)) !important;
-}
-
-/* Landing is Ping-owned: red primary (brand gradient), one button shape. */
-.landing-page[data-rd-v2] .btn-primary,
-.landing-page[data-rd-v2] .hero-cta-primary {
-  background: linear-gradient(90deg, #d20e0f 55%, #aa0005) !important;
-  color: #ffffff !important;
-}
-
-.landing-page[data-rd-v2] .btn-primary:hover,
-.landing-page[data-rd-v2] .hero-cta-primary:hover {
-  background: #aa0005 !important;
-}
-
-.landing-page[data-rd-v2] .hero-cta {
-  border-radius: var(--btn-radius);
-}
-
-[data-rd-v2] .hero-cta-secondary {
-  background: var(--rd2-surface, #ffffff) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-  box-shadow: var(--rd2-shadow-1, 0 1px 3px rgba(0,0,0,.06)) !important;
-}
-
-[data-rd-v2] .hero-cta-secondary:hover {
-  background: var(--rd2-surface-2, #f3f3f1) !important;
-  border-color: var(--rd2-ink-2, #4c4c48) !important;
-  box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
-}
-
-/* V2: Identity evolution callout */
-.landing-callout {
-  padding: 64px 32px;
-  background: var(--rd2-accent, #051727);
-  color: var(--rd2-accent-text, #ffffff);
-  text-align: center;
-}
-
-.landing-callout-content {
-  max-width: 760px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
-.landing-callout-lead {
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif);
-  font-size: 26px;
-  font-weight: 600;
+.pu-page.landing-page .landing-hero-headline {
+  margin: 0 0 8px;
+  font-size: calc(var(--font-size-4xl) * 1.4);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--th-text);
+}
+
+.pu-page.landing-page .landing-hero-zero-trust {
+  margin: 0 0 24px;
+  font-size: calc(var(--font-size-4xl) * 1.75);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--th-text);
+}
+
+.pu-page.landing-page .landing-hero-subheadline {
+  max-width: 600px;
+  margin: 0 auto 40px;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-relaxed);
+  color: var(--th-text-body);
+}
+
+/* The four hero actions. The element and its class are read by LandingPage.js (IntersectionObserver). */
+.pu-page.landing-page .landing-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.pu-page.landing-page .landing-hero-actions .pu-btn {
+  min-width: 160px;
+  min-height: 46px;
+  padding: 12px 28px;
+  font-size: var(--font-size-base);
+}
+
+/* ---- Identity evolution callout (copy unchanged) ---- */
+.pu-page.landing-page .landing-callout {
+  margin-top: 32px;
+}
+
+.pu-page.landing-page .landing-callout-card {
+  max-width: 800px;
+  margin: 12px auto;
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.pu-page.landing-page .landing-callout-lead {
+  margin: 0 0 20px;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
   line-height: 1.35;
   letter-spacing: -0.02em;
-  color: var(--rd2-accent-text, #ffffff);
-  margin: 0 0 24px;
+  color: var(--th-text);
 }
 
-.landing-callout-lead em {
-  /* Brand rule: avoid italics for emphasis — heavier weight instead */
+.pu-page.landing-page .landing-callout-lead em {
+  /* Brand rule: no italics for emphasis, heavier weight instead. */
   font-style: normal;
-  font-weight: 700;
-  color: var(--rd2-accent-text, #ffffff);
+  font-weight: var(--font-weight-bold);
 }
 
-.landing-callout-body {
-  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif);
-  font-size: var(--font-size-md);
-  line-height: 1.65;
-  color: var(--rd2-accent-text, #ffffff);
+.pu-page.landing-page .landing-callout-body {
   margin: 0 0 12px;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  color: var(--th-text-body);
 }
 
-.landing-callout-body:last-child {
+.pu-page.landing-page .landing-callout-body:last-child {
   margin-bottom: 0;
 }
 
-/* Brand-hub boilerplate closing line — slightly quieter than the lead copy */
-.landing-callout-boilerplate {
-  font-size: 13.5px;
-  opacity: 0.88;
+/* Brand-hub boilerplate closing line: a little quieter than the lead copy. */
+.pu-page.landing-page .landing-callout-boilerplate {
   max-width: 620px;
   margin-left: auto;
   margin-right: auto;
+  font-size: var(--font-size-base);
 }
 
-@media (max-width: 640px) {
-  .landing-callout {
-    padding: 48px 24px;
+/* ---- Feature cards: four across where they fit (the shared grid's 340px minimum would leave three plus one) ---- */
+.pu-page.landing-page .landing-features-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  align-items: stretch;
+  padding: 0;
+  list-style: none;
+}
+
+.pu-page.landing-page .landing-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.pu-page.landing-page .landing-feature-title {
+  margin: 0 0 8px;
+}
+
+.pu-page.landing-page .landing-feature-description {
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-relaxed);
+  color: var(--th-text-body);
+}
+
+/* ---- Phone / tablet ---- */
+@media (max-width: 768px) {
+  .pu-page.landing-page .landing-hero {
+    /* Extra bottom padding keeps the hero copy clear of the fixed Demo Script / AI Agent launcher buttons at the
+       viewport's bottom edge. */
+    padding: 48px 16px 100px;
   }
-  .landing-callout-lead {
+
+  .pu-page.landing-page .landing-hero-headline {
+    font-size: var(--font-size-4xl);
+  }
+
+  .pu-page.landing-page .landing-hero-zero-trust {
+    font-size: calc(var(--font-size-4xl) * 1.2);
+  }
+
+  .pu-page.landing-page .landing-hero-subheadline {
+    font-size: var(--font-size-md);
+  }
+
+  .pu-page.landing-page .landing-callout-card {
+    padding: 24px 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pu-page.landing-page .landing-hero {
+    padding: 32px 16px 100px;
+  }
+
+  .pu-page.landing-page .landing-hero-headline {
+    font-size: var(--font-size-h1);
+  }
+
+  .pu-page.landing-page .landing-hero-zero-trust {
+    font-size: var(--font-size-3xl);
+  }
+
+  .pu-page.landing-page .landing-hero-actions {
+    gap: 8px;
+  }
+
+  .pu-page.landing-page .landing-hero-actions .pu-btn {
+    min-width: 100%;
+  }
+
+  .pu-page.landing-page .landing-callout-lead {
     font-size: var(--font-size-xl);
   }
 }
 
-/* V2: Feature grid with warm background */
-[data-rd-v2] .landing-features {
-  background: transparent !important;
-  padding: 72px 32px 80px !important;
-}
-
-[data-rd-v2] .landing-features-heading h2 {
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  font-size: 34px !important;
-  font-weight: 600 !important;
-}
-
-[data-rd-v2] .landing-features-heading p {
-  color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
-}
-
-[data-rd-v2] .landing-feature-card {
-  background: var(--rd2-surface, #ffffff) !important;
-  border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-  box-shadow: var(--rd2-shadow-1, 0 1px 3px rgba(0,0,0,.06)) !important;
-}
-
-[data-rd-v2] .landing-feature-card:hover {
-  border-color: var(--rd2-ink-2, #4c4c48) !important;
-  box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
-}
-
-[data-rd-v2] .landing-feature-icon {
-  background: color-mix(in srgb, var(--rd2-accent, #051727) 8%, #ffffff) !important;
-  color: var(--rd2-accent, #051727) !important;
-}
-
-[data-rd-v2] .landing-feature-title {
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  font-weight: 600 !important;
-}
-
-[data-rd-v2] .landing-feature-description {
-  color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
-}
-
-[data-rd-v2] .landing-token-chain {
-  background: transparent !important;
-  border-top: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-}
-
-[data-rd-v2] .landing-token-chain-heading h2 {
-  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
-  color: var(--rd2-ink-1, #111110) !important;
-  font-weight: 600 !important;
-}
-
-[data-rd-v2] .landing-token-chain-heading p {
-  color: var(--rd2-ink-2, #4c4c48) !important;
-}
-
-[data-rd-v2] .landing-footer {
-  background: transparent !important;
-  border-top: 1px solid var(--rd2-line-1, #e4e4e0) !important;
-  color: var(--rd2-ink-2, #4c4c48) !important;
+/* The AI Agent FAB / Demo Script launcher are global, fixed-position buttons portaled to document.body.
+   LandingPage.js's IntersectionObserver adds this class to <body> only while the hero's CTA row is on screen, so the
+   two floats never overlap it regardless of viewport height (a padding-only fix can clear one device height but not
+   all, see TECH_DEBT.md 2026-09-05). Phone/tablet widths only: above 768px the hero never reaches the floats.
+   !important to win over AIAgent.css's own `visibility: visible !important; opacity: 1 !important;` (same
+   specificity). */
+@media (max-width: 768px) {
+  body.landing-hero-ctas-in-view .banking-agent-fab,
+  body.landing-hero-ctas-in-view .demo-script-launch {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: opacity 0.15s ease;
+  }
 }
