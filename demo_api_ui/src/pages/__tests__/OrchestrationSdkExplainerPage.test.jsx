@@ -108,4 +108,53 @@ describe("OrchestrationSdkExplainerPage", () => {
     expect(traps.length).toBe(5);
     for (const trap of traps) expect(trap.open).toBe(false);
   });
+
+  describe("Ping UI Standard", () => {
+    it("opens with a role=note banner that says the page is static and what is simulated", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const root = container.querySelector(".pu-page.osx-page");
+      expect(root).toBeTruthy();
+      const banner = within(root).getByRole("note");
+      expect(banner).toHaveAttribute("data-testid", "osx-banner");
+      expect(root.firstElementChild).toContainElement(banner);
+      // Honest copy: nothing live here, the diagram is a drawn sequence, the demos make the real calls.
+      expect(banner.textContent).toMatch(/Static lesson/);
+      expect(banner.textContent).toMatch(/Simulate steps through a drawn sequence, not a live flow/);
+      expect(banner.textContent).toMatch(/run the real flows/);
+      // The banner comes before the title band.
+      const h1 = screen.getByRole("heading", { level: 1 });
+      expect(banner.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("has exactly one primary: the live SDK login, a link that takes the shared primary class", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const primaries = container.querySelectorAll(".pu-btn--primary");
+      expect(primaries).toHaveLength(1);
+      expect(primaries[0].tagName).toBe("A");
+      expect(primaries[0]).toHaveAttribute("href", "/davinci-orchestration-sdk");
+    });
+
+    it("labels every section by its h2 and keeps one h1 and no second main", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      const sections = container.querySelectorAll(".pu-frame > section");
+      expect(sections.length).toBe(7);
+      for (const section of sections) {
+        const id = section.getAttribute("aria-labelledby");
+        expect(id).toBeTruthy();
+        expect(section.querySelector(`h2#${id}`)).toBeTruthy();
+      }
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(container.querySelector("main")).toBeNull();
+    });
+
+    it("shows each mode and category as a card with a key-value list, and the subject chip carries a word", () => {
+      const { container } = render(<OrchestrationSdkExplainerPage />);
+      expect(container.querySelectorAll(".osx-modes > .pu-card .pu-kv")).toHaveLength(3);
+      expect(container.querySelectorAll(".osx-cat.pu-card .pu-kv")).toHaveLength(4);
+      const chips = container.querySelectorAll(".pu-chip");
+      expect(chips).toHaveLength(1);
+      expect(chips[0].textContent.trim()).toBe("Subject of this lesson");
+      expect(chips[0].closest(".osx-mode")).toHaveClass("is-featured");
+    });
+  });
 });

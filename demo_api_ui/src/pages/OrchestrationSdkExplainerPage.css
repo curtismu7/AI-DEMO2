@@ -1,111 +1,61 @@
-/* Orchestration SDK explainer (/orchestration-sdk).
+/* DaVinci SDK explainer (/davinci-sdk) - page-specific styles only.
 
-   Themeable values come from --th-* so both modes work without a
-   prefers-color-scheme block (THEMING.md). Every rule that sets a themed
-   ground also sets its ink (§1.5), font sizes come from the scale with
-   --font-size-3xs as the floor (§8.1), and radii come from the scale (§9.3).
+   The banner, frame, section headings, cards, key-value lists, chip and secondary buttons come from the shared Ping UI
+   primitives (styles/ping-ui.css, docs/ping-ui-primitives.md). Every rule here is scoped under .osx-page (this page's
+   root) and every class carries the osx- prefix. Surfaces and ink are --th-* tokens (every ground sets its own ink,
+   THEMING.md 1.5), type comes from the --font-size-* scale and radii from --radius-*. */
 
-   Deliberately a stylesheet rather than the scoped inline <style> blob
-   DavinciExplainerPage.jsx carries: that page defines its own --bg/--surface
-   palette and a private theme toggle, which is why it cannot follow the app
-   theme. This page follows it for free. */
-
-.osx-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 32px 20px 64px;
-  color: var(--th-text);
-}
-
-/* Baseline ink for every link on this page, including the ones that carry no
-   class at all. Without it a bare <a> falls through to PingOne's
-   end-user-nano.css (cross-origin, see the .osx-cta note below), which paints
-   `a:link` the brand primary #12538d — measured 3.98:1 on the dark ground.
-
-   (0,2,1), so it beats their (0,1,1). Deliberately FIRST in this file: the
-   .osx-cta and .osx-mode-link rules below are also (0,2,1), and at equal
-   specificity the later rule wins. Do not move this down. */
+/* Baseline ink for every link on this page, including the ones that carry no class at all. A bare <a> falls through
+   to PingOne's end-user-nano.css (cross-origin), which paints `a:link` the brand primary #12538d - 3.98:1 on the dark
+   ground. (0,2,1) beats their (0,1,1). Deliberately FIRST: the .osx-mode-link rule below is also (0,2,1) and the later
+   rule wins at equal specificity. The focus ring is the shared .pu-page a:focus-visible one. */
 .osx-page a,
 .osx-page a:link,
 .osx-page a:visited {
   color: var(--th-status-info-text);
 }
 
-.osx-page a:focus-visible {
-  outline: 2px solid var(--th-status-info);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.osx-title {
-  margin: 0 0 12px;
-  font-size: var(--font-size-h1);
-  line-height: 1.2;
-  color: var(--th-text);
-}
-
-/* Primary call to action: the live page this lesson documents. */
-.osx-cta-row {
+/* The page's one primary action. It is a link (it navigates), so the shared button-only primary rule does not reach
+   it; this is the same Ping Red gradient from the fixed --btn-accent* tokens, never a vertical colour. Every link
+   state is named and the selector carries element + three classes (0,4,1+), because end-user-nano's `a:link`
+   colour and underline beat a lone class. */
+.osx-page .osx-cta-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin: 18px 0 0;
+  margin: 18px 0 16px;
 }
 
-/* Every link state is named, and the selectors carry the element as well as the
-   class, because a bare `.osx-cta` LOSES `color` and `text-decoration`.
-
-   The competitor is PingOne's own end-user-nano.css, loaded cross-origin from
-   assets.pingone.com in public/index.html, which styles `a` with the brand
-   primary #12538d plus an underline. Against a single class it won both
-   properties while `background` and `border` — which it does not set — applied,
-   producing the emphasis ground with link-blue ink at 2.71:1. Measured on the
-   live page; exactly the ground-without-ink failure REGRESSION_PLAN §0 H1
-   describes, and invisible to themingRatchet because both sides used tokens.
-
-   `a.osx-cta:link` is (0,2,1) against their (0,1,1) at most, so this wins
-   regardless of load order. Do not collapse it back to a lone class.
-
-   Note for anyone debugging a similar override: enumerating document.styleSheets
-   will NOT show the culprit — reading cssRules on that cross-origin sheet throws
-   SecurityError, so it silently drops out of the scan. */
-a.osx-cta,
-a.osx-cta:link,
-a.osx-cta:visited {
-  display: inline-block;
-  font-weight: 600;
-  padding: 9px 16px;
+.osx-page a.pu-btn.pu-btn--primary.osx-cta,
+.osx-page a.pu-btn.pu-btn--primary.osx-cta:link,
+.osx-page a.pu-btn.pu-btn--primary.osx-cta:visited {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
   text-decoration: none;
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
-  border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-md);
 }
 
-a.osx-cta:hover,
-a.osx-cta:focus-visible {
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
+.osx-page a.pu-btn.pu-btn--primary.osx-cta:hover,
+.osx-page a.pu-btn.pu-btn--primary.osx-cta:focus-visible {
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient-hover);
+  border-color: var(--btn-accent-edge);
+  color: var(--btn-accent-text);
   text-decoration: underline;
 }
 
-.osx-cta-note {
+.osx-page .osx-cta-note {
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
 }
 
-.osx-section {
-  margin-top: 40px;
-}
-
-.osx-h2 {
-  margin: 0 0 10px;
-  font-size: var(--font-size-h2);
-  color: var(--th-text);
-}
-
-.osx-body {
+/* Lesson prose. The primitives have no body-paragraph class (.pu-lede and .pu-note are small), so this is page-local. */
+.osx-page .osx-body {
   margin: 0 0 14px;
   max-width: 72ch;
   line-height: 1.65;
@@ -113,138 +63,68 @@ a.osx-cta:focus-visible {
 }
 
 /* A parenthetical that should read as secondary without dropping to hint-grey. */
-.osx-body-aside {
+.osx-page .osx-body-aside {
   border-left: 3px solid var(--th-border-strong);
   padding-left: 12px;
   color: var(--th-text-muted);
 }
 
-/* --- Three invocation modes --- */
+/* --- Three invocation modes (cards come from .pu-card; only the head row and the subject outline are ours) --- */
 
-.osx-modes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.osx-mode {
+.osx-page .osx-mode {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
+  gap: 4px;
 }
 
-/* The SDK column is what the page is about — mark it with the border and a
-   tinted ground, both carrying their own ink so neither theme loses the text. */
-.osx-mode.is-featured {
-  color: var(--th-status-info-text);
-  background: var(--th-status-info-bg);
-  border-color: var(--th-status-info-border);
+/* The SDK card is what the page is about: a blue outline on three sides (the top edge stays the vertical accent) and
+   the chip word. No ground change, so it needs no ink of its own. */
+.osx-page .osx-mode.is-featured {
+  border-right-color: var(--th-status-info);
+  border-bottom-color: var(--th-status-info);
+  border-left-color: var(--th-status-info);
 }
 
-.osx-mode-head {
+.osx-page .osx-mode-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: 4px 8px;
 }
 
-.osx-mode-title {
+.osx-page .osx-mode-head .osx-mode-title {
   margin: 0;
-  font-size: var(--font-size-md);
-  color: inherit;
 }
 
-/* Same cause as .osx-cta above: end-user-nano.css's `a:link` is (0,1,1) and
-   beats a lone class at (0,1,0), so these rendered in the brand blue rather
-   than the muted tone specified here. Element+class+state takes it back. */
-a.osx-mode-link,
-a.osx-mode-link:link,
-a.osx-mode-link:visited,
-.osx-mode-note {
+/* Same cause as the baseline rule above: end-user-nano's `a:link` beats a lone class, so the route label is named
+   with element + class + state. Muted ink here, 4.5:1 or better on the card ground (measured, both themes). */
+.osx-page a.osx-mode-link,
+.osx-page a.osx-mode-link:link,
+.osx-page a.osx-mode-link:visited,
+.osx-page .osx-mode-note {
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   color: var(--th-text-muted);
+  overflow-wrap: anywhere;
 }
 
-/* (0,3,1) — must stay above the a.osx-mode-link:link rule (0,2,1) so the
-   featured card's link keeps inheriting that card's ink. */
-.osx-mode.is-featured a.osx-mode-link,
-.osx-mode.is-featured a.osx-mode-link:link,
-.osx-mode.is-featured a.osx-mode-link:visited,
-.osx-mode.is-featured .osx-mode-note {
-  color: inherit;
-}
-
-.osx-mode-facts,
-.osx-cat-facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  margin: 0;
-}
-
-.osx-mode-facts dt,
-.osx-cat-facts dt {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  color: var(--th-text-muted);
-}
-
-.osx-mode.is-featured .osx-mode-facts dt {
-  color: inherit;
-}
-
-.osx-mode-facts dd,
-.osx-cat-facts dd {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-  color: inherit;
-}
-
-.osx-mode-pick {
-  margin: 0;
+.osx-page .osx-mode-pick {
+  margin: 4px 0 0;
   font-size: var(--font-size-sm);
   line-height: 1.55;
-  color: inherit;
+  color: var(--th-text);
 }
 
 /* --- Collector categories --- */
 
-.osx-cats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.osx-cat {
-  padding: 16px;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-}
-
-.osx-cat-title {
-  margin: 0 0 6px;
-  font-size: var(--font-size-md);
-  color: var(--th-text);
-}
-
-.osx-cat-values {
-  margin: 0 0 12px;
+.osx-page .osx-cat-values {
+  margin: 0 0 8px;
   line-height: 1.5;
 }
 
 /* --- Code --- */
 
-.osx-code {
+.osx-page .osx-code {
   margin: 0 0 14px;
   padding: 14px 16px;
   overflow-x: auto;
@@ -256,18 +136,15 @@ a.osx-mode-link:visited,
   border-radius: var(--radius-md);
 }
 
-.osx-code code {
+.osx-page .osx-code code {
   font-family: var(--font-mono);
   color: inherit;
   background: none;
 }
 
-/* Carries the page class as well as its own, because a lone .osx-code-inline
-   (0,1,0) LOST `color` here. end-user-nano.css paints inline <code> the
-   Bootstrap pink #d20e0f, and it measured 4.16:1 on the dark ground — under
-   the 4.5 needed at this size. Its selector is not readable from script (a
-   cross-origin sheet throws on cssRules), but (0,2,1) is above anything of the
-   (0,1,1) shape the rest of that sheet uses, and it measures clean. */
+/* Inline <code>: end-user-nano.css paints it Bootstrap pink #d20e0f (4.16:1 on the dark ground), and its skin sets
+   word-wrap: break-word on code, so the rule is scoped under the page class (0,2,1) and wraps anywhere, which keeps a
+   100-character unbroken value inside a 375px column. */
 .osx-page code.osx-code-inline {
   padding: 1px 5px;
   font-family: var(--font-mono);
@@ -280,7 +157,7 @@ a.osx-mode-link:visited,
 
 /* --- Lifecycle diagram --- */
 
-.osx-diagram {
+.osx-page .osx-diagram {
   margin: 0 0 18px;
   padding: 16px;
   overflow-x: auto;
@@ -290,46 +167,52 @@ a.osx-mode-link:visited,
   border-radius: var(--radius-lg);
 }
 
-/* --- Traps: native <details>, no JS --- */
+/* --- Pitfalls: native <details>, no JS --- */
 
-.osx-trap {
+.osx-page .osx-trap {
   margin-bottom: 8px;
   color: var(--th-text);
   background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
+  border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md);
 }
 
-.osx-trap-summary {
+.osx-page .osx-trap-summary {
   padding: 12px 16px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   color: var(--th-text);
   border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
 }
 
-.osx-trap-summary:hover {
+.osx-page .osx-trap-summary:hover {
   color: var(--th-text);
   background: var(--th-bg-hover);
 }
 
-.osx-trap[open] .osx-trap-summary {
+.osx-page .osx-trap-summary:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
+.osx-page .osx-trap[open] .osx-trap-summary {
   border-bottom: 1px solid var(--th-border);
   border-end-start-radius: 0;
   border-end-end-radius: 0;
 }
 
-.osx-trap-body {
+.osx-page .osx-trap-body {
   padding: 14px 16px 2px;
 }
 
-.osx-trap-body .osx-body:last-child {
+.osx-page .osx-trap-body .osx-body:last-child {
   margin-bottom: 12px;
 }
 
 /* --- Links out --- */
 
-.osx-links {
+.osx-page .osx-links {
   margin: 0;
   padding-left: 20px;
   max-width: 72ch;
@@ -337,14 +220,14 @@ a.osx-mode-link:visited,
   color: var(--th-text-body);
 }
 
-.osx-links li {
+.osx-page .osx-links li {
   margin-bottom: 6px;
+  overflow-wrap: anywhere;
 }
 
-.osx-footnote {
-  margin-top: 40px;
-  padding-top: 14px;
+.osx-page .osx-footnote {
+  margin: 14px 0 0;
+  max-width: 72ch;
   font-size: var(--font-size-xs);
   color: var(--th-text-muted);
-  border-top: 1px solid var(--th-border);
 }
