@@ -37,10 +37,28 @@ function displayName(user) {
   return user.username || String(user.email || 'user').split('@')[0];
 }
 
+/** Resolve the agent name from the CANONICAL store user, not the session user.
+ *  The OAuth callback seeds session.user.username from PingOne's
+ *  preferred_username, which is an email for this tenant — while the store's
+ *  seeded user (matched by oauthId) carries the short name the agent was
+ *  registered under ("AI Agent - demoUser"). Matching the store user by
+ *  oauthId (fallback: email) keeps the lookup stable across both username
+ *  shapes; when nothing matches, the session identity is used as before. */
+function agentDisplayName(user) {
+  try {
+    const store = require('../data/store');
+    const match = store
+      .getAllUsers()
+      .find((u) => (user.oauthId && u.oauthId === user.oauthId) || (user.email && u.email === user.email));
+    if (match?.username) return match.username;
+  } catch (_) { /* store unavailable — fall through to the session identity */ }
+  return displayName(user);
+}
+
 function agentName(user, agentType = 'personal') {
   return agentType === 'saas-embedded-worker'
-    ? `Website Worker - ${displayName(user)}`
-    : `AI Agent - ${displayName(user)}`;
+    ? `Website Worker - ${agentDisplayName(user)}`
+    : `AI Agent - ${agentDisplayName(user)}`;
 }
 
 function markerFor(user) {
