@@ -10,8 +10,18 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Handle, Position, ReactFlow, ReactFlowProvider, Controls, useReactFlow, useStore, useUpdateNodeInternals,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getSmoothStepPath,
+  Handle,
+  Position,
+  ReactFlowProvider,
+  Controls,
+  useReactFlow,
+  useStore,
+  useUpdateNodeInternals,
 } from "@xyflow/react";
+import ReactFlow, { useFlowUid, useRfId } from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import { useDraggableNodes } from "../hooks/useDraggableNodes";
@@ -179,6 +189,7 @@ function SlideNode({ data }) {
 }
 
 function SlideEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
+  const rfId = useRfId();
   const { off = 0, dashed, state, n, label, sub, at, dx = 0, dy = 0, route, labelPos } = data;
   const horiz = (p) => p === Position.Left || p === Position.Right;
   const sx = sourceX + (horiz(sourcePosition) ? 0 : off);
@@ -198,7 +209,7 @@ function SlideEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetP
   const hot = state === "now";
   return (
     <g className={`ps-edge ps-edge--${state}${data.deny ? " ps-edge--deny" : ""}`}>
-      <BaseEdge path={routed ? pathFromPoints(route.pts, 0) : path} markerEnd={`url(#ps-arrow${hot ? "-hot" : ""})`} markerStart={data.both ? `url(#ps-arrow${hot ? "-hot" : ""})` : undefined} style={{ strokeDasharray: dashed ? "5 4" : undefined }} />
+      <BaseEdge path={routed ? pathFromPoints(route.pts, 0) : path} markerEnd={`url(#${rfId}-ps-arrow${hot ? "-hot" : ""})`} markerStart={data.both ? `url(#${rfId}-ps-arrow${hot ? "-hot" : ""})` : undefined} style={{ strokeDasharray: dashed ? "5 4" : undefined }} />
       {(label || n) && (
         <EdgeLabelRenderer>
           <div className={`ps-elabel nodrag nopan ps-edge--${state}`} style={{ transform: `${tr} translate(${lx}px, ${ly}px)` }}>
@@ -230,6 +241,7 @@ const edgeTypes = { ps: SlideEdge };
 
 function Inner({ config, step }) {
   const ref = useRef(null);
+  const uid = useFlowUid();
   const k = useRootZoom();
   useFitOnResize(ref, FIT);
   // Handles are measured on first paint, before web fonts / card CSS settle; re-measure so arrows meet the box edges.
@@ -306,11 +318,12 @@ function Inner({ config, step }) {
     <div className="ps-canvas" ref={ref} role="group" aria-label={config.title} data-route-fallbacks={routing.fallbacks ?? undefined} style={{ ...(config.aspect ? { aspectRatio: config.aspect } : {}), ...(k !== 1 ? { zoom: 1 / k } : {}) }}>
       <svg width="0" height="0" aria-hidden="true" className="ps-defs">
         <defs>
-          <marker id="ps-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" className="ps-ah" /></marker>
-          <marker id="ps-arrow-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" className="ps-ah-hot" /></marker>
+          <marker id={`${uid}-ps-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" className="ps-ah" /></marker>
+          <marker id={`${uid}-ps-arrow-hot`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" className="ps-ah-hot" /></marker>
         </defs>
       </svg>
       <ReactFlow
+        id={uid}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}

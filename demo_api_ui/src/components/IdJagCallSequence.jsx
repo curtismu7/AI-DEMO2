@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { BaseEdge, Controls, EdgeLabelRenderer, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import { BaseEdge, Controls, EdgeLabelRenderer, Handle, Position, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import ReactFlow from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import { ACTORS, CALLS } from "../utils/idJagCallSequence";
 import { PF_ID_JAG_GROUPS } from "../config/pfIdJagDiagrams";

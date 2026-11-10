@@ -51,10 +51,10 @@ import {
   getBezierPath,
   Handle,
   Position,
-  ReactFlow,
   ReactFlowProvider,
   useStore,
 } from "@xyflow/react";
+import ReactFlow, { useFlowUid, useRfId } from "./diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import { useDraggableNodes } from "../hooks/useDraggableNodes";
@@ -222,6 +222,7 @@ function FlowNode({ data }) {
 
 function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
   const { self, lane, ping, route } = data;
+  const rfId = useRfId();
   const [hover, setHover] = useState(false);
   // Routed around the boxes when the router found a way; otherwise (or while a box is dragged) the old curve.
   const routed = ping && !self && route && route.ok;
@@ -240,7 +241,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
       <BaseEdge
         id={id}
         path={path}
-        markerEnd="url(#sfd-arrow)"
+        markerEnd={`url(#${rfId}-sfd-arrow)`}
         style={ping ? { strokeDasharray: data.dashed ? "5 4" : undefined } : { stroke: data.color, strokeWidth: 1.5, strokeDasharray: data.dashed ? "5 4" : undefined }}
       />
       {ping ? (
@@ -275,6 +276,7 @@ const edgeTypes = { sfd: FlowEdge };
 
 function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId }) {
   const ref = useRef(null);
+  const uid = useFlowUid();
   const lastDragEnd = useRef(0);
   const fit = pingStyle ? FIT_PING : FIT;
   const pannable = useFitOnResize(ref, fit, READABLE);
@@ -399,12 +401,13 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
     <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-pannable={pannable ? "true" : undefined} data-testid={testId} data-route-fallbacks={routing.fallbacks ?? undefined} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
       <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
         <defs>
-          <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+          <marker id={`${uid}-sfd-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" className="sfd-arrow" />
           </marker>
         </defs>
       </svg>
       <ReactFlow
+        id={uid}
         nodes={nodes}
         edges={routedEdges}
         onNodesChange={onNodesChange}

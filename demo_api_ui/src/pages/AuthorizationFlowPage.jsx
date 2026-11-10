@@ -1,6 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ReactFlow,
   ReactFlowProvider,
   Background,
   Controls,
@@ -13,6 +12,7 @@ import {
   useNodesState,
   useReactFlow,
 } from "@xyflow/react";
+import ReactFlow from "../components/diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "../components/DiagramStepBar";
 import PageHeader from "../components/common/PageHeader";

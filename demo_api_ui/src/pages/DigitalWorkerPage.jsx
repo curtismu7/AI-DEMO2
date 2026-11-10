@@ -11,7 +11,6 @@ import useConsentPhone from "./useConsentPhone";
 // studio outside WorkloadAgentsPage, same as PersonalAgentClientWindow does.
 import "./WorkloadAgentsPage.css";
 import {
-  ReactFlow,
   ReactFlowProvider,
   Background,
   Controls,
@@ -26,6 +25,7 @@ import {
   addEdge,
   useReactFlow,
 } from "@xyflow/react";
+import ReactFlow from "../components/diagram/UniqueReactFlow";
 import "@xyflow/react/dist/style.css";
 import ConfirmModal from "../components/ConfirmModal";
 import DraggableModal from "../components/DraggableModal";
