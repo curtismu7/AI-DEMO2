@@ -72,7 +72,7 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
-    "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)",
+    "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)", "Copilot Studio Agent",
   ] },
   { label: "AIC", children: [
     "AIC Token Exchange",
