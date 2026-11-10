@@ -1895,8 +1895,9 @@ function exportedBody(src, name) {
 // Where a real page lives. A component imported from anywhere else (routes/ wrappers, context providers, hooks)
 // is chrome around a page, never the page.
 const PAGE_DIR = /^(?:pages|components)\//;
-// Chrome and guards that wrap a page inside a routes/ wrapper (nav bar, sign-in prompt, provider-switch guard).
-const WRAPPER_CHROME = /^(?:AppShell|TopNav|SignInPrompt|ConfirmModal)$|(?:Guard|Provider)$/;
+// Chrome and guards that wrap a page, in routes/ wrappers and in App.js route elements (nav bar, sign-in prompt,
+// error boundary, provider-switch guard). They are never the page.
+const WRAPPER_CHROME = /^(?:AppShell|TopNav|SignInPrompt|ConfirmModal|ErrorBoundary)$|(?:Guard|Provider)$/;
 
 /**
  * The page file a wrapper component (a named export of a routes/ module, such as `IntentBindingLearningPageRoute`,
@@ -1931,7 +1932,8 @@ function wrapperPage(modFile, exportName, seen = new Set(), depth = 0) {
 /**
  * Map route path -> page file, read from the <Route path element> entries of App.js. A page behind a named
  * wrapper from src/routes/ (`<XPageRoute>` = AppShell + the page) resolves to the real page, also when the element
- * is `user ? <XPageRoute/> : <SignInRequired/>` or sits inside `<RequireAdminLogin>`.
+ * is `user ? <XPageRoute/> : <SignInRequired/>` or sits inside `<RequireAdminLogin>`. Chrome (TopNav, AppShell, ...)
+ * never counts as the page, and when a path has several entries the first one that resolves wins.
  */
 export function loadRoutes(root = UI_ROOT) {
   const appFile = path.join(root, 'src', 'App.js');
@@ -1943,7 +1945,8 @@ export function loadRoutes(root = UI_ROOT) {
   for (const m of app.matchAll(/path=["'](\/[^"']*)["']\s*element=\{(?=((?:(?!<Route\b)[\s\S]){0,300}))/g)) {
     const allNames = [...m[2].matchAll(/<([A-Z]\w*)/g)].map((x) => x[1]);
     const names = allNames.filter((n) => comps[n]);
-    const name = names.find((n) => !/\/routes\//.test(comps[n]));
+    // Chrome (TopNav, ...) is never the page: `<TopNav/><main><Page/></main>` resolves to Page.
+    const name = names.find((n) => !/\/routes\//.test(comps[n]) && !WRAPPER_CHROME.test(n));
     let file = name && resolveFile(path.dirname(appFile), comps[name]);
     if (!file) {
       // Only a routes/ file (SignInRequired, RequireAdminLogin, ...) or nothing resolved: follow a named wrapper to its page.
@@ -1957,8 +1960,12 @@ export function loadRoutes(root = UI_ROOT) {
         }
       }
     }
-    if (!file && names[0]) file = resolveFile(path.dirname(appFile), comps[names[0]]);
-    if (file) routes[m[1]] = file;
+    const rest = names.find((n) => !WRAPPER_CHROME.test(n));
+    if (!file && rest) file = resolveFile(path.dirname(appFile), comps[rest]);
+    // Several <Route> entries can share a path (a public one at the top level, a nested user/admin switch inside
+    // path="*"). The FIRST entry that resolves to a page wins: an entry that is only chrome or a gate resolves to
+    // nothing and is skipped, so a later one can still supply the page.
+    if (file && !(m[1] in routes)) routes[m[1]] = file;
   }
   return routes;
 }
