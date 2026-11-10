@@ -370,15 +370,17 @@ def hitlChallengeId   = ''
 def elicitationConfirmed = false
 def toolArgs          = [:]
 // Airline booking rules (book_airline_flight, tools/call only). The fare the policy judges comes
-// from the catalogue file, never from the caller's `amount`; the user's agent spend limit comes from
+// from the catalogue file, never from the caller's `amount` (the one exception: an openFareFlights
+// flight, SH000, judged at the amount a TRUSTED caller states; see lookupOpenFare); the user's agent spend limit comes from
 // the same file. The member tier is NOT looked up here: PingOne Authorize reads it from the PingOne
 // user's custom attribute airlineMemberTier (Trust Framework attribute MemberTier), keyed on the
 // UserId parameter (the token sub) that is always sent. See lookupBookingFacts below.
 def bookingFare       = null   // BigDecimal, authoritative fare
 def bookingLimit      = null   // BigDecimal, the user's agent spend limit
 def bookingSource     = null   // 'sub' (member record) | 'default' (defaultMember)
-def bookingError      = ''     // '' | unknown_flight_fare | booking_data_unavailable
+def bookingError      = ''     // '' | unknown_flight_fare | booking_data_unavailable | open_fare_untrusted | open_fare_bad_amount
 def bookingOverride   = null   // [claimed:, authoritative:] when the caller's amount differed
+def bookingFareSource = null   // 'catalogue' | 'stated' (open-fare flight, see lookupOpenFare)
 // Pure lookup over the parsed data file: facts for one flight and one token subject. Returns
 // [fare:, limit:, source:] or throws. Kept free of request state so it can be run alone.
 def lookupBookingFacts = { Object data, Object flightArg, String subject ->
@@ -397,6 +399,34 @@ def lookupBookingFacts = { Object data, Object flightArg, String subject ->
         limit : new BigDecimal(String.valueOf(limitRaw != null ? limitRaw : 500)),
         source: member != null ? 'sub' : 'default',
     ]
+}
+// Open-fare flights (data file openFareFlights, SH000): the price is whatever the TRUSTED connector
+// states, so the stated amount stands in for the catalogue fare. parseStatedAmount accepts only a JSON
+// number above 0, at most 100000, with at most 2 decimals (a string, boolean, NaN, Infinity, 1.005 or
+// 100000.01 is refused); the airline server applies the same rule. Pure, so it can be run alone.
+def parseStatedAmount = { Object raw ->
+    if (!(raw instanceof Number)) return null
+    def v
+    try { v = new BigDecimal(raw.toString()) } catch (Exception ignore) { return null }
+    if (v.signum() <= 0 || v.compareTo(new BigDecimal('100000')) > 0) return null
+    if (v.stripTrailingZeros().scale() > 2) return null
+    return v
+}
+// Returns null when the flight is NOT an open-fare flight (the catalogue lookup then runs exactly as
+// before). For an open-fare flight: [error: 'open_fare_untrusted'] unless the caller is trusted,
+// [error: 'open_fare_bad_amount'] unless the amount is acceptable, else the same [fare:, limit:,
+// source:] as lookupBookingFacts with fare = the stated amount and fareSource 'stated'.
+def lookupOpenFare = { Object data, Object flightArg, Object amountArg, boolean trusted, String subject ->
+    if (!(data instanceof Map)) return null
+    def flight = (flightArg instanceof CharSequence) ? flightArg.toString().trim().toUpperCase() : ''
+    def open = data.openFareFlights
+    if (!flight || !(open instanceof List) || !open.contains(flight)) return null
+    if (!trusted) return [error: 'open_fare_untrusted']
+    def stated = parseStatedAmount(amountArg)
+    if (stated == null) return [error: 'open_fare_bad_amount']
+    def facts = lookupBookingFacts([flights: [(flight): stated], members: data.members, defaultMember: data.defaultMember], flight, subject)
+    facts.fareSource = 'stated'
+    return facts
 }
 // Pre-approval of a booking by the user's OWN spend limit: inside the limit the booking skips the
 // tenant's human-approval hold (RequiresHitlConsent). Returns [basis:, fare:, limit:, limitSource:]
@@ -484,15 +514,21 @@ try {
             if (toolName == 'book_airline_flight') {
                 try {
                     def bookingData = new JsonSlurper().parse(new File('/var/gateway/config/airline-booking-policy-data.json'))
-                    def facts = lookupBookingFacts(bookingData, args instanceof Map ? args.get('flight_number') : null, String.valueOf(sub ?: ''))
+                    def flightArg = args instanceof Map ? args.get('flight_number') : null
+                    // An open-fare flight takes the trusted connector's stated amount; every other flight
+                    // (and every refused open-fare call) goes the catalogue way, exactly as before.
+                    def facts = lookupOpenFare(bookingData, flightArg, args instanceof Map ? args.get('amount') : null, trustedCaller, String.valueOf(sub ?: ''))
+                    if (facts == null) facts = lookupBookingFacts(bookingData, flightArg, String.valueOf(sub ?: ''))
                     if (facts.error) {
                         bookingError = facts.error
                     } else {
                         bookingFare   = facts.fare
                         bookingLimit  = facts.limit
                         bookingSource = facts.source
+                        bookingFareSource = facts.fareSource ?: 'catalogue'
                         // OVERWRITE the caller's amount: an omitted or understated amount must not
-                        // switch the rules off. toPlainString keeps 500.01 / 750.01 exact.
+                        // switch the rules off. toPlainString keeps 500.01 / 750.01 exact. For an
+                        // open-fare flight bookingFare IS the stated amount, so nothing differs.
                         def claimedAmt = amt != null ? String.valueOf(amt) : null
                         def same = false
                         try { same = (claimedAmt != null && new BigDecimal(claimedAmt).compareTo(bookingFare) == 0) } catch (Exception ignore) { same = false }
@@ -564,11 +600,15 @@ def denyLocal = { String reason, String message ->
 }
 
 // Airline booking rules fail closed locally: no catalogue fare (unknown flight, missing or odd
-// flight_number) or an unreadable data file means the rules cannot be judged, so the call never
-// reaches P1AZ and nothing is booked.
+// flight_number), an unreadable data file, or an open-fare flight from an untrusted caller or with an
+// unusable amount means the rules cannot be judged, so the call never reaches P1AZ and nothing is booked.
 if (bookingError) {
     return denyLocal(bookingError, bookingError == 'unknown_flight_fare'
         ? 'no catalogue fare for the requested flight'
+        : bookingError == 'open_fare_untrusted'
+        ? 'an open-fare flight can only be booked through the trusted connector'
+        : bookingError == 'open_fare_bad_amount'
+        ? 'an open-fare flight needs a positive amount up to 100000 with at most 2 decimals'
         : 'airline booking data is unavailable')
 }
 
@@ -1318,6 +1358,8 @@ def auditTrail = [
         profileSource     : bookingSource,
         agentSpendLimitUsd: bookingLimit.toPlainString(),
         fareUsd           : bookingFare.toPlainString(),
+        // 'stated' = open-fare flight priced at the trusted connector's amount; else 'catalogue'.
+        fareSource        : bookingFareSource,
     ] : null,
     filterChain: [
         [filter: 'McpValidationFilter', result: 'passed'],

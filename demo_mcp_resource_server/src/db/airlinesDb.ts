@@ -224,7 +224,7 @@ let seedFlightsCache: { file: string; flights: Array<Record<string, string | nul
 
 /**
  * Insert seed flights that are missing from an already-seeded database, so an existing
- * airlines.db gains the booking-rule catalogue flights (SH101..SH109) on restart. INSERT OR
+ * airlines.db gains the booking-rule catalogue flights (SH101..SH109) and the open-fare flight SH000 on restart. INSERT OR
  * IGNORE: an existing row (possibly edited out-of-band) is never overwritten, and
  * passengers, bookings and seats are never touched.
  */
@@ -332,30 +332,40 @@ function bookingDataPath(): string {
   return process.env.AIRLINE_BOOKING_DATA_PATH || path.join(__dirname, '..', '..', 'seed', 'airline-booking-policy-data.json');
 }
 
-let fareCache: { file: string; fares: Map<string, number> } | null = null;
+let fareCache: { file: string; fares: Map<string, number>; openFare: Set<string> } | null = null;
 
-function loadFares(): Map<string, number> {
+function loadFares(): { fares: Map<string, number>; openFare: Set<string> } {
   const file = bookingDataPath();
-  if (fareCache && fareCache.file === file) return fareCache.fares;
+  if (fareCache && fareCache.file === file) return fareCache;
   const fares = new Map<string, number>();
+  const openFare = new Set<string>();
   try {
-    const flights = JSON.parse(fs.readFileSync(file, 'utf8')).flights;
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const flights = data.flights;
     if (flights && typeof flights === 'object') {
       for (const [k, v] of Object.entries(flights)) {
         if (typeof v === 'number' && Number.isFinite(v) && v > 0) fares.set(k, v);
       }
     }
+    if (Array.isArray(data.openFareFlights)) {
+      for (const f of data.openFareFlights) if (typeof f === 'string') openFare.add(f);
+    }
   } catch (err) {
     console.warn(`[airlines-db] booking data unreadable at ${file}: ${(err as Error).message}`);
   }
-  fareCache = { file, fares };
-  return fares;
+  fareCache = { file, fares, openFare };
+  return fareCache;
 }
 
 /** Catalogue fare in USD for a flight number, or null when unknown or the data file is unreadable. */
 export function getFare(flightNumber: string): number | null {
   // A Map lookup, never obj[key]: "__proto__" / "constructor" must not resolve.
-  return loadFares().get(flightNumber) ?? null;
+  return loadFares().fares.get(flightNumber) ?? null;
+}
+
+/** True for a flight listed in the data file's openFareFlights (SH000): its price is whatever is quoted. */
+export function isOpenFareFlight(flightNumber: string): boolean {
+  return loadFares().openFare.has(flightNumber);
 }
 
 export function getFlight(flightNumber: string): Flight | null {

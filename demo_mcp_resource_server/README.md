@@ -162,3 +162,9 @@ fare (`reason: no_fare`). PingGateway reads a synced copy of the same file
 the PingOne Authorize request. The member tier is not in that file: Authorize reads it from the
 PingOne user's `airlineMemberTier` attribute. The two rules that use them, and the owner-run
 import (UNVERIFIED until imported), are in `docs/airline-booking-rules-import.md`.
+
+One flight is an exception: `SH000` (listed in `openFareFlights` in the same file, route `AUS-ANY`) has no
+catalogue fare and is booked at the amount quoted, when that is a JSON number above 0, up to 100000, with at
+most 2 decimals; otherwise `booked: false, reason: bad_open_fare_amount`. This server does not check who
+asked: only the gateway lets a stated price through, and only for its trusted connector (a real airline
+would price the ticket itself).

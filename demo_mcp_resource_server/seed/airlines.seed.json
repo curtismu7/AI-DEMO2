@@ -148,6 +148,16 @@
       "gate": "B6",
       "aircraft": "Boeing 737-800",
       "status": "Scheduled"
+    },
+    {
+      "flight_number": "SH000",
+      "origin": "AUS",
+      "destination": "ANY",
+      "departure_time": "2027-03-19T09:00:00-06:00",
+      "arrival_time": "2027-03-19T11:00:00-06:00",
+      "gate": "B1",
+      "aircraft": "Boeing 737-800",
+      "status": "Scheduled"
     }
   ],
   "bookings": [

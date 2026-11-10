@@ -138,7 +138,7 @@
           },
           "amount": {
             "type": "number",
-            "description": "Total ticket price in dollars"
+            "description": "Total ticket price in dollars. For a catalogue flight it must equal the catalogue fare. For the open-fare flight SH000 it is the price the booking is made at (above 0, up to 100000, at most 2 decimals)."
           },
           "passengers": {
             "type": "number",
