@@ -47,7 +47,8 @@ export default function PingOneSetup() {
   const [results, setResults] = useState(null);
   const [ranFor, setRanFor] = useState('');
   const [error, setError] = useState(null); // { kind: 'auth' | 'server' | 'network', message }
-  // 'pending' until the defaults request settles, then 'filled' or 'none'.
+  // 'pending' until the defaults request settles, then 'filled' (server sent values), 'none' (server answered, no
+  // values), 'signedout' (401/403) or 'failed' (any other non-ok answer, or the request never completed).
   const [defaults, setDefaults] = useState('pending');
 
   // Pre-fill the form with the worker credentials configured on the server.
@@ -57,9 +58,15 @@ export default function PingOneSetup() {
     fetch('/api/pingone/setup/defaults', {
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) return 'signedout';
+        if (!res.ok) return 'failed';
+        return res.json().catch(() => 'failed');
+      })
       .then((data) => {
-        if (data && (data.environmentId || data.clientId || data.clientSecret)) {
+        if (data === 'signedout' || data === 'failed') {
+          setDefaults(data);
+        } else if (data && (data.environmentId || data.clientId || data.clientSecret)) {
           setCredentials({
             environmentId: data.environmentId || '',
             clientId: data.clientId || '',
@@ -70,7 +77,7 @@ export default function PingOneSetup() {
           setDefaults('none');
         }
       })
-      .catch(() => setDefaults('none'));
+      .catch(() => setDefaults('failed'));
   }, []);
 
   const handleInputChange = (e) => {
@@ -175,6 +182,8 @@ export default function PingOneSetup() {
               >
                 {defaults === 'filled' && 'Pre-filled from the demo server’s configured worker credentials. Edit any field if needed.'}
                 {defaults === 'none' && 'The server returned no default credentials, so the fields start empty.'}
+                {defaults === 'signedout' && 'Default credentials were not loaded because you are not signed in. The fields start empty; type the values, or sign in and reload.'}
+                {defaults === 'failed' && 'Default credentials could not be loaded from the demo server, so the fields start empty. You can still type the values.'}
               </p>
               <form onSubmit={handleSubmit} className="p1setup-form" data-testid="p1setup-form" aria-describedby="p1setup-hint">
                 {FIELDS.map((f) => (
@@ -237,7 +246,11 @@ export default function PingOneSetup() {
           {error && error.kind !== 'auth' && (
             <Card tone="danger" title="Setup request failed" data-testid="p1setup-error">
               <p className="pu-status-line"><StatusChip tone="danger">Failed</StatusChip> {error.message}</p>
-              <p className="pu-note">Check your credentials in the PingOne console and make sure the worker app has admin roles.</p>
+              <p className="pu-note" data-testid="p1setup-error-hint">
+                {error.kind === 'network'
+                  ? 'The request did not reach the demo server, so nothing was checked. Make sure the server is running, then run again.'
+                  : 'The demo server could not complete the run. This is not a verdict on the credentials; run again, or check the server log.'}
+              </p>
             </Card>
           )}
 

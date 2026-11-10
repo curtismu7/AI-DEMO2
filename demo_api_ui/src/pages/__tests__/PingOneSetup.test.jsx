@@ -95,12 +95,35 @@ describe('PingOneSetup (standalone UI standard)', () => {
     expect(screen.getByTestId('p1setup-defaults').textContent).toMatch(/pre-filled from the demo server/i);
   });
 
-  it('says nothing was pre-filled when the defaults request fails', async () => {
-    defaultsHandler = () => json(500, {});
+  const defaultsNote = () => screen.getByTestId('p1setup-defaults');
+  const renderNoDefaults = async (match) => {
     render(<MemoryRouter><PingOneSetup /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('p1setup-defaults').textContent).toMatch(/no default credentials/i));
-    expect(screen.getByTestId('p1setup-defaults').textContent).not.toMatch(/pre-filled/i);
+    await waitFor(() => expect(defaultsNote().textContent).toMatch(match));
+    expect(defaultsNote().textContent).not.toMatch(/pre-filled/i);
     expect(screen.getByTestId('p1setup-environmentId').value).toBe('');
+  };
+
+  it('a failed defaults request (500) says it could not be loaded, not that the server returned none', async () => {
+    defaultsHandler = () => json(500, {});
+    await renderNoDefaults(/could not be loaded/i);
+    expect(defaultsNote().textContent).not.toMatch(/returned no default/i);
+  });
+
+  it('a network failure on the defaults request says it could not be loaded', async () => {
+    defaultsHandler = () => Promise.reject(new Error('Failed to fetch')); // a real fetch rejects, it does not throw
+    await renderNoDefaults(/could not be loaded/i);
+    expect(defaultsNote().textContent).not.toMatch(/returned no default/i);
+  });
+
+  it('a signed-out defaults request (401) says you are not signed in', async () => {
+    defaultsHandler = () => json(401, {});
+    await renderNoDefaults(/not signed in/i);
+    expect(defaultsNote().textContent).not.toMatch(/returned no default/i);
+  });
+
+  it('only an answered request with empty values says the server returned no defaults', async () => {
+    defaultsHandler = () => json(200, {});
+    await renderNoDefaults(/server returned no default credentials/i);
   });
 
   it('keeps the live regions mounted before their text changes', async () => {
@@ -180,6 +203,9 @@ describe('PingOneSetup (standalone UI standard)', () => {
     expect(within(screen.getByTestId('p1setup-error')).getByText('Failed')).toBeTruthy();
     expect(screen.getByTestId('p1setup-error').textContent).toMatch(/boom/);
     expect(status().textContent).toMatch(/demo server reported: boom/i);
+    // a crashed or refusing server says nothing about the credentials
+    expect(screen.getByTestId('p1setup-error').textContent).not.toMatch(/check your credentials|admin roles/i);
+    expect(screen.getByTestId('p1setup-error-hint').textContent).toMatch(/not a verdict on the credentials/i);
   });
 
   it('a network failure says the demo server could not be reached, and a rerun clears it', async () => {
@@ -189,6 +215,8 @@ describe('PingOneSetup (standalone UI standard)', () => {
     await renderPage();
     fireEvent.click(submit());
     await waitFor(() => expect(status().textContent).toMatch(/could not reach the demo server: Failed to fetch/i));
+    expect(screen.getByTestId('p1setup-error').textContent).not.toMatch(/check your credentials|admin roles/i);
+    expect(screen.getByTestId('p1setup-error-hint').textContent).toMatch(/did not reach the demo server, so nothing was checked/i);
     postHandler = () => json(200, passed);
     fireEvent.click(submit());
     await waitFor(() => expect(status().textContent).toMatch(/Passed/));
