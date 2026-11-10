@@ -1,6 +1,6 @@
 # UI audit: nested `<main>` and missing `<h1>` per route
 
-Generated 2026-11-10 by a static scan (TypeScript AST) of every `<Route element=...>` in `src/App.js` and `src/routes/*.js`, following imports of the page component up to 3 levels (2 for `<main>`). It is a best-effort map, not a render: a page whose title comes from a component reached only at run time may be reported wrong. The shell's own `<main className="main-content">` (App.js, `routes/AppShell.js`, `routes/AcademyRoutes.jsx`, `routes/SignInRequired.js`) is the one `<main>` a page should have.
+Produced on 2026-11-10 by a static scan (TypeScript AST) of every `<Route element=...>` in `src/App.js` and `src/routes/*.js`, following imports of the page component up to 3 levels (2 for `<main>`). It is a best-effort map, not a render: a page whose title comes from a component reached only at run time may be reported wrong. The shell's own `<main className="main-content">` (App.js, `routes/AppShell.js`, `routes/AcademyRoutes.jsx`, `routes/SignInRequired.js`) is the one `<main>` a page should have.
 
 ## Totals
 
