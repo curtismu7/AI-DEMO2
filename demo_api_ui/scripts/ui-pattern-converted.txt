@@ -60,6 +60,7 @@
 /personal-agent
 /personal-agent/full
 /pingone-platform-config
+/pingone-setup
 /ai-products/core
 /ai-products/gateway
 /digital-worker
