@@ -42,6 +42,7 @@
 /mcp-observability
 /demo/enterprise-mcp
 /pingfederate-id-jag/demo
+/pingfederate-id-jag
 /pingfederate-config
 /pingfederate-ai-agent
 /privilege-prompt-log
