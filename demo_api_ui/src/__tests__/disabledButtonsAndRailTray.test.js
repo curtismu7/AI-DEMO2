@@ -52,12 +52,12 @@ describe('a disabled or aria-disabled button is never faded with opacity .88', (
     expect(offenders).toEqual([]);
   });
 
-  it('the page-local primaries use the muted Ping Red tokens at full opacity (white label 7.22:1 and 9.55:1)', () => {
+  it('the page-local primaries use the neutral-grey inactive tokens at full opacity (white label 5.40:1 and 6.59:1)', () => {
     const white = [255, 255, 255];
     const inactive = hexRgb(themeToken('--btn-accent-inactive', 'light'));
-    const deep = hexRgb(/#7a4a4b 55%,\s*(#[0-9a-f]{6})/i.exec(themeToken('--btn-accent-inactive-gradient', 'light'))[1]);
-    expect(two(ratio(white, inactive))).toBe(7.22);
-    expect(two(ratio(white, deep))).toBe(9.55);
+    const deep = hexRgb(/#636b74 55%,\s*(#[0-9a-f]{6})/i.exec(themeToken('--btn-accent-inactive-gradient', 'light'))[1]);
+    expect(two(ratio(white, inactive))).toBe(5.4);
+    expect(two(ratio(white, deep))).toBe(6.59);
     for (const [file, sel] of [
       ['pages/SecretRotationPage.css', 'button.srot-modal-btn.srot-modal-btn--confirm:disabled'],
       ['pages/DelegatedCommercePage.css', 'button.dcom-modal-btn.dcom-modal-btn--confirm[aria-disabled="true"]'],

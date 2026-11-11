@@ -326,7 +326,8 @@ describe('AgentConsentModal — inactive primary style', () => {
     const label = root.match(/--btn-accent-text:\s*(#[0-9a-f]{6})/i)[1];
     for (const stop of [grad[1], grad[2]]) expect(ratio(label, stop)).toBeGreaterThanOrEqual(4.5);
     // Active gradient stays Ping Red; the dark theme only changes the edge, so the label ratio is the same in both themes.
-    expect(ratio(label, grad[1])).toBeCloseTo(7.22, 1);
+    // The inactive stops are the neutral grey from the standalone family's shared sheet (#636b74 / #565e66): 5.40 and 6.59.
+    expect(ratio(label, grad[1])).toBeCloseTo(5.4, 1);
     expect(ruleBody(indexCss, ':root[data-theme="dark"]')).not.toContain('--btn-accent-inactive');
   });
 });
