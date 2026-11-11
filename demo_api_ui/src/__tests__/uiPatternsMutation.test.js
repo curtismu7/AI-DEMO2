@@ -23,6 +23,14 @@ const COPY = [
   'src/components/pingUi/index.jsx',
   'src/components/privilege/PrivilegeLiveCheck.jsx',
   'src/components/privilege/PrivilegeLiveCheck.css',
+  // The /dashboard parts are in the script's shared set, so the copy must carry them or "shared files present" fails.
+  'src/components/DashboardBankingMain.jsx',
+  'src/components/DashboardClinicalSplit.jsx',
+  'src/components/DashboardFrameParts.jsx',
+  'src/components/DashboardGlobalModals.jsx',
+  'src/components/DashboardStepUpToast.jsx',
+  'src/components/DashboardStepUpToast.css',
+  'src/components/DashboardTracePanels.jsx',
   'src/pages/PrivilegeSaasAccessPage.jsx',
   'src/pages/PrivilegeSaasAccessPage.css',
 ];

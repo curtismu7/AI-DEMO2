@@ -718,14 +718,12 @@ export default function DashboardBankingMain({
             return null;
           }
 
+          // The look of each type is a class in UserDashboardPing2026.pingUi.css (theme tokens), not an inline colour.
           const txTypeStyle = (type) => {
-            if (type === "withdrawal")
-              return { bg: "#fff1f2", color: "#be123c", symbol: "↑" };
-            if (type === "deposit")
-              return { bg: "#f0fdf4", color: "#15803d", symbol: "↓" };
-            if (type === "transfer")
-              return { bg: "#eff6ff", color: "#1d4ed8", symbol: "⇆" };
-            return { bg: "#f9fafb", color: "#6b7280", symbol: "·" };
+            if (type === "withdrawal") return { kind: "withdrawal", symbol: "↑" };
+            if (type === "deposit") return { kind: "deposit", symbol: "↓" };
+            if (type === "transfer") return { kind: "transfer", symbol: "⇆" };
+            return { kind: "other", symbol: "·" };
           };
 
           return (
@@ -746,10 +744,7 @@ export default function DashboardBankingMain({
                         className="tx-row"
                         style={tx._demo ? { opacity: 0.5 } : {}}
                       >
-                        <div
-                          className="tx-row__icon"
-                          style={{ background: ts.bg, color: ts.color }}
-                        >
+                        <div className={`tx-row__icon tx-row__icon--${ts.kind}`}>
                           {ts.symbol}
                         </div>
                         <div className="tx-row__body">

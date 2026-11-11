@@ -309,13 +309,17 @@
   width: 32px;
   height: 3px;
   border-radius: 2px;
-  background: var(--control-border);
+  /* The grip sits on the always-dark band the customer skin gives the handle (#263746 in both themes), so it takes a
+     light tone: --th-focus-ring-on-band (white) at 70% over --th-bg-band, 3:1 or better on that band, and the full
+     white on hover and focus. */
+  color: color-mix(in srgb, var(--th-focus-ring-on-band) 70%, var(--th-bg-band));
+  background: currentColor;
   transition: background 0.15s;
 }
 
 .ud-middle-resize-handle:hover .ud-middle-resize-handle__bar,
 .ud-middle-resize-handle:focus-visible .ud-middle-resize-handle__bar {
-  color: var(--th-focus-ring);
+  color: var(--th-focus-ring-on-band);
   background: currentColor;
 }
 
@@ -478,23 +482,6 @@
   font-size: 1.05rem;
   font-weight: 600;
   background: var(--th-bg-card);
-}
-
-.ud-dashboard-inline-agent-login-btn {
-  padding: 10px 28px;
-  background-color: var(--btn-accent);
-  background-image: var(--btn-accent-gradient);
-  color: var(--btn-accent-text);
-  border: 1px solid var(--btn-accent-edge);
-  border-radius: var(--btn-radius);
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.ud-dashboard-inline-agent-login-btn:hover {
-  background-image: var(--btn-accent-gradient-hover);
 }
 
 /* Host div for the portaled BankingAgent — must fill ud-dashboard-inline-agent so
@@ -664,81 +651,6 @@
 .dashboard-toolbar-btn:focus-visible {
   outline: 2px solid var(--btn-accent);
   outline-offset: 2px;
-}
-
-.dashboard-toolbar-btn--accent {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  color: var(--btn-accent-text);
-  border-color: var(--btn-accent-edge);
-  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
-}
-
-.dashboard-toolbar-btn--accent:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  border-color: var(--btn-accent-hover);
-  color: var(--btn-accent-text);
-  box-shadow: 0 2px 8px rgba(127, 29, 29, 0.3);
-}
-
-.dashboard-toolbar-btn--danger {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  color: var(--btn-accent-text);
-  border-color: var(--btn-accent-edge);
-}
-
-.dashboard-toolbar-btn--danger:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  border-color: var(--btn-accent-hover);
-  color: var(--btn-accent-text);
-}
-
-.dashboard-toolbar-btn--signin {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  border: 1px solid var(--btn-accent-edge);
-  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
-  color: var(--btn-accent-text);
-}
-
-.dashboard-toolbar-btn--signin:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  border-color: var(--btn-accent-hover);
-  color: var(--btn-accent-text);
-  box-shadow: 0 2px 8px rgba(127, 29, 29, 0.3);
-}
-
-.dashboard-toolbar-btn--icon {
-  position: relative;
-  padding: 9px 12px;
-  min-width: 40px;
-  color: var(--btn-accent-text);
-}
-
-.dashboard-toolbar-btn--icon svg {
-  flex-shrink: 0;
 }
 
 .dashboard-toolbar-btn__sr {
@@ -969,67 +881,6 @@
   margin: 0;
   line-height: 1.2;
   word-break: break-word;
-}
-
-/* MCP Inspector — top header (first in header-actions) */
-.dashboard-header-mcp-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--btn-accent-text);
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  border: 1px solid var(--btn-accent-edge);
-  border-radius: var(--radius-lg);
-  text-decoration: none;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(127, 29, 29, 0.2);
-}
-
-.dashboard-header-mcp-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  border-color: var(--btn-accent-hover);
-  box-shadow: 0 2px 6px rgba(127, 29, 29, 0.28);
-  color: var(--btn-accent-text);
-}
-
-.dashboard-edu-btn {
-  padding: 8px 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--btn-accent-text);
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  border: 1px solid var(--btn-accent-edge);
-  border-radius: var(--btn-radius);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.dashboard-edu-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  color: var(--btn-accent-text);
 }
 
 .token-payload-heading {
@@ -3190,24 +3041,6 @@
   color: var(--th-text);
 }
 
-.dashboard-toolbar-btn--theme {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  border-color: var(--btn-accent-edge);
-}
-
-.dashboard-toolbar-btn--theme:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  border-color: var(--btn-accent-hover);
-}
-
 .ud-center {
   flex: 1;
   overflow-y: auto;
@@ -3307,28 +3140,6 @@
   border: 1px solid;
   cursor: pointer;
   white-space: nowrap;
-}
-
-.ud-sim-btn--orange,
-.ud-sim-btn--blue,
-.ud-sim-btn--purple {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  color: var(--btn-accent-text);
-  border-color: var(--btn-accent-edge);
-}
-.ud-sim-btn--orange:hover,
-.ud-sim-btn--blue:hover,
-.ud-sim-btn--purple:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  color: var(--btn-accent-text);
 }
 
 .ud-scope-table {
@@ -3489,55 +3300,6 @@
   outline: none;
   border-color: var(--brand-navy);
   box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
-}
-
-.ud-submit-btn {
-  padding: 9px 22px;
-  font-size: 0.85rem;
-  font-weight: var(--btn-weight);
-  border-radius: var(--btn-radius);
-  border: 1px solid var(--btn-accent-edge);
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  color: var(--btn-accent-text);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.ud-submit-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  color: var(--btn-accent-text);
-}
-
-.ud-cancel-btn {
-  padding: 9px 18px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border-radius: var(--btn-radius);
-  border: 1px solid var(--btn-accent-edge);
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent) 100%
-  );
-  color: var(--btn-accent-text);
-  cursor: pointer;
-}
-
-.ud-cancel-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--btn-accent) 0%,
-    var(--btn-accent-hover) 100%
-  );
-  color: var(--btn-accent-text);
 }
 
 /* ── Transaction list ────────────────────────────────────────── */
@@ -3806,22 +3568,6 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-/* Quick-action button */
-.ud-action-btn {
-  background: var(--btn-accent);
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 0.625rem 1.25rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.ud-action-btn:hover {
-  background: var(--btn-accent-hover);
-}
-
 /* ── Float mode: 2-column layout (token rail + content); no float-reserve column ── */
 /* The floating BankingAgent FAB is a fixed overlay from App.js — no reserved column needed */
 /* Float mode: token chain = 380px (narrower), content gets more space for customer data */
@@ -4029,14 +3775,15 @@
   color: var(--th-text);
 }
 
-/* 4. Action buttons: muted slate-blue (dashboard-scoped) */
+/* 4. Dashboard-scoped --app-primary-red* values (a muted slate blue). The dashboard's buttons no longer read these:
+   the button rules above read the fixed --btn-accent* tokens (red). They stay for the other rules that still do. */
 .user-dashboard {
   --app-primary-red: #12538d;
   --app-primary-red-hover: #051727;
   --app-primary-red-mid: #3a6298;
   --app-primary-red-border: #051727;
 }
-/* Fix box-shadows to match muted slate-blue */
+/* Toolbar button shadows: a slate-blue tint, kept from when these buttons were slate blue (a shadow, not a fill) */
 .user-dashboard .dashboard-toolbar-btn,
 .user-dashboard .dashboard-toolbar-btn--accent,
 .user-dashboard .dashboard-toolbar-btn--signin,

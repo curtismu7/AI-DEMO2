@@ -2397,7 +2397,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   if (clinicalSplitEnabled) {
     return (
       <DashboardClinicalSplit
-        clinicalSplitEnabled={clinicalSplitEnabled}
         detailPaneHeight={detailPaneHeight}
         followFlow={followFlow}
         globalModals={globalModals}

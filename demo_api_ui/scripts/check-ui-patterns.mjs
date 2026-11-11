@@ -98,6 +98,17 @@ export const SHARED_FILES = [
   'src/styles/ping-ui.css',
   'src/components/privilege/PrivilegeLiveCheck.jsx',
   'src/components/privilege/PrivilegeLiveCheck.css',
+  // The parts of /dashboard that were moved out of its page file (UserDashboardPing2026.js) so the file holds the frame
+  // only. The page scan does not follow imports, so without this the moved code (inline colours, button classes, the
+  // step-up toast stylesheet) would be invisible to H3 and the button-colour rules. Scanned here, they feed their button
+  // classes to the page's stylesheet scan. P2 (banner first) and P9 (one primary) are per-page rules: they cannot judge
+  // these parts, which are not pages, and they are not applied to them.
+  'src/components/DashboardBankingMain.jsx',
+  'src/components/DashboardClinicalSplit.jsx',
+  'src/components/DashboardFrameParts.jsx',
+  'src/components/DashboardGlobalModals.jsx',
+  'src/components/DashboardStepUpToast.jsx',
+  'src/components/DashboardTracePanels.jsx',
 ];
 /** Every file under these directories (recursively) is shared too; a file the scanner cannot read fails the run. */
 export const SHARED_DIRS = ['src/components/pingUi'];
