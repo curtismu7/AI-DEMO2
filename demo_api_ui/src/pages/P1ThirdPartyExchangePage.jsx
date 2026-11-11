@@ -22,6 +22,9 @@ import {
 import './P1ThirdPartyExchangePage.css';
 
 const SETUP_DOC = 'docs/runbooks/p1-third-party-token-exchange.md';
+// The standalone lab app sends a real request to the visitor's own PingOne (browser-direct, secret never leaves the browser).
+// Served through the shared lab-proxy; the hash selects its Real exchange tab.
+const REAL_LAB = 'https://local.ping-devops.com:8443/p1-third-party-exchange/';
 
 // Evidence label as a status chip: the word is the label, the tone only adds colour (P7). The note rides as a tooltip.
 const EVIDENCE_TONE = { measured: 'info', guide: 'ok', sample: 'neutral', derived: 'warn', unverified: 'warn' };
@@ -39,6 +42,7 @@ const WALK = [
   { id: 'result', title: 'Read the result', min: 1 },
   { id: 'compare', title: 'Compare', min: 2 },
   { id: 'know', title: 'What to know', min: 2 },
+  { id: 'real', title: 'Try it for real', min: 3 },
 ];
 const FS_STEPS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170];
 const readStep = () => {
@@ -493,7 +497,26 @@ function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issue
           <h3 id="p1x-notshown" className="pu-h3">What this page does not show <Tag kind="unverified" /></h3>
           <ul>{NOT_SHOWN.map((t) => <li key={t}>{t}</li>)}</ul>
         </Card>
-        <p className="pu-note">Want to try it for real? The standalone p1-third-party-exchange app has Real exchange tabs that send an actual request to your own PingOne. Setup steps: <code>{SETUP_DOC}</code>.</p>
+        <p className="pu-note">Setup steps for the lab: <code>{SETUP_DOC}</code>.</p>
+      </>
+    ),
+    real: (
+      <>
+        <p className="pu-lede">This page never calls PingOne. The standalone <strong>p1-third-party-exchange</strong> lab does: it has two Real exchange tabs that send an actual RFC 8693 request to <strong>your own PingOne</strong>.</p>
+        <CardGrid>
+          <Card tone="ok" title="Real exchange (your browser)">
+            <p className="pu-status-line"><StatusChip tone="ok">Real</StatusChip> Your browser posts straight to your PingOne token endpoint.</p>
+            <p>The client secret lives only in that page&apos;s React state: no storage, no URL, no server in between. Strict URL checks allow only <code>auth.pingone.&lt;region&gt;</code> token endpoints.</p>
+            <div className="pu-actions"><a className="pu-btn" href={`${REAL_LAB}#realbrowser`} target="_blank" rel="noreferrer" data-testid="p1x-real-browser">Open Real exchange (your browser) ↗</a></div>
+          </Card>
+          <Card tone="neutral" title="Real exchange (local)">
+            <p className="pu-status-line"><StatusChip tone="neutral">Real</StatusChip> A local helper sends the request for you.</p>
+            <p>Same real PingOne call, sent by the lab&apos;s local server instead of the browser. Useful when you want the exchange captured in the lab&apos;s wire view.</p>
+            <div className="pu-actions"><a className="pu-btn" href={`${REAL_LAB}#reallocal`} target="_blank" rel="noreferrer" data-testid="p1x-real-local">Open Real exchange (local) ↗</a></div>
+          </Card>
+        </CardGrid>
+        <p className="p1x-why"><strong>Before you go:</strong> you need a trusted issuer defined and assigned to a non-worker OIDC application with the token-exchange grant. Setup steps: <code>{SETUP_DOC}</code>.</p>
+        <p className="pu-note">Everything before this step was simulated: the walk&apos;s refusals are replays of measured PingOne behaviour, not live results. The lab&apos;s tabs show what <em>your</em> tenant actually returns.</p>
       </>
     ),
   };

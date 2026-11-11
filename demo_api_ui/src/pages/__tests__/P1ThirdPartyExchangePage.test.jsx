@@ -237,12 +237,12 @@ describe('P1ThirdPartyExchangePage: guided walk', () => {
     expect(screen.queryByTestId('p1x-verdict')).toBeNull();
     expect(screen.queryByTestId('p1x-compare')).toBeNull();
   });
-  it('Back/Next move through all 7 steps, Back is disabled on the first, and Next becomes Start over on the last', () => {
+  it('Back/Next move through all 8 steps, Back is disabled on the first, and Next becomes Start over on the last', () => {
     mountAt(1);
     expect(screen.getByTestId('p1x-back').disabled).toBe(true);
     const seen = [screen.getByTestId('p1x-where').textContent];
-    for (let i = 0; i < 6; i += 1) { fireEvent.click(screen.getByTestId('p1x-next')); seen.push(screen.getByTestId('p1x-where').textContent); }
-    expect(seen).toEqual(['The idea', 'Pick an issuer', 'Set the trust', 'Send it', 'Read the result', 'Compare', 'What to know']);
+    for (let i = 0; i < 7; i += 1) { fireEvent.click(screen.getByTestId('p1x-next')); seen.push(screen.getByTestId('p1x-where').textContent); }
+    expect(seen).toEqual(['The idea', 'Pick an issuer', 'Set the trust', 'Send it', 'Read the result', 'Compare', 'What to know', 'Try it for real']);
     expect(screen.getByTestId('p1x-next').textContent).toBe('Start over');
     fireEvent.click(screen.getByTestId('p1x-next'));
     expect(screen.getByTestId('p1x-where').textContent).toBe('The idea');
@@ -255,7 +255,7 @@ describe('P1ThirdPartyExchangePage: guided walk', () => {
     window.history.replaceState(null, '', '#walk=99');
     cleanup();
     render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
-    expect(screen.getByTestId('p1x-step-know')).toBeTruthy();
+    expect(screen.getByTestId('p1x-step-real')).toBeTruthy();
   });
   it('follows a link that changes only the hash while the page is open', () => {
     mountAt(1);
@@ -458,7 +458,7 @@ describe('nothing from the original dense page is lost', () => {
   });
   it('every original element is reachable in the walk too: each id lives on at least one of the seven steps', () => {
     const found = new Set();
-    for (let n = 1; n <= 7; n += 1) {
+    for (let n = 1; n <= 8; n += 1) {
       mountView(`#walk=${n}`);
       for (const id of ORIGINAL_TEST_IDS) if (screen.queryAllByTestId(id).length) found.add(id);
       cleanup();
@@ -503,11 +503,11 @@ describe('P1ThirdPartyExchangePage: Ping UI Standard', () => {
   });
 
   it('P9: exactly one primary button in every view state, and it is the forward control', () => {
-    for (let n = 1; n <= 7; n += 1) {
+    for (let n = 1; n <= 8; n += 1) {
       mountView(`#walk=${n}`);
       expect(primaries(), `step ${n}`).toHaveLength(1);
       expect(primaries()[0].dataset.testid).toBe('p1x-next');
-      expect(primaries()[0].textContent).toBe(n === 7 ? 'Start over' : 'Next →');
+      expect(primaries()[0].textContent).toBe(n === 8 ? 'Start over' : 'Next →');
       cleanup();
     }
     mountView('#walk=all');
@@ -569,7 +569,7 @@ describe('P1ThirdPartyExchangePage: Ping UI Standard', () => {
   });
 
   it('the last step turns Next into Start over on the same element, so focus stays on it', () => {
-    mountView('#walk=6');
+    mountView('#walk=7');
     const next = screen.getByTestId('p1x-next');
     fireEvent.click(next);
     expect(screen.getByTestId('p1x-next')).toBe(next);
