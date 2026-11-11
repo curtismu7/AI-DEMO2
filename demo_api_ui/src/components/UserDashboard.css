@@ -1429,19 +1429,11 @@
 }
 
 .transfer-btn {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.25) 2px,
-      rgba(255, 255, 255, 0.25) 4px
-    ),
-    linear-gradient(
-      180deg,
-      var(--btn-accent) 0%,
-      var(--btn-accent) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
+  );
   color: var(--btn-accent-text);
   border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
@@ -1453,19 +1445,11 @@
 }
 
 .deposit-submit-btn {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.25) 2px,
-      rgba(255, 255, 255, 0.25) 4px
-    ),
-    linear-gradient(
-      180deg,
-      var(--btn-accent) 0%,
-      var(--btn-accent) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
+  );
   color: var(--btn-accent-text);
   border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
@@ -1477,36 +1461,20 @@
 }
 
 .deposit-submit-btn:hover {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.25) 2px,
-      rgba(255, 255, 255, 0.25) 4px
-    ),
-    linear-gradient(
-      180deg,
-      var(--btn-accent) 0%,
-      var(--btn-accent-hover) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
+  );
   color: var(--btn-accent-text);
 }
 
 .withdraw-submit-btn {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.25) 2px,
-      rgba(255, 255, 255, 0.25) 4px
-    ),
-    linear-gradient(
-      180deg,
-      var(--btn-accent) 0%,
-      var(--btn-accent) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
+  );
   color: var(--btn-accent-text);
   border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
@@ -1518,36 +1486,20 @@
 }
 
 .withdraw-submit-btn:hover {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.25) 2px,
-      rgba(255, 255, 255, 0.25) 4px
-    ),
-    linear-gradient(
-      180deg,
-      var(--btn-accent) 0%,
-      var(--btn-accent-hover) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
+  );
   color: var(--btn-accent-text);
 }
 
 .transfer-btn:hover {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.25) 2px,
-      rgba(255, 255, 255, 0.25) 4px
-    ),
-    linear-gradient(
-      180deg,
-      var(--btn-accent) 0%,
-      var(--btn-accent-hover) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
+  );
   color: var(--btn-accent-text);
 }
 
@@ -1577,13 +1529,25 @@
 }
 
 /* ── Phase 142: Standard authz buttons — disabled + pending states ────── */
-.transfer-btn:disabled,
 .deposit-btn:disabled,
-.withdraw-btn:disabled,
-.deposit-submit-btn:disabled,
-.withdraw-submit-btn:disabled {
+.withdraw-btn:disabled {
   opacity: 0.5;
   filter: grayscale(100%);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* The three submit buttons are Ping Red primaries: disabled keeps full opacity (a faded white label drops under 4.5:1)
+   and takes the shared inactive style, the same as a disabled .pu-btn--primary (muted Ping Red, dashed edge). */
+.transfer-btn:disabled,
+.deposit-submit-btn:disabled,
+.withdraw-submit-btn:disabled {
+  opacity: 1;
+  filter: none;
+  background-color: var(--btn-accent-inactive);
+  background-image: var(--btn-accent-inactive-gradient);
+  border: 1px dashed var(--btn-accent-edge);
+  color: var(--btn-accent-text);
   cursor: not-allowed;
   pointer-events: none;
 }
