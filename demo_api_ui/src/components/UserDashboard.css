@@ -274,7 +274,7 @@
   margin: 0;
   background: transparent;
   border: none;
-  border-top: 2px solid var(--brand-medium-gray);
+  border-top: 2px solid var(--control-border);
   cursor: ns-resize;
   flex-shrink: 0;
   position: relative;
@@ -283,8 +283,13 @@
 
 .ud-middle-resize-handle:hover,
 .ud-middle-resize-handle:focus-visible {
-  border-top-color: var(--brand-navy, #12538d);
+  border-top-color: var(--th-focus-ring);
   background: rgba(18, 83, 141, 0.05);
+}
+
+.ud-middle-resize-handle:focus-visible {
+  outline: 2px solid var(--th-focus-ring);
+  outline-offset: 1px;
 }
 
 .ud-middle-resize-handle__grip {
@@ -304,13 +309,14 @@
   width: 32px;
   height: 3px;
   border-radius: 2px;
-  background: var(--brand-medium-gray);
+  background: var(--control-border);
   transition: background 0.15s;
 }
 
 .ud-middle-resize-handle:hover .ud-middle-resize-handle__bar,
 .ud-middle-resize-handle:focus-visible .ud-middle-resize-handle__bar {
-  background: var(--brand-navy, #12538d);
+  color: var(--th-focus-ring);
+  background: currentColor;
 }
 
 .ud-middle-resize-handle__label {
@@ -476,9 +482,10 @@
 
 .ud-dashboard-inline-agent-login-btn {
   padding: 10px 28px;
-  background: var(--brand-navy, #051727);
-  color: var(--app-primary-blue-text, #fff);
-  border: none;
+  background-color: var(--btn-accent);
+  background-image: var(--btn-accent-gradient);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--btn-radius);
   font-size: 0.95rem;
   font-weight: 600;
@@ -487,7 +494,7 @@
 }
 
 .ud-dashboard-inline-agent-login-btn:hover {
-  opacity: 0.85;
+  background-image: var(--btn-accent-gradient-hover);
 }
 
 /* Host div for the portaled BankingAgent — must fill ud-dashboard-inline-agent so
@@ -624,13 +631,13 @@
   font-weight: 600;
   font-family: inherit;
   line-height: 1.25;
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--btn-radius);
   box-shadow: 0 1px 2px rgba(127, 29, 29, 0.2);
   cursor: pointer;
@@ -646,80 +653,80 @@
 .dashboard-toolbar-btn:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  border-color: var(--app-primary-red-hover);
+  border-color: var(--btn-accent-hover);
   box-shadow: 0 2px 5px rgba(127, 29, 29, 0.28);
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .dashboard-toolbar-btn:focus-visible {
-  outline: 2px solid var(--app-primary-red-mid);
+  outline: 2px solid var(--btn-accent);
   outline-offset: 2px;
 }
 
 .dashboard-toolbar-btn--accent {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
 }
 
 .dashboard-toolbar-btn--accent:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
   box-shadow: 0 2px 8px rgba(127, 29, 29, 0.3);
 }
 
 .dashboard-toolbar-btn--danger {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
 }
 
 .dashboard-toolbar-btn--danger:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
 }
 
 .dashboard-toolbar-btn--signin {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .dashboard-toolbar-btn--signin:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  border-color: var(--app-primary-red-hover);
-  color: var(--app-primary-btn-text, #fff);
+  border-color: var(--btn-accent-hover);
+  color: var(--btn-accent-text);
   box-shadow: 0 2px 8px rgba(127, 29, 29, 0.3);
 }
 
@@ -727,7 +734,7 @@
   position: relative;
   padding: 9px 12px;
   min-width: 40px;
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .dashboard-toolbar-btn--icon svg {
@@ -972,13 +979,13 @@
   padding: 8px 16px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--radius-lg);
   text-decoration: none;
   transition:
@@ -992,25 +999,25 @@
 .dashboard-header-mcp-btn:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  border-color: var(--app-primary-red-hover);
+  border-color: var(--btn-accent-hover);
   box-shadow: 0 2px 6px rgba(127, 29, 29, 0.28);
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .dashboard-edu-btn {
   padding: 8px 12px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   border-radius: var(--btn-radius);
   cursor: pointer;
   white-space: nowrap;
@@ -1019,10 +1026,10 @@
 .dashboard-edu-btn:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .token-payload-heading {
@@ -1581,11 +1588,11 @@
     ),
     linear-gradient(
       180deg,
-      var(--app-primary-red-mid) 0%,
-      var(--app-primary-red) 100%
+      var(--btn-accent) 0%,
+      var(--btn-accent) 100%
     );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
   border-radius: var(--btn-radius);
   cursor: pointer;
@@ -1605,11 +1612,11 @@
     ),
     linear-gradient(
       180deg,
-      var(--app-primary-red-mid) 0%,
-      var(--app-primary-red) 100%
+      var(--btn-accent) 0%,
+      var(--btn-accent) 100%
     );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
   border-radius: var(--btn-radius);
   cursor: pointer;
@@ -1629,10 +1636,10 @@
     ),
     linear-gradient(
       180deg,
-      var(--app-primary-red) 0%,
-      var(--app-primary-red-hover) 100%
+      var(--btn-accent) 0%,
+      var(--btn-accent-hover) 100%
     );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .withdraw-submit-btn {
@@ -1646,11 +1653,11 @@
     ),
     linear-gradient(
       180deg,
-      var(--app-primary-red-mid) 0%,
-      var(--app-primary-red) 100%
+      var(--btn-accent) 0%,
+      var(--btn-accent) 100%
     );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
   border-radius: var(--btn-radius);
   cursor: pointer;
@@ -1670,10 +1677,10 @@
     ),
     linear-gradient(
       180deg,
-      var(--app-primary-red) 0%,
-      var(--app-primary-red-hover) 100%
+      var(--btn-accent) 0%,
+      var(--btn-accent-hover) 100%
     );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .transfer-btn:hover {
@@ -1687,20 +1694,20 @@
     ),
     linear-gradient(
       180deg,
-      var(--app-primary-red) 0%,
-      var(--app-primary-red-hover) 100%
+      var(--btn-accent) 0%,
+      var(--btn-accent-hover) 100%
     );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .cancel-btn {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
-  border: 1px solid var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border: 1px solid var(--btn-accent-edge);
   padding: 12px 20px;
   border-radius: var(--btn-radius);
   cursor: pointer;
@@ -1712,10 +1719,10 @@
 .cancel-btn:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 /* ── Phase 142: Standard authz buttons — disabled + pending states ────── */
@@ -3186,19 +3193,19 @@
 .dashboard-toolbar-btn--theme {
   background: linear-gradient(
     180deg,
-    var(--app-primary-blue-mid) 0%,
-    var(--app-primary-blue) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  border-color: var(--app-primary-blue-border);
+  border-color: var(--btn-accent-edge);
 }
 
 .dashboard-toolbar-btn--theme:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-blue) 0%,
-    var(--app-primary-blue-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  border-color: var(--app-primary-blue-hover);
+  border-color: var(--btn-accent-hover);
 }
 
 .ud-center {
@@ -3307,21 +3314,21 @@
 .ud-sim-btn--purple {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
-  border-color: var(--app-primary-red-border);
+  color: var(--btn-accent-text);
+  border-color: var(--btn-accent-edge);
 }
 .ud-sim-btn--orange:hover,
 .ud-sim-btn--blue:hover,
 .ud-sim-btn--purple:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .ud-scope-table {
@@ -3489,13 +3496,13 @@
   font-size: 0.85rem;
   font-weight: var(--btn-weight);
   border-radius: var(--btn-radius);
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -3503,10 +3510,10 @@
 .ud-submit-btn:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 .ud-cancel-btn {
@@ -3514,23 +3521,23 @@
   font-size: 0.85rem;
   font-weight: 600;
   border-radius: var(--btn-radius);
-  border: 1px solid var(--app-primary-red-border);
+  border: 1px solid var(--btn-accent-edge);
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
   cursor: pointer;
 }
 
 .ud-cancel-btn:hover {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
+    var(--btn-accent) 0%,
+    var(--btn-accent-hover) 100%
   );
-  color: var(--app-primary-btn-text, #fff);
+  color: var(--btn-accent-text);
 }
 
 /* ── Transaction list ────────────────────────────────────────── */
@@ -3801,7 +3808,7 @@
 }
 /* Quick-action button */
 .ud-action-btn {
-  background: var(--brand-blue, #12538d);
+  background: var(--btn-accent);
   color: white;
   border: none;
   border-radius: var(--radius-lg);
@@ -3812,7 +3819,7 @@
   transition: background 0.15s;
 }
 .ud-action-btn:hover {
-  background: var(--brand-navy-light, #005fa3);
+  background: var(--btn-accent-hover);
 }
 
 /* ── Float mode: 2-column layout (token rail + content); no float-reserve column ── */
@@ -4086,7 +4093,7 @@
   font-size: var(--font-size-2xs);
   text-align: left;
   background: var(--th-bg-card, #fff);
-  border: 1px solid var(--brand-medium-gray, #e0e2e4);
+  border: 1px solid var(--control-border);
   border-radius: var(--btn-radius);
   color: var(--th-text);
   cursor: pointer;

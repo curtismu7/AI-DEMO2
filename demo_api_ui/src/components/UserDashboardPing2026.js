@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import SignInBrand from "./SignInBrand";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useCurrentUserTokenEvent } from "../hooks/useCurrentUserTokenEvent";
@@ -23,7 +23,7 @@ import {
 } from "../utils/appToast";
 import { navigateToCustomerOAuthLogin, SESSION_REAUTH_EVENT } from "../utils/authUi";
 import { normalizePhoneE164, pickPreferredDevice, isPasskeySupported } from "../utils/mfaEnrollment";
-import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from "../utils/countryCodes";
+import { DEFAULT_COUNTRY_CODE, composePhone } from "../utils/countryCodes";
 import {
   getDashboardLayout,
   setDashboardLayout,
@@ -38,8 +38,6 @@ import {
 } from "../utils/agentColumnLayout";
 import {
   clampDetailPaneHeight,
-  DETAIL_PANE_MIN_HEIGHT,
-  DETAIL_PANE_MAX_VIEWPORT_RATIO,
 } from "../utils/detailPaneResize";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
@@ -51,31 +49,28 @@ import ServerTopologyStory from "./ServerTopologyStory";
 import StepDetailPanel from "./StepDetailPanel";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
-import StepsTabContent from "./StepsTabContent";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
-import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
-import ConfirmModal from "./ConfirmModal";
 import DelegatedAccessPanel from "./DelegatedAccessPanel";
-import DraggableModal from "./DraggableModal";
-import TransactionConsentModal from "./TransactionConsentModal";
 import WebMcpPanel from "./WebMcpPanel";
-import FloatingPanel from "./FloatingPanel";
 import "./UserDashboard.css";
 import "./customerSkinPing2026.css";
 // Ping UI Standard frame for this page. Every rule in it sits under .udp-page.
 import "./UserDashboardPing2026.pingUi.css";
 import PageHeader from "./common/PageHeader";
+import DashboardBankingMain from "./DashboardBankingMain";
+import DashboardClinicalSplit from "./DashboardClinicalSplit";
+import { DashboardExplainers, FloatChainActions, MiddleAgentFab, MiddleResizeHandle, SimpleStepperInline } from "./DashboardFrameParts";
+import DashboardGlobalModals from "./DashboardGlobalModals";
+import DashboardStepUpToast from "./DashboardStepUpToast";
+import { DetailPaneResizeHandle, RunTraceCard } from "./DashboardTracePanels";
 import { SimBanner, StatusChip } from "./pingUi";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { dashboardModeText, chatStatusChip, runTraceChip } from "./dashboardFrameStatus";
-import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
+import { dashboardModeText, chatStatusChip } from "./dashboardFrameStatus";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
-import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
-import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 import AuthLoadingScreen from "./shared/AuthLoadingScreen";
 
 /**
@@ -84,17 +79,6 @@ import AuthLoadingScreen from "./shared/AuthLoadingScreen";
  */
 const wasReplayed = (response) =>
   response?.headers?.["idempotency-replayed"] === "true";
-
-/** Format a number as USD currency — $1,234.56 */
-const fmt = (n) =>
-  typeof n === "number"
-    ? n.toLocaleString("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    : "$0.00";
 
 /** Account types whose balances represent money owed (liabilities), not assets. */
 const DEBT_TYPES = new Set(["loan", "car_loan", "mortgage", "credit"]);
@@ -193,51 +177,6 @@ function readStoredDetailPaneHeight() {
   }
   return clampDetailPaneHeight(DETAIL_PANE_DEFAULT_HEIGHT, window.innerHeight);
 }
-
-function DetailPaneResizeHandle({ height, onMouseDown, onKeyDown }) {
-  return (
-    <div
-      className="ud-detail-pane-resize-handle"
-      role="separator"
-      tabIndex={0}
-      aria-label="Resize step details pane"
-      aria-orientation="horizontal"
-      aria-valuemin={DETAIL_PANE_MIN_HEIGHT}
-      aria-valuemax={Math.max(DETAIL_PANE_MIN_HEIGHT, Math.round(window.innerHeight * DETAIL_PANE_MAX_VIEWPORT_RATIO))}
-      aria-valuenow={Math.round(height)}
-      onMouseDown={onMouseDown}
-      onKeyDown={onKeyDown}
-    >
-      <span className="ud-detail-pane-resize-grip" aria-hidden="true" />
-    </div>
-  );
-}
-
-/**
- * The run-trace chip, read from the same trace store the sequence diagram reads (read-only subscribe). The wording is
- * decided by runTraceChip; `baselineRunId` is the run already in the store when this page mounted.
- */
-function useRunTraceStatus(baselineRunId) {
-  const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
-  useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
-  return runTraceChip(snap?.trace, baselineRunId);
-}
-
-/** Labelled card around the run trace (sequence diagram). The diagram itself is unchanged. */
-function RunTraceCard({ children, baselineRunId }) {
-  const status = useRunTraceStatus(baselineRunId);
-  return (
-    <section className="udp-card udp-trace" aria-labelledby="udp-trace-h" data-testid="dashboard-run-trace">
-      <div className="udp-card__head">
-        <h2 id="udp-trace-h" className="udp-card__title">Run trace</h2>
-        <StatusChip tone={status.tone}>{status.word}</StatusChip>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-const openGuide = (eventName) => () => window.dispatchEvent(new CustomEvent(eventName));
 
 const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const navigate = useNavigate();
@@ -1811,121 +1750,21 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     };
 
     const body = (
-      <div
-        className="dashboard-toast-error"
-        style={{ flexDirection: "column", alignItems: "stretch" }}
-      >
-        <p className="dashboard-toast-error__text" style={{ marginBottom: 8 }}>
-          <strong>Additional verification required.</strong> Transfers and
-          withdrawals of $250 or more require MFA. Verify your identity to
-          continue.
-        </p>
-        {stepUpChallengeRaw && (
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              background: "rgba(0,0,0,0.25)",
-              padding: 6,
-              borderRadius: 4,
-              wordBreak: "break-all",
-              marginBottom: 8,
-            }}
-          >
-            <strong>RFC 9470 challenge:</strong> WWW-Authenticate:{" "}
-            {stepUpChallengeRaw}
-          </p>
-        )}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
-          {stepUpMethod === "ciba" ? (
-            <>
-              {cibaStatus === "idle" &&
-                agentTriggeredStepUp &&
-                agentCountdown > 0 && (
-                  <>
-                    <span style={{ fontStyle: "italic" }}>
-                      Starting in {agentCountdown}s…
-                    </span>
-                    <button
-                      type="button"
-                      className="dashboard-toast-error__btn"
-                      onClick={cancelAutoInitiate}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-              {cibaStatus === "idle" &&
-                (!agentTriggeredStepUp || agentCountdown === 0) && (
-                  <button
-                    type="button"
-                    className="dashboard-toast-error__btn"
-                    onClick={handleCibaStepUp}
-                  >
-                    Verify via CIBA
-                  </button>
-                )}
-              {cibaStatus === "pending" && (
-                <span style={{ fontStyle: "italic" }}>
-                  Waiting for approval on your device…
-                </span>
-              )}
-              {cibaStatus === "error" && (
-                <button
-                  type="button"
-                  className="dashboard-toast-error__btn"
-                  onClick={() => {
-                    setCibaStatus("idle");
-                    setCibaAuthReqId(null);
-                  }}
-                >
-                  Retry
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              {agentTriggeredStepUp && agentCountdown > 0 && (
-                <>
-                  <span style={{ fontStyle: "italic" }}>
-                    Redirecting in {agentCountdown}s…
-                  </span>
-                  <button
-                    type="button"
-                    className="dashboard-toast-error__btn"
-                    onClick={cancelAutoInitiate}
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-              {(!agentTriggeredStepUp || agentCountdown === 0) && (
-                <button
-                  type="button"
-                  className="dashboard-toast-error__btn"
-                  onClick={handleInitiateOtpRef.current || handleInitiateOtp}
-                >
-                  Verify via Email
-                </button>
-              )}
-            </>
-          )}
-          <button
-            type="button"
-            className="dashboard-toast-error__btn"
-            onClick={dismissStepUp}
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
+      <DashboardStepUpToast
+        stepUpChallengeRaw={stepUpChallengeRaw}
+        stepUpMethod={stepUpMethod}
+        cibaStatus={cibaStatus}
+        agentTriggeredStepUp={agentTriggeredStepUp}
+        agentCountdown={agentCountdown}
+        cancelAutoInitiate={cancelAutoInitiate}
+        handleCibaStepUp={handleCibaStepUp}
+        onRetryCiba={() => {
+          setCibaStatus("idle");
+          setCibaAuthReqId(null);
+        }}
+        onVerifyEmail={handleInitiateOtpRef.current || handleInitiateOtp}
+        dismissStepUp={dismissStepUp}
+      />
     );
 
     const opts = {
@@ -2467,1570 +2306,113 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     return false;
   };
 
-  const renderBankingMain = () => (
-    <>
-      {/* Hero: balance, AI insight, lightweight viz (2026 “financial butler” pattern) */}
-      <div className="section ud-hero" aria-labelledby="ud-hero-heading">
-        <div className="ud-hero__top">
-          <p className="ud-hero__eyebrow" id="ud-hero-heading">
-            {format(new Date(), "EEEE, MMM d")}
-          </p>
-          <p className="ud-hero__greet">
-            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, <em>{user?.firstName || "there"}</em>
-          </p>
-          <p className="ud-hero__insight" role="status">
-            {isDemoMode
-              ? "Demo snapshot — connect real accounts to unlock personalized cash-flow and savings nudges from the assistant."
-              : dashboardLayout === "split3"
-                ? "Your balances update automatically. Ask the assistant in the center column for transfers, explanations, or spending patterns."
-                : "Your balances update automatically. Ask the assistant below for transfers, explanations, or spending patterns."}
-          </p>
-        </div>
-
-        <div className="ud-hero__balance-band">
-          <div className="ud-balance-main">
-            <p className="ud-hero__balance-label">Total Balance</p>
-            <p className="ud-hero__balance" aria-live="polite">
-              {fmt(totalBalance)}
-            </p>
-          </div>
-          <div
-            className="ud-hero__spark"
-            aria-hidden="true"
-            title="Illustrative activity trend"
-          >
-            <span style={{ height: "40%" }} />
-            <span style={{ height: "65%" }} />
-            <span style={{ height: "55%" }} />
-            <span style={{ height: "78%" }} />
-            <span style={{ height: "62%" }} />
-            <span style={{ height: "88%" }} />
-            <span style={{ height: "72%" }} />
-          </div>
-        </div>
-
-        {/* Stats row: quick metrics */}
-        <div className="ud-hero__stats">
-          <div className="ud-stat">
-            <div className="ud-stat__label">Accounts</div>
-            <div className="ud-stat__value">{accounts.length}</div>
-          </div>
-          <div className="ud-stat">
-            <div className="ud-stat__label">Available</div>
-            <div className="ud-stat__value">{fmt(totalBalance)}</div>
-          </div>
-          {totalDebt > 0 && (
-            <div className="ud-stat">
-              <div className="ud-stat__label">Loans</div>
-              <div className="ud-stat__value">{fmt(totalDebt)}</div>
-            </div>
-          )}
-          <div className="ud-stat">
-            <div className="ud-stat__label">Active</div>
-            <div className="ud-stat__value">{accounts.filter((a) => !a.closed).length}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Proactive actions — reduce menu depth (mobile-first tap targets) */}
-      <div className="section ud-quick-actions" aria-label="Quick actions">
-        <h2 className="ud-quick-actions__title">Quick actions</h2>
-        <div className="ud-quick-actions__row">
-          <button
-            type="button"
-            className="ud-qa-btn"
-            onClick={() =>
-              user ? handleScrollToAccounts() : navigateToCustomerOAuthLogin()
-            }
-          >
-            Move money
-          </button>
-          <button
-            type="button"
-            className="ud-qa-btn"
-            onClick={() =>
-              user ? handleScrollToAccounts() : navigateToCustomerOAuthLogin()
-            }
-          >
-            Add funds
-          </button>
-          <button
-            type="button"
-            className="ud-qa-btn ud-qa-btn--accent"
-            onClick={() =>
-              user ? handleScrollToAssistant() : navigateToCustomerOAuthLogin()
-            }
-          >
-            Ask assistant
-          </button>
-          <button
-            type="button"
-            className="ud-qa-btn ud-qa-btn--delegate"
-            onClick={() =>
-              window.open(
-                "/delegated-access",
-                "_blank",
-                "noopener,noreferrer",
-              )
-            }
-          >
-            Manage Delegates
-          </button>
-        </div>
-
-        {/* Trust + omnichannel / super-app cues (copy only in this demo) */}
-        <div className="ud-trust-strip" aria-live="polite">
-          <span className="ud-trust-strip__item">Session secured (OAuth)</span>
-          <span className="ud-trust-strip__dot" aria-hidden="true" />
-          <span className="ud-trust-strip__item">
-            Step-up when risk warrants
-          </span>
-          <span className="ud-trust-strip__dot" aria-hidden="true" />
-          <span className="ud-trust-strip__item">
-            Biometrics on supported devices
-          </span>
-          <span className="ud-trust-strip__dot" aria-hidden="true" />
-          <a
-            href="/api/auth/debug?deep=1"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ud-trust-strip__item ud-trust-strip__item--debug"
-            title="Inspect session and Upstash store health"
-          >
-            Session debug
-          </a>
-        </div>
-        <nav className="ud-super-pills" aria-label="Quick links">
-          <Link
-            to="/security"
-            className="ud-super-pill"
-            aria-label="Security and Insights"
-          >
-            Insights
-          </Link>
-          <Link
-            to="/transactions"
-            className="ud-super-pill"
-            aria-label="Payments and Transfers"
-          >
-            Payments hub
-          </Link>
-          <Link
-            to="/pingone-test"
-            className="ud-super-pill"
-            aria-label="PingOne integration test page"
-          >
-            PingOne Test
-          </Link>
-          <Link
-            to="/mfa-test"
-            className="ud-super-pill"
-            aria-label="MFA test page"
-          >
-            MFA Test
-          </Link>
-          <Link
-            to="/learning"
-            className="ud-super-pill"
-            aria-label="Learning Hub"
-          >
-            Learning Hub
-          </Link>
-          <Link
-            to="/code-search"
-            className="ud-super-pill"
-            aria-label="RAG code search"
-          >
-            Code Search
-          </Link>
-        </nav>
-      </div>
-
-      {/* Customer Profile */}
-      <div className="section ud-profile-card">
-        <div className="ud-profile-header">
-          <h2>Account Holder</h2>
-          {isDemoMode && <span className="account-demo-badge">Demo mode</span>}
-        </div>
-        <div className="ud-profile-meta">
-          <div className="account-detail-row">
-            <span className="detail-label">Name</span>
-            <span className="detail-value">
-              {user?.firstName || user?.lastName
-                ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
-                : user?.name || user?.username || "—"}
-            </span>
-          </div>
-          <div className="account-detail-row">
-            <span className="detail-label">Email</span>
-            <span className="detail-value">
-              {user?.email || user?.username || "—"}
-            </span>
-          </div>
-          <div className="account-detail-row">
-            <span className="detail-label">Role</span>
-            <span
-              className="detail-value"
-              style={{ textTransform: "capitalize" }}
-            >
-              {user?.role || (isDemoMode ? "demo" : "customer")}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Account Summary */}
-      <div ref={accountsAnchorRef} className="section">
-        <h2 className="ud-accounts-heading">Your Accounts</h2>
-        {/* Lives here rather than inside the transfer form: a successful submit
-            clears selectedAccount and unmounts that form, so a notice rendered
-            inside it would vanish in the same tick it was set. */}
-        {replayNotice && (
-          <p
-            className="demo-notice"
-            data-testid="idempotency-replay-notice"
-            style={{
-              color: "var(--th-text-muted, #6b7280)",
-              fontSize: "0.85rem",
-              marginBottom: "0.75rem",
-            }}
-          >
-            ✅ {replayNotice}
-          </p>
-        )}
-        {isDemoMode && (
-          <p
-            className="demo-notice"
-            style={{
-              color: "#6b7280",
-              fontSize: "0.85rem",
-              marginBottom: "0.75rem",
-            }}
-          >
-            Demo mode —{" "}
-            <button
-              type="button"
-              onClick={navigateToCustomerOAuthLogin}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--brand-navy)",
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: 0,
-                fontSize: "inherit",
-                textDecoration: "underline",
-              }}
-            >
-              sign in
-            </button>{" "}
-            to use your real accounts
-          </p>
-        )}
-        <div className="accounts-grid">
-          {accounts.map((account) => {
-            const isExpanded = expandedAccounts.has(account.id);
-            const acctType = (
-              account.accountType ||
-              account.type ||
-              "unknown"
-            ).toLowerCase();
-            const isNegative = (account.balance ?? 0) < 0;
-            const maskedNum = account.accountNumber
-              ? `${acctType.toUpperCase().slice(0, 3)} •••• ${String(account.accountNumber).slice(-4)}`
-              : "—";
-            const typeLabelMap = {
-              checking: "Checking",
-              savings: "Savings",
-              loan: "Loan",
-              car_loan: "Auto Loan",
-              mortgage: "Mortgage",
-              credit: "Credit",
-              investment: "Investment",
-              money_market: "Money Market",
-            };
-            const typeLabel =
-              typeLabelMap[acctType] ||
-              acctType.charAt(0).toUpperCase() + acctType.slice(1);
-
-            return (
-              <div
-                key={account.id}
-                className={`account-card account-card--${acctType}`}
-                style={account._demo ? { opacity: 0.65 } : {}}
-              >
-                <div className="account-card__body">
-                  <div className="account-header">
-                    <div>
-                      <h3>{account.name}</h3>
-                      <p className="account-number">{maskedNum}</p>
-                    </div>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 6 }}
-                    >
-                      <span className={`account-type-badge ${acctType}`}>
-                        {typeLabel}
-                      </span>
-                      {account._demo && (
-                        <span className="account-demo-badge">demo</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="account-balance-row">
-                    <p
-                      className={`balance${isNegative ? " balance--negative" : ""}`}
-                    >
-                      {fmt(account.balance)}
-                    </p>
-                    <span className="balance-label">
-                      {isNegative ? "Outstanding" : "Available"}
-                    </span>
-                  </div>
-
-                  <div className="account-actions">
-                    <button
-                      type="button"
-                      className="select-account-btn"
-                      onClick={() =>
-                        user
-                          ? setSelectedAccount(account)
-                          : navigateToCustomerOAuthLogin()
-                      }
-                    >
-                      Transfer
-                    </button>
-                    <button
-                      type="button"
-                      className="deposit-btn"
-                      onClick={() =>
-                        user
-                          ? setDepositAccount(account)
-                          : navigateToCustomerOAuthLogin()
-                      }
-                    >
-                      Deposit
-                    </button>
-                    <button
-                      type="button"
-                      className="withdraw-btn"
-                      onClick={() =>
-                        user
-                          ? setWithdrawAccount(account)
-                          : navigateToCustomerOAuthLogin()
-                      }
-                    >
-                      Withdraw
-                    </button>
-                  </div>
-                </div>
-
-                {/* Account Details accordion — always visible */}
-                <div className="account-details-section">
-                  <button
-                    type="button"
-                    className={`account-profile-toggle${isExpanded ? " open" : ""}`}
-                    onClick={() => toggleAccountProfile(account.id)}
-                  >
-                    Account Details
-                    <svg
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <polyline points="4 6 8 10 12 6" />
-                    </svg>
-                  </button>
-
-                  {isExpanded && (
-                    <div className="account-profile-details">
-                      <div className="account-detail-row">
-                        <span className="detail-label">Account Number</span>
-                        <span className="detail-value">
-                          {account.accountNumber}
-                        </span>
-                      </div>
-                      <div className="account-detail-row">
-                        <span className="detail-label">Account Type</span>
-                        <span className="detail-value">{typeLabel}</span>
-                      </div>
-                      {account.routingNumber && (
-                        <div className="account-detail-row">
-                          <span className="detail-label">Routing Number</span>
-                          <span className="detail-value">
-                            {account.routingNumber}
-                          </span>
-                        </div>
-                      )}
-                      {account.swiftCode && (
-                        <div className="account-detail-row">
-                          <span className="detail-label">SWIFT</span>
-                          <span className="detail-value">
-                            {account.swiftCode}
-                          </span>
-                        </div>
-                      )}
-                      {account.iban && (
-                        <div className="account-detail-row">
-                          <span className="detail-label">IBAN</span>
-                          <span className="detail-value">{account.iban}</span>
-                        </div>
-                      )}
-                      {account.branchName && (
-                        <div className="account-detail-row">
-                          <span className="detail-label">Branch</span>
-                          <span className="detail-value">
-                            {account.branchName}
-                          </span>
-                        </div>
-                      )}
-                      {account.openedDate && (
-                        <div className="account-detail-row">
-                          <span className="detail-label">Opened</span>
-                          <span className="detail-value">
-                            {new Date(account.openedDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                      {account.accountHolderName && (
-                        <div className="account-detail-row">
-                          <span className="detail-label">Account Holder</span>
-                          <span className="detail-value">
-                            {account.accountHolderName}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Transfer Form */}
-      {selectedAccount && (
-        <div className="section">
-          <h2>Transfer Money</h2>
-          <div className="transfer-form">
-            <p>
-              From: {selectedAccount.accountType} -{" "}
-              {selectedAccount.accountNumber} ({fmt(selectedAccount.balance)})
-            </p>
-            <form onSubmit={handleTransfer} aria-label="Transfer form">
-              <div className="form-group">
-                <label>To Account:</label>
-                <select
-                  value={transferForm.toAccountId}
-                  onChange={(e) =>
-                    setTransferForm({
-                      ...transferForm,
-                      toAccountId: e.target.value,
-                    })
-                  }
-                  required
-                >
-                  <option value="">Select destination account</option>
-                  {accounts
-                    .filter((account) => account.id !== selectedAccount.id)
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.accountType} - {account.accountNumber} (
-                        {fmt(account.balance)})
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Amount:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={transferForm.amount}
-                  onChange={(e) =>
-                    setTransferForm({ ...transferForm, amount: e.target.value })
-                  }
-                  placeholder="Enter amount"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description:</label>
-                <input
-                  type="text"
-                  value={transferForm.description}
-                  onChange={(e) =>
-                    setTransferForm({
-                      ...transferForm,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Transfer description"
-                />
-              </div>
-              <div className="form-actions">
-                <button
-                  type="submit"
-                  className="transfer-btn"
-                  disabled={!user || busyAction === "transfer"}
-                  title={!user ? "Sign in to transfer funds" : undefined}
-                >
-                  {busyAction === "transfer" ? "Transferring…" : "Transfer"}
-                </button>
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => {
-                    setSelectedAccount(null);
-                    setTransferForm({
-                      toAccountId: "",
-                      amount: "",
-                      description: "",
-                    });
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Deposit Form */}
-      {depositAccount && (
-        <div className="section">
-          <h2>Deposit Money</h2>
-          <div className="deposit-form">
-            <p>
-              To: {depositAccount.accountType} - {depositAccount.accountNumber}{" "}
-              ({fmt(depositAccount.balance)})
-            </p>
-            <form onSubmit={handleDeposit}>
-              <div className="form-group">
-                <label>Amount:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={depositForm.amount}
-                  onChange={(e) =>
-                    setDepositForm({ ...depositForm, amount: e.target.value })
-                  }
-                  placeholder="Enter amount"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description:</label>
-                <input
-                  type="text"
-                  value={depositForm.description}
-                  onChange={(e) =>
-                    setDepositForm({
-                      ...depositForm,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Deposit description"
-                />
-              </div>
-              <div className="form-actions">
-                <button
-                  type="submit"
-                  className="deposit-submit-btn"
-                  disabled={!user || busyAction === "deposit"}
-                  title={!user ? "Sign in to deposit funds" : undefined}
-                >
-                  {busyAction === "deposit" ? "Depositing…" : "Deposit"}
-                </button>
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => {
-                    setDepositAccount(null);
-                    setDepositForm({ amount: "", description: "" });
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Withdraw Form */}
-      {withdrawAccount && (
-        <div className="section">
-          <h2>Withdraw Money</h2>
-          <div className="withdraw-form">
-            <p>
-              From: {withdrawAccount.accountType} -{" "}
-              {withdrawAccount.accountNumber} ({fmt(withdrawAccount.balance)})
-            </p>
-            <form onSubmit={handleWithdraw}>
-              <div className="form-group">
-                <label>Amount:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={withdrawForm.amount}
-                  onChange={(e) =>
-                    setWithdrawForm({ ...withdrawForm, amount: e.target.value })
-                  }
-                  placeholder="Enter amount"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description:</label>
-                <input
-                  type="text"
-                  value={withdrawForm.description}
-                  onChange={(e) =>
-                    setWithdrawForm({
-                      ...withdrawForm,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Withdrawal description"
-                />
-              </div>
-              <div className="form-actions">
-                <button
-                  type="submit"
-                  className="withdraw-submit-btn"
-                  disabled={!user || busyAction === "withdrawal"}
-                  title={!user ? "Sign in to withdraw funds" : undefined}
-                >
-                  {busyAction === "withdrawal" ? "Withdrawing…" : "Withdraw"}
-                </button>
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => {
-                    setWithdrawAccount(null);
-                    setWithdrawForm({ amount: "", description: "" });
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Transactions — hidden if empty */}
-      {transactions.length > 0 && (
-      <div className="section">
-        <h2>Recent Transactions</h2>
-        {isDemoMode && (
-          <p
-            className="demo-notice"
-            style={{
-              color: "#6b7280",
-              fontSize: "0.85rem",
-              marginBottom: "0.75rem",
-            }}
-          >
-            Demo mode —{" "}
-            <button
-              type="button"
-              onClick={navigateToCustomerOAuthLogin}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--brand-navy)",
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: 0,
-                fontSize: "inherit",
-                textDecoration: "underline",
-              }}
-            >
-              sign in
-            </button>{" "}
-            to see your real transactions
-          </p>
-        )}
-        {(() => {
-          const txGroups = recentTxGroups;
-
-          if (txGroups.length === 0) {
-            return null;
-          }
-
-          const txTypeStyle = (type) => {
-            if (type === "withdrawal")
-              return { bg: "#fff1f2", color: "#be123c", symbol: "↑" };
-            if (type === "deposit")
-              return { bg: "#f0fdf4", color: "#15803d", symbol: "↓" };
-            if (type === "transfer")
-              return { bg: "#eff6ff", color: "#1d4ed8", symbol: "⇆" };
-            return { bg: "#f9fafb", color: "#6b7280", symbol: "·" };
-          };
-
-          return (
-            <div className="tx-feed">
-              {txGroups.map((group) => (
-                <div key={group.label} className="tx-feed__group">
-                  <div className="tx-feed__date-row">
-                    <span className="tx-feed__date-label">{group.label}</span>
-                    <span className="tx-feed__date-line" />
-                  </div>
-                  {group.items.map((tx) => {
-                    const neg = isTransactionNegative(tx);
-                    const ts = txTypeStyle(tx.type);
-                    const isAgent = tx.clientType === "ai_agent";
-                    return (
-                      <div
-                        key={tx.id}
-                        className="tx-row"
-                        style={tx._demo ? { opacity: 0.5 } : {}}
-                      >
-                        <div
-                          className="tx-row__icon"
-                          style={{ background: ts.bg, color: ts.color }}
-                        >
-                          {ts.symbol}
-                        </div>
-                        <div className="tx-row__body">
-                          <div className="tx-row__desc">
-                            {tx.description || tx.type}
-                          </div>
-                          <div className="tx-row__meta">
-                            <span className="tx-row__account">
-                              {tx.accountInfo || "Unknown"}
-                            </span>
-                            <span className="tx-row__sep">·</span>
-                            <span className="tx-row__time">
-                              {format(new Date(tx.createdAt), "HH:mm")}
-                            </span>
-                            {tx.performedBy && tx.performedBy !== "Unknown" && (
-                              <>
-                                <span className="tx-row__sep">·</span>
-                                <span className="tx-row__time">
-                                  {tx.performedBy}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="tx-row__right">
-                          <div
-                            className={`tx-row__amount ${neg ? "tx-row__amount--neg" : "tx-row__amount--pos"}`}
-                          >
-                            {neg ? "−" : "+"}
-                            {fmt(tx.amount)}
-                          </div>
-                          {isAgent && (
-                            <div className="tx-row__badges">
-                              <span className="tx-badge tx-badge--agent">
-                                AI
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-      </div>
-      )}
-    </>
-  );
-
-
   // ── Global modals ─────────────────────────────────────────────────────────
   // Rendered in BOTH the clinical-split branch and the main return so that
   // Reset Demo, HITL consent, and step-up overlays are always reachable.
-  const renderGlobalModals = () => (
-    <>
-      {consentChallengeId?.id && (
-        <TransactionConsentModal
-          open
-          challengeId={consentChallengeId.id}
-          preloadedSnapshot={consentChallengeId.snapshot}
-          user={user}
-          autoConfirm={agentHitlAutoConfirm}
-          onClose={() => {
-            setConsentChallengeId(null);
-            setAgentHitlAutoConfirm(false);
-            agentHitlDetailRef.current = null;
-          }}
-          onTransactionSuccess={async (msg) => {
-            const agentDetail = agentHitlDetailRef.current;
-            const challenge = consentChallengeId;
-            setConsentChallengeId(null);
-            setAgentHitlAutoConfirm(false);
-            agentHitlDetailRef.current = null;
-
-            if (agentDetail) {
-              // Agent-triggered: agent handles re-fire via banking-agent-hitl-confirmed event
-              notifySuccess(msg);
-              void fetchUserData(true);
-              window.dispatchEvent(
-                new CustomEvent("banking-agent-hitl-confirmed", {
-                  detail: { actionId: agentDetail.actionId, successMsg: msg },
-                }),
-              );
-            } else if (challenge?.payload) {
-              // Dashboard-triggered: re-fire the transaction with the approved challenge
-              try {
-                await apiClient.post("/api/transactions", {
-                  ...challenge.payload,
-                  consentChallengeId: challenge.id,
-                });
-                if (challenge.payload.type === "transfer") {
-                  setTransferForm({
-                    toAccountId: "",
-                    amount: "",
-                    description: "",
-                  });
-                  setSelectedAccount(null);
-                } else if (challenge.payload.type === "deposit") {
-                  setDepositForm({ amount: "", description: "" });
-                  setDepositAccount(null);
-                } else if (challenge.payload.type === "withdrawal") {
-                  setWithdrawForm({ amount: "", description: "" });
-                  setWithdrawAccount(null);
-                }
-                notifySuccess("Transaction completed successfully!");
-                void fetchUserData(true);
-                window.dispatchEvent(
-                  new CustomEvent("banking-transaction-completed", {
-                    detail: { type: challenge.payload.type },
-                  }),
-                );
-              } catch (err) {
-                const rfc9470StepUp = extractRfc9470Challenge(err.response);
-                if (err.response?.status === 428) {
-                  beginStepUp(err.response.data);
-                } else if (rfc9470StepUp) {
-                  beginStepUp(rfc9470StepUp);
-                } else {
-                  notifyError(
-                    err.response?.data?.error_description ||
-                      err.response?.data?.error ||
-                      "Transaction failed after consent.",
-                  );
-                }
-              }
-            } else {
-              notifySuccess(msg);
-              void fetchUserData(true);
-            }
-          }}
-          onDeclinedConfirmed={() => {
-            setConsentChallengeId(null);
-            setAgentHitlAutoConfirm(false);
-            notifyInfo(
-              "You declined high-value consent. The AI banking assistant is paused — dismiss the decline notice to keep using it.",
-            );
-          }}
-        />
-      )}
-
-      <ConfirmModal
-        isOpen={showResetModal}
-        title="Reset Demo"
-        message="Clear all agent history, token chain events, and MCP audit logs? You will be signed out and the theme will reset to default."
-        confirmLabel="Reset"
-        danger
-        onConfirm={async () => {
-          setShowResetModal(false);
-          try {
-            await fetch("/api/admin/reset-demo", {
-              method: "POST",
-              credentials: "include",
-            });
-          } catch (_) {}
-          // Clear traffic-store cache (onLogout does not know about this key)
-          try { localStorage.removeItem("api-traffic-store"); } catch (_) {}
-          // Use the App-level logout so userLoggedOut flag is set and the
-          // session-check effect fast-paths past the auth endpoints on reload.
-          onLogout();
-        }}
-        onCancel={() => setShowResetModal(false)}
-      />
-
-      {/* Email OTP Step-Up Modal */}
-      {otpModalOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => {
-            setOtpModalOpen(false);
-            setOtpCode("");
-            setOtpError("");
-            window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
-          }}
-        >
-          <div
-            className="otp-step-up-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Verify Your Identity</h3>
-              <button
-                className="otp-step-up-modal__close"
-                onClick={() => {
-                  setOtpModalOpen(false);
-                  setOtpCode("");
-                  setOtpError("");
-                  window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
-                }}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                A 6-digit verification code was sent to{" "}
-                <strong>{otpEmail}</strong>. Enter it below to authorise your
-                transaction.
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => {
-                  setOtpCode(e.target.value.replace(/\D/g, ""));
-                  setOtpError("");
-                }}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    otpCode.length === 6 &&
-                    !otpSubmitting
-                  )
-                    handleVerifyOtp();
-                }}
-                placeholder="000000"
-                autoFocus
-                className={`otp-step-up-modal__input${otpError ? " otp-step-up-modal__input--error" : ""}`}
-              />
-              {otpError && (
-                <p className="otp-step-up-modal__error">{otpError}</p>
-              )}
-              {mfaChallengeExpired && (
-                <div style={{ marginTop: "0.75rem" }}>
-                  <p className="otp-step-up-modal__error">
-                    MFA session expired.
-                  </p>
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-ghost"
-                    style={{ marginTop: "0.5rem" }}
-                    onClick={() => {
-                      setMfaChallengeExpired(false);
-                      setOtpModalOpen(false);
-                      handleInitiateOtpRef.current &&
-                        handleInitiateOtpRef.current();
-                    }}
-                  >
-                    Try Again
-                  </button>
-                </div>
-              )}
-              <p className="otp-step-up-modal__hint">
-                Code expires in 5 minutes.
-              </p>
-              <div className="otp-step-up-modal__actions">
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-primary"
-                  disabled={otpCode.length !== 6 || otpSubmitting}
-                  onClick={handleVerifyOtp}
-                >
-                  {otpSubmitting ? "Verifying…" : "Verify"}
-                </button>
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-ghost"
-                  onClick={() => handleInitiateOtp()}
-                >
-                  Resend code
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TOTP Step-Up Modal */}
-      {totpModalOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => setTotpModalOpen(false)}
-        >
-          <div
-            className="otp-step-up-modal otp-step-up-modal--totp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Verify Your Identity</h3>
-              <button
-                className="otp-step-up-modal__close"
-                onClick={() => {
-                  setTotpModalOpen(false);
-                  window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
-                }}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                Enter the 6-digit code from your{" "}
-                <strong>authenticator app</strong>.
-              </p>
-              <input
-                className={`otp-step-up-modal__input${totpError ? " otp-step-up-modal__input--error" : ""}`}
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="000000"
-                autoFocus
-                value={totpCode}
-                onChange={(e) => {
-                  setTotpCode(e.target.value.replace(/\D/g, ""));
-                  setTotpError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    totpCode.length === 6 &&
-                    !totpSubmitting
-                  )
-                    handleTotpSubmit();
-                }}
-              />
-              {totpError && (
-                <p className="otp-step-up-modal__error">{totpError}</p>
-              )}
-              <p className="otp-step-up-modal__hint">
-                Open your authenticator app and enter the current 6-digit code.
-              </p>
-            </div>
-            <div className="otp-step-up-modal__actions">
-              <button
-                className="otp-step-up-modal__btn-ghost"
-                onClick={() => setTotpModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="otp-step-up-modal__btn-primary"
-                disabled={totpCode.length !== 6 || totpSubmitting}
-                onClick={handleTotpSubmit}
-              >
-                {totpSubmitting ? "Verifying…" : "Verify"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Device Picker — shown when multiple MFA devices are enrolled */}
-      {devicePickerOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => setDevicePickerOpen(false)}
-        >
-          <div
-            className="otp-step-up-modal otp-step-up-modal--device-picker"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">
-                Choose Verification Method
-              </h3>
-              <button
-                className="otp-step-up-modal__close"
-                onClick={() => setDevicePickerOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                Select how you want to verify your identity:
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                  marginTop: "8px",
-                }}
-              >
-                {devicePickerDevices.map((device) => (
-                  <button
-                    key={device.id}
-                    className="otp-step-up-modal__btn-ghost"
-                    style={{ textAlign: "left" }}
-                    onClick={() => handleDevicePick(device)}
-                  >
-                    {device.type === "EMAIL"
-                      ? "Email code"
-                      : device.type === "SMS"
-                        ? "SMS code"
-                        : device.type === "TOTP"
-                          ? "Authenticator app"
-                          : device.type === "MOBILE"
-                            ? "Push notification"
-                            : "Passkey / FIDO2"}
-                    {device.nickname ? ` (${device.nickname})` : ""}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Push Notification Waiting Panel */}
-      {pushModalOpen && (
-        <div className="otp-step-up-overlay">
-          <div className="otp-step-up-modal otp-step-up-modal--push">
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Check Your Device</h3>
-            </div>
-            <div
-              className="otp-step-up-modal__body"
-              style={{ textAlign: "center", padding: "1rem 0" }}
-            >
-              <PingIdentitySpinner size={48} label="Waiting for approval…" />
-              <p
-                className="otp-step-up-modal__lead"
-                style={{ marginTop: "1rem" }}
-              >
-                A push notification was sent to your registered device.
-                <br />
-                <strong>Tap Approve</strong> in the PingOne app to continue.
-              </p>
-              <p className="otp-step-up-modal__hint">Waiting for approval…</p>
-            </div>
-            <div
-              className="otp-step-up-modal__actions"
-              style={{ justifyContent: "center" }}
-            >
-              <button
-                className="otp-step-up-modal__btn-ghost"
-                onClick={() => {
-                  setPushPolling(false);
-                  setPushModalOpen(false);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FIDO2 Passkey Step-Up */}
-      {fido2ModalOpen && (
-        <Fido2Challenge
-          daId={fido2DaId}
-          deviceId={fido2DeviceId}
-          onSuccess={() => {
-            setFido2ModalOpen(false);
-            setStepUpRequired(false);
-            notifySuccess(
-              agentTriggeredStepUp
-                ? "Identity verified — resuming agent request…"
-                : "Identity verified — please retry your transaction.",
-            );
-            if (agentTriggeredStepUp) {
-              setAgentTriggeredStepUp(false);
-              window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
-            }
-          }}
-          onCancel={() => {
-            setFido2ModalOpen(false);
-            window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
-          }}
-          onError={(msg) => {
-            setFido2ModalOpen(false);
-            notifyError(msg);
-          }}
-          onRegisterPasskey={() => {
-            // No passkey for this site on this device — send the user to the
-            // enrollment modal rather than dead-ending the step-up.
-            setFido2ModalOpen(false);
-            setEnrollError("");
-            setEnrollModalOpen(true);
-          }}
-        />
-      )}
-
-      {/* MFA Challenge Expired — Try Again bubble (shown outside modals) */}
-      {mfaChallengeExpired &&
-        !otpModalOpen &&
-        !totpModalOpen &&
-        !pushModalOpen &&
-        !fido2ModalOpen && (
-          <div
-            className="otp-step-up-overlay"
-            onClick={() => setMfaChallengeExpired(false)}
-          >
-            <div
-              className="otp-step-up-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="otp-step-up-modal__header">
-                <h3 className="otp-step-up-modal__title">
-                  MFA Session Expired
-                </h3>
-                <button
-                  className="otp-step-up-modal__close"
-                  onClick={() => setMfaChallengeExpired(false)}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="otp-step-up-modal__body">
-                <p className="otp-step-up-modal__lead">
-                  Your MFA session has expired. Click below to start a new
-                  challenge.
-                </p>
-                <div className="otp-step-up-modal__actions">
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-primary"
-                    onClick={() => {
-                      setMfaChallengeExpired(false);
-                      handleInitiateOtpRef.current &&
-                        handleInitiateOtpRef.current();
-                    }}
-                  >
-                    Try Again
-                  </button>
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-ghost"
-                    onClick={() => setMfaChallengeExpired(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-      {/* MFA Device Enrollment — no devices enrolled, or none usable here */}
-      {enrollModalOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => {
-            if (!enrolling) closeEnrollModal();
-          }}
-        >
-          <div
-            className="otp-step-up-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Set Up MFA</h3>
-              <button
-                className="otp-step-up-modal__close"
-                onClick={closeEnrollModal}
-                aria-label="Close"
-                disabled={enrolling}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                Set up a verification method to continue. Email, SMS, and
-                passkeys can each be registered here.
-              </p>
-              {enrollError && (
-                <p className="otp-step-up-modal__error">{enrollError}</p>
-              )}
-
-              {smsEnrollStep === "choose" && (
-                <div
-                  className="otp-step-up-modal__actions"
-                  style={{ flexDirection: "column", gap: "0.75rem" }}
-                >
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-primary"
-                    disabled={enrolling}
-                    onClick={handleEnrollEmail}
-                    data-testid="enroll-email"
-                  >
-                    {enrolling ? "Setting up…" : "Set up Email OTP"}
-                  </button>
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-ghost"
-                    disabled={enrolling}
-                    onClick={() => {
-                      setEnrollError("");
-                      setSmsEnrollStep("phone");
-                    }}
-                    data-testid="enroll-sms"
-                  >
-                    Set up SMS OTP
-                  </button>
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-ghost"
-                    disabled={enrolling}
-                    onClick={handleEnrollFido2}
-                    data-testid="enroll-passkey"
-                  >
-                    {enrolling ? "Setting up…" : "Register a Passkey"}
-                  </button>
-                </div>
-              )}
-
-              {smsEnrollStep === "phone" && (
-                <>
-                  <label
-                    className="otp-step-up-modal__lead"
-                    htmlFor="enroll-sms-phone"
-                  >
-                    Mobile number
-                  </label>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <select
-                      className="otp-step-up-modal__input"
-                      style={{ width: 130, flex: "0 0 auto" }}
-                      value={smsCountryCode}
-                      onChange={(e) => setSmsCountryCode(e.target.value)}
-                      aria-label="Country code"
-                      data-testid="mfa-country-code"
-                    >
-                      {COUNTRY_CODES.map((c) => (
-                        <option key={c.code} value={c.code}>{c.label}</option>
-                      ))}
-                    </select>
-                    <input
-                      id="enroll-sms-phone"
-                      className="otp-step-up-modal__input"
-                      type="tel"
-                      placeholder="5551234567"
-                      value={smsEnrollPhone}
-                      onChange={(e) => setSmsEnrollPhone(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleEnrollSmsInit();
-                      }}
-                      data-testid="enroll-sms-phone"
-                    />
-                  </div>
-                  <div
-                    className="otp-step-up-modal__actions"
-                    style={{ flexDirection: "column", gap: "0.75rem" }}
-                  >
-                    <button
-                      type="button"
-                      className="otp-step-up-modal__btn-primary"
-                      disabled={enrolling}
-                      onClick={handleEnrollSmsInit}
-                      data-testid="enroll-sms-send"
-                    >
-                      {enrolling ? "Sending…" : "Send activation code"}
-                    </button>
-                    <button
-                      type="button"
-                      className="otp-step-up-modal__btn-ghost"
-                      disabled={enrolling}
-                      onClick={() => {
-                        setEnrollError("");
-                        setSmsEnrollStep("choose");
-                      }}
-                    >
-                      ← Back
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {smsEnrollStep === "otp" && (
-                <>
-                  <label
-                    className="otp-step-up-modal__lead"
-                    htmlFor="enroll-sms-otp"
-                  >
-                    Enter the 6-digit code we texted you
-                  </label>
-                  <input
-                    id="enroll-sms-otp"
-                    className="otp-step-up-modal__input"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={smsEnrollOtp}
-                    onChange={(e) =>
-                      setSmsEnrollOtp(e.target.value.replace(/\D/g, ""))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleEnrollSmsComplete();
-                    }}
-                    data-testid="enroll-sms-otp"
-                  />
-                  <div
-                    className="otp-step-up-modal__actions"
-                    style={{ flexDirection: "column", gap: "0.75rem" }}
-                  >
-                    <button
-                      type="button"
-                      className="otp-step-up-modal__btn-primary"
-                      disabled={enrolling}
-                      onClick={handleEnrollSmsComplete}
-                      data-testid="enroll-sms-activate"
-                    >
-                      {enrolling ? "Activating…" : "Activate SMS"}
-                    </button>
-                    <button
-                      type="button"
-                      className="otp-step-up-modal__btn-ghost"
-                      disabled={enrolling}
-                      onClick={() => {
-                        setEnrollError("");
-                        setSmsEnrollStep("phone");
-                      }}
-                    >
-                      ← Back
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* User Session Token Modal */}
-      {showTokenModal && (
-        <FloatingPanel
-          title="Session Token"
-          onClose={() => setShowTokenModal(false)}
-          defaultWidth={820}
-          defaultHeight={Math.min(window.innerHeight - 80, 940)}
-          defaultX={Math.max(0, Math.round((window.innerWidth - 820) / 2))}
-          defaultY={60}
-          minWidth={360}
-          minHeight={200}
-        >
-          <div style={{ overflowY: "auto", height: "100%" }}>
-            <OAuthTokenDisplayPage />
-          </div>
-        </FloatingPanel>
-      )}
-
-      {showFilmstripPopout && (
-        <DraggableModal
-          isOpen
-          onClose={() => {
-            const nextSurface = movieReelSurface === "both" ? "embedded" : "none";
-            setMovieReelSurface(nextSurface);
-            try {
-              localStorage.setItem("ba_movie_reel_surface", nextSurface);
-              localStorage.setItem("ba_show_filmstrip", nextSurface === "embedded" ? "1" : "0");
-            } catch {}
-            window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
-              detail: { on: nextSurface === "embedded", surface: nextSurface },
-            }));
-          }}
-          title="Movie reel"
-          defaultWidth={Math.min(1120, Math.max(640, window.innerWidth - 48))}
-          defaultHeight={Math.min(720, Math.max(420, window.innerHeight - 80))}
-          defaultX={Math.max(24, Math.round((window.innerWidth - Math.min(1120, Math.max(640, window.innerWidth - 48))) / 2))}
-          defaultY={40}
-          minWidth={560}
-          minHeight={360}
-          storageKey="movie-reel-popout"
-        >
-          <div className="dm-scroll">
-            <ReelDock />
-          </div>
-        </DraggableModal>
-      )}
-    </>
+  const globalModals = (
+    <DashboardGlobalModals
+      agentHitlAutoConfirm={agentHitlAutoConfirm}
+      agentHitlDetailRef={agentHitlDetailRef}
+      agentTriggeredStepUp={agentTriggeredStepUp}
+      beginStepUp={beginStepUp}
+      closeEnrollModal={closeEnrollModal}
+      consentChallengeId={consentChallengeId}
+      devicePickerDevices={devicePickerDevices}
+      devicePickerOpen={devicePickerOpen}
+      enrollError={enrollError}
+      enrollModalOpen={enrollModalOpen}
+      enrolling={enrolling}
+      fetchUserData={fetchUserData}
+      fido2DaId={fido2DaId}
+      fido2DeviceId={fido2DeviceId}
+      fido2ModalOpen={fido2ModalOpen}
+      handleDevicePick={handleDevicePick}
+      handleEnrollEmail={handleEnrollEmail}
+      handleEnrollFido2={handleEnrollFido2}
+      handleEnrollSmsComplete={handleEnrollSmsComplete}
+      handleEnrollSmsInit={handleEnrollSmsInit}
+      handleInitiateOtp={handleInitiateOtp}
+      handleInitiateOtpRef={handleInitiateOtpRef}
+      handleTotpSubmit={handleTotpSubmit}
+      handleVerifyOtp={handleVerifyOtp}
+      mfaChallengeExpired={mfaChallengeExpired}
+      movieReelSurface={movieReelSurface}
+      onLogout={onLogout}
+      otpCode={otpCode}
+      otpEmail={otpEmail}
+      otpError={otpError}
+      otpModalOpen={otpModalOpen}
+      otpSubmitting={otpSubmitting}
+      pushModalOpen={pushModalOpen}
+      setAgentHitlAutoConfirm={setAgentHitlAutoConfirm}
+      setAgentTriggeredStepUp={setAgentTriggeredStepUp}
+      setConsentChallengeId={setConsentChallengeId}
+      setDepositAccount={setDepositAccount}
+      setDepositForm={setDepositForm}
+      setDevicePickerOpen={setDevicePickerOpen}
+      setEnrollError={setEnrollError}
+      setEnrollModalOpen={setEnrollModalOpen}
+      setFido2ModalOpen={setFido2ModalOpen}
+      setMfaChallengeExpired={setMfaChallengeExpired}
+      setMovieReelSurface={setMovieReelSurface}
+      setOtpCode={setOtpCode}
+      setOtpError={setOtpError}
+      setOtpModalOpen={setOtpModalOpen}
+      setPushModalOpen={setPushModalOpen}
+      setPushPolling={setPushPolling}
+      setSelectedAccount={setSelectedAccount}
+      setShowResetModal={setShowResetModal}
+      setShowTokenModal={setShowTokenModal}
+      setSmsCountryCode={setSmsCountryCode}
+      setSmsEnrollOtp={setSmsEnrollOtp}
+      setSmsEnrollPhone={setSmsEnrollPhone}
+      setSmsEnrollStep={setSmsEnrollStep}
+      setStepUpRequired={setStepUpRequired}
+      setTotpCode={setTotpCode}
+      setTotpError={setTotpError}
+      setTotpModalOpen={setTotpModalOpen}
+      setTransferForm={setTransferForm}
+      setWithdrawAccount={setWithdrawAccount}
+      setWithdrawForm={setWithdrawForm}
+      showFilmstripPopout={showFilmstripPopout}
+      showResetModal={showResetModal}
+      showTokenModal={showTokenModal}
+      smsCountryCode={smsCountryCode}
+      smsEnrollOtp={smsEnrollOtp}
+      smsEnrollPhone={smsEnrollPhone}
+      smsEnrollStep={smsEnrollStep}
+      totpCode={totpCode}
+      totpError={totpError}
+      totpModalOpen={totpModalOpen}
+      totpSubmitting={totpSubmitting}
+      user={user}
+    />
   );
 
-  // ff_agent_clinical_split — render the 2B-refined clinical split instead of
-  // the legacy split3 chrome. The clinical layout owns the whole dashboard
-  // area when on; legacy chrome remains unchanged when off.
-  //
-  // IMPORTANT: modals (ConfirmModal, TransactionConsentModal, OTP/step-up) are
-  // hoisted into the clinical branch via renderGlobalModals() so their state
-  // setters remain reachable even when this early return fires.
   // The Simple stepper for the two layouts that have no token rail (clinical
   // split and Focus Mode). It was rendered only inside the float layout's rail,
   // so choosing it in Quick Config with the reel off left this area blank.
-  const simpleStepperInline = showSimpleStepper && !showSequenceDiagram && !showServerTopology && (
-    <section aria-label="Simple stepper" data-testid="dashboard-simple-stepper">
-      <SimpleStepperBar />
-      <StepsTabContent />
-    </section>
-  );
+  const simpleStepperInline = showSimpleStepper && !showSequenceDiagram && !showServerTopology && <SimpleStepperInline />;
 
   if (clinicalSplitEnabled) {
     return (
-      <>
-        <div className="customer-skin-p1 user-dashboard user-dashboard--clinical-split agent-clinical-host">
-          <AgentClinicalHost />
-          {/* Movie reel — same ReelDock the float layout uses, so the sticky
-              bottom-pin and the collapse toggle come for free. This branch is an
-              EARLY RETURN, so it never reaches the two reel renders further down;
-              until now the clinical layout was the one customer surface with no
-              reel at all. .agent-clinical-host is display:block over a 100vh
-              shell, the same shape as float mode, so .tcfs-float-host's
-              position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock />}
-          {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
-          {simpleStepperInline}
-          {showServerTopology && <ServerTopologyStory />}
-          {showSequenceDiagram && !showServerTopology && (
-            <SequenceReelDiagram
-              onSelectStep={setSelectedSeqStep}
-              onReset={() => setSelectedSeqStep(null)}
-              selectedStepId={selectedSeqStep?.id}
-              slowMode={slowMode}
-              followFlow={followFlow}
-              onToggleSlowMode={() => setSlowMode(!slowMode)}
-            />
-          )}
-          {showSequenceDiagram && selectedSeqStep && (
-            <>
-              <DetailPaneResizeHandle
-                height={detailPaneHeight}
-                onMouseDown={onDetailPaneResizeMouseDown}
-                onKeyDown={onDetailPaneResizeKeyDown}
-              />
-              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
-              <CollapsibleStepDetail step={selectedSeqStep} />
-              </div>
-            </>
-          )}
-        </div>
-        {renderGlobalModals()}
-      </>
+      <DashboardClinicalSplit
+        clinicalSplitEnabled={clinicalSplitEnabled}
+        detailPaneHeight={detailPaneHeight}
+        followFlow={followFlow}
+        globalModals={globalModals}
+        onDetailPaneResizeKeyDown={onDetailPaneResizeKeyDown}
+        onDetailPaneResizeMouseDown={onDetailPaneResizeMouseDown}
+        selectedSeqStep={selectedSeqStep}
+        setSelectedSeqStep={setSelectedSeqStep}
+        setSlowMode={setSlowMode}
+        showFilmstrip={showFilmstrip}
+        showSequenceDiagram={showSequenceDiagram}
+        showServerTopology={showServerTopology}
+        showTokenTopology={showTokenTopology}
+        simpleStepperInline={simpleStepperInline}
+        slowMode={slowMode}
+      />
     );
   }
 
@@ -4132,22 +2514,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               aria-label="Drag to resize assistant width"
               data-testid="dashboard-agent-column-resize"
             />
-            <button
-              type="button"
-              className="ud-middle-resize-handle"
-              onMouseDown={onMiddleResizeMouseDown}
-              aria-label="Drag to resize assistant height"
-            >
-              <span
-                className="ud-middle-resize-handle__grip"
-                aria-hidden="true"
-              >
-                <span className="ud-middle-resize-handle__bar" />
-              </span>
-              <span className="ud-middle-resize-handle__label">
-                Resize height
-              </span>
-            </button>
+            <MiddleResizeHandle onMouseDown={onMiddleResizeMouseDown} />
           </section>
 
           {/* No banking column in Focus Mode. Stacking it between the agent and
@@ -4248,7 +2615,39 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 {isRetailDashboard ? (
                   <RetailDashboard data={pageMockData} />
                 ) : (
-                  renderBankingMain()
+                  <DashboardBankingMain
+                    accounts={accounts}
+                    accountsAnchorRef={accountsAnchorRef}
+                    busyAction={busyAction}
+                    dashboardLayout={dashboardLayout}
+                    depositAccount={depositAccount}
+                    depositForm={depositForm}
+                    expandedAccounts={expandedAccounts}
+                    handleDeposit={handleDeposit}
+                    handleScrollToAccounts={handleScrollToAccounts}
+                    handleScrollToAssistant={handleScrollToAssistant}
+                    handleTransfer={handleTransfer}
+                    handleWithdraw={handleWithdraw}
+                    isDemoMode={isDemoMode}
+                    isTransactionNegative={isTransactionNegative}
+                    recentTxGroups={recentTxGroups}
+                    replayNotice={replayNotice}
+                    selectedAccount={selectedAccount}
+                    setDepositAccount={setDepositAccount}
+                    setDepositForm={setDepositForm}
+                    setSelectedAccount={setSelectedAccount}
+                    setTransferForm={setTransferForm}
+                    setWithdrawAccount={setWithdrawAccount}
+                    setWithdrawForm={setWithdrawForm}
+                    toggleAccountProfile={toggleAccountProfile}
+                    totalBalance={totalBalance}
+                    totalDebt={totalDebt}
+                    transactions={transactions}
+                    transferForm={transferForm}
+                    user={user}
+                    withdrawAccount={withdrawAccount}
+                    withdrawForm={withdrawForm}
+                                          />
                 )}
               </div>
 
@@ -4256,32 +2655,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
                 {showSimpleStepper && !showSequenceDiagram && <SimpleStepperBar />}
-                <div className="ud-float-chain-actions">
-                  <button
-                    type="button"
-                    className="ud-float-chain-btn"
-                    title="Real-time token topology — RFC 8693 delegation chain"
-                    onClick={() => window.dispatchEvent(new CustomEvent('token-topology-open'))}
-                  >
-                    Topology
-                  </button>
-                  <button
-                    type="button"
-                    className="ud-float-chain-btn"
-                    title="Floating token chain — RFC 8693 delegation trace rail"
-                    onClick={() => window.dispatchEvent(new CustomEvent('floating-token-chain-open'))}
-                  >
-                    Token chain
-                  </button>
-                  <button
-                    type="button"
-                    className="ud-float-chain-btn"
-                    title="Open 15-Min Security Demo Script"
-                    onClick={() => window.dispatchEvent(new CustomEvent('demo-script-toggle'))}
-                  >
-                    Script
-                  </button>
-                </div>
+                <FloatChainActions />
               </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
@@ -4319,69 +2693,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           </div>
       )}
 
-      {/* The CIBA and Client ID Metadata Document guides live in app-level drawers (CIBAPanel, CimdSimPanel).
-          Here they are cards, collapsed by default, each with a button that opens the same drawer. */}
-      <div className="udp-explainers">
-        <section className="pu-card udp-explainer" aria-labelledby="udp-ciba-h">
-          <h2 id="udp-ciba-h" className="pu-h3">Backchannel authentication (CIBA)</h2>
-          <StatusChip tone="info">Explainer</StatusChip>
-          <details>
-            <summary>How the step-up works</summary>
-            <p className="pu-note">
-              When a transfer needs stronger proof, the app asks PingOne to authenticate you out of band, for example
-              with an approval on your phone, while this page waits and checks for the answer.
-            </p>
-            <div className="pu-actions">
-              <button type="button" className="pu-btn" onClick={openGuide("education-open-ciba")}>
-                Open the CIBA guide
-              </button>
-            </div>
-          </details>
-        </section>
-        <section className="pu-card udp-explainer" aria-labelledby="udp-cimd-h">
-          <h2 id="udp-cimd-h" className="pu-h3">Client ID Metadata Document</h2>
-          <StatusChip tone="info">Explainer</StatusChip>
-          <details>
-            <summary>What the document is</summary>
-            <p className="pu-note">
-              A client ID that is a URL. The authorization server fetches the client's metadata from it instead of
-              needing the client registered in advance.
-            </p>
-            <div className="pu-actions">
-              <button type="button" className="pu-btn" onClick={openGuide("education-open-cimd")}>
-                Open the Client ID Metadata Document guide
-              </button>
-            </div>
-          </details>
-        </section>
-      </div>
+      <DashboardExplainers />
 
-      {/* Middle-layout open FAB — shown when middle placement hasn't been expanded yet.
-          App.js global float is suppressed for middle so there is exactly one FAB. */}
       {agentPlacement === "middle" && !middleAgentOpen && (
-        <button
-          type="button"
-          className="banking-agent-fab"
-          onClick={() => setMiddleAgentOpen(true)}
-          aria-label="Open AI banking assistant in middle column"
-          title="Open AI Agent"
-        >
-          <span className="banking-agent-fab-icon">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M4 10h3v7H4zM10.5 10h3v7h-3zM2 19h20v3H2zM17 10h3v7h-3zM12 1 2 6v2h20V6z" />
-            </svg>
-          </span>
-          <span className="banking-agent-fab-label">AI Agent</span>
-        </button>
+        <MiddleAgentFab onOpen={() => setMiddleAgentOpen(true)} />
       )}
 
-      {renderGlobalModals()}
+      {globalModals}
     </div>
   );
 };

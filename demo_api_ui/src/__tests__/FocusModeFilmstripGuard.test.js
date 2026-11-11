@@ -13,7 +13,16 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const read = (p) => fs.readFileSync(path.resolve(__dirname, p), "utf8");
-const p2026 = read("../components/UserDashboardPing2026.js");
+// The page holds the Ping UI frame; the clinical layout, the global overlays and the small frame parts were moved
+// into their own files unchanged (so the pattern check scans a frame-only page). These guards reason about the
+// dashboard as a whole, so they read the page and the files it was split into as one source.
+const DASHBOARD_PARTS = [
+  "UserDashboardPing2026.js",
+  "DashboardClinicalSplit.jsx",
+  "DashboardGlobalModals.jsx",
+  "DashboardFrameParts.jsx",
+];
+const p2026 = DASHBOARD_PARTS.map((f) => read(`../components/${f}`)).join("\n");
 const rail = read("../components/TokenChainTraceRail.jsx");
 
 describe("Focus Mode filmstrip guard", () => {
@@ -74,7 +83,10 @@ describe("Focus Mode filmstrip guard", () => {
   // Mode (the default) and the clinical split, choosing it with the reel off
   // left the evidence area blank. Both of those layouts must render it.
   test("Focus Mode and the clinical split both render the Simple stepper", () => {
-    expect(p2026.match(/\{simpleStepperInline\}/g) || []).toHaveLength(2);
+    // Focus Mode renders it in the page; the clinical split renders it in DashboardClinicalSplit, which the page
+    // passes it to as a prop (that is the third `{simpleStepperInline}`).
+    expect(read("../components/UserDashboardPing2026.js").match(/\{simpleStepperInline\}/g) || []).toHaveLength(2);
+    expect(read("../components/DashboardClinicalSplit.jsx").match(/\{simpleStepperInline\}/g) || []).toHaveLength(1);
     expect(p2026).toMatch(/const simpleStepperInline = showSimpleStepper && !showSequenceDiagram/);
     expect(p2026).toMatch(/<StepsTabContent \/>/);
   });
@@ -128,11 +140,14 @@ describe("Focus Mode filmstrip guard", () => {
   // by position, not by count: a fifth disappearance would otherwise just be a
   // number changing in the test above.
   test("the clinical-split branch renders the reel", () => {
-    const branch = p2026.indexOf("if (clinicalSplitEnabled) {");
+    // The page still returns early into the clinical layout; the layout itself lives in DashboardClinicalSplit.jsx.
+    const page = read("../components/UserDashboardPing2026.js");
+    const branch = page.indexOf("if (clinicalSplitEnabled) {");
     expect(branch).toBeGreaterThan(-1);
-    const endOfBranch = p2026.indexOf("if (loading) {", branch);
+    const endOfBranch = page.indexOf("if (loading) {", branch);
     expect(endOfBranch).toBeGreaterThan(branch);
-    const clinicalJsx = p2026.slice(branch, endOfBranch);
+    expect(page.slice(branch, endOfBranch)).toContain("<DashboardClinicalSplit");
+    const clinicalJsx = read("../components/DashboardClinicalSplit.jsx");
     expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock\s*\/>\}/);
   });
 
