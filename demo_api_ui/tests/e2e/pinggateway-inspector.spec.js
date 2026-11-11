@@ -1,19 +1,19 @@
 /**
  * @file pinggateway-inspector.spec.js
- * @description Playwright E2E smoke for the Agent Gateway Inspector (/agent-gateway-inspector).
+ * @description Playwright E2E smoke for the Agent Gateway Inspector (/agent-gateway-inspector,
+ * AgentGatewayInspectorClean on the shared InspectorLayout). It replaced the old tabbed
+ * "Agent Gateway Configuration" page (McpGatewayConfig), which no longer has a route.
  *
  * Covers:
- *   - Page loads and shows "Agent Gateway Configuration" heading
- *   - All tabs render in the tab bar
- *   - Default tab is "Demo Agent Gateway (Dev)" (mock)
- *   - Status badge is visible
- *   - ?subtab=tester deep-links to Agent Gateway Tester tab
- *   - ?subtab=capabilities redirects to /agent-gateway-capabilities
- *   - Refresh button re-fetches config
- *   - MCP mode chip shown
- *   - Non-admin is redirected away
+ *   - Page loads with the "Agent Gateway Inspector" heading
+ *   - The Live / Simulated authz / Unavailable status chip follows GET /api/mcp-gateway/active
+ *   - The Gateway picker offers PingOne Agent Gateway and the Demo MCP Gateway (Node)
+ *   - The Authz Real / Simulated toggle PATCHes the feature flag
+ *   - A decision the gateway reported (GET /api/admin/agent-gateway/decisions) is listed under Calls
+ *   - Send posts a tool call to /api/mcp-gateway/test and lists it
+ *   - The "Gateway tester" link and the old /pinggateway-inspector, ?subtab=capabilities redirects
  *
- * All network calls are intercepted — no live server required.
+ * Every /api call is stubbed — no live server or gateway required.
  *
  * Run:
  *   cd demo_api_ui
@@ -32,189 +32,166 @@ const ADMIN_USER = {
   role: 'admin',
 };
 
-const GATEWAY_CONFIG = {
-  mock: {
-    url: 'http://localhost:8080',
-    running: true,
-    devBypass: false,
-    enabled: true,
-    health: { status: 'ok', service: 'demo-gateway', ts: '2024-01-01T00:00:00Z' },
-  },
-  config: {
-    gatewayResourceUri: 'https://gateway.example.com',
-    upstreamMcpUrl: 'wss://mcp.example.com',
-    mcpOlbResourceUri: 'https://olb.example.com',
-    mcpResourceServerWsUrl: 'wss://invest.example.com',
-    mcpResourceServerResourceUri: 'https://invest.example.com',
-    pingAuthorizeEndpoint: 'https://auth.pingone.com',
-    hitlServiceUrl: 'http://localhost:3003',
-    pingOneEnvUrl: 'https://auth.pingone.com/env-id/as',
-    introspectEndpoint: 'https://auth.pingone.com/env-id/as/introspect',
-    gatewayPublicUrl: 'https://gateway.example.com',
-    pingOneResourceId: 'resource-123',
-    mcpScope: 'mcp:invoke',
-    mcpOlbWsUrl: 'wss://olb.example.com',
-  },
-  envVars: {
-    MCP_GATEWAY_HTTP_URL: 'http://localhost:8080',
-    PINGONE_ENV_ID: 'env-id',
-  },
-  mcpMode: 'custom',
-  pingGatewayJson: { name: 'mcp', condition: '${find(request.uri.path, \'^/mcp\')}' },
-  pingGatewayAdminJson: {},
+const ACTIVE_LIVE = { usePingGateway: true, simulated: false, url: 'http://localhost:8080' };
+
+const DECISION = {
+  ts: '2026-11-10T12:00:00.000Z',
+  tool: 'get_my_accounts',
+  decision: 'PERMIT',
+  correlationId: 'corr-1',
+  sub: 'user-1',
+  clientId: 'client-1',
 };
 
-const json = (body) => ({
-  status: 200,
+const json = (body, status = 200) => ({
+  status,
   contentType: 'application/json',
   body: JSON.stringify(body),
 });
 
-async function mockGatewayInspector(page, { user = ADMIN_USER, config = GATEWAY_CONFIG } = {}) {
-  // Auth stubs
-  await page.route('**/api/auth/oauth/status', (route) =>
-    route.fulfill(json({ authenticated: true, user }))
-  );
-  await page.route('**/api/auth/oauth/user/status', (route) =>
-    route.fulfill(json({ authenticated: false }))
-  );
-
-  // Broad data stubs
-  await page.route('**/api/users**', (route) => route.fulfill(json({ users: [], total: 0 })));
-  await page.route('**/api/accounts**', (route) => route.fulfill(json({ accounts: [] })));
-  await page.route('**/api/transactions**', (route) => route.fulfill(json({ transactions: [] })));
-  await page.route('**/api/admin/config**', (route) =>
-    route.fulfill(json({ agent_ui_mode: 'standard', ff_use_cases_launcher: true }))
-  );
-  await page.route('**/api/api-calls**', (route) => route.fulfill(json({ calls: [] })));
-  await page.route('**/api/mcp/tools**', (route) => route.fulfill(json({ tools: [] })));
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {{ user?: object, active?: object|null, activeStatus?: number, decisions?: object[] }} [opts]
+ */
+async function mockGatewayInspector(page, { user = ADMIN_USER, active = ACTIVE_LIVE, activeStatus = 200, decisions = [] } = {}) {
+  // Lowest-priority catch-all first (the most recently added matching route runs first, so everything below
+  // wins): an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running
+  // BFF replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) => route.fulfill(json({})));
+  await page.route('**/api/auth/oauth/status', (route) => route.fulfill(json({ authenticated: true, user })));
+  await page.route('**/api/auth/oauth/user/status', (route) => route.fulfill(json({ authenticated: false })));
+  await page.route('**/api/auth/session**', (route) => route.fulfill(json({ authenticated: true, user })));
+  await page.route('**/api/admin/config**', (route) => route.fulfill(json({ config: {} })));
+  await page.route('**/api/admin/feature-flags**', (route) => {
+    if (route.request().method() === 'PATCH') return route.fulfill(json({ ok: true }));
+    return route.fulfill(json({ flags: [] }));
+  });
+  await page.route('**/api/config/vertical**', (route) => route.fulfill(json({ manifest: null })));
+  await page.route('**/api/token-chain**', (route) => route.fulfill(json({ tokenEvents: [] })));
   await page.route('**/api/mcp/inspector/tools**', (route) => route.fulfill(json({ tools: [] })));
-  await page.route('**/api/mcp/inspector/pingone-tools**', (route) =>
-    route.fulfill(json({ tools: [] }))
-  );
-  await page.route('**/api/mcp/inspector/profiles**', (route) =>
-    route.fulfill(json({ profiles: [] }))
-  );
-
-  // Gateway config — registered last so it wins
-  await page.route('**/api/admin/mcp-gateway/config**', (route) =>
-    route.fulfill(json(config))
-  );
+  await page.route('**/api/admin/agent-gateway/logs**', (route) => route.fulfill(json({ ok: true, lines: [] })));
+  await page.route('**/api/admin/agent-gateway/decisions**', (route) => route.fulfill(json({ decisions })));
+  await page.route('**/api/mcp-gateway/active**', (route) =>
+    route.fulfill(json(active ?? { error: 'unauthorized' }, activeStatus)));
 }
+
+const hero = (page) => page.locator('.insp-hero-meta');
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Agent Gateway Inspector — page load', () => {
-  test('shows "Agent Gateway Configuration" heading', async ({ page }) => {
+  test('shows the "Agent Gateway Inspector" heading', async ({ page }) => {
     await mockGatewayInspector(page);
     await page.goto('/agent-gateway-inspector');
-    await expect(page.getByText('Agent Gateway Configuration')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Agent Gateway Inspector' })).toBeVisible({ timeout: 15000 });
   });
 
-  test('subtitle mentions mcp.json', async ({ page }) => {
+  test('status chip says Live when the gateway reports real authz', async ({ page }) => {
     await mockGatewayInspector(page);
     await page.goto('/agent-gateway-inspector');
-    await expect(page.getByText(/mcp\.json/)).toBeVisible({ timeout: 10000 });
+    await expect(hero(page).getByText('Live', { exact: true })).toBeVisible({ timeout: 15000 });
   });
 
-  test('status badge is visible', async ({ page }) => {
-    await mockGatewayInspector(page);
+  test('status chip says Simulated authz when the gateway reports simulated authz', async ({ page }) => {
+    await mockGatewayInspector(page, { active: { ...ACTIVE_LIVE, simulated: true } });
     await page.goto('/agent-gateway-inspector');
-    // Running badge (not devBypass) should show
-    await expect(page.getByText('Running (Live)')).toBeVisible({ timeout: 10000 });
+    await expect(hero(page).getByText('Simulated authz')).toBeVisible({ timeout: 15000 });
   });
 
-  test('Refresh button is visible', async ({ page }) => {
-    await mockGatewayInspector(page);
+  test('status chip says Unavailable when the gateway status call is refused', async ({ page }) => {
+    await mockGatewayInspector(page, { active: null, activeStatus: 401 });
     await page.goto('/agent-gateway-inspector');
-    // Use CSS class to avoid strict-mode conflict with sidebar "Refresh sidebar" button
-    await expect(page.locator('.mgc-refresh-btn')).toBeVisible({ timeout: 10000 });
+    await expect(hero(page).getByText('Unavailable')).toBeVisible({ timeout: 15000 });
+    // The 401 is answered on the chip, not with the global sign-in modal.
+    await expect(page.getByRole('dialog', { name: 'Sign in required' })).toHaveCount(0);
   });
 });
 
-test.describe('Agent Gateway Inspector — tabs', () => {
-  test('Demo Agent Gateway (Dev) tab is present', async ({ page }) => {
+test.describe('Agent Gateway Inspector — gateway and authz controls', () => {
+  test('the Gateway picker offers PingOne Agent Gateway and the Demo MCP Gateway (Node)', async ({ page }) => {
     await mockGatewayInspector(page);
     await page.goto('/agent-gateway-inspector');
-    await expect(page.getByRole('button', { name: 'Demo Agent Gateway (Dev)' })).toBeVisible({ timeout: 10000 });
+    const picker = page.locator('#insp-source');
+    await expect(picker).toHaveValue('ping', { timeout: 15000 });
+    await expect(picker.locator('option', { hasText: 'PingOne Agent Gateway' })).toHaveCount(1);
+    await expect(picker.locator('option', { hasText: 'Demo MCP Gateway (Node)' })).toHaveCount(1);
   });
 
-  test('Agent Gateway tab is present', async ({ page }) => {
-    await mockGatewayInspector(page);
+  test('the Gateway picker reads Node when the gateway is not PingGateway', async ({ page }) => {
+    await mockGatewayInspector(page, { active: { ...ACTIVE_LIVE, usePingGateway: false } });
     await page.goto('/agent-gateway-inspector');
-    // Scope to .mgc-tabs to avoid sidebar nav matching the same label
-    await expect(page.locator('.mgc-tabs').getByRole('button', { name: 'Agent Gateway', exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#insp-source')).toHaveValue('node', { timeout: 15000 });
   });
 
-  test('Agent Gateway Tester tab is present', async ({ page }) => {
+  test('Authz Real is pressed for live authz; choosing Simulated PATCHes ff_authorize_real=false', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector');
-    await expect(page.getByRole('button', { name: 'Agent Gateway Tester' })).toBeVisible({ timeout: 10000 });
-  });
-
-  test('Token Security tab is present', async ({ page }) => {
-    await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector');
-    await expect(page.getByRole('button', { name: 'Token Security' })).toBeVisible({ timeout: 10000 });
-  });
-
-  test('MCP Tool Tester tab is present', async ({ page }) => {
-    await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector');
-    await expect(page.getByRole('button', { name: 'MCP Tool Tester' })).toBeVisible({ timeout: 10000 });
-  });
-
-  test('default tab panel shows Gateway URL from config', async ({ page }) => {
-    await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector');
-    // Default "mock" tab shows the gateway URL
-    await expect(page.getByText('http://localhost:8080')).toBeVisible({ timeout: 10000 });
-  });
-});
-
-test.describe('Agent Gateway Inspector — deep-link subtabs', () => {
-  test('?subtab=tester activates Agent Gateway Tester tab', async ({ page }) => {
-    await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector?subtab=tester');
-    await expect(
-      page.getByRole('button', { name: 'Agent Gateway Tester' })
-        .and(page.locator('.mgc-tab--active'))
-    ).toBeVisible({ timeout: 10000 });
-  });
-
-  test('?subtab=capabilities redirects to /agent-gateway-capabilities', async ({ page }) => {
-    await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector?subtab=capabilities');
-    await expect(page).toHaveURL(/\/agent-gateway-capabilities$/, { timeout: 10000 });
-  });
-});
-
-test.describe('Agent Gateway Inspector — Refresh', () => {
-  test('Refresh button re-fetches gateway config', async ({ page }) => {
-    await mockGatewayInspector(page);
-    let fetchCount = 0;
-    await page.route('**/api/admin/mcp-gateway/config**', (route) => {
-      fetchCount++;
-      return route.fulfill(json(GATEWAY_CONFIG));
+    let patched = null;
+    await page.route('**/api/admin/feature-flags**', (route) => {
+      if (route.request().method() === 'PATCH') {
+        patched = route.request().postDataJSON();
+        return route.fulfill(json({ ok: true }));
+      }
+      return route.fulfill(json({ flags: [] }));
     });
     await page.goto('/agent-gateway-inspector');
-    await page.locator('.mgc-refresh-btn').waitFor({ timeout: 10000 });
-    await page.locator('.mgc-refresh-btn').click();
-    await page.waitForTimeout(500);
-    expect(fetchCount).toBeGreaterThanOrEqual(2);
+    const authz = page.getByRole('group', { name: 'Authz' });
+    await expect(authz.getByRole('button', { name: 'Real' })).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
+    await authz.getByRole('button', { name: 'Simulated' }).click();
+    await expect.poll(() => patched).toEqual({ updates: { ff_authorize_real: false } });
   });
 });
 
-test.describe('Agent Gateway Inspector — MCP mode chip', () => {
-  test('shows Custom Gateway chip when mcpMode is custom', async ({ page }) => {
-    await mockGatewayInspector(page, { config: { ...GATEWAY_CONFIG, mcpMode: 'custom' } });
+test.describe('Agent Gateway Inspector — calls', () => {
+  test('lists a decision the gateway reported', async ({ page }) => {
+    await mockGatewayInspector(page, { decisions: [DECISION] });
     await page.goto('/agent-gateway-inspector');
-    await expect(page.getByText('Custom Gateway')).toBeVisible({ timeout: 10000 });
+    const calls = page.getByRole('complementary', { name: 'Calls' });
+    await expect(calls.getByText('get_my_accounts')).toBeVisible({ timeout: 15000 });
+    await expect(calls.getByText('PERMIT')).toBeVisible();
   });
 
-  test('shows PingOne MCP Server chip when mcpMode is pingone', async ({ page }) => {
-    await mockGatewayInspector(page, { config: { ...GATEWAY_CONFIG, mcpMode: 'pingone' } });
+  test('shows the empty state when the gateway has reported nothing', async ({ page }) => {
+    await mockGatewayInspector(page);
     await page.goto('/agent-gateway-inspector');
-    await expect(page.getByText('PingOne MCP Server')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('No calls yet.')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('Send posts the tool call to /api/mcp-gateway/test and lists it', async ({ page }) => {
+    await mockGatewayInspector(page);
+    const posted = [];
+    await page.route('**/api/mcp-gateway/test', (route) => {
+      posted.push(route.request().postDataJSON());
+      return route.fulfill(json({ ok: true, durationMs: 42, result: { content: [{ type: 'text', text: 'ok' }] } }));
+    });
+    await page.goto('/agent-gateway-inspector');
+    const send = page.getByRole('button', { name: 'Send', exact: true });
+    await expect(send).toBeEnabled({ timeout: 15000 });
+    // The label wraps the <select>, so its accessible name includes the option text; find it by its caption.
+    const tool = await page.locator('label.insp-field').filter({ has: page.locator('span', { hasText: /^Tool$/ }) }).locator('select').inputValue();
+    await send.click();
+    await expect.poll(() => posted.length).toBe(1);
+    expect(posted[0]).toMatchObject({ tool });
+    await expect(page.getByRole('complementary', { name: 'Calls' }).getByText(tool).first()).toBeVisible({ timeout: 15000 });
+  });
+});
+
+test.describe('Agent Gateway Inspector — links and redirects', () => {
+  test('the "Gateway tester" link goes to /agent-gateway-capabilities', async ({ page }) => {
+    await mockGatewayInspector(page);
+    await page.goto('/agent-gateway-inspector');
+    await page.locator('.insp-related').getByRole('link', { name: 'Gateway tester' }).click({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/agent-gateway-capabilities$/, { timeout: 15000 });
+  });
+
+  test('the old /pinggateway-inspector URL redirects to /agent-gateway-inspector', async ({ page }) => {
+    await mockGatewayInspector(page);
+    await page.goto('/pinggateway-inspector');
+    await expect(page).toHaveURL(/\/agent-gateway-inspector$/, { timeout: 15000 });
+  });
+
+  test('the old /pinggateway-test URL redirects to /agent-gateway-capabilities', async ({ page }) => {
+    await mockGatewayInspector(page);
+    await page.goto('/pinggateway-test');
+    await expect(page).toHaveURL(/\/agent-gateway-capabilities$/, { timeout: 15000 });
   });
 });

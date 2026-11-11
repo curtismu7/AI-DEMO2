@@ -5,6 +5,10 @@
 
 const { test, expect } = require('@playwright/test');
 
+// Hard-wired to the shared local stack (https://api.ping.demo:4000), not the dev server under test. Opt in
+// with E2E_LIVE_STACK=1 when that stack is up; otherwise skip cleanly instead of failing on an unreachable host.
+test.skip(!process.env.E2E_LIVE_STACK, 'needs the live local stack at https://api.ping.demo:4000 (set E2E_LIVE_STACK=1)');
+
 test.describe('Token Chain Redesign - Full QA Suite', () => {
   const testResults = {
     passed: [],

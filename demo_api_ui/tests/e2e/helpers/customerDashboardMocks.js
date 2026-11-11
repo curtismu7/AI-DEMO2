@@ -51,6 +51,14 @@ async function mockCustomerDashboard(page, opts = {}) {
   const user = opts.user || DEFAULT_CUSTOMER;
   const accountsBody = opts.accountsResponse || SAMPLE_ACCOUNTS;
 
+  // Lowest-priority catch-all (Playwright runs the most recently added matching route first, so every
+  // specific stub below wins). Without it an /api call the page makes that nobody stubbed goes to
+  // whatever answers the dev-server proxy: a running BFF replies 401 and the global "Sign in required"
+  // modal covers the page, no BFF replies 5xx and the same spec passes by accident. Empty 200 either way.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
+
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill({
       status: 200,
@@ -142,6 +150,17 @@ async function mockCustomerDashboard(page, opts = {}) {
           { id: 'ff_customer_skin_ping2026', value: false },
         ],
       }),
+    }),
+  );
+
+  // AdminSideNav fetches the per-user sidebar customization for any signed-in user. Unstubbed, a running
+  // BFF answers 401 and the global "Sign in required" modal covers the page; with no BFF it only passes
+  // by accident (proxy error). Full nav, nothing hidden.
+  await page.route('**/api/user/nav-config', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ hiddenLabels: [], activeConfigId: null, navOrder: null, childOrder: null, flagOn: false }),
     }),
   );
 

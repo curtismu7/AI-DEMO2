@@ -18,6 +18,22 @@ test.describe('AG-UI HITL interrupt (mocked)', () => {
     });
     await mockHitlDashboard(page, { agui: true });
 
+    // The AG-UI run path (POST /api/agent/run) is only taken in an LLM agent mode; the default
+    // Heuristics mode (provider null) goes through /api/demo-agent/nl by design. Select llama.cpp.
+    await page.route('**/api/langchain/config/status**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          provider: 'llamacpp',
+          agent_mode: 'llamacpp',
+          key_set: { llamacpp: true },
+          default_models: {},
+          agent_modes: [],
+        }),
+      }),
+    );
+
     await page.route('**/api/agent/run', async (route) => {
       if (route.request().method() !== 'POST') return route.continue();
       return route.fulfill({

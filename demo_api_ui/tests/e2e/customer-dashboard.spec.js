@@ -14,6 +14,9 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     try {
       localStorage.removeItem('userLoggedOut');
+      // The default (middle) layout is the Focus Mode agent page with NO banking column: balances come
+      // from the agent. Accounts, transactions and the Log Out button render in the float-only layout.
+      localStorage.setItem('banking_agent_ui_v2', JSON.stringify({ placement: 'none', fab: true }));
     } catch (_) {}
   });
 });
@@ -70,7 +73,7 @@ test.describe('Customer dashboard (UserDashboard)', () => {
     await expect(page.getByRole('heading', { name: 'Your Accounts' })).toBeVisible({ timeout: 15000 });
   });
 
-  test('Log Out button navigates to unified /api/auth/logout', async ({ page }) => {
+  test('Sign Out control navigates to unified /api/auth/logout', async ({ page }) => {
     await mockCustomerDashboard(page);
     await page.route('**/api/auth/logout**', (route) =>
       route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' }),
@@ -78,7 +81,8 @@ test.describe('Customer dashboard (UserDashboard)', () => {
 
     await page.goto('/dashboard');
     await dismissBankingAgentPanel(page);
-    const logoutBtn = page.getByRole('button', { name: 'Log Out' });
+    // The side nav's icon-only "Sign Out" item (the old text "Log Out" button is gone).
+    const logoutBtn = page.getByRole('button', { name: /^sign out$/i });
     await expect(logoutBtn).toBeVisible({ timeout: 15000 });
 
     const logoutReq = page.waitForRequest(
@@ -86,6 +90,10 @@ test.describe('Customer dashboard (UserDashboard)', () => {
       { timeout: 15000 },
     );
     await logoutBtn.click();
+    // Sign Out asks first ("Sign out?"); the request goes only after the confirm.
+    const confirm = page.getByRole('dialog', { name: 'Sign out?' });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', { name: 'Sign Out', exact: true }).click();
     const req = await logoutReq;
     expect(req.url()).toMatch(/\/api\/auth\/logout/);
   });
@@ -120,15 +128,20 @@ test.describe('Customer dashboard (UserDashboard)', () => {
     );
     // Route is open to all users; the sidebar link is hidden for customers but the page is accessible
     await page.goto('/mcp-inspector');
-    await expect(page).toHaveURL(/\/mcp-inspector/, { timeout: 15000 });
-    await expect(page.getByRole('heading', { name: 'MCP Inspector' })).toBeVisible({ timeout: 15000 });
+    // /mcp-inspector now redirects to the unified inspector (source=banking).
+    await expect(page).toHaveURL(/\/pingone-mcp-inspector\?source=banking/, { timeout: 15000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'MCP Inspector' })).toBeVisible({ timeout: 15000 });
   });
 
-  test('redirects /admin to home for customer session', async ({ page }) => {
+  test('a customer at /admin gets the admin sign-in prompt, and Cancel goes home', async ({ page }) => {
     await mockCustomerDashboard(page);
     await page.goto('/admin');
-    await dismissBankingAgentPanel(page);
 
+    // RequireAdminLogin never silently redirects: non-admins see why the page needs an admin session.
+    const prompt = page.getByRole('dialog', { name: 'Admin sign-in required' });
+    await expect(prompt).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Customer dashboard' })).toHaveCount(0);
+    await prompt.getByRole('button', { name: 'Cancel' }).click();
     await expect(page).not.toHaveURL(/\/admin$/);
   });
 });

@@ -1,11 +1,11 @@
 /**
  * @file mcp-inspector.spec.js
- * @description Functional smoke for the Demo MCP Inspector (/mcp-inspector).
- * Covers the schema-driven invoke flow that replaced the raw JSON textarea:
- *   1. The tabbed tool catalog renders chips (Read / Write / Reasoning).
- *   2. Selecting a chip opens the per-parameter form, not a JSON textarea.
- *   3. Calling with a missing required param is blocked client-side.
- *   4. A valid Call hits /invoke and surfaces "Completed in N ms" + Last result.
+ * @description Functional smoke for the MCP Inspector reached at /mcp-inspector, which now redirects to the
+ * unified inspector (/pingone-mcp-inspector?source=banking). Covers the schema-driven invoke flow:
+ *   1. /mcp-inspector lands on the unified inspector with the tools table (both stub tools listed).
+ *   2. Picking a tool opens the per-parameter form, not a JSON textarea.
+ *   3. Sending with a missing required param is blocked client-side (nothing is posted).
+ *   4. A valid Send hits /invoke and shows "What the tool returned" plus a row in the Calls list.
  *
  * Auth + MCP endpoints are intercepted — no live API/MCP server required.
  *
@@ -51,29 +51,19 @@ const INVOKE_RESULT = {
   },
 };
 
+const invokeCalls = [];
 const json = (body) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
 async function mockInspector(page) {
-  // Broad data stubs first (mirrors url-smoke.spec.js). More specific MCP
-  // inspector routes are registered LAST so they win — Playwright matches route
-  // handlers in reverse registration order.
-  const stubs = [
-    ['**/api/users**', { users: [], total: 0 }],
-    ['**/api/accounts**', { accounts: [] }],
-    ['**/api/transactions**', { transactions: [] }],
-    ['**/api/admin/**', {}],
-    ['**/api/token-chain**', { tokenChain: [], mcpToolCallsChain: [], metadata: {} }],
-    ['**/api/mcp/**', {}],
-    ['**/api/monitoring/**', {}],
-    ['**/api/config**', {}],
-    ['**/api/feature-flags**', { flags: {} }],
-    ['**/api/pingone/**', {}],
-    ['**/api/langchain/**', {}],
-    ['**/api/health/**', { status: 'ok' }],
-  ];
-  for (const [pattern, body] of stubs) {
-    await page.route(pattern, (route) => route.fulfill(json(body)));
-  }
+  // Lowest-priority catch-all first (the most recently added matching route runs first, so everything below
+  // wins): an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running
+  // BFF replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) => route.fulfill(json({})));
+  await page.route('**/api/admin/feature-flags**', (route) => route.fulfill(json({ flags: [] })));
+  await page.route('**/api/config/vertical**', (route) => route.fulfill(json({ manifest: null })));
+  await page.route('**/api/token-chain**', (route) =>
+    route.fulfill(json({ tokenChain: [], mcpToolCallsChain: [], metadata: {} })),
+  );
 
   // Admin-authenticated session.
   await page.route('**/api/auth/oauth/status', (route) =>
@@ -82,49 +72,58 @@ async function mockInspector(page) {
   await page.route('**/api/auth/oauth/user/status', (route) =>
     route.fulfill(json({ authenticated: false })),
   );
+  await page.route('**/api/auth/session**', (route) =>
+    route.fulfill(json({ authenticated: true, user: ADMIN_USER })),
+  );
 
   // MCP inspector endpoints the page drives (registered last → take precedence).
-  await page.route('**/api/mcp/inspector/context', (route) =>
-    route.fulfill(json({ mcpHosts: null, flow: [], mcpProtocolVersion: '2025-06-18' })),
-  );
-  await page.route('**/api/mcp/inspector/tools', (route) =>
+  await page.route('**/api/mcp/inspector/tools**', (route) =>
     route.fulfill(json({ tools: TOOLS, _source: 'mcp_server', frames: null })),
   );
-  await page.route('**/api/mcp/inspector/invoke', (route) =>
-    route.fulfill(json(INVOKE_RESULT)),
-  );
+  await page.route('**/api/mcp/inspector/invoke', (route) => {
+    invokeCalls.push(route.request().postDataJSON());
+    return route.fulfill(json(INVOKE_RESULT));
+  });
 }
 
-test.describe('Demo MCP Inspector — chip → Call → result', () => {
+const toolRow = (page, name) => page.locator('.insp-tools__pick', { hasText: new RegExp(`^${name}$`) });
+
+test.describe('MCP Inspector — pick a tool → Send → result', () => {
   test.beforeEach(async ({ page }) => {
+    invokeCalls.length = 0;
     await mockInspector(page);
   });
 
-  test('renders the tabbed catalog and the renamed title', async ({ page }) => {
+  test('/mcp-inspector lands on the unified inspector and lists the catalog', async ({ page }) => {
     await page.goto('/mcp-inspector', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Demo MCP Inspector', level: 1 })).toBeVisible();
-    // Read tab shows both stub tools; Reasoning shows none.
-    await expect(page.getByRole('tab', { name: /Read/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'get_my_accounts', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'get_account_balance', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/pingone-mcp-inspector\?source=banking/, { timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'MCP Inspector', level: 1 })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.insp-tools__count')).toHaveText('2 tools', { timeout: 15000 });
+    await expect(toolRow(page, 'get_my_accounts')).toBeVisible();
+    await expect(toolRow(page, 'get_account_balance')).toBeVisible();
   });
 
-  test('blocks Call when a required param is empty, then succeeds when filled', async ({ page }) => {
+  test('blocks Send when a required param is empty, then succeeds when filled', async ({ page }) => {
     await page.goto('/mcp-inspector', { waitUntil: 'domcontentloaded' });
 
-    // Select the tool with a required param → schema form (not a JSON textarea).
-    await page.getByRole('button', { name: 'get_account_balance', exact: true }).click();
-    await expect(page.locator('#mcp-param-account_id')).toBeVisible();
+    // Pick the tool with a required param → schema form (not a JSON textarea).
+    await toolRow(page, 'get_account_balance').click({ timeout: 15000 });
+    const accountId = page.getByLabel(/^account_id/);
+    await expect(accountId).toBeVisible();
 
-    // Call with the field empty → client-side block, no result line.
-    await page.getByRole('button', { name: 'Call get_account_balance' }).click();
+    // Send with the field empty → client-side block: a "Required" message, nothing posted, no result card.
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByText('Required: account_id')).toBeVisible();
-    await expect(page.getByText(/Completed in/)).toHaveCount(0);
+    expect(invokeCalls).toHaveLength(0);
+    await expect(page.getByRole('region', { name: 'What the tool returned' })).toHaveCount(0);
 
-    // Fill the param and call → success status + Last result panel.
-    await page.locator('#mcp-param-account_id').fill('acc-123');
-    await page.getByRole('button', { name: 'Call get_account_balance' }).click();
-    await expect(page.getByText(/Completed in \d+ ms/)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Last result' })).toBeVisible();
+    // Fill the param and Send → the call is posted and its result shown.
+    await accountId.fill('acc-123');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    const result = page.getByRole('region', { name: 'What the tool returned' });
+    await expect(result).toBeVisible({ timeout: 15000 });
+    await expect(result.getByText('Balance: $1,234.56')).toBeVisible();
+    expect(invokeCalls).toHaveLength(1);
+    expect(invokeCalls[0]).toMatchObject({ tool: 'get_account_balance', params: { account_id: 'acc-123' } });
   });
 });

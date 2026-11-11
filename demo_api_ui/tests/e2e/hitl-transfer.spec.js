@@ -27,6 +27,9 @@ test.describe('Transaction HITL consent (mocked)', () => {
   test('agent HITL event opens consent modal and completes with OTP 123123', async ({ page }) => {
     await page.goto('/dashboard');
     await ensureInlineAgent(page);
+    // The agent panel mounts before the dashboard's lazy chunk; the consent event is only heard once the
+    // dashboard itself (its h1) has rendered.
+    await expect(page.getByRole('heading', { level: 1, name: 'Customer dashboard' })).toBeVisible({ timeout: 20000 });
 
     await page.evaluate(() => {
       window.dispatchEvent(
@@ -48,6 +51,13 @@ test.describe('Transaction HITL consent (mocked)', () => {
   });
 
   test('dashboard transfer form triggers HITL consent and completes with OTP 123123', async ({ page }) => {
+    // Accounts and the transfer form render in the float-only layout; the default Focus Mode layout has
+    // no banking column (balances come from the agent).
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('banking_agent_ui_v2', JSON.stringify({ placement: 'none', fab: true }));
+      } catch (_) {}
+    });
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: 'Your Accounts' })).toBeVisible({ timeout: 20000 });
 

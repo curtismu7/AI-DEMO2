@@ -1,15 +1,19 @@
 /**
  * @file agent-flow-inspector.spec.js
- * @description Playwright E2E smoke for the Agent Flow Inspector (/agent-flow-inspector).
+ * @description Playwright E2E smoke for /agent-flow-inspector, which is the
+ * "Agent & Token Flow History" page (AgentFlowHistoryPage): a master-detail
+ * view of past agent runs. (It used to host the live three-tab
+ * UnifiedTokenFlowInspector; that now lives in the floating DevTools overlay.)
  *
  * Covers:
- *   - Page renders the UnifiedTokenFlowInspector with 3 tabs
- *   - Default active tab is "Flow & Tokens"
- *   - Tab switching works (Token Chain, Token Transform)
- *   - "Flow & Tokens" tab is accessible
- *   - Unauthenticated user is redirected
+ *   - Page title and heading
+ *   - Run list from GET /api/agent-flow-history: loading is replaced by runs,
+ *     the empty state, and the load-error state with "Try again"
+ *   - The newest run is selected by default; picking another selects it
+ *   - The page is public: it renders for a signed-out visitor
  *
- * All network calls are intercepted — no live server required.
+ * Every /api call is stubbed (an empty 200 by default) — no live server needed,
+ * and a running BFF cannot answer 401 and cover the page with its sign-in modal.
  *
  * Run:
  *   cd demo_api_ui
@@ -18,159 +22,114 @@
 
 const { test, expect } = require('@playwright/test');
 
-const ADMIN_USER = {
-  id: 'admin-flow-id',
-  username: 'admin',
-  email: 'admin@example.com',
-  firstName: 'Admin',
-  lastName: 'Flow',
-  name: 'Admin Flow',
-  role: 'admin',
-};
-
-const GATEWAY_CONFIG = {
-  mock: { url: 'http://localhost:8080', running: false, devBypass: false, enabled: false },
-  config: {
-    upstreamMcpUrl: '',
-    mcpOlbResourceUri: '',
-    pingOneEnvUrl: '',
-    introspectEndpoint: '',
-    gatewayPublicUrl: '',
-    pingOneResourceId: '',
-    mcpScope: 'mcp:invoke',
-  },
-  envVars: {},
-  mcpMode: 'custom',
-  pingGatewayJson: {},
-  pingGatewayAdminJson: {},
-};
-
-const json = (body) => ({
-  status: 200,
+const json = (body, status = 200) => ({
+  status,
   contentType: 'application/json',
   body: JSON.stringify(body),
 });
 
-async function mockFlowInspector(page, { user = ADMIN_USER } = {}) {
+const RUNS = [
+  {
+    runId: 'run_2', userId: 'u1', vertical: 'banking', prompt: 'show my balance',
+    startedAt: '2026-08-15T10:00:00.000Z', completedAt: '2026-08-15T10:00:05.000Z',
+    toolsCalled: ['get_account_balance'], tokenEvents: [], success: true, agentPath: 'invoke',
+  },
+  {
+    runId: 'run_1', userId: 'u1', vertical: 'pingone-admin', prompt: 'list the populations',
+    startedAt: '2026-08-15T09:00:00.000Z', completedAt: '2026-08-15T09:00:03.000Z',
+    toolsCalled: [], tokenEvents: [], success: false, agentPath: 'admin-agent',
+  },
+];
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {{ signedIn?: boolean, history?: (route: import('@playwright/test').Route) => unknown }} [opts]
+ */
+async function mockHistory(page, { signedIn = true, history } = {}) {
+  const user = { id: 'admin-flow-id', username: 'admin', email: 'admin@example.com', role: 'admin' };
+  // Lowest priority: any other /api call gets an empty 200 (the most recently added route runs first).
+  await page.route('**/api/**', (route) => route.fulfill(json({})));
   await page.route('**/api/auth/oauth/status', (route) =>
-    route.fulfill(json({ authenticated: true, user }))
-  );
-  await page.route('**/api/auth/oauth/user/status', (route) =>
-    route.fulfill(json({ authenticated: false }))
-  );
-  await page.route('**/api/users**', (route) => route.fulfill(json({ users: [], total: 0 })));
-  await page.route('**/api/accounts**', (route) => route.fulfill(json({ accounts: [] })));
-  await page.route('**/api/transactions**', (route) => route.fulfill(json({ transactions: [] })));
-  await page.route('**/api/admin/config**', (route) =>
-    route.fulfill(json({ agent_ui_mode: 'standard', ff_use_cases_launcher: true }))
-  );
-  await page.route('**/api/api-calls**', (route) => route.fulfill(json({ calls: [] })));
-  await page.route('**/api/mcp/**', (route) => route.fulfill(json({ tools: [], calls: [] })));
-  await page.route('**/api/admin/mcp-gateway/config**', (route) =>
-    route.fulfill(json(GATEWAY_CONFIG))
-  );
+    route.fulfill(json(signedIn ? { authenticated: true, user } : { authenticated: false })));
+  await page.route('**/api/auth/oauth/user/status', (route) => route.fulfill(json({ authenticated: false })));
+  await page.route('**/api/auth/session**', (route) =>
+    route.fulfill(json(signedIn ? { authenticated: true, user } : { authenticated: false })));
+  await page.route('**/api/admin/config**', (route) => route.fulfill(json({ config: {} })));
+  await page.route('**/api/admin/feature-flags**', (route) => route.fulfill(json({ flags: [] })));
+  await page.route('**/api/config/vertical**', (route) => route.fulfill(json({ manifest: null })));
+  await page.route('**/api/token-chain**', (route) => route.fulfill(json({ tokenEvents: [] })));
+  await page.route('**/api/tokens/session-preview**', (route) => route.fulfill(json({ tokenEvents: [] })));
+  await page.route('**/ws**', (route) => route.abort());
+  await page.route('**/api/agent-flow-history**', history || ((route) => route.fulfill(json({ runs: RUNS }))));
 }
+
+const historyList = (page) => page.getByRole('complementary', { name: 'Run history' });
+const runButton = (page, prompt) => historyList(page).getByRole('button', { name: new RegExp(prompt) });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Agent Flow Inspector — page load', () => {
-  test('renders the Flow & Tokens tab by default', async ({ page }) => {
-    await mockFlowInspector(page);
+  test('renders the Agent & Token Flow History heading and sets the page title', async ({ page }) => {
+    await mockHistory(page);
     await page.goto('/agent-flow-inspector');
-    await expect(
-      page.getByRole('tab', { name: 'Flow & Tokens' })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Agent & Token Flow History' })).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveTitle('Agent & Token Flow History');
   });
 
-  test('Flow & Tokens tab is selected by default', async ({ page }) => {
-    await mockFlowInspector(page);
+  test('lists the recorded runs with their status and prompt', async ({ page }) => {
+    await mockHistory(page);
     await page.goto('/agent-flow-inspector');
-    const tab = page.getByRole('tab', { name: 'Flow & Tokens' });
-    await tab.waitFor({ timeout: 10000 });
-    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    await expect(runButton(page, 'show my balance')).toBeVisible({ timeout: 15000 });
+    await expect(runButton(page, 'show my balance')).toContainText('Success');
+    await expect(runButton(page, 'list the populations')).toContainText('Failed');
   });
 
-  test('Token Chain tab is present', async ({ page }) => {
-    await mockFlowInspector(page);
+  test('shows the empty state when there is no history', async ({ page }) => {
+    await mockHistory(page, { history: (route) => route.fulfill(json({ runs: [] })) });
     await page.goto('/agent-flow-inspector');
-    await expect(page.getByRole('tab', { name: 'Token Chain' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('No agent runs recorded yet.')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Select a run from the history list to inspect it.')).toBeVisible();
   });
 
-  test('Token Transform tab is present', async ({ page }) => {
-    await mockFlowInspector(page);
+  test('shows the load error and "Try again" refetches the list', async ({ page }) => {
+    // Flag, not a call count: the dev server's StrictMode runs the page's fetch effect twice.
+    let failing = true;
+    await mockHistory(page, {
+      history: (route) => (failing
+        ? route.fulfill(json({ error: 'boom' }, 500))
+        : route.fulfill(json({ runs: RUNS }))),
+    });
     await page.goto('/agent-flow-inspector');
-    await expect(page.getByRole('tab', { name: 'Token Transform' })).toBeVisible({ timeout: 10000 });
-  });
-});
-
-test.describe('Agent Flow Inspector — tab switching', () => {
-  test('clicking Token Chain tab makes it active', async ({ page }) => {
-    await mockFlowInspector(page);
-    await page.goto('/agent-flow-inspector');
-    // Scope to .utfi-tabs — TokenChainTraceRail also renders a "Token Chain" tab inside
-    const tab = page.locator('.utfi-tabs').getByRole('tab', { name: 'Token Chain' });
-    await tab.waitFor({ timeout: 10000 });
-    await tab.click();
-    await expect(tab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  test('clicking Token Transform tab makes it active', async ({ page }) => {
-    await mockFlowInspector(page);
-    await page.goto('/agent-flow-inspector');
-    const tab = page.locator('.utfi-tabs').getByRole('tab', { name: 'Token Transform' });
-    await tab.waitFor({ timeout: 10000 });
-    await tab.click();
-    await expect(tab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  test('switching away from Flow & Tokens deselects it', async ({ page }) => {
-    await mockFlowInspector(page);
-    await page.goto('/agent-flow-inspector');
-    const flowTab = page.locator('.utfi-tabs').getByRole('tab', { name: 'Flow & Tokens' });
-    const chainTab = page.locator('.utfi-tabs').getByRole('tab', { name: 'Token Chain' });
-    await chainTab.waitFor({ timeout: 10000 });
-    await chainTab.click();
-    await expect(flowTab).toHaveAttribute('aria-selected', 'false');
-  });
-
-  test('Token Transform tab shows RFC 8693 hint text', async ({ page }) => {
-    await mockFlowInspector(page);
-    await page.goto('/agent-flow-inspector');
-    const tab = page.locator('.utfi-tabs').getByRole('tab', { name: 'Token Transform' });
-    await tab.waitFor({ timeout: 10000 });
-    await tab.click();
-    // Scope to the transform-view hint paragraph to avoid strict mode with other RFC refs
-    await expect(page.locator('.utfi-rfc-inline-hint')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Failed to load run history.')).toBeVisible({ timeout: 15000 });
+    failing = false;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(runButton(page, 'show my balance')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Failed to load run history.')).toHaveCount(0);
   });
 });
 
-test.describe('Agent Flow Inspector — auth guard', () => {
-  test('unauthenticated user does not see inspector tabs', async ({ page }) => {
-    // The deep-link route is inside a nested AppShell that may not redirect cleanly
-    // in tests, but the UnifiedTokenFlowInspector itself requires auth to render.
-    // Verify the inspector tablist is absent when auth returns unauthenticated.
-    await page.route('**/api/auth/oauth/status', (route) =>
-      route.fulfill(json({ authenticated: false }))
-    );
-    await page.route('**/api/auth/oauth/user/status', (route) =>
-      route.fulfill(json({ authenticated: false }))
-    );
-    await page.route('**/api/admin/config**', (route) =>
-      route.fulfill(json({ agent_ui_mode: 'standard' }))
-    );
-    await page.route('**/api/admin/mcp-gateway/config**', (route) =>
-      route.fulfill(json({ mock: {}, config: {}, envVars: {}, mcpMode: 'custom', pingGatewayJson: {}, pingGatewayAdminJson: {} }))
-    );
+test.describe('Agent Flow Inspector — selecting a run', () => {
+  test('the newest run is selected by default', async ({ page }) => {
+    await mockHistory(page);
     await page.goto('/agent-flow-inspector');
-    await page.waitForTimeout(2000);
-    // Either redirected away OR the tablist never mounted
-    const tablist = page.locator('.utfi-tabs');
-    const onPage = page.url().includes('/agent-flow-inspector');
-    if (onPage) {
-      // If the shell rendered without redirect, the tablist must not be visible
-      await expect(tablist).not.toBeVisible();
-    } else {
-      expect(page.url()).not.toContain('/agent-flow-inspector');
-    }
+    await expect(runButton(page, 'show my balance')).toHaveAttribute('aria-current', 'true', { timeout: 15000 });
+    await expect(runButton(page, 'list the populations')).toHaveAttribute('aria-current', 'false');
+  });
+
+  test('clicking another run selects it and deselects the first', async ({ page }) => {
+    await mockHistory(page);
+    await page.goto('/agent-flow-inspector');
+    await runButton(page, 'list the populations').click({ timeout: 15000 });
+    await expect(runButton(page, 'list the populations')).toHaveAttribute('aria-current', 'true');
+    await expect(runButton(page, 'show my balance')).toHaveAttribute('aria-current', 'false');
+  });
+});
+
+test.describe('Agent Flow Inspector — signed out', () => {
+  test('the page is public: a signed-out visitor still gets the history view', async ({ page }) => {
+    await mockHistory(page, { signedIn: false });
+    await page.goto('/agent-flow-inspector');
+    await expect(page.getByRole('heading', { level: 1, name: 'Agent & Token Flow History' })).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/agent-flow-inspector/);
   });
 });

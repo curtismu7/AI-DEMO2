@@ -89,6 +89,12 @@ const SAMPLE_TRANSACTION_CONFIRM = {
  * Mock both OAuth status endpoints as unauthenticated.
  */
 async function mockUnauthenticated(page) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  );
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ authenticated: false, user: null }) })
@@ -98,13 +104,20 @@ async function mockUnauthenticated(page) {
       body: JSON.stringify({ authenticated: false, user: null }) })
   );
   await page.route('**/ws**', (route) => route.abort());
-  await page.route('**/mcp**', (route) => route.abort());
+  // Not '**/mcp**': that glob also matched dev-server modules such as /src/services/mcpCallStore.js.
+  await page.route((url) => url.pathname === '/mcp' || url.pathname.startsWith('/mcp/'), (route) => route.abort());
 }
 
 /**
  * Mock both OAuth status endpoints as a logged-in customer and stub data APIs.
  */
 async function mockAuthenticatedCustomer(page, user = CUSTOMER_USER) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  );
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ authenticated: false, user: null }) })
@@ -162,13 +175,20 @@ async function mockAuthenticatedCustomer(page, user = CUSTOMER_USER) {
       body: JSON.stringify({ status: 'ok' }) })
   );
   await page.route('**/ws**', (route) => route.abort());
-  await page.route('**/mcp**', (route) => route.abort());
+  // Not '**/mcp**': that glob also matched dev-server modules such as /src/services/mcpCallStore.js.
+  await page.route((url) => url.pathname === '/mcp' || url.pathname.startsWith('/mcp/'), (route) => route.abort());
 }
 
 /**
  * Mock admin OAuth status (admin user logged in via /api/auth/oauth/status).
  */
 async function mockAuthenticatedAdmin(page, user = ADMIN_USER) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  );
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ authenticated: true, user }) })
@@ -241,7 +261,8 @@ async function mockAuthenticatedAdmin(page, user = ADMIN_USER) {
       ] }) })
   );
   await page.route('**/ws**', (route) => route.abort());
-  await page.route('**/mcp**', (route) => route.abort());
+  // Not '**/mcp**': that glob also matched dev-server modules such as /src/services/mcpCallStore.js.
+  await page.route((url) => url.pathname === '/mcp' || url.pathname.startsWith('/mcp/'), (route) => route.abort());
 }
 
 /**
@@ -263,7 +284,12 @@ async function mockMcpTool(page, result) {
 async function openAdminToolsPanel(page) {
   const panel = page.locator('.ba-admin-tools-float');
   if (!(await panel.isVisible().catch(() => false))) {
-    await page.locator('[data-testid="admin-tools-trigger"]').click();
+    // The trigger lives in the Command Dock, which opens from the "Demo Controls" pill.
+    const trigger = page.locator('[data-testid="admin-tools-trigger"]');
+    if (!(await trigger.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
+    }
+    await trigger.click();
     await expect(panel).toBeVisible({ timeout: 10000 });
   }
   return panel;
@@ -377,9 +403,11 @@ test.describe('BankingAgent — Authenticated (customer logged in)', () => {
     await ensureAgentReady(page);
     // The old `.ba-left-col` "My Dashboard" nav button does not exist in inline
     // split-column chrome (the agent IS the dashboard surface there). The
-    // equivalent signed-in affordance is the split-column header sign-out.
+    // equivalent signed-in affordance is the "Sign out" button in the Demo
+    // Controls dock, which opens from the "Demo Controls" pill.
+    await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
     await expect(
-      page.locator('.banking-agent-panel .ba-header-signout', { hasText: 'Sign out' })
+      page.locator('.cmd-dock-panel .ba-header-signout-btn', { hasText: 'Sign out' })
     ).toBeVisible();
   });
 
