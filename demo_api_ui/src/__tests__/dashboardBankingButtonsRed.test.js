@@ -271,7 +271,7 @@ function fillStops(map, value) {
   return [...resolved.matchAll(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi)].map((m) => m[0]);
 }
 
-describe('the white label on the Ping Red fill is 4.5:1 or better, in light and dark', () => {
+describe('the white label on the fill is 4.5:1 or better, in light and dark', () => {
   for (const theme of ['light', 'dark']) {
     for (const cls of OWN) {
       for (const [state] of STATES) {
@@ -283,9 +283,16 @@ describe('the white label on the Ping Red fill is 4.5:1 or better, in light and 
           expect(label, 'the label is white').toEqual([255, 255, 255]);
           const stops = fillStops(map, w.background.value);
           expect(stops.length, `fill stops in ${w.background.value}`).toBeGreaterThan(0);
+          // Enabled states are the Ping Red gradient; disabled is the shared NEUTRAL GREY inactive style
+          // (--btn-accent-inactive*, AI-DEMO-Standalone #190) — never a faded red and never a vertical colour.
+          const isDisabled = state === 'disabled';
           for (const stop of stops) {
             const [r, g, b] = rgbOf(stop);
-            expect(r - Math.max(g, b), `${stop} is a red`).toBeGreaterThanOrEqual(40);
+            if (isDisabled) {
+              expect(r - Math.max(g, b), `${stop} is neutral grey (not red)`).toBeLessThan(20);
+            } else {
+              expect(r - Math.max(g, b), `${stop} is a red`).toBeGreaterThanOrEqual(40);
+            }
             expect(ratio(label, rgbOf(stop)), `white on ${stop} (${theme}, .${cls} ${state})`).toBeGreaterThanOrEqual(4.5);
           }
         });
