@@ -965,7 +965,9 @@ body {
    gets the fixed Ping value on a button, so a violet vertical (workforce, oauth-teaching)
    cannot turn one violet. The --app-primary-red* family is repointed rule by rule;
    it is re-stated here only so a button added later cannot pick up a vertical's red.
-   Inside .user-dashboard the blue tokens are already fixed by that file. */
+   This rule does not apply inside .user-dashboard: UserDashboard.css repoints --app-primary-red* there (to a slate
+   blue) and leaves --app-primary-blue* at the vertical's value computed at :root, so a button in the dashboard must
+   read the fixed --btn-accent* tokens directly (the pattern check enforces that for /dashboard). */
 :is(button, .btn, [role="button"], input[type="button"], input[type="submit"], a[class*="btn"], a[class*="button"]):not(.user-dashboard *) {
   --app-primary-red: var(--btn-accent);
   --app-primary-red-mid: var(--btn-accent);
