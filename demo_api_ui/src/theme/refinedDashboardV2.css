@@ -1045,12 +1045,14 @@
   cursor: pointer;
   transition: all 150ms ease-out;
 }
+/* The one primary in a banking form (Transfer / Deposit / Withdraw) is Ping Red, like every other primary:
+   buttons never take a vertical's colour. Cancel (type="button") stays the grey secondary below. */
 [data-rd-v2] .form-actions button[type="submit"] {
-  background: var(--theme-accent, #051727);
-  color: #ffffff;
+  background: var(--btn-accent);
+  color: var(--btn-accent-text);
 }
-[data-rd-v2] .form-actions button[type="submit"]:hover {
-  opacity: .88;
+[data-rd-v2] .form-actions button[type="submit"]:hover:not(:disabled) {
+  background: var(--btn-accent-hover);
 }
 [data-rd-v2] .form-actions button[type="button"] {
   background: var(--rd2-surface-2, #f3f3f1);
