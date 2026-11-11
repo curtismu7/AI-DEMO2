@@ -83,6 +83,7 @@ const PlatformGapsPage = lazyWithRetry(() => import("./components/agentStudioPre
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 const OwaspLearnerPage = lazyWithRetry(() => import("./components/OwaspLearnerPage"));
+const PrivilegeOwaspTop10Page = lazyWithRetry(() => import("./components/PrivilegeOwaspTop10Page"));
 const PrivilegeAiDemoPage = lazyWithRetry(() => import("./pages/PrivilegeAiDemoPage"));
 const McpScannerPage = lazyWithRetry(() => import("./pages/McpScannerPage"));
 const UngovernedAgentPage = lazyWithRetry(() => import("./components/UngovernedAgentPage"));
@@ -2371,6 +2372,10 @@ function AppWithAuth() {
                             <Route
                               path="/owasp"
                               element={<OwaspLearnerPage />}
+                            />
+                            <Route
+                              path="/privilege-owasp-top10"
+                              element={<PrivilegeOwaspTop10Page />}
                             />
                             <Route
                               path="/privilege-for-ai"

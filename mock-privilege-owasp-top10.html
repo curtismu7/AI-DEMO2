@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OWASP Agentic AI Top 10 — Privilege coverage (mock)</title>
+<style>
+  :root {
+    --font-primary: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    --th-bg-page: #f6f7f9;
+    --th-bg-card: #ffffff;
+    --th-bg-inset: #eff0f1;
+    --th-bg-band: #051727;
+    --th-text: #051727;
+    --th-text-body: #263746;
+    --th-text-muted: #556070;
+    --th-border: #dbe2ea;
+    --th-border-strong: #c3cdd9;
+    --control-border: #6f7c8a;
+    --btn-accent: #d20e0f;
+    --th-status-success: #16a34a;
+    --th-status-success-text: #14532d;
+    --th-status-warning: #b45309;
+    --th-status-warning-text: #78350f;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 999px;
+    --shadow-sm: 0 1px 2px rgba(5,23,39,0.06);
+    --font-size-h1: 28px;
+    --font-size-3xl: 20px;
+    --font-size-lg: 17px;
+    --font-size-base: 15px;
+    --font-size-sm: 13px;
+    --font-size-2xs: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--th-bg-page);
+    color: var(--th-text);
+    font-family: var(--font-primary);
+    line-height: 1.55;
+  }
+  .mock-note {
+    max-width: 1100px; margin: 8px auto 0; padding: 6px 16px;
+    font-size: var(--font-size-2xs); color: var(--th-text-muted);
+  }
+
+  /* P2 banner */
+  .pu-banner-wrap { max-width: 1100px; margin: 0 auto; padding: 12px 16px 0; }
+  .pu-banner {
+    padding: 10px 12px; border: 1px solid var(--th-border-strong);
+    border-left: 4px solid var(--btn-accent); border-radius: var(--radius-lg);
+    background: var(--th-bg-inset); font-size: var(--font-size-sm);
+  }
+
+  /* Page header band */
+  .ping-page-header {
+    max-width: 1100px; margin: 12px auto 0; padding: 28px 32px;
+    background: linear-gradient(90deg, var(--th-bg-band) 58%, #12538d);
+    border-radius: var(--radius-xl); color: #fff;
+  }
+  .ping-page-header__eyebrow {
+    margin: 0 0 6px; font-size: var(--font-size-2xs); font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; opacity: .8;
+  }
+  .ping-page-header__title { margin: 0 0 8px; font-size: var(--font-size-h1); font-weight: 700; letter-spacing: -.01em; }
+  .ping-page-header__summary { max-width: 720px; margin: 0; font-size: var(--font-size-base); color: rgba(255,255,255,.85); }
+  .ping-page-header__badge {
+    display: inline-block; margin-top: 12px; padding: 3px 12px;
+    border: 1px solid rgba(255,255,255,.45); border-radius: var(--radius-pill);
+    font-size: var(--font-size-2xs); font-weight: 700; letter-spacing: .04em;
+  }
+
+  /* P3 frame */
+  .pu-frame { max-width: 1100px; margin: 0 auto; padding: 8px 16px 64px; }
+  .pu-kicker {
+    margin: 32px 0 4px; font-size: var(--font-size-2xs); font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--th-text-muted);
+  }
+  .pu-h2 { margin: 0 0 4px; font-size: var(--font-size-lg); font-weight: 700; }
+  .pu-lede { margin: 0 0 12px; max-width: 78ch; font-size: var(--font-size-sm); color: var(--th-text-body); }
+
+  /* P4 cards */
+  .pu-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; margin: 12px 0; align-items: start; }
+  .pu-card {
+    padding: 16px 18px; border: 1px solid var(--th-border-strong);
+    border-top: 4px solid var(--btn-accent); border-radius: var(--radius-xl);
+    background: var(--th-bg-card); box-shadow: var(--shadow-sm);
+  }
+  .pu-card--ok { border-top-color: var(--th-status-success); }
+  .pu-card--warn { border-top-color: #f59e0b; }
+  .pu-card h3 { margin: 0 0 8px; font-size: var(--font-size-3xl); font-weight: 700; }
+
+  /* P7 chips */
+  .pu-status-line { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
+  .pu-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
+    border: 1px solid var(--control-border); border-radius: var(--radius-pill);
+    background: var(--th-bg-card); font-size: var(--font-size-2xs); font-weight: 700;
+  }
+  .pu-chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pu-chip--ok { border-color: var(--th-status-success); color: var(--th-status-success-text); }
+  .pu-chip--warn { border-color: #f59e0b; color: var(--th-status-warning-text); }
+  .powasp-covered-by { font-size: var(--font-size-2xs); font-weight: 600; color: var(--th-text-muted); }
+
+  .powasp-threat { margin: 0 0 8px; font-size: var(--font-size-sm); }
+  .powasp-how { margin: 0; font-size: var(--font-size-sm); }
+  .pu-note { margin: 8px 0 0; font-size: var(--font-size-sm); color: var(--th-text-body); }
+
+  /* P5 kv */
+  .pu-kv { display: grid; grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr); gap: 4px 14px; margin: 8px 0; font-size: var(--font-size-sm); }
+  .pu-kv dt { color: var(--th-text-muted); font-weight: 600; }
+  .pu-kv dd { margin: 0; overflow-wrap: anywhere; }
+  a { color: #12538d; }
+
+  /* Slide-21 coverage table */
+  .powasp-table-wrap { overflow-x: auto; border: 1px solid var(--th-border-strong); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); }
+  .powasp-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: var(--font-size-sm); }
+  .powasp-table th, .powasp-table td { padding: 8px 12px; border-bottom: 1px solid var(--th-border); text-align: left; vertical-align: top; color: var(--th-text); }
+  .powasp-table thead th { font-size: var(--font-size-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--th-text-muted); background: var(--th-bg-inset); }
+  .powasp-table tbody tr:last-child td { border-bottom: none; }
+  .powasp-table-id { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; color: var(--btn-accent); }
+  .powasp-table-threat { font-weight: 700; white-space: nowrap; }
+  .powasp-table-by { white-space: nowrap; }
+  .pill { display: inline-block; padding: 4px 16px; border-radius: var(--radius-pill); font-size: var(--font-size-2xs); font-weight: 700; }
+  .pill--full { background: var(--th-status-success); color: #fff; }
+  .pill--gap { background: #f59e0b; color: #fff; }
+  .powasp-table-how { min-width: 24rem; color: var(--th-text-body); }
+  .powasp-table-how.is-gap { color: var(--th-status-warning-text); }
+  .powasp-table-gap { color: inherit; }
+</style>
+</head>
+<body>
+<p class="mock-note">Static HTML mock of <code>/privilege-owasp-top10</code> — same content and Ping UI primitives as the React page.</p>
+
+<div class="pu-banner-wrap">
+  <div class="pu-banner"><strong>STATIC LESSON</strong> — this page explains the OWASP Agentic AI Top 10 categories and states how PingOne Privilege covers each one. The coverage wording is from the Privilege Capability Overview deck (2 Nov 2026); the threat explanations are our own plain-language summaries and nothing here calls Privilege live or runs an attack.</div>
+</div>
+
+<header class="ping-page-header">
+  <p class="ping-page-header__eyebrow">Learn · Ping AI Products</p>
+  <h1 class="ping-page-header__title">OWASP Agentic AI Top 10 — Privilege coverage</h1>
+  <p class="ping-page-header__summary">All ten ASI categories, explained — and what Privilege does about each. 8 categories are fully covered today by the Privilege gateway and AIGuard; 2 carry a stated gap, labelled honestly rather than papered over.</p>
+  <span class="ping-page-header__badge">OWASP ASI</span>
+</header>
+
+<main class="pu-frame">
+  <p class="pu-kicker">1 · The framework</p>
+  <h2 class="pu-h2">What the Agentic AI Top 10 is</h2>
+  <p class="pu-lede">The OWASP Agentic Security Initiative (ASI) publishes a Top 10 for agentic AI: the ten categories of risk that arise when software agents plan, remember, call tools and talk to each other. Each category below is paired with the Privilege capability that answers it, and the two categories with a stated gap say so explicitly.</p>
+  <div class="pu-card-grid">
+    <div class="pu-card">
+      <h3>Coverage at a glance</h3>
+      <dl class="pu-kv">
+        <dt>Fully covered</dt><dd>8 of 10 categories</dd>
+        <dt>Stated gap</dt><dd>ASI04 (fingerprint pinning pending) · ASI06 (gateway integration in progress)</dd>
+        <dt>Covered by Gateway</dt><dd>ASI03, ASI07, ASI08, ASI10</dd>
+        <dt>Covered by AIGuard</dt><dd>ASI01, ASI02, ASI04, ASI05, ASI06, ASI09</dd>
+        <dt>Covered by both</dt><dd>ASI03, ASI07</dd>
+        <dt>Source</dt><dd><a href="#">OWASP Agentic Security Initiative</a></dd>
+      </dl>
+    </div>
+  </div>
+
+  <p class="pu-kicker">2 · The coverage table</p>
+  <h2 class="pu-h2">The deck's slide-21 coverage table</h2>
+  <p class="pu-lede">The coverage table from the Privilege Capability Overview deck (page 21), reproduced as-is — the category cards below expand each row.</p>
+  <div class="powasp-table-wrap">
+    <table class="powasp-table">
+      <thead><tr><th>ID</th><th>Threat</th><th>Covered by</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td class="powasp-table-id">ASI01</td><td class="powasp-table-threat">Agent Goal Hijack</td><td class="powasp-table-by"><span class="pill pill--full">AIGuard</span></td><td class="powasp-table-how">Injection, jailbreak and hidden-instruction detection</td></tr>
+        <tr><td class="powasp-table-id">ASI02</td><td class="powasp-table-threat">Tool Misuse &amp; Exploitation</td><td class="powasp-table-by"><span class="pill pill--full">AIGuard</span></td><td class="powasp-table-how">Path traversal, destructive commands, SSRF, over-broad scope</td></tr>
+        <tr><td class="powasp-table-id">ASI03</td><td class="powasp-table-threat">Identity &amp; Privilege Abuse</td><td class="powasp-table-by"><span class="pill pill--full">Gateway + AIGuard</span></td><td class="powasp-table-how">Per-user virtual keys, least-privilege scopes, RBAC, live revocation</td></tr>
+        <tr><td class="powasp-table-id">ASI04</td><td class="powasp-table-threat">Agentic Supply Chain</td><td class="powasp-table-by"><span class="pill pill--gap">AIGuard</span></td><td class="powasp-table-how is-gap">Tool-definition injection and typosquatting<span class="powasp-table-gap">; fingerprint pinning pending</span></td></tr>
+        <tr><td class="powasp-table-id">ASI05</td><td class="powasp-table-threat">Unexpected Code Execution</td><td class="powasp-table-by"><span class="pill pill--full">AIGuard</span></td><td class="powasp-table-how">Shell metacharacter, template-injection and fetch-and-execute rules</td></tr>
+        <tr><td class="powasp-table-id">ASI06</td><td class="powasp-table-threat">Memory &amp; Context Poisoning</td><td class="powasp-table-by"><span class="pill pill--gap">AIGuard</span></td><td class="powasp-table-how is-gap">Memory-write inspection shipped<span class="powasp-table-gap">; gateway integration in progress</span></td></tr>
+        <tr><td class="powasp-table-id">ASI07</td><td class="powasp-table-threat">Insecure Inter-Agent Communication</td><td class="powasp-table-by"><span class="pill pill--full">Gateway + AIGuard</span></td><td class="powasp-table-how">A2A chokepoint with dedicated scope; inter-agent abuse rules</td></tr>
+        <tr><td class="powasp-table-id">ASI08</td><td class="powasp-table-threat">Cascading Agent Failures</td><td class="powasp-table-by"><span class="pill pill--full">Gateway</span></td><td class="powasp-table-how">Rate and budget ceilings; circuit breaker; event stream to SIEM</td></tr>
+        <tr><td class="powasp-table-id">ASI09</td><td class="powasp-table-threat">Human-Agent Trust Exploitation</td><td class="powasp-table-by"><span class="pill pill--full">AIGuard</span></td><td class="powasp-table-how">Shared jailbreak, exfiltration, prompt-leak and PII rules</td></tr>
+        <tr><td class="powasp-table-id">ASI10</td><td class="powasp-table-threat">Rogue Agents</td><td class="powasp-table-by"><span class="pill pill--full">Gateway</span></td><td class="powasp-table-how">No agent reaches a model, tool or peer without a valid scoped key</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="pu-note">ASI08 is met by real-time event data to your observability stack; in-gateway behaviour scoring supplements ASI08 and ASI10.</p>
+
+  <p class="pu-kicker">3 · The ten categories</p>
+  <h2 class="pu-h2">ASI01–ASI10, explained with Privilege coverage</h2>
+  <p class="pu-lede">Each card explains the threat in plain language, names the Privilege component that covers it, and describes how the coverage works. Cards marked with a gap chip carry the honest remainder.</p>
+  <div class="pu-card-grid">
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI01 · Agent Goal Hijack</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">AIGuard</span></p>
+      <p class="powasp-threat">An attacker smuggles instructions into content the agent reads — a poisoned web page, a document, an email, a hidden prompt — and steers the agent away from its real goal. The agent obeys the attacker's goal instead of the user's, and may start calling tools toward it.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Injection, jailbreak and hidden-instruction detection. AIGuard inspects prompts and retrieved content before the agent acts, so smuggled instructions are caught at the input boundary instead of becoming agent behaviour.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI02 · Tool Misuse &amp; Exploitation</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">AIGuard</span></p>
+      <p class="powasp-threat">The agent has powerful tools — file access, command execution, HTTP fetch — and a hijacked or confused agent turns them against the system: path traversal to read files it should not, destructive shell commands, SSRF to reach internal services, or calls beyond the scope it was granted.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Path traversal, destructive command, SSRF and over-broad-scope rules. Requests to use a tool are evaluated against these rule classes before execution, so a poisoned agent cannot weaponise its toolset.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI03 · Identity &amp; Privilege Abuse</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">Gateway + AIGuard</span></p>
+      <p class="powasp-threat">Agents act with credentials. If an agent holds a shared admin key, or keeps privileges after the task is done, a compromise becomes a privilege compromise: the attacker inherits everything the agent could do. This is the classic over-privileged service account problem, reborn for agents.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Per-user virtual keys, least-privilege scopes, RBAC and live revocation. Every agent call is re-bound to the human it acts for and narrowed to the scopes that call needs; keys can be revoked the moment abuse is detected.</p>
+    </div>
+
+    <div class="pu-card pu-card--warn">
+      <h3>ASI04 · Agentic Supply Chain</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--warn">Gap stated</span><span class="powasp-covered-by">AIGuard</span></p>
+      <p class="powasp-threat">The agent's capabilities arrive from outside: MCP tool definitions, plugins, fetched packages. A malicious tool definition (instructions hidden in a tool's description) or a typosquatted tool name installs attacker behaviour into the agent before it ever runs.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Tool-definition injection and typosquatting detection. Tool metadata is scanned before it reaches the agent. Fingerprint pinning — locking an agent to the exact tools it was built against — is the stated remaining gap.</p>
+      <p class="pu-note"><strong>Gap:</strong> Fingerprint pinning is pending: today the gateway detects malicious tool definitions and typosquats, but does not yet pin a verified tool fingerprint per agent.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI05 · Unexpected Code Execution</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">AIGuard</span></p>
+      <p class="powasp-threat">Model output or retrieved content contains executable payloads: shell metacharacters that break out of a command, template-injection syntax that escapes a template engine, or a fetch-and-execute chain that downloads and runs attacker code.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Shell metacharacter, template-injection and fetch-and-execute rules. Code-shaped content is inspected before it is passed to anything that would execute it.</p>
+    </div>
+
+    <div class="pu-card pu-card--warn">
+      <h3>ASI06 · Memory &amp; Context Poisoning</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--warn">Gap stated</span><span class="powasp-covered-by">AIGuard</span></p>
+      <p class="powasp-threat">Agents persist what they learn. An attacker who plants a fact, preference or instruction into the agent's memory or context window changes every future decision the agent makes — a single write today becomes a standing backdoor across sessions.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Memory-write inspection is shipped: content written into agent memory is inspected for poisoned instructions before it is stored.</p>
+      <p class="pu-note"><strong>Gap:</strong> Gateway integration is in progress: the memory-write inspection runs in AIGuard today; wiring the same inspection into the gateway path so all memory writes are covered is the remaining work.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI07 · Insecure Inter-Agent Communication</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">Gateway + AIGuard</span></p>
+      <p class="powasp-threat">Multi-agent systems talk to each other. Without authenticated, scoped channels, any agent (or anything pretending to be one) can inject messages, impersonate a peer, or escalate by asking a more privileged agent to do its dirty work.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> The gateway is the A2A chokepoint: agent-to-agent traffic passes through it with a dedicated inter-agent scope, so a peer cannot be reached out-of-band, and inter-agent abuse rules inspect what agents ask of each other.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI08 · Cascading Agent Failures</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">Gateway</span></p>
+      <p class="powasp-threat">Agents call agents call tools. One runaway or hallucinating agent can amplify through the chain — retry storms, cost blowouts, loops of tool calls — until a small failure becomes an outage or a runaway bill.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Rate and budget ceilings, a circuit breaker, and an event stream to your SIEM. The gateway caps what any one agent can consume, cuts the circuit when a chain misbehaves, and streams the evidence to observability.</p>
+      <p class="pu-note">ASI08 is met by real-time event data to your observability stack; in-gateway behaviour scoring supplements ASI08 and ASI10.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI09 · Human-Agent Trust Exploitation</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">AIGuard</span></p>
+      <p class="powasp-threat">Humans trust their agents. An attacker exploits that trust: jailbreak the agent, make it leak its system prompt or other users' data, exfiltrate secrets through its outputs, or abuse the human's willingness to approve whatever the agent asks.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> Shared jailbreak, exfiltration, prompt-leak and PII rules. Outputs are inspected before they reach the human, so the agent cannot be turned into an exfiltration or leakage channel.</p>
+    </div>
+
+    <div class="pu-card pu-card--ok">
+      <h3>ASI10 · Rogue Agents</h3>
+      <p class="pu-status-line"><span class="pu-chip pu-chip--ok">Covered</span><span class="powasp-covered-by">Gateway</span></p>
+      <p class="powasp-threat">Unregistered, unauthenticated or long-forgotten agents — shadow AI with a network connection. A rogue agent has no owner, no scope and no audit trail, and everything it touches is unaccountable.</p>
+      <p class="powasp-how"><strong>How Privilege covers it:</strong> No agent reaches a model, tool or peer without a valid scoped key. The gateway simply refuses anything that cannot present one — registration through Privilege's agent registry is the only way onto the network.</p>
+    </div>
+
+  </div>
+
+  <p class="pu-kicker">4 · Two layers</p>
+  <h2 class="pu-h2">Gateway and AIGuard, in one picture</h2>
+  <p class="pu-lede">Privilege's coverage is split across two enforcement layers, and the categories make the division visible.</p>
+  <div class="pu-card-grid">
+    <div class="pu-card">
+      <h3>The Gateway (identity &amp; chokepoint)</h3>
+      <p class="pu-note">The gateway sits between agents and everything they reach — models, tools, and peer agents. It enforces <em>who the agent is</em> and <em>what it may do</em>: per-user virtual keys (ASI03), the A2A chokepoint with a dedicated inter-agent scope (ASI07), rate and budget ceilings with a circuit breaker and SIEM event stream (ASI08), and the no-key-no-access rule that keeps rogue agents off the network (ASI10).</p>
+    </div>
+    <div class="pu-card">
+      <h3>AIGuard (content &amp; behaviour)</h3>
+      <p class="pu-note">AIGuard inspects what flows through: prompts and retrieved content for injection and jailbreak (ASI01), tool-use requests against misuse rules (ASI02), tool definitions for supply-chain injection (ASI04), code-shaped payloads (ASI05), memory writes (ASI06), and outputs for exfiltration, prompt leakage and PII (ASI09).</p>
+    </div>
+    <div class="pu-card">
+      <h3>Where they overlap</h3>
+      <p class="pu-note">ASI03 (identity &amp; privilege abuse) and ASI07 (inter-agent communication) need both: the gateway proves identity and enforces scope on the hop, while AIGuard inspects the content of what the (now-proven) agent is asking for. ASI08's event stream and in-gateway behaviour scoring supplement ASI08 and ASI10 with runtime signal.</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>
