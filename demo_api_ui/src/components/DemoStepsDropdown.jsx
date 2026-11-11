@@ -21,6 +21,7 @@ import { getMissionControlGroup } from '../config/missionControlCatalog';
 import { demoStepLabel, demoStepNumber, stepQueryMatches } from '../config/demoStepNumbers';
 import { getConfig, useCaseDiagramPath } from '../config/useCaseDiagrams';
 import apiClient from '../services/apiClient';
+import { openSignIn } from '../utils/signInService';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
@@ -253,6 +254,7 @@ export default function DemoStepsDropdown({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [tick, setTick] = useState(0);
   const [explainUc, setExplainUc] = useState(null);
   const [query, setQuery] = useState('');
@@ -270,6 +272,7 @@ export default function DemoStepsDropdown({
     loadStepsControllerRef.current = controller;
     setLoading(true);
     setError(null);
+    setNeedsSignIn(false);
     const isAdmin = vertical === 'pingone-admin';
     const primaryIds = isAdmin ? ADMIN_PRIMARY_USE_CASE_IDS : DEMO_PRIMARY_USE_CASE_IDS;
     const advancedIds = isAdmin ? [] : DEMO_ADVANCED_USE_CASE_IDS;
@@ -327,7 +330,14 @@ export default function DemoStepsDropdown({
         // use-case catalog (e.g. the PingOne Admin console) — that is an
         // expected empty state for this dropdown, not a failure to report.
         if (err?.response?.data?.error !== 'unknown_vertical') {
-          setError(err.message || 'Failed to load demo steps');
+          // A 401 on this read-only catalog means the visitor is signed out
+          // (or behind the hosted-access wall). The raw axios message tells
+          // them nothing actionable — offer the sign-in instead.
+          if (err?.response?.status === 401) {
+            setNeedsSignIn(true);
+          } else {
+            setError(err.message || 'Failed to load demo steps');
+          }
         }
         setPrimarySteps([]);
         setAdvancedSteps([]);
@@ -866,6 +876,18 @@ export default function DemoStepsDropdown({
             <p className="ba-demo-steps-popout__status ba-demo-steps-popout__status--error">
               {error}
             </p>
+          )}
+          {needsSignIn && (
+            <div className="ba-demo-steps-popout__status ba-demo-steps-popout__status--error">
+              <p style={{ margin: '0 0 8px' }}>Sign in to load the demo steps.</p>
+              <button
+                type="button"
+                className="ba-demo-steps-popout__clear"
+                onClick={() => openSignIn({ role: 'customer', returnTo: typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search || ''}` : '/dashboard' })}
+              >
+                Sign in
+              </button>
+            </div>
           )}
           {!loading && !error && primarySteps.length === 0 && (
             <p className="ba-demo-steps-popout__status">

@@ -14,10 +14,26 @@ import "./CommandDock.css";
 
 const PILL_POS_KEY = "cmd_dock_pill_pos";
 
+// The app applies a page zoom (ThemeContext fontScale) via `zoom` on <html>.
+// `position: fixed` coordinates are multiplied by that zoom, but
+// win.innerWidth/innerHeight are not — so sizes and default positions computed
+// from them render zoomed past the viewport edge. Divide by the zoom to get a
+// coordinate space that matches fixed positioning.
+function fixedViewportSize(win) {
+  let zoom = 1;
+  try {
+    zoom = parseFloat(win.getComputedStyle(win.document.documentElement).zoom) || 1;
+  } catch {
+    /* keep zoom = 1 */
+  }
+  return { width: win.innerWidth / zoom, height: win.innerHeight / zoom };
+}
+
 function clampPillPos(x, y) {
   const pad = 4;
-  const maxX = Math.max(pad, window.innerWidth - pad);
-  const maxY = Math.max(pad, window.innerHeight - pad);
+  const { width, height } = fixedViewportSize(window);
+  const maxX = Math.max(pad, width - pad);
+  const maxY = Math.max(pad, height - pad);
   return {
     x: Math.min(Math.max(x, pad), maxX),
     y: Math.min(Math.max(y, pad), maxY),
@@ -44,12 +60,14 @@ export default function CommandDock({
   // The window the agent lives in — its pop-out window when popped out.
   win = window,
 }) {
-  const width = Math.min(480, Math.max(340, win.innerWidth - 24));
+  const vp = fixedViewportSize(win);
+  const width = Math.min(480, Math.max(340, vp.width - 24));
   // Tall enough for every section (through Inspect) without scrolling, still clamped to the
   // window; the cap only stops it stretching on a very tall monitor. It was 720, which cut
-  // off the Inspect options.
-  const height = Math.min(900, Math.max(320, win.innerHeight - 24));
-  const defaultX = Math.max(8, win.innerWidth - width - 16);
+  // off the Inspect options. defaultY sits in the same fixed-coordinate space, so the
+  // height must leave room for it: (defaultY + height) * zoom <= innerHeight.
+  const height = Math.min(900, Math.max(320, vp.height - 52 - 24));
+  const defaultX = Math.max(8, vp.width - width - 16);
   const defaultY = 52;
 
   // Collapsed pill position — null means "use the CSS default top-right".
