@@ -41,6 +41,13 @@ const CUSTOMER_USER = {
  * Set up all route mocks needed for the admin dashboard to load cleanly.
  */
 async function mockAdminSession(page, user = ADMIN_USER) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  );
+
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill({
       status: 200,
@@ -136,7 +143,8 @@ async function mockAdminSession(page, user = ADMIN_USER) {
 
   // Block any WebSocket or MCP connections (not needed for these tests)
   await page.route('**/ws**', (route) => route.abort());
-  await page.route('**/mcp**', (route) => route.abort());
+  // Not '**/mcp**': that glob also matched dev-server modules such as /src/services/mcpCallStore.js.
+  await page.route((url) => url.pathname === '/mcp' || url.pathname.startsWith('/mcp/'), (route) => route.abort());
 
   // ThemeContext — stub with null manifest so default layout renders
   await page.route('**/api/config/vertical**', (route) =>
@@ -233,18 +241,26 @@ test.describe('Admin Dashboard', () => {
     await expect(page).toHaveURL(/\/transactions/, { timeout: 15000 });
   });
 
-  test('Users nav item is visible', async ({ page }) => {
+  // "/" is now the marketing landing page (no side nav); the nav lives on the admin pages. There the
+  // "Administration" group opens by itself for the current route and holds the Users, Accounts and
+  // Transactions links (labels show once the icon rail is expanded).
+  async function openAdminSideNav(page) {
+    await page.addInitScript(() => {
+      try { localStorage.setItem('adminSideNav.collapsed', 'false'); } catch (_) {}
+    });
     await mockAdminSession(page);
-    await page.goto('/');
+    await page.goto('/admin');
+    return page.getByRole('region', { name: 'Administration' });
+  }
 
-    await expect(page.getByText(/users/i).first()).toBeVisible({ timeout: 5000 });
+  test('Users nav item is visible', async ({ page }) => {
+    const admin = await openAdminSideNav(page);
+    await expect(admin.getByRole('link', { name: 'Users', exact: true })).toBeVisible({ timeout: 15000 });
   });
 
   test('Accounts nav item is visible', async ({ page }) => {
-    await mockAdminSession(page);
-    await page.goto('/');
-
-    await expect(page.getByText(/accounts/i).first()).toBeVisible({ timeout: 5000 });
+    const admin = await openAdminSideNav(page);
+    await expect(admin.getByRole('link', { name: 'Accounts', exact: true })).toBeVisible({ timeout: 15000 });
   });
 
   test('dashboard data requests omit Authorization header (Backend-for-Frontend (BFF) session cookie)', async ({ page }) => {
@@ -291,11 +307,15 @@ test.describe('User Dashboard (non-admin)', () => {
     });
   });
 
-  test('non-admin user is redirected from /admin to /', async ({ page }) => {
+  test('non-admin user at /admin gets the admin sign-in prompt, and Cancel goes home', async ({ page }) => {
     await mockAdminSession(page, CUSTOMER_USER);
     await page.goto('/admin');
 
-    // Should redirect to '/' (UserDashboard)
+    // RequireAdminLogin never silently redirects: a non-admin sees why the page needs an admin session.
+    const prompt = page.getByRole('dialog', { name: 'Admin sign-in required' });
+    await expect(prompt).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.admin-dashboard-page')).toHaveCount(0);
+    await prompt.getByRole('button', { name: 'Cancel' }).click();
     await expect(page).not.toHaveURL(/\/admin$/);
   });
 });

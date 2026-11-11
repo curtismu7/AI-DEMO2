@@ -98,6 +98,10 @@ const json = (body, status = 200) => ({
 });
 
 async function mockCatalog(page, { user = ADMIN_USER, useCases = USE_CASES } = {}) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) => route.fulfill(json({})));
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill(json({ authenticated: true, user }))
   );
@@ -265,18 +269,25 @@ test.describe('Use Cases Catalog — error state', () => {
 });
 
 test.describe('Use Cases Catalog — auth guard', () => {
-  test('unauthenticated user is redirected away', async ({ page }) => {
+  test('unauthenticated user sees the sign-in prompt instead of the page', async ({ page }) => {
+    // Lowest-priority catch-all first: no unstubbed /api call may reach a running BFF.
+    await page.route('**/api/**', (route) => route.fulfill(json({})));
     await page.route('**/api/auth/oauth/status', (route) =>
       route.fulfill(json({ authenticated: false }))
     );
     await page.route('**/api/auth/oauth/user/status', (route) =>
       route.fulfill(json({ authenticated: false }))
     );
+    await page.route('**/api/auth/session**', (route) =>
+      route.fulfill(json({ authenticated: false }))
+    );
     await page.route('**/api/admin/config**', (route) =>
       route.fulfill(json({ agent_ui_mode: 'standard', ff_use_cases_launcher: true }))
     );
     await page.goto('/use-cases');
-    await page.waitForTimeout(2000);
-    expect(page.url()).not.toContain('/use-cases');
+    // A signed-out visitor is not redirected: the route renders SignInRequired in place.
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign in required' })).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/use-cases$/);
+    await expect(page.locator('[data-testid="uc-demo-progress"]')).toHaveCount(0);
   });
 });

@@ -57,6 +57,13 @@ const DEFAULT_SETTINGS = {
  * @param {object} [settingsOverride] — optional override for the settings payload
  */
 async function mockAuthAndSettings(page, user, settingsOverride = DEFAULT_SETTINGS) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  );
+
   // Mock admin OAuth status (checked first by App.js)
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill({

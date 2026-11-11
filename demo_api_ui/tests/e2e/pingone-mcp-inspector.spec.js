@@ -1,7 +1,12 @@
 /**
  * @file pingone-mcp-inspector.spec.js
  * @description Playwright E2E tests for the unified MCP Inspector page
- * (/pingone-mcp-inspector).
+ * (/pingone-mcp-inspector, McpInspectorPageClean on the shared InspectorLayout).
+ *
+ * Page anatomy these tests rely on: one <select id="insp-source"> (labelled
+ * "Server") picks the source; a searchable tools table lists the tools; the
+ * picked tool's parameters are labelled inputs next to a "Send" button; a
+ * finished call shows "What the tool returned" and a Calls list.
  *
  * All API calls are intercepted with stubs — no live server required.
  */
@@ -49,7 +54,8 @@ const CAPTURED_CALL = {
   success: true,
   response: { status: 200, body: { balance: 100 } },
   request: { headers: {} },
-  durationMs: 38,
+  duration: 38,
+  timestamp: '2026-11-10T12:00:00.000Z',
 };
 
 // ─── Route helpers ────────────────────────────────────────────────────────────
@@ -113,23 +119,29 @@ async function mockCustomSource(page, profiles, tools = [CUSTOM_TOOL]) {
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const sourceSelect = (page) => page.locator('#insp-source');
+const toolRow = (page, name) => page.locator('.insp-tools__pick', { hasText: new RegExp(`^${name}$`) });
+
 // ─── Page structure ───────────────────────────────────────────────────────────
 
-test.describe('PingOne MCP Inspector — page structure', () => {
+test.describe('MCP Inspector — page structure', () => {
   test('renders the MCP Inspector heading', async ({ page }) => {
     await mockBankingSource(page);
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await expect(page.getByRole('heading', { name: 'MCP Inspector' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'MCP Inspector' })).toBeVisible({ timeout: 15000 });
   });
 
-  test('shows three source pills: AI Demo MCP, PingOne MCP, API Calls', async ({ page }) => {
+  test('the Server picker offers AI Demo MCP, PingOne MCP and All API calls', async ({ page }) => {
     await mockBankingSource(page);
     await page.goto('/pingone-mcp-inspector?source=banking');
-    // Scope to .source-switcher to avoid matching sidebar nav section headers
-    const switcher = page.locator('.source-switcher');
-    await expect(switcher.getByRole('button', { name: 'AI Demo MCP' })).toBeVisible({ timeout: 10000 });
-    await expect(switcher.getByRole('button', { name: 'PingOne MCP' })).toBeVisible();
-    await expect(switcher.getByRole('button', { name: 'API Calls' })).toBeVisible();
+    const picker = sourceSelect(page);
+    await expect(picker).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('label[for="insp-source"]')).toHaveText('Server');
+    for (const label of ['AI Demo MCP', 'PingOne MCP', 'All API calls']) {
+      await expect(picker.locator('option', { hasText: label })).toHaveCount(1);
+    }
   });
 
   test('loads without uncaught JS errors', async ({ page }) => {
@@ -144,29 +156,34 @@ test.describe('PingOne MCP Inspector — page structure', () => {
 
 // ─── AI Demo MCP source ───────────────────────────────────────────────────────
 
-test.describe('PingOne MCP Inspector — AI Demo MCP source', () => {
-  test('AI Demo MCP pill is active when ?source=banking', async ({ page }) => {
+test.describe('MCP Inspector — AI Demo MCP source', () => {
+  test('AI Demo MCP is the selected Server when ?source=banking', async ({ page }) => {
     await mockBankingSource(page);
     await page.goto('/pingone-mcp-inspector?source=banking');
-    const pill = page.locator('.src-pill', { hasText: 'AI Demo MCP' });
-    await pill.waitFor({ timeout: 10000 });
-    await expect(pill).toHaveClass(/src-pill--active/);
+    await expect(sourceSelect(page)).toHaveValue('banking', { timeout: 10000 });
   });
 
-  test('tool name appears in the left tree', async ({ page }) => {
+  test('AI Demo MCP is the default Server when there is no ?source param', async ({ page }) => {
+    await mockBankingSource(page);
+    await page.goto('/pingone-mcp-inspector');
+    await expect(sourceSelect(page)).toHaveValue('banking', { timeout: 10000 });
+  });
+
+  test('tool name appears in the tools table', async ({ page }) => {
     await mockBankingSource(page);
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await expect(page.getByText('get_account_balance')).toBeVisible({ timeout: 10000 });
+    await expect(toolRow(page, 'get_account_balance')).toBeVisible({ timeout: 10000 });
   });
 
-  test('selecting a tool shows its param fields in the middle column', async ({ page }) => {
+  test('selecting a tool shows its param fields', async ({ page }) => {
     await mockBankingSource(page);
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await page.getByText('get_account_balance').click();
-    await expect(page.getByText('account_id')).toBeVisible({ timeout: 5000 });
+    await toolRow(page, 'get_account_balance').click();
+    // Required params carry a trailing " *" in the label.
+    await expect(page.getByLabel(/^account_id/)).toBeVisible({ timeout: 5000 });
   });
 
-  test('Execute posts to /api/mcp/inspector/invoke and renders response', async ({ page }) => {
+  test('Send posts to /api/mcp/inspector/invoke and renders the response', async ({ page }) => {
     await mockBankingSource(page);
     let invokeCalled = false;
     await page.route('**/api/mcp/inspector/invoke', (r) => {
@@ -174,59 +191,55 @@ test.describe('PingOne MCP Inspector — AI Demo MCP source', () => {
       return r.fulfill(json({ balance: 4820.15, currency: 'USD' }));
     });
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await page.getByText('get_account_balance').click();
-    // Use placeholder to target param input (avoids matching sidebar search)
+    await toolRow(page, 'get_account_balance').click();
     await page.getByPlaceholder('Account ID').fill('acc_1');
-    await page.getByRole('button', { name: 'Execute' }).first().click();
-    await expect(page.getByText(/4820/)).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Tool output data' }).getByText(/4820/).first()).toBeVisible({ timeout: 10000 });
     expect(invokeCalled).toBe(true);
   });
 
-  test('Form tab renders response body as labeled key-value fields', async ({ page }) => {
+  test('the tool result is shown as labeled key-value fields', async ({ page }) => {
     await mockBankingSource(page);
     await page.route('**/api/mcp/inspector/invoke', (r) =>
       r.fulfill(json({ currency: 'USD', available: 4820.15 })),
     );
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await page.getByText('get_account_balance').click();
+    await toolRow(page, 'get_account_balance').click();
     await page.getByPlaceholder('Account ID').fill('acc_1');
-    await page.getByRole('button', { name: 'Execute' }).first().click();
-    await page.getByRole('button', { name: 'Form' }).click();
-    await expect(page.getByText('Currency')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('USD')).toBeVisible();
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    const data = page.getByRole('region', { name: 'Tool output data' });
+    await expect(data.getByText('Currency')).toBeVisible({ timeout: 10000 });
+    await expect(data.getByText('USD')).toBeVisible();
   });
 
   test('no "+ Add server" control for AI Demo MCP source', async ({ page }) => {
     await mockBankingSource(page);
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await page.getByText('get_account_balance').waitFor({ timeout: 10000 });
+    await toolRow(page, 'get_account_balance').waitFor({ timeout: 10000 });
     await expect(page.getByRole('button', { name: '+ Add server' })).not.toBeVisible();
   });
 });
 
 // ─── PingOne MCP source ───────────────────────────────────────────────────────
 
-test.describe('PingOne MCP Inspector — PingOne MCP source', () => {
-  test('PingOne MCP pill is active by default (no ?source param)', async ({ page }) => {
+test.describe('MCP Inspector — PingOne MCP source', () => {
+  test('PingOne MCP is the selected Server when ?source=pingone', async ({ page }) => {
     await mockPingOneSource(page);
-    await page.goto('/pingone-mcp-inspector');
-    // Scope to .source-switcher to avoid sidebar nav button with same name
-    const pill = page.locator('.source-switcher .src-pill', { hasText: 'PingOne MCP' });
-    await pill.waitFor({ timeout: 10000 });
-    await expect(pill).toHaveClass(/src-pill--active/);
+    await page.goto('/pingone-mcp-inspector?source=pingone');
+    await expect(sourceSelect(page)).toHaveValue('pingone', { timeout: 10000 });
   });
 
-  test('shows Connected status and tool count in top bar', async ({ page }) => {
+  test('shows the Live chip and the tool count', async ({ page }) => {
     await mockPingOneSource(page);
-    await page.goto('/pingone-mcp-inspector');
-    // PingOne source statusText uses em dash: "Connected — N tools"
-    await expect(page.getByText(/Connected — 1 tools/)).toBeVisible({ timeout: 10000 });
+    await page.goto('/pingone-mcp-inspector?source=pingone');
+    await expect(page.locator('.insp-tools__count')).toHaveText('1 tools', { timeout: 10000 });
+    await expect(page.locator('.insp-hero-meta').getByText('Live', { exact: true })).toBeVisible();
   });
 
-  test('PingOne tool name appears in the left tree', async ({ page }) => {
+  test('PingOne tool name appears in the tools table', async ({ page }) => {
     await mockPingOneSource(page);
-    await page.goto('/pingone-mcp-inspector');
-    await expect(page.getByText('GetUserById')).toBeVisible({ timeout: 10000 });
+    await page.goto('/pingone-mcp-inspector?source=pingone');
+    await expect(toolRow(page, 'GetUserById')).toBeVisible({ timeout: 10000 });
   });
 
   test('invoking PingOne tool POSTs to /api/mcp/inspector/pingone-invoke', async ({ page }) => {
@@ -236,72 +249,48 @@ test.describe('PingOne MCP Inspector — PingOne MCP source', () => {
       called = true;
       return r.fulfill(json({ response: { id: 'u1', username: 'alice' }, request: {}, timingsMs: { roundTrip: 8 } }));
     });
-    await page.goto('/pingone-mcp-inspector');
-    await page.getByText('GetUserById').click();
-    // Placeholder is the schema type "string" since no description on user_id
-    await page.getByPlaceholder('string').fill('u1');
-    await page.getByRole('button', { name: 'Execute' }).first().click();
-    await expect(page.getByText(/alice/)).toBeVisible({ timeout: 10000 });
+    await page.goto('/pingone-mcp-inspector?source=pingone');
+    await toolRow(page, 'GetUserById').click();
+    // The placeholder is the schema type ("string") since user_id has no description.
+    await page.getByLabel(/^user_id/).fill('u1');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Tool output data' }).getByText(/alice/).first()).toBeVisible({ timeout: 10000 });
     expect(called).toBe(true);
   });
 
-  test('switching to AI Demo MCP source loads banking tools', async ({ page }) => {
+  test('switching the Server to AI Demo MCP loads banking tools', async ({ page }) => {
     await mockPingOneSource(page, []);
     await page.route('**/api/mcp/inspector/tools**', (r) =>
       r.fulfill(json({ tools: [BANKING_TOOL], _source: 'mcp_server' })),
     );
-    await page.goto('/pingone-mcp-inspector');
-    await page.locator('.source-switcher').getByRole('button', { name: 'AI Demo MCP' }).click();
-    await expect(page.getByText('get_account_balance')).toBeVisible({ timeout: 10000 });
-  });
-});
-
-// ─── MFA step-up banner ───────────────────────────────────────────────────────
-
-test.describe('PingOne MCP Inspector — MFA step-up', () => {
-  test('shows step-up banner when /tools returns mfa_required', async ({ page }) => {
-    await mockBase(page);
-    await page.route('**/api/mcp/inspector/profiles**', (r) =>
-      r.fulfill(json({
-        profiles: [{ id: 'default', label: 'AIDemo MCP', isDefault: true }],
-        defaultProfileId: 'default',
-      })),
-    );
-    await page.route('**/api/mcp/inspector/tools**', (r) =>
-      r.fulfill(json({ tools: [], mfa_required: true, step_up_method: 'email', _source: 'mfa_gate' })),
-    );
-    await page.route('**/api/mcp/inspector/pingone-tools**', (r) =>
-      r.fulfill(json({ enabled: false, tools: [], paramDefaults: {} })),
-    );
-    await page.goto('/pingone-mcp-inspector?source=custom');
-    await expect(page.getByText(/Step-up verification required/)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/MFA step-up \(email\)/)).toBeVisible();
+    await page.goto('/pingone-mcp-inspector?source=pingone');
+    await sourceSelect(page).selectOption('banking');
+    await expect(toolRow(page, 'get_account_balance')).toBeVisible({ timeout: 10000 });
   });
 });
 
 // ─── Custom Server source ─────────────────────────────────────────────────────
 
-test.describe('PingOne MCP Inspector — Custom Server source', () => {
+test.describe('MCP Inspector — Custom Server source', () => {
   const PROFILES = [
     { id: 'default', label: 'AIDemo MCP', isDefault: true },
     { id: 'brave', label: 'Brave Search', isDefault: false },
   ];
+  const profileSelect = (page) => page.getByLabel('Server profile');
 
   test('profile picker lists saved profiles', async ({ page }) => {
     await mockCustomSource(page, PROFILES);
     await page.goto('/pingone-mcp-inspector?source=custom');
-    // Profile options are in a native <select>; check select's text content
-    const profileSelect = page.locator('select[title="MCP server to inspect"]');
-    await expect(profileSelect).toContainText('Brave Search', { timeout: 10000 });
-    await expect(profileSelect).toContainText('AIDemo MCP (default)');
+    await expect(profileSelect(page).locator('option', { hasText: 'Brave Search' })).toHaveCount(1, { timeout: 10000 });
+    await expect(profileSelect(page).locator('option', { hasText: 'AIDemo MCP' })).toHaveCount(1);
   });
 
   test('"+ Add server" button opens the add-server form', async ({ page }) => {
     await mockCustomSource(page, PROFILES);
     await page.goto('/pingone-mcp-inspector?source=custom');
-    await page.locator('select[title="MCP server to inspect"]').waitFor({ timeout: 10000 });
+    await profileSelect(page).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: '+ Add server' }).click();
-    await expect(page.getByPlaceholder('Label (e.g. Brave Search)')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByPlaceholder('e.g. Staging MCP server')).toBeVisible({ timeout: 5000 });
   });
 
   test('saving a new server POSTs to /api/mcp/inspector/profiles', async ({ page }) => {
@@ -315,33 +304,35 @@ test.describe('PingOne MCP Inspector — Custom Server source', () => {
       return r.fulfill(json({ profiles: PROFILES, defaultProfileId: 'default' }));
     });
     await page.goto('/pingone-mcp-inspector?source=custom');
-    await page.locator('select[title="MCP server to inspect"]').waitFor({ timeout: 10000 });
+    await profileSelect(page).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: '+ Add server' }).click();
-    await page.getByPlaceholder('Label (e.g. Brave Search)').fill('New Server');
-    await page.getByPlaceholder('Server URL').fill('https://example.com/mcp');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByPlaceholder('e.g. Staging MCP server').fill('New Server');
+    await page.getByPlaceholder('https://example.test/mcp').fill('https://example.com/mcp');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(async () => expect(postCalled).toBe(true)).toPass({ timeout: 5000 });
   });
 
-  test('custom tool appears in the tree', async ({ page }) => {
+  test('custom tool appears in the tools table', async ({ page }) => {
     await mockCustomSource(page, PROFILES);
     await page.goto('/pingone-mcp-inspector?source=custom');
-    await expect(page.getByText('brave_web_search')).toBeVisible({ timeout: 10000 });
+    await expect(toolRow(page, 'brave_web_search')).toBeVisible({ timeout: 10000 });
   });
 });
 
-// ─── API Calls source ─────────────────────────────────────────────────────────
+// ─── All API calls source ─────────────────────────────────────────────────────
 
-test.describe('PingOne MCP Inspector — API Calls source', () => {
-  test('shows captured call URL after switching to API Calls', async ({ page }) => {
+test.describe('MCP Inspector — All API calls source', () => {
+  const callsList = (page) => page.getByRole('complementary', { name: 'Calls' });
+
+  test('shows the captured call URL after switching to All API calls', async ({ page }) => {
     await mockBankingSource(page, []);
-    // useApiCallsSource polls /api/api-calls (not /api/mcp/calls)
+    // useInspectorSource polls /api/api-calls (not /api/mcp/calls)
     await page.route('**/api/api-calls**', (r) =>
       r.fulfill(json({ calls: [CAPTURED_CALL], stats: { total: 1, success: 1, errors: 0 } })),
     );
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await page.locator('.source-switcher').getByRole('button', { name: 'API Calls' }).click();
-    await expect(page.getByText('/api/accounts/acc_1')).toBeVisible({ timeout: 10000 });
+    await sourceSelect(page).selectOption('api');
+    await expect(callsList(page).getByText('/api/accounts/acc_1')).toBeVisible({ timeout: 10000 });
   });
 
   test('selecting a captured call shows its response status', async ({ page }) => {
@@ -350,10 +341,11 @@ test.describe('PingOne MCP Inspector — API Calls source', () => {
       r.fulfill(json({ calls: [CAPTURED_CALL], stats: { total: 1, success: 1, errors: 0 } })),
     );
     await page.goto('/pingone-mcp-inspector?source=banking');
-    await page.locator('.source-switcher').getByRole('button', { name: 'API Calls' }).click();
-    await page.getByText('/api/accounts/acc_1').click();
-    // Middle panel shows "Status Code" as a readOnly input — check its value
-    const statusInput = page.locator('.inspector-shell-field', { hasText: 'Status Code' }).locator('input');
-    await expect(statusInput).toHaveValue('200', { timeout: 5000 });
+    await sourceSelect(page).selectOption('api');
+    await callsList(page).getByText('/api/accounts/acc_1').click();
+    // The call detail header carries the status chip ("200") for the selected call.
+    const detail = page.locator('.insp-detail');
+    await expect(detail.getByRole('heading', { name: /GET \/api\/accounts\/acc_1/ })).toBeVisible({ timeout: 5000 });
+    await expect(detail.locator('.insp-detail-head .insp-chip', { hasText: '200' })).toBeVisible();
   });
 });

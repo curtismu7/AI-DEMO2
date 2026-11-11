@@ -99,7 +99,9 @@ module.exports = defineConfig({
 
   // API-only specs use playwright.api.config.js (BANKING_API_BASE). Do not run them here or
   // requests would go to the UI baseURL (e.g. the AWS deployment) instead of banking_api_server.
-  testIgnore: ['**/banking-operations.spec.js', '**/health.spec.js', '**/session-regression.spec.js'],
+  // *.real.spec.js need a live tenant/stack and run through playwright.real.config.js (npm run test:e2e:real);
+  // collecting them here also fails the whole run when a spec requires server-side modules that are not installed.
+  testIgnore: ['**/banking-operations.spec.js', '**/health.spec.js', '**/session-regression.spec.js', '**/*.real.spec.js'],
 
   // Fail fast on CI; allow retries locally
   retries: process.env.CI ? 2 : 0,

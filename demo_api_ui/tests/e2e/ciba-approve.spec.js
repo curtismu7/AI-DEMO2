@@ -15,7 +15,7 @@
  *   - Clicking Deny POSTs to /api/auth/ciba/deny/:id and shows denied
  *   - 410 response → expired state
  *   - Non-OK response → error state
- *   - Modal title "PingOne Identity Verification" is shown
+ *   - Modal title "Local CIBA Simulation" is shown
  *
  * All network calls are intercepted — no live server required.
  *
@@ -54,10 +54,10 @@ async function mockCibaPending(page, details = TRANSFER_DETAILS) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('CIBA Approval page — modal title', () => {
-  test('shows "PingOne Identity Verification" modal title', async ({ page }) => {
+  test('shows "Local CIBA Simulation" modal title', async ({ page }) => {
     await mockCibaPending(page);
     await page.goto(`/ciba-approve?authReqId=${AUTH_REQ_ID}`);
-    await expect(page.getByText('PingOne Identity Verification')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Local CIBA Simulation')).toBeVisible({ timeout: 10000 });
   });
 
   test('page root has data-testid="ciba-approve-page"', async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe('CIBA Approval page — pending state', () => {
     await mockCibaPending(page);
     await page.goto(`/ciba-approve?authReqId=${AUTH_REQ_ID}`);
     await expect(
-      page.getByText('A sign-in attempt needs your approval.')
+      page.getByText('This local simulation needs your approval.')
     ).toBeVisible({ timeout: 10000 });
   });
 

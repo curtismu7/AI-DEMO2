@@ -62,6 +62,9 @@ const USE_CASES = [
   },
 ];
 
+/** A use case's title button in the Demo script drawer ("1 · <title>"); the title is repeated in the proof panel. */
+const cardTitle = (page, title) => page.locator('.luw-card__title', { hasText: title }).first();
+
 const json = (body) => ({
   status: 200,
   contentType: 'application/json',
@@ -69,6 +72,10 @@ const json = (body) => ({
 });
 
 async function mockUseCasesLive(page, { user = ADMIN_USER, useCases = USE_CASES } = {}) {
+  // Lowest-priority catch-all (the most recently added matching route runs first, so every stub below wins):
+  // an /api call nobody stubbed otherwise reaches whatever answers the dev-server proxy, and a running BFF
+  // replies 401, which opens the global "Sign in required" modal over the page.
+  await page.route('**/api/**', (route) => route.fulfill(json({})));
   await page.route('**/api/auth/oauth/status', (route) =>
     route.fulfill(json({ authenticated: true, user }))
   );
@@ -116,7 +123,8 @@ test.describe('Use Cases Live — page structure', () => {
   test('shows "Demo script" drawer heading', async ({ page }) => {
     await mockUseCasesLive(page);
     await page.goto('/use-cases/live');
-    await expect(page.getByText('Demo script')).toBeVisible({ timeout: 10000 });
+    // Role, not text: the side nav's "Demo Script" item and the teleprompter launcher match the text too.
+    await expect(page.getByRole('heading', { level: 2, name: 'Demo script' })).toBeVisible({ timeout: 10000 });
   });
 
   test('shows "Pick a step" sub-heading', async ({ page }) => {
@@ -138,7 +146,8 @@ test.describe('Use Cases Live — use case cards', () => {
   test('renders use case card titles from the API', async ({ page }) => {
     await mockUseCasesLive(page);
     await page.goto('/use-cases/live');
-    await expect(page.getByText('HITL Transfer Approval')).toBeVisible({ timeout: 10000 });
+    // The card title button reads "1 · HITL Transfer Approval" and the title also heads the proof panel.
+    await expect(cardTitle(page, 'HITL Transfer Approval')).toBeVisible({ timeout: 10000 });
   });
 
   test('chip use case cards have a "Run in agent →" button', async ({ page }) => {
@@ -183,8 +192,8 @@ test.describe('Use Cases Live — search filter', () => {
     await page.goto('/use-cases/live');
     await page.getByPlaceholder('Filter use cases…').waitFor({ timeout: 10000 });
     await page.getByPlaceholder('Filter use cases…').fill('HITL');
-    await expect(page.getByText('HITL Transfer Approval')).toBeVisible();
-    await expect(page.getByText('Step-Up MFA')).not.toBeVisible();
+    await expect(cardTitle(page, 'HITL Transfer Approval')).toBeVisible();
+    await expect(cardTitle(page, 'Step-Up MFA')).toHaveCount(0);
   });
 
   test('no matches shows empty-state message', async ({ page }) => {
@@ -203,17 +212,18 @@ test.describe('Use Cases Live — banking glance panel', () => {
     await expect(page.getByText('Checking')).toBeVisible({ timeout: 10000 });
   });
 
-  test('glance panel shows Policy label', async ({ page }) => {
+  test('glance panel shows Verdict label', async ({ page }) => {
     await mockUseCasesLive(page);
     await page.goto('/use-cases/live');
-    // Scope to the glance panel to avoid ambiguity with card metadata
-    await expect(page.locator('.luw-glance').getByText('Policy')).toBeVisible({ timeout: 10000 });
+    // Scope to the glance panel to avoid ambiguity with card metadata ("Policy" is now "Verdict").
+    await expect(page.locator('.luw-glance').getByText('Verdict')).toBeVisible({ timeout: 10000 });
   });
 
   test('glance panel shows Recent label', async ({ page }) => {
     await mockUseCasesLive(page);
     await page.goto('/use-cases/live');
-    await expect(page.getByText('Recent')).toBeVisible({ timeout: 10000 });
+    // The label also carries a "Sample" chip; scope to the glance panel (the agent has a "Recent Transactions" chip).
+    await expect(page.locator('.luw-glance__label', { hasText: 'Recent' })).toBeVisible({ timeout: 10000 });
   });
 
   test('initial Checking value is $4,820.00', async ({ page }) => {
@@ -272,18 +282,25 @@ test.describe('Use Cases Live — error state', () => {
 });
 
 test.describe('Use Cases Live — auth guard', () => {
-  test('unauthenticated user is redirected away', async ({ page }) => {
+  test('unauthenticated user sees the sign-in prompt instead of the page', async ({ page }) => {
+    // Lowest-priority catch-all first: no unstubbed /api call may reach a running BFF.
+    await page.route('**/api/**', (route) => route.fulfill(json({})));
     await page.route('**/api/auth/oauth/status', (route) =>
       route.fulfill(json({ authenticated: false }))
     );
     await page.route('**/api/auth/oauth/user/status', (route) =>
       route.fulfill(json({ authenticated: false }))
     );
+    await page.route('**/api/auth/session**', (route) =>
+      route.fulfill(json({ authenticated: false }))
+    );
     await page.route('**/api/admin/config**', (route) =>
       route.fulfill(json({ agent_ui_mode: 'standard', ff_use_cases_launcher: true }))
     );
     await page.goto('/use-cases/live');
-    await page.waitForTimeout(2000);
-    expect(page.url()).not.toContain('/use-cases/live');
+    // A signed-out visitor is not redirected: the route renders SignInRequired in place.
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign in required' })).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/use-cases\/live$/);
+    await expect(page.locator('.luw-topbar__title')).toHaveCount(0);
   });
 });

@@ -96,7 +96,8 @@ async function mockAuthenticatedCustomer(page) {
     route.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ status: 'ok' }) }));
   await page.route('**/ws**', (route) => route.abort());
-  await page.route('**/mcp**', (route) => route.abort());
+  // Not '**/mcp**': that glob also matched dev-server modules such as /src/services/mcpCallStore.js.
+  await page.route((url) => url.pathname === '/mcp' || url.pathname.startsWith('/mcp/'), (route) => route.abort());
 }
 
 test('legacy "bottom" placement → single agent, accounts auto-load renders once', async ({ page }) => {

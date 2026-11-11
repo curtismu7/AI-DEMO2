@@ -112,53 +112,45 @@ test('Mission Control UC40 uses the same live handoff', async ({ page }) => {
   }));
   const calls = await installHandoffBoundary(page);
   await page.goto('/dashboard');
+  await settle(page);
+  // A modal backdrop (the agent window opening) can cover the header for the first seconds.
+  await expect(page.locator('.dm-backdrop')).toHaveCount(0, { timeout: 15_000 });
+  // On /dashboard the dock owns the controls (split chrome), so "Demo steps" is the header button beside
+  // Favorites (TopNav), which opens the same Demo Steps panel; the dock itself has no Demo steps button.
+  // Open it first: the Demo Controls dock, once open, sits over that header button.
+  const stepsTrigger = page.getByTestId('topnav-demo-steps-trigger');
+  await expect(stepsTrigger).toBeVisible();
+  await stepsTrigger.click();
+  await expect(page.getByTestId('demo-steps-popout').first()).toBeVisible();
   await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
-  await expect(page.getByTestId('demo-steps-trigger').first()).toBeVisible();
-  const stepsTrigger = page.getByTestId('demo-steps-trigger').first();
-  if (await stepsTrigger.getAttribute('aria-expanded') !== 'true') await stepsTrigger.click();
+  await expect(page.locator('.cmd-dock-panel')).toBeVisible();
   const chip = page.getByTestId('demo-step-UC40');
   await expect(chip).toContainText('Signs out your current session silently');
+  // The Demo Steps panel is a non-modal floating window portaled to <body> (the modal scrim was removed on
+  // 2026-09-28; unit-tested in DemoStepsDropdown.test.jsx). It and the Demo Controls dock are separate
+  // draggable windows at one z-index, and at 1280px the dock overlaps the right of the panel, so the chip's
+  // centre can be under it. What must hold: no scrim, and the chip's left edge is not covered.
+  await chip.scrollIntoViewIfNeeded();
   const layerOrder = await page.evaluate(() => {
-    const dock = document.querySelector('.cmd-dock-panel');
-    const scrims = [...document.querySelectorAll('[data-testid="demo-steps-scrim"]')];
-    const bodyScrims = scrims.filter((element) => element.parentElement === document.body);
-    const scrim = bodyScrims[0];
-    const drawers = [...document.querySelectorAll('[data-testid="demo-steps-popout"]')];
-    if (!dock || !scrim || drawers.length === 0) {
-      return { bodyScrimCount: bodyScrims.length };
-    }
-
-    const dockRect = dock.getBoundingClientRect();
-    const drawerRects = drawers.map((drawer) => drawer.getBoundingClientRect());
-    const candidates = [
-      [dockRect.left + 8, dockRect.top + 8],
-      [dockRect.right - 8, dockRect.top + 8],
-      [dockRect.left + 8, dockRect.bottom - 8],
-      [dockRect.right - 8, dockRect.bottom - 8],
-      [dockRect.left + dockRect.width / 2, dockRect.top + dockRect.height / 2],
-    ];
-    const point = candidates.find(([x, y]) =>
-      x >= 0 && y >= 0 && x < window.innerWidth && y < window.innerHeight
-      && !drawerRects.some((rect) => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
-
+    const drawer = document.querySelector('[data-testid="demo-steps-popout"]');
+    const chipEl = document.querySelector('[data-testid="demo-step-UC40"]');
+    if (!drawer || !chipEl) return { drawer: Boolean(drawer), chip: Boolean(chipEl) };
+    const rect = chipEl.getBoundingClientRect();
+    const topmost = document.elementFromPoint(rect.left + 24, rect.top + 24);
     return {
-      bodyScrimCount: bodyScrims.length,
-      scrimInBody: scrim.parentElement === document.body,
-      dockZIndex: getComputedStyle(dock).zIndex,
-      scrimZIndex: getComputedStyle(scrim).zIndex,
-      drawerZIndex: getComputedStyle(drawers[0]).zIndex,
-      scrimCoversDock: Boolean(point && document.elementFromPoint(...point) === scrim),
+      scrimCount: document.querySelectorAll('[data-testid="demo-steps-scrim"]').length,
+      drawerInBody: drawer.parentElement === document.body,
+      dockOpen: Boolean(document.querySelector('.cmd-dock-panel')),
+      chipEdgeIsTopmost: Boolean(topmost && chipEl.contains(topmost)),
     };
   });
   expect(layerOrder).toEqual({
-    bodyScrimCount: 1,
-    scrimInBody: true,
-    dockZIndex: '100061',
-    scrimZIndex: '100062',
-    drawerZIndex: '100063',
-    scrimCoversDock: true,
+    scrimCount: 0,
+    drawerInBody: true,
+    dockOpen: true,
+    chipEdgeIsTopmost: true,
   });
-  await chip.click();
+  await chip.click({ position: { x: 24, y: 24 } });
   await expectHandoff(page, calls, '/dashboard');
 });
 

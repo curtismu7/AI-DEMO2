@@ -193,7 +193,8 @@ async function submitDashboardTransfer(page, { amount = '300' } = {}) {
 /** Complete the TransactionConsentModal through OTP 123123. */
 async function completeConsentModalWithOtp(page) {
   const dialog = page.locator('.transaction-consent-popup');
-  await expect(dialog.getByText('Transfer')).toBeVisible({ timeout: 15000 });
+  // exact: the summary table also has cells such as "Transfer between accounts" and the description.
+  await expect(dialog.getByText('Transfer', { exact: true })).toBeVisible({ timeout: 15000 });
   await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Agree & continue' }).click();
   await expect(page.getByPlaceholder('123123')).toBeVisible({ timeout: 15000 });
