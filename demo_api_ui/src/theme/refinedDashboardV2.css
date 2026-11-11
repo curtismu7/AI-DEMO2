@@ -1034,35 +1034,11 @@
   margin-top: 20px;
   justify-content: flex-end;
 }
-[data-rd-v2] .form-actions button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: var(--radius-md);
-  font-family: var(--font-primary);
-  font-size: .85rem;
-  font-weight: 500;
-  letter-spacing: -.01em;
-  cursor: pointer;
-  transition: all 150ms ease-out;
-}
-/* The one primary in a banking form (Transfer / Deposit / Withdraw) is Ping Red, like every other primary:
-   buttons never take a vertical's colour. Cancel (type="button") stays the grey secondary below. */
-[data-rd-v2] .form-actions button[type="submit"] {
-  background: var(--btn-accent);
-  color: var(--btn-accent-text);
-}
-[data-rd-v2] .form-actions button[type="submit"]:hover:not(:disabled) {
-  background: var(--btn-accent-hover);
-}
-[data-rd-v2] .form-actions button[type="button"] {
-  background: var(--rd2-surface-2, #f3f3f1);
-  border: 1px solid var(--rd2-line-1, #e4e4e0);
-  color: var(--rd2-ink-1, #111110);
-}
-[data-rd-v2] .form-actions button[type="button"]:hover {
-  background: var(--rd2-surface, #ffffff);
-  border-color: var(--rd2-line-2, #d5d5d0);
-}
+/* The buttons inside .form-actions (the dashboard's transfer / deposit / withdraw forms) are styled by their own rules
+   in UserDashboard.css (.transfer-btn, .deposit-submit-btn, .withdraw-submit-btn, .cancel-btn): the fixed Ping Red
+   --btn-accent* tokens. Colour, border and size rules for `.form-actions button` used to live here, and at (0,2,1) and
+   (0,3,1) they outranked those single-class rules, so the submit buttons rendered in the vertical's --theme-accent
+   (blue) and Cancel in grey. Only the layout of the row is set here. */
 
 /* Token rail */
 [data-rd-v2] .ud-token-rail {
