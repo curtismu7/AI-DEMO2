@@ -21,6 +21,8 @@
 .p1x-table th, .p1x-table td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--th-border); }
 .p1x-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
 .p1x-table code { overflow-wrap: anywhere; }
+/* StatusChip text ("pass"/"fail") must stay on one line — narrow result cells were wrapping it mid-word. */
+.p1x-table .pu-chip { white-space: nowrap; }
 .p1x-none { color: var(--th-text-muted); }
 .p1x-scroll { overflow-x: auto; }
 .p1x-maps { margin: 0 0 8px; padding-left: 18px; font-size: var(--font-size-sm); display: grid; gap: 6px; }
