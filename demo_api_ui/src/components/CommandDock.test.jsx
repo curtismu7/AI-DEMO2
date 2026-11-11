@@ -25,8 +25,9 @@ describe('CommandDock height', () => {
     expect(panelHeightAt(1000)).toBe('900px');
   });
 
-  it('fills the window minus a margin when the window is shorter than the cap', () => {
-    expect(panelHeightAt(800)).toBe('776px');
+  it('fills the window minus the top offset and a margin when the window is shorter than the cap', () => {
+    // defaultY (52) reserves room for the title bar strip above the panel.
+    expect(panelHeightAt(800)).toBe('724px');
   });
 
   it('never goes below the 320px floor', () => {

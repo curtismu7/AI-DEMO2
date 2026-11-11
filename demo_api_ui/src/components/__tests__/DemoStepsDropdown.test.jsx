@@ -1257,3 +1257,24 @@ describe('DemoStepsDropdown — pingone-admin vertical', () => {
     expect(screen.getAllByText('Hosted MCP')).toHaveLength(13);
   });
 });
+
+describe('DemoStepsDropdown — signed-out catalog load', () => {
+  it('shows a Sign in button instead of the raw 401 message', async () => {
+    apiClient.get.mockRejectedValue(
+      Object.assign(new Error('Request failed with status code 401'), {
+        response: { status: 401, data: { error: 'hosted_access_required' } },
+      }),
+    );
+    render(<DemoStepsDropdown vertical="banking" open onOpenChange={() => {}} onSelect={() => {}} />);
+    expect(await screen.findByText('Sign in to load the demo steps.')).toBeInTheDocument();
+    expect(screen.queryByText(/Request failed with status code 401/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+  });
+
+  it('keeps the raw message for non-401 failures', async () => {
+    apiClient.get.mockRejectedValue(new Error('Network down'));
+    render(<DemoStepsDropdown vertical="banking" open onOpenChange={() => {}} onSelect={() => {}} />);
+    expect(await screen.findByText('Network down')).toBeInTheDocument();
+    expect(screen.queryByText('Sign in to load the demo steps.')).not.toBeInTheDocument();
+  });
+});
