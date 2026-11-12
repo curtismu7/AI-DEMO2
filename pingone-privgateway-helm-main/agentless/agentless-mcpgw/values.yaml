@@ -65,7 +65,7 @@ namespace: ping-devops-cjmuir
 
 image:
   repository: public.ecr.aws/s7q1z8z4/privilege-aigw
-  tag: latest
+  tag: v1.261112-NYL
   pullPolicy: Always
 
 # Port the gateway binary actually listens on. Current builds derive it from
@@ -128,6 +128,12 @@ oidc:
   tokenUrl: ""        # https://auth.pingone.com/<env-id>/as/token
   userUrl: ""         # https://auth.pingone.com/<env-id>/as/userinfo
   scopes: "openid profile email p1:read:env p1:read:user p1:read:application"
+  # USER_BINDING in pingone.env (gateway v1.261112-NYL and later). "none" skips the
+  # Privilege user lookup entirely — callers are taken from the login token's claims,
+  # so the gateway works without PingOne users loaded into Privilege. Trade-off (from
+  # the binary's own startup warning): policies issued to named users or groups will
+  # not match, and disabling a user in Privilege will not revoke their MCP access.
+  userBinding: none
 
 opensearch:
   enabled: true

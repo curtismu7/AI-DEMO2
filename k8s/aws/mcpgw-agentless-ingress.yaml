@@ -14,13 +14,15 @@
 #
 #   https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp
 #     -> ingress-nginx :443
-#     -> ping-mcpgw :8623        (mcpgw's -mcpgw listener; Frontend Name in the console)
+#     -> ping-mcpgw :443        (listener DERIVED from SERVER_URL; Frontend Name in the console)
 #     -> mcp-server :8080        (Backend Name in the Privilege console)
 #
-# Port 8623 as of the 2026-08-12 binary swap (privilege-proxy/cyonproxy ->
-# privilege-mcpgw/mcpgw) — a different port role than under the old binary,
-# where 8623 was the mTLS mesh port and 8620 was correct. See
-# 75-ping-mcpgw-deployment.yaml and the skill's port section.
+# 2026-11-12 binary swap to privilege-aigw v1.261112-NYL: the -mcpgw :8623
+# plain-HTTP listener is GONE. The binary now derives its listener from
+# SERVER_URL ("mcpgw will listen on :443"), serves PLAIN HTTP on it, and
+# answers MCP at /mcp/ (trailing slash mandatory — /mcp 404s). Verified by
+# probing the local compose container; keep in sync with
+# demo_mcpgw_nginx/nginx.conf, which got the same treatment.
 #
 # <<NAMESPACE>> is substituted by deploy.sh, matching se-ingress.yaml.
 #
@@ -45,11 +47,10 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    # mcpgw's -mcpgw listener (8623) is plain HTTP. On the previous binary
-    # (cyonproxy) 8623 was the mTLS mesh port and this warning pointed at 8620
-    # instead — the port roles inverted with the 2026-08-12 binary swap. Settle
-    # by probing, not by reading this comment: curl -i POST .../mcp and check for
-    # a clean 401 with WWW-Authenticate vs. a bare 502 (mTLS wall).
+    # v1.261112-NYL listener (SERVER_URL-derived :443) is plain HTTP. Settle
+    # by probing, not by reading this comment: curl -i POST .../mcp/ and check
+    # for a clean 401 with WWW-Authenticate vs. a bare 502. NOTE the trailing
+    # slash — /mcp 404s on this binary, /mcp/ challenges.
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     # Host rewrite, the annotation form of the $mcpgw_frontend map in
     # demo_mcpgw_nginx/nginx.conf. The gateway routes ONLY on the full
@@ -83,7 +84,7 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8623
+              number: 443
   # One host per Privilege MCP Server application.
   - host: aidemo.mcpgw.ai-demo.ping-devops.com
     http:
@@ -94,4 +95,4 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8623
+              number: 443
