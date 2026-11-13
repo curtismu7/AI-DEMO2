@@ -27,6 +27,36 @@ export const POPPY_STATUS = [
   { label: 'Not done', text: 'No agent is trusted by default. An operator lists the agent URLs in POPPY_ALLOWED_AGENTS.' },
 ];
 
+// The value case: why the protocol exists and what each side gets. Content mirrors the poppy-agent-tester
+// lab's Why Poppy tab (story data there, static config here) so the two demos teach the same story.
+export const POPPY_WHY = [
+  {
+    id: 'why-exists',
+    title: 'Why Poppy exists',
+    text: 'Today a Company faces two choices for an agent at its door: block it, or let it sign in as the person and do anything they can. Blocking loses the customer who wants their agent to help; full impersonation means the Company cannot tell an agent from a person, cannot limit what it does, and gets bots clicking through pages built for people. Both sides waste effort on detection and evasion. Poppy replaces that fight with a door both sides agree on.',
+  },
+  {
+    id: 'company',
+    title: 'What the Company gains',
+    text: 'Publish one poppy.json and any agent can work with you — no per-agent integration, no client registration desk. You decide which scopes an agent may request, which sign-ins count, and which agents are allowed. Every agent visit is identified, scoped and auditable, and because the spec builds on OAuth and HTTPS you already run, adopting it changes nothing for people.',
+  },
+  {
+    id: 'developer',
+    title: 'What the agent developer gains',
+    text: 'One protocol instead of one integration per Company: discover poppy.json, sign in, call — the same three steps everywhere. The person never hands the agent a password; they sign in on the Company\'s own page and grant a scope they can revoke. The agent identifies itself honestly with a URL it controls (CIMD) and signs what it sends, so it never pretends to be a person.',
+  },
+  {
+    id: 'person',
+    title: 'What the person gains',
+    text: 'Their agent gets more done at every Company that takes part, without being handed their credentials. They choose what the agent may see and do, and can revoke it. The Company knows exactly which agent acted and on whose behalf, so if something goes wrong there is a record instead of a mystery.',
+  },
+  {
+    id: 'ping',
+    title: 'Where Ping lands',
+    text: 'Every step runs through identity infrastructure: PingFederate resolves the agent URL (CIMD), signs the person in, issues the token with the agent URL as client_id, and publishes the metadata the Company verifies against; the Poppy-Session is verified with the same JWKS machinery. Poppy is a new kind of traffic arriving at the identity front door you already own.',
+  },
+];
+
 export const POPPY_LANES = { A: 'agent', F: 'authz', C: 'api' };
 export const POPPY_DETAILS = {
   A: 'The Personal Agent. It is identified by a client metadata URL (CIMD), not a registered client id, and holds a delegated key it signs each request with.',
