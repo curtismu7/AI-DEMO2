@@ -63,9 +63,14 @@ async function mintToken(cfg, scope) {
       'content-type': 'application/x-www-form-urlencoded',
       authorization: `Basic ${Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString('base64')}`,
     },
-    // resource selects PingFederate's token manager for this agent app. Without it, a request that names a
-    // scope gets another manager (other audience, no sub or act) and the gateway does not recognize the token.
-    body: new URLSearchParams({ grant_type: 'client_credentials', scope, resource: cfg.doorUrl }),
+    // audience selects PingFederate's token manager for this agent app. Without it, a
+    // request that names a scope gets another manager (other audience, no sub or act) and
+    // the gateway does not recognize the token. (PF 13.1.3: audience=, not resource= —
+    // the JWT ATM no longer carries a Resource URIs table, so resource= fails with
+    // invalid_target "did not match any access token manager"; audience= matches the
+    // token-exchange SP connection aiDemoPfPrivilegeOboSp. Live-verified 2026-11-13,
+    // see privilege/PF-OBO-WITH-PINGFEDERATE-SETUP.md §9.1.)
+    body: new URLSearchParams({ grant_type: 'client_credentials', scope, audience: cfg.doorUrl }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
   const body = await res.json().catch(() => ({}));

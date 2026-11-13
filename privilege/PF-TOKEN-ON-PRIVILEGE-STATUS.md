@@ -5,6 +5,8 @@
 
 Status as of 2026-10-22 (about 15:00 UTC). Tenant `0428ba4f-169c-436b-aff9-b230496e0e3b`, gateway `mcpgw.ai-demo.ping-devops.com`. No secret values are in this file.
 
+**Added 2026-11-13:** the OBO shape is verified end to end and the whole PF side (client `pf-route-c-test`, ATM `routeCTestAtm`, policy, mapping, SP connection) was rebuilt after a PF rebuild had wiped it — see [`PF-OBO-WITH-PINGFEDERATE-SETUP.md`](PF-OBO-WITH-PINGFEDERATE-SETUP.md) §9.1 and the idempotent provision script `scripts/pingfederate/provision-pf-obo-privilege.js`. One naming note: on PF 13.1.3 the token manager is pinned with `audience=`, not `resource=` (the JWT ATM lost its Resource URIs table); the BFF route now sends `audience=`. The client-credentials mapping `client_credentials|routeCTestAtm` was also restored (the page's CC mint needs it). The vault holds `PF_TOKEN_DEMO_CLIENT_SECRET`; the BFF `.env`/compose carry it, and `GET /api/pf-token-demo/state` reports `configured: true`.
+
 **Bottom line (updated 2026-10-26):** **it works.** A PingFederate-issued token is accepted by the gateway (key `pftoken-agent`) and `tools/list` on the `pftoken` agent app returns 200 with all nine tools. The full working configuration, and every fix it took, is in [`PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`](PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md), section "Working configuration". The rest of this file is the history up to 2026-10-22.
 
 **Added 2026-10-27:**
@@ -112,12 +114,13 @@ Settings: `~/.claude/settings.json` allow-lists the scratchpad scripts `grant-tm
 
 ## Still to clean up (after the test)
 
-- Keep `pf-route-c-test` (client) and `routeCTestAtm` (access-token manager) in PF: they are the permanent demo client and ATM for /privilege-pf-token, renamed "Privilege PF token demo agent" and "Privilege PF token demo access tokens" on 2026-10-28. The ids are unchanged on purpose; renaming an id would break the identity's required `client_id` claim and the demo secret.
+- Keep `pf-route-c-test` (client) and `routeCTestAtm` (access-token manager) in PF: they are the permanent demo client and ATM for /privilege-pf-token, renamed "Privilege PF token demo agent" and "Privilege PF token demo access tokens" on 2026-10-28. The ids are unchanged on purpose; renaming an id would break the identity's required `client_id` claim and the demo secret. **2026-11-13: both were recreated (with the policy, mapping, SP connection and the `client_credentials|routeCTestAtm` mapping) by `scripts/pingfederate/provision-pf-obo-privilege.js` after a PF rebuild wiped them; the script is now the source of truth for the whole PF side.**
 - Decide on Option A (`aiDemoPfJwtAtm` CLIENT_CREDENTIALS mapping). It adds `act`, `Username`, `spiffeId` to all client-credentials tokens from that manager. Remove it unless someone needs it.
 - Revert `PFtoken` audience to `priv-nhi-fa3gvmpkubxvuipp3gyuaolsltbulhkc` if the per-MCP audience is not adopted.
 - Delete the six `cedar-demo-*` Candidate policies (tenant leftovers from the Cedar demo).
 - Delete `pftoken-agent-grant` if it is still there after the test (we created it).
-- Key `pftoken-agent` expires 2026-10-29. Renew or delete.
+- Key `pftoken-agent` expires 2026-10-29 — **renewed 2026-10-28, now expires 2026-11-27.**
+- Expired stale keys to delete in the console (the "For Developers" API key cannot delete agent keys — DELETE returns 401): `tmp-pf-route-c-key` (expired 2026-10-23), `local` (2026-10-29), `langchain-caller` (2026-11-03), `ollama` (2026-11-11), `LM-Stuidio` (2026-11-12).
 - The local `pftoken-agent` key and the `KarunRiver` grant are not ours to remove.
 
 ## Related
