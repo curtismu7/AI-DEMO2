@@ -112,6 +112,7 @@ llamaindex_agent
 llm-timeouts.json
 lmstudio
 mcp-tool-schemas.json
+mock-privilege-owasp-top10.html
 mockups
 monitoring
 neural-spinner-mock.html
