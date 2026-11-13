@@ -428,7 +428,8 @@
     "/weather-mcp": "public",
     "/webmcp": "public",
     "/welcome": "public",
-    "/workload-agents": "public"
+    "/workload-agents": "public",
+    "/privilege-owasp-top10": "public"
   },
   "softAuthRoutes": [
     "/",
