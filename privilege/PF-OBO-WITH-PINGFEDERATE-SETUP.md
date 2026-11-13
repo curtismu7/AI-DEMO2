@@ -5,7 +5,8 @@ token on behalf of that user for an AI agent, the agent presents the token to a 
 Privilege gateway (P1 Privilege Agent App), and Privilege governs what the agent may do
 while keeping the user and the agent distinct.
 
-Written 2026-11-11. Builds on two measured docs in this directory:
+Written 2026-11-11; OBO path verified end to end 2026-11-13. Builds on two measured docs in
+this directory:
 [`PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`](PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md) (the
 verified autonomous-agent path and the working configuration) and
 [`PF-TOKEN-ON-PRIVILEGE-STATUS.md`](PF-TOKEN-ON-PRIVILEGE-STATUS.md) (status and restart
@@ -127,12 +128,18 @@ boundaries that do hold: the client allowlist caps scopes at grant time, and the
 redemption. Never phrase the demo as "the exchange can't exceed the grant" — say "the grant
 is capped by policy, and anything else dies at redemption".
 
-### 4.5 Always send `resource`
+### 4.5 Always pin the token manager (`audience`, formerly `resource`)
 
-**Every token request must send `resource=<agent app URL>`.** Without it, a request that
-names a scope can be served by a different (default) token manager — we got a token with
-audience `enduser.ping.demo` and no `sub`/`act`, and the gateway answered 401
+**Every token request must pin the manager with `audience=<agent app URL>`.** Without it, a
+request that names a scope can be served by a different (default) token manager — we got a
+token with audience `enduser.ping.demo` and no `sub`/`act`, and the gateway answered 401
 `token_not_found`. [verified]
+
+**2026-11-13, PF 13.1.3: send `audience=`, not `resource=`.** The JWT access-token manager
+no longer carries a Resource URIs table, so `resource=` fails with `invalid_target`
+("The specified resource(s) did not match any access token manager"); `audience=` matches
+through the token-exchange SP connection and works for both the client-credentials and the
+exchange request. [verified] The pinning rule itself is unchanged.
 
 ## 5. Privilege: the identity (NHI)
 
@@ -236,7 +243,7 @@ curl -s https://<pf-host>/as/token.oauth2 -u "<client id>:$CLIENT_SECRET" \
   -d subject_token="$SUBJECT_TOKEN" \
   -d subject_token_type="urn:ietf:params:oauth:token-type:id_token" \
   -d "audience=https://<gateway-host>/<agent-app>/mcp" \
-  -d "resource=https://<gateway-host>/<agent-app>/mcp" \
+  -d "audience=https://<gateway-host>/<agent-app>/mcp" \
   -d "scope=mcp"
 ```
 
@@ -276,13 +283,56 @@ discovery|auth rejected`.
 | Item | Status |
 |---|---|
 | Autonomous-agent shape (PF client-credentials token, agent in `sub`) accepted end to end, tools listed, passthrough proven, scope tiers, Cedar scope block | **verified** (2026-10-26/27, gateway v1.261024+) |
-| OBO shape (`sub` = user, `act.sub` = agent) accepted by the NHI settings above | the identity settings fit this shape **[ping]**; **not yet run end to end on our tenant** — Privilege's OBO support was in staging per Ping (2026-10-23) |
+| OBO shape (`sub` = user, `act.sub` = agent) accepted end to end: user sign-in (pi.flow, `demouser`) → id token → RFC 8693 exchange → gateway accepts (`workload token accepted for key pftoken-agent subject=demouser`) → `tools/list` 200 with tools → passthrough proven (`pftoken-rs` `whoami` reports `sub=demouser`, `act.sub=pf-route-c-test`) | **verified** (2026-11-13) |
 | Per-MCP audience in production | our exact-match agent-app-URL audience was accepted [verified]; Ping's guidance is gateway-scoped audience, allow-list on request [ping] — open |
 | Down-scoping the forwarded token | **not supported** — needs a token exchange in front of the gateway |
 
-Before a customer demo of the OBO shape, run one exchange with a real user subject token and
-read the claims (section 8 step 2), then one `tools/list`. Do not promise the OBO path until
-that passes.
+## 9.1 What it took (differences from the sections above) — 2026-11-13
+
+Everything above held except four things the sections above get wrong or omit:
+
+1. **The subject token is an OIDC ID token, not a refresh token.** PF's refresh-token
+   processor validates the token against the client that received it, so a refresh token
+   minted for `ai-demo-pf-user` is refused at `pf-route-c-test` (`unknown, invalid, or
+   expired refresh token`). The JWT processor accepts the id token once its Allowed Issuers
+   carry the PF **public** issuer (`https://cmuir-pf.ping-devops.com` — not the internal
+   `https://local.ping-devops.com:9031` it lists by default) and Allowed Audiences carry
+   `ai-demo-pf-user`.
+2. **The exchange's `audience`/`resource` must match a token-exchange SP connection.**
+   Without an SP whose `resourceUris` contains the door URL, PF answers `invalid_target`
+   ("audience value is invalid") and, without `resource` at all,
+   `Unable to find ATM, token generation policy instance or SP connection to issue
+   [access_token]`. Section 4.3/4.5 describe this as an ATM property; on PF 13.1.3 it is
+   the SP connection (`aiDemoPfPrivilegeOboSp`, `idJagEnabled: true`, policy mapping).
+3. **The ATM must sign with a published key.** "Use Centralized Signing Key" fails with 422
+   ("not a valid selection") and its key is NOT in `/pf/JWKS` — the gateway refreshed the
+   JWKS and still refused: `workload token rejected: signature does not verify against any
+   known key`. Use the per-ATM certificate with a **unique Key ID** (`…-routec`; PF rejects
+   a Key ID already used by another ATM) and **Publish Keys to the PingFederate JWKS
+   Endpoint = true**.
+4. **The Privilege grant's scope tiers gate the tools.** The `pftoken` rules require
+   `opensearch:read` / `opensearch:admin`; a token with only `scope=mcp` is accepted
+   ("workload token accepted") then denied on policy (403). The exchange must request
+   `scope=mcp opensearch:read` (and `whoami:read` for the `pftoken-rs` `whoami` call), and
+   the client allowlist + AS scope list must carry them.
+
+The whole PF side is scripted: `scripts/pingfederate/provision-pf-obo-privilege.js`
+(idempotent, dry run by default, `--apply`). It restores everything PF-side after a PF
+rebuild; the Privilege side (NHI `PFtoken`, key `pftoken-agent`, doors) survived and needed
+nothing. The BFF needs `PF_TOKEN_DEMO_CLIENT_SECRET` (the vault secret the script creates)
+in its environment; `GET /api/pf-token-demo/state` reports `configured: false` when absent.
+
+One-off test transcript (2026-11-13): pi.flow sign-in as `demouser` on `ai-demo-pf-user`
+(PKCE + `response_mode=pi.flow` → `checkUsernamePassword` → `authorizeResponse.code` →
+token endpoint returns `id_token`), then the exchange above → claims `sub=demouser`,
+`act.sub=pf-route-c-test`, `aud=<door>`, `scope=mcp opensearch:read` → `tools/list` 200
+(three tools per the read tier) → `whoami` at `pftoken-rs` verified and reported every
+claim. Gateway log lines: `workload token accepted for key pftoken-agent
+issuer=https://cmuir-pf.ping-devops.com subject=demouser`, no `policy denied`.
+
+Before a customer demo of the OBO shape: re-run the provision script (`--apply` is a no-op
+when in place), then one exchange with a real user subject token and one `tools/list` —
+see section 9.1 for the exact transcript from 2026-11-13.
 
 ## 10. Related
 
