@@ -1,0 +1,20 @@
+# Virtual keys for ./privilege/scripts/test-llm-rest.sh — one per line, comments (#) allowed.
+# Keys are provider-bound: each only works on its own gateway route.
+# Verified live 2026-11-13 against https://mcpgw.ai-demo.ping-devops.com.
+
+# Key 1 — ANTHROPIC-bound. Route: POST /llm/anthropic/v1/messages (x-api-key + anthropic-version header).
+# VERIFIED 2026-11-13: 200 chat completion + streaming SSE. Non-allow-listed model -> 403.
+sk-orion-8ad7fa756d7ad36d1d91d35265ac0545d11b13608e128ca3
+
+# Key 2 — llama.cpp / custom provider (meta.llama3-2-3b-instruct-v1:0).
+# Route when valid: POST /llm/custom/v1/chat/completions (Authorization: Bearer).
+# EXPIRED/REVOKED as of 2026-11-13: 401 "virtual key expired or revoked" on every route.
+sk-orion-ba078c4c2f48f9256a3c9d22288483da5664f23925de2516
+
+# Key 3 — GOOGLE-bound. Route: POST /llm/google/v1beta/models/gemini-2.5-flash:generateContent
+# (Authorization: Bearer, Gemini NATIVE generateContent body — the /v1beta lane is NOT
+# OpenAI-compatible; /llm/google/v1/... is a bare 404).
+# Status 2026-11-13: virtual key valid (passes key + provider checks) but the UPSTREAM
+# Google API key stored in the console is invalid -> Google answers 400 API_KEY_INVALID.
+# Fix: re-enter a valid Google AI Studio key under this key in the Privilege console.
+sk-orion-0718ba5507f6f3bab822ef17c7d26ee4dc8026fd4567e00e

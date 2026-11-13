@@ -1,6 +1,13 @@
 # (npm run root:allowlist:check), wired into .github/workflows/ci.yml `gates`.
+# Dated cross-agent session handoff reports (docs/ is the canonical home for
+# NEW ones; these four landed at root on 2026-09-26 across parallel agent
+# Runtime intent file written by demo_api_server (provider preflight, PR #335).
+# Standard repo-companion files added 2026-10-11 (PR that also enabled secret
 # Top-level entries allowed at repo root. Update in the SAME PR that adds a
 # genuine new top-level dir/file. Enforced by scripts/check-root-allowlist.js
+# gitleaks config (secret-scanning allowlists, added 2026-11-03)
+# scanning; see docs/runbooks/share-announcement.md).
+# sessions before the allowlist gate could catch them).
 .agents
 .aidlc
 .aidlc-rule-details
@@ -8,14 +15,14 @@
 .claude
 .cursor
 .cursorrules
+.demo-provider-intent.json
 .dockerignore
-.graphifyignore
 .editorconfig
 .github
 .gitignore
-.gitleaksignore
-# gitleaks config (secret-scanning allowlists, added 2026-11-03)
 .gitleaks.toml
+.gitleaksignore
+.graphifyignore
 .graphifyignore
 .husky
 .idea
@@ -29,31 +36,25 @@ BUGS.md
 CHANGELOG.md
 CLAUDE.md
 CODE_REVIEW.md
-# Standard repo-companion files added 2026-10-11 (PR that also enabled secret
-# scanning; see docs/runbooks/share-announcement.md).
 CONTRIBUTING.md
-LICENSE
 Connect to the PingOne Remote MCP Server.pdf
 DOCKER_STARTUP.md
 FEATURES.md
 HANDOFF-A2A-PF-SESSION-2026-09-26.md
 HANDOFF-UC38-demo-steps.md
 HANDOFF.md
-# Dated cross-agent session handoff reports (docs/ is the canonical home for
-# NEW ones; these four landed at root on 2026-09-26 across parallel agent
-# sessions before the allowlist gate could catch them).
-PF-LOGIN-CHAIN-SESSION-2026-09-26.md
-SESSION-REPORT-2026-09-26.md
-UC40-PF-IDJAG-SESSION-HANDOFF.md
-# Runtime intent file written by demo_api_server (provider preflight, PR #335).
-.demo-provider-intent.json
+LICENSE
 NEW-MACHINE.md
+PF-LOGIN-CHAIN-SESSION-2026-09-26.md
 README.md
 REGRESSION_LOG.md
 REGRESSION_PLAN.md
 SECRETS_IMPLEMENTATION.md
+SESSION-REPORT-2026-09-26.md
 TECH_DEBT.md
 THEMING.md
+UC40-PF-IDJAG-SESSION-HANDOFF.md
+VIRTUAL_KEY.txt
 W8-HANDOFF.md
 agent_token_service
 aidlc-docs
