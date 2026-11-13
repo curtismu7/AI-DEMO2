@@ -45,13 +45,12 @@ spec:
       containers:
       - name: ping-mcpgw
         # Pinned by digest (multi-arch manifest list) rather than a tag.
-        # 2026-11-09: moved from privilege-mcpgw (build 2026-07-30, sha256:0faad590…)
-        # to privilege-aigw v1.261106, the image the live agentless-mcpgw helm
-        # releases already run. Same /procyon/bin/mcpgw command. NOTE: this
-        # manifest targets namespace `ai-demo`, which does not exist on the US SE
-        # cluster today; nothing is deployed from it. Bump by re-pulling a newer
-        # dated tag and updating the digest.
-        image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce
+        # 2026-11-12: bumped to privilege-aigw v1.261112-NYL (adds USER_BINDING in
+        # pingone.env; USER_BINDING=none takes callers from the login token's
+        # claims). NOTE: this manifest targets namespace `ai-demo`, which does not
+        # exist on the US SE cluster today; nothing is deployed from it. Bump by
+        # re-pulling a newer dated tag and updating the digest.
+        image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:79bda54a21f4fed72ed65b55c5ca5e745b4e1fe0d92b9736304fabd78fb3f273
         imagePullPolicy: Always
         command: ["/procyon/bin/mcpgw"]
         args:
@@ -63,16 +62,13 @@ spec:
         # consuming pingone.env's values via injected environment variables.
         - "-mcpconfpath"
         - "/var/lib/procyon/config/pingone.env"
-        # -mcpgw is this binary's MCP+OAuth-challenge listener (default :8623) —
-        # a different port role than cyonproxy's -alp-port (8620). Left on default
-        # rather than pinned explicitly, matching the one proven-working
-        # invocation seen live: another engineer's cluster, same image (same
-        # digest), same minimal flag set (-hostname, -mcpconfpath only, no
-        # -alp-port/-listen/-mcpgw overrides) — POST .../mcp there returned 401
-        # with WWW-Authenticate present. NOT yet verified against our own
-        # enrollment; this deployment has never run (see PR that added it).
+        # 2026-11-12 binary swap to v1.261112-NYL: the listener is DERIVED from
+        # SERVER_URL — log line "mcpgw will listen on :443 (derived from
+        # AIGwServer/SERVER_URL ...)" — serves PLAIN HTTP on it, and answers MCP
+        # at /mcp/ (WITH trailing slash). The -mcpgw :8623 listener of
+        # v1.261106 is gone. Verified by probing the local compose container.
         ports:
-        - containerPort: 8623
+        - containerPort: 443
           name: http
         # Official Ping doc ("PingOne-Privilege-MCP-Gateway-Configuration.md", received
         # 2026-08-12): "8690/TCP for gateway-to-gateway communication and mesh cluster
@@ -125,19 +121,19 @@ spec:
             cpu: "500m"
         startupProbe:
           tcpSocket:
-            port: 8623
+            port: 443
           failureThreshold: 30
           periodSeconds: 2
           timeoutSeconds: 2
         livenessProbe:
           tcpSocket:
-            port: 8623
+            port: 443
           periodSeconds: 60
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           tcpSocket:
-            port: 8623
+            port: 443
           initialDelaySeconds: 5
           periodSeconds: 30
           timeoutSeconds: 3
@@ -197,8 +193,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8623
-    targetPort: 8623
+  - port: 443
+    targetPort: 443
     protocol: TCP
     name: http
   # Mesh cluster creation / gateway-to-gateway per the official config doc — see

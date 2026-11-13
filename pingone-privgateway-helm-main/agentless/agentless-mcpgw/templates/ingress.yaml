@@ -11,7 +11,14 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    {{- /*
+      backend-protocol HTTP, not HTTPS: v1.261112-NYL serves PLAIN HTTP on its
+      SERVER_URL-derived :443 listener (verified in the local compose container
+      2026-11-12 — TLS at :443 answered "wrong version number", plain HTTP got
+      the MCP 401 challenge). TLS terminates at the ingress. Keep this in sync
+      with demo_mcpgw_nginx/nginx.conf, which got the same treatment.
+    */}}
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "off"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}

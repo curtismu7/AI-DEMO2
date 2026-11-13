@@ -2191,7 +2191,11 @@ services:
     # volumes (enrollment cert pair in mcpgw-ssl) are unchanged. Roll back by
     # restoring the old digest. Bump by re-pulling a newer dated tag and
     # updating the digest.
-    image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:de145f71fa6d6323963076671c252c37cb5a1fbdcfe10cff3b969975e57496ce
+    # 2026-11-12: bumped from v1.261106 (sha256:de145f71…) to v1.261112-NYL
+    # (sha256:79bda54a…), which adds USER_BINDING in pingone.env. Roll back by
+    # restoring the old digest. Bump by re-pulling a newer dated tag and
+    # updating the digest.
+    image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:79bda54a21f4fed72ed65b55c5ca5e745b4e1fe0d92b9736304fabd78fb3f273
     pull_policy: always
     container_name: ai-demo-ping-mcpgw
     # AGENTLESS (self-hosted frontend) MODE — see privilege/PRIVILEGE-MCP.md.
