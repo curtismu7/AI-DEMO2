@@ -14,6 +14,11 @@ import http from 'node:http';
 import https from 'node:https';
 
 export const METADATA_PATH = '/.well-known/oauth-authorization-server';
+// A static JWKS served as-is (never fetched upstream). PingFederate's own JWT-bearer consumer
+// picks the wrong key when several RSA keys share /pf/JWKS and answers "Invalid JWT token"
+// (see configure-acme-idp.js). A path serving ONLY the ID-JAG signing key gives the resource-AS
+// trust chain its own key set without changing what the dynamic /pf/JWKS publishes.
+export const STATIC_JWKS_PATH = '/pf/JWKS-idjag';
 
 // Returns the metadata document with protected_resources added (once), or the original bytes when it is not a JSON object.
 export function addProtectedResources(raw, protectedResource) {
@@ -24,12 +29,18 @@ export function addProtectedResources(raw, protectedResource) {
   return Buffer.from(JSON.stringify(doc));
 }
 
-export function createShim({ upstream, protectedResource, verifyUpstream = false, plain = false, serverOptions = {} }) {
+export function createShim({ upstream, protectedResource, verifyUpstream = false, plain = false, serverOptions = {}, staticJwks = null }) {
   const up = new URL(upstream);
   const lib = plain ? http : https;
   const agent = plain ? undefined : new https.Agent({ rejectUnauthorized: verifyUpstream });
   return (req, res) => {
+    if (req.method === 'GET' && req.url.split('?')[0] === STATIC_JWKS_PATH && staticJwks) {
+      const body = Buffer.from(JSON.stringify(staticJwks));
+      res.writeHead(200, { 'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store' });
+      return res.end(body);
+    }
     const isMetadata = req.method === 'GET' && req.url.split('?')[0] === METADATA_PATH;
+    const isStaticJwks = req.method === 'GET' && req.url.split('?')[0] === STATIC_JWKS_PATH && staticJwks;
     const headers = { ...req.headers };
     if (isMetadata) headers['accept-encoding'] = 'identity'; // so the body can be read and changed
     const upReq = lib.request({ protocol: up.protocol, hostname: up.hostname, port: up.port, path: req.url, method: req.method, headers, agent }, (upRes) => {
@@ -55,7 +66,9 @@ function start() {
   const upstream = process.env.SHIM_UPSTREAM || 'https://127.0.0.1:9032';
   const protectedResource = process.env.SHIM_PROTECTED_RESOURCE;
   if (!protectedResource) throw new Error('SHIM_PROTECTED_RESOURCE is required (the Company origin, https://{domain})');
-  const handler = createShim({ upstream, protectedResource, verifyUpstream: process.env.SHIM_VERIFY_UPSTREAM === '1', plain: process.env.SHIM_PLAIN === '1' });
+  const staticJwksFile = process.env.SHIM_STATIC_JWKS_FILE;
+  const staticJwks = staticJwksFile ? JSON.parse(fs.readFileSync(staticJwksFile, 'utf8')) : null;
+  const handler = createShim({ upstream, protectedResource, verifyUpstream: process.env.SHIM_VERIFY_UPSTREAM === '1', plain: process.env.SHIM_PLAIN === '1', staticJwks });
   const server = process.env.SHIM_PLAIN === '1'
     ? http.createServer(handler)
     : https.createServer({ cert: fs.readFileSync(process.env.SHIM_CERT), key: fs.readFileSync(process.env.SHIM_KEY) }, handler);
