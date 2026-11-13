@@ -4,7 +4,7 @@ import React from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
-  POPPY_DETAILS, POPPY_DOCS, POPPY_HOST, POPPY_LANES, POPPY_PAYLOADS, POPPY_SCOPES, POPPY_SOURCE, POPPY_SPEC, POPPY_STATUS,
+  POPPY_DETAILS, POPPY_DOCS, POPPY_HOST, POPPY_LANES, POPPY_PAYLOADS, POPPY_SCOPES, POPPY_SOURCE, POPPY_SPEC, POPPY_STATUS, POPPY_WHY,
 } from '../config/poppyPage';
 import './PoppyPage.css';
 
@@ -26,6 +26,18 @@ export default function PoppyPage() {
           ))}
         </ul>
         <p className="poppy-muted">Spec: <a href={POPPY_SPEC} target="_blank" rel="noreferrer">{POPPY_SPEC}</a> (Draft 0.3).</p>
+      </section>
+
+      <section className="poppy-card" aria-labelledby="poppy-why">
+        <h2 id="poppy-why">Why Poppy</h2>
+        <div className="poppy-why" data-testid="poppy-why">
+          {POPPY_WHY.map((w) => (
+            <article key={w.id} className="poppy-why-item">
+              <h3>{w.title}</h3>
+              <p>{w.text}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="poppy-card" aria-labelledby="poppy-flow">
