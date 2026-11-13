@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PoppyPage from '../PoppyPage';
 import { parseSequence } from '../../utils/parseSequence';
-import { POPPY_PAYLOADS, POPPY_SCOPES, POPPY_SOURCE } from '../../config/poppyPage';
+import { POPPY_PAYLOADS, POPPY_SCOPES, POPPY_SOURCE, POPPY_WHY } from '../../config/poppyPage';
 
 describe('Poppy page', () => {
   it('has one payload for every message in the diagram', () => {
@@ -18,5 +18,15 @@ describe('Poppy page', () => {
     expect(screen.getAllByText('Not done').length).toBeGreaterThan(0);
     expect(screen.getByText('/.well-known/poppy.json')).toBeTruthy();
     for (const s of POPPY_SCOPES) expect(screen.getByText(s.scope)).toBeTruthy();
+  });
+
+  it('renders the Why Poppy value section with every audience', () => {
+    render(<MemoryRouter><PoppyPage /></MemoryRouter>);
+    const why = screen.getByTestId('poppy-why');
+    expect(why).toBeTruthy();
+    for (const w of POPPY_WHY) {
+      expect(screen.getByText(w.title)).toBeTruthy();
+      expect(screen.getByText(w.text)).toBeTruthy();
+    }
   });
 });
