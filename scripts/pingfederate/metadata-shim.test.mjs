@@ -61,3 +61,19 @@ test('an unreachable upstream is a clean 502', async () => {
   const shim = await listen(createShim({ upstream: 'http://127.0.0.1:1', protectedResource: RESOURCE, plain: true }));
   try { const r = await get(shim.address().port, METADATA_PATH); assert.equal(r.status, 502); } finally { shim.close(); }
 });
+
+test('the static JWKS path serves the configured key set and never touches upstream', async () => {
+  const seen = [];
+  const upstream = await listen((req, res) => { seen.push(req.url); res.writeHead(200); res.end('upstream'); });
+  const jwks = { keys: [{ kty: 'RSA', kid: 'only-key', n: 'x', e: 'AQAB' }] };
+  const shim = await listen(createShim({ upstream: `http://127.0.0.1:${upstream.address().port}`, protectedResource: RESOURCE, plain: true, staticJwks: jwks }));
+  const port = shim.address().port;
+  try {
+    const hit = await get(port, '/pf/JWKS-idjag');
+    assert.equal(hit.status, 200);
+    assert.deepEqual(JSON.parse(hit.body.toString()), jwks);
+    const other = await get(port, '/pf/JWKS');
+    assert.equal(other.body.toString(), 'upstream'); // the dynamic set still proxies
+    assert.deepEqual(seen, ['/pf/JWKS']);            // the static path never reached upstream
+  } finally { shim.close(); upstream.close(); }
+});

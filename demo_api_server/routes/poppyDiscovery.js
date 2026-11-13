@@ -91,7 +91,8 @@ function buildPoppyJson() {
   const domain = poppyDomain();
   const doc = {
     protocol_version: '0.3',
-    organization: { name: process.env.POPPY_ORG_NAME || 'Super Banking', domain },
+    // §3.1: organization.domain is a bare host (no port) even when the Company origin carries one.
+    organization: { name: process.env.POPPY_ORG_NAME || 'Super Banking', domain: domain.split(':')[0] },
     auth: {
       issuer: issuer(),
       scopes: Object.fromEntries(Object.entries(POPPY_SCOPES).map(([k, v]) => [k, v.description])),
