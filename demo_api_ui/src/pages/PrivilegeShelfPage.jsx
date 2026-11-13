@@ -35,6 +35,7 @@ const SECTIONS = [
       { title: "Agent Privilege Diagrams", text: "The gateway as interactive diagrams.", to: "/privilege-mcp-diagrams" },
       { title: "Agent Privilege Topologies", text: "Deployment topologies for the gateway.", to: "/privilege-gateway-topologies" },
       { title: "External Agent App Diagrams", text: "External agent apps through the gateway: dual path and sequence.", to: "/external-door-diagrams" },
+      { title: "OWASP Agentic AI Top 10 — Privilege coverage", text: "All ten ASI categories explained, with the slide-21 coverage table: what Privilege's gateway and AIGuard cover, and the two stated gaps.", isNew: true, to: "/privilege-owasp-top10" },
     ],
   },
   {

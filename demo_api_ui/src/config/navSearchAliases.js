@@ -136,6 +136,7 @@ export const NAV_SEARCH_ALIASES = {
   "/oauth-debug-logs": "debug oauth logging verbose log lines toggle auto-refresh clear api server admin",
   "/obo-demo": "personal agent user delegation rfc 8693 token exchange sub act downstream claude code mcp",
   "/owasp": "owasp gen ai security project agentic threats t1 t15 kc1 kc6 key components learner guide",
+  "/privilege-owasp-top10": "owasp agentic ai top 10 asi01 asi02 asi03 asi04 asi05 asi06 asi07 asi08 asi09 asi10 privilege coverage gateway aiguard agent goal hijack tool misuse rogue agents",
   "/p1-third-party-exchange": "trusted issuer actor token subject okta auth0 microsoft pingfederate jwt curl rfc 8693",
   "/page-catalog": "every page what it does teaches demos grouped",
   "/path/mortgage": "credential swap gateway oauth bearer service api key rfc 8693 token chain mcp",

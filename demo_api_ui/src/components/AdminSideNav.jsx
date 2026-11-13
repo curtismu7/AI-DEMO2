@@ -1256,6 +1256,7 @@ export default function AdminSideNav({
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
+        { label: "OWASP Top 10 — Privilege Coverage", path: "/privilege-owasp-top10", icon: "sec" },
         { label: "Privilege for AI", path: "/privilege-for-ai", icon: "shld" },
         { label: "MCP Scanner", path: "/mcp-scanner", icon: "dbg" },
         {
@@ -1707,6 +1708,7 @@ export default function AdminSideNav({
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",
+      "OWASP Top 10 — Privilege Coverage",
       { from: "Privilege for AI", rename: "Agent Privilege for AI" },
       { label: "Governance Timeline", path: "/governance-timeline", icon: "log", searchAlias: "governance timeline mission control audit history events" },
     ], "agt"),

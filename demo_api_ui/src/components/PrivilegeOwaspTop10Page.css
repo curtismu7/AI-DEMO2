@@ -1,0 +1,107 @@
+/* PrivilegeOwaspTop10Page.css — only what the shared Ping UI primitives
+ * (src/styles/ping-ui.css) do not cover: the per-card threat/how/gap text
+ * blocks and the covered-by label. Tokens only (THEMING.md). */
+
+.powasp-covered-by {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--th-text-muted);
+}
+
+.powasp-threat {
+  margin: 0 0 8px;
+  font-size: var(--font-size-sm);
+}
+
+.powasp-how {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.powasp-how strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.powasp-gap {
+  margin-top: 8px;
+}
+
+/* Slide-21 coverage table: compact rows, horizontal scroll on narrow screens. */
+.powasp-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.powasp-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.powasp-table th,
+.powasp-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--th-border);
+  text-align: left;
+  vertical-align: top;
+  color: var(--th-text);
+}
+
+.powasp-table thead th {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+}
+
+.powasp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.powasp-table-id {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  color: var(--btn-accent);
+}
+
+.powasp-table-threat {
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.powasp-table-by {
+  white-space: nowrap;
+}
+
+.powasp-table-by .pu-chip--full {
+  border-color: transparent;
+  background: var(--th-status-success);
+  color: var(--th-text-invert);
+}
+
+.powasp-table-by .pu-chip--gap {
+  border-color: transparent;
+  background: var(--th-status-warning);
+  color: var(--th-text-invert);
+}
+
+.powasp-table-how {
+  min-width: 24rem;
+  color: var(--th-text-body);
+}
+
+.powasp-table-how.is-gap {
+  color: var(--th-status-warning-text);
+}
+
+.powasp-table-gap {
+  color: inherit;
+  font-style: normal;
+}
