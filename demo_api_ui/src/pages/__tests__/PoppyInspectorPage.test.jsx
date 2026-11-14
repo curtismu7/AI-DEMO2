@@ -81,9 +81,24 @@ describe('PoppyInspectorPage', () => {
     expect(screen.getAllByRole('option').length).toBe(3); // All + two agents
   });
 
-  it('shows a readable error when the API refuses', async () => {
-    mockApi({ fail: true });
+  it('falls back to the public redacted feed when the admin API refuses, and says identity is withheld', async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (String(url).startsWith('/api/admin/')) {
+        return Promise.reject({ response: { status: 401, data: { error: 'authentication_required' } } });
+      }
+      if (String(url).includes('/api/poppy/inspector/agents')) return Promise.reject(new Error('none'));
+      return Promise.resolve({ data: { count: 1, entries: [{ ...ENTRY, userId: undefined, sessionId: undefined, redacted: true }] } });
+    });
     render(<MemoryRouter><PoppyInspectorPage /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('poppy-inspect-error').textContent).toMatch(/admin-only/));
+    await waitFor(() => expect(screen.getByTestId('poppy-inspect-public-note')).toBeTruthy());
+    expect(screen.getByText(/Public view/).textContent).toMatch(/withheld/);
+    // the row renders from the public feed
+    await waitFor(() => expect(screen.getByTestId('poppy-inspect-row-ins_abc123')).toBeTruthy());
+  });
+
+  it('shows a readable error when both the admin and public feeds refuse', async () => {
+    apiClient.get.mockImplementation(() => Promise.reject({ response: { status: 403, data: { error: 'Access denied. Admin role required.' } } }));
+    render(<MemoryRouter><PoppyInspectorPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('poppy-inspect-error').textContent).toMatch(/Could not load/));
   });
 });

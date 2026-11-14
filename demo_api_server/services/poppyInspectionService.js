@@ -129,9 +129,39 @@ function createPoppyInspectionService({ maxEntries = MAX_ENTRIES } = {}) {
 // feed reads from it. Bounded memory, per-process, resets on restart.
 const shared = createPoppyInspectionService();
 
+/**
+ * The public projection of one entry: what a visitor may see without a session.
+ * Identity is removed (spec 5.1: User IDs are pseudonymous and are not the
+ * Company's to publish); tokens stay fingerprints, narrative and shape stay.
+ */
+function redactEntry(entry) {
+  const identityStep = /(?:person the agent acts for|stayed bound|jti was unused)/i;
+  const sid = /\b(sid-[A-Za-z0-9_-]+)/g;
+  const user = /\b(user[_-]?[A-Za-z0-9@._-]+|demouser)/gi;
+  const reasoning = entry.reasoning.map((step) => {
+    if (identityStep.test(step)) return step.replace(sid, 'sid-(withheld)').replace(user, '(user withheld)');
+    return step;
+  });
+  return {
+    id: entry.id,
+    at: entry.at,
+    method: entry.method,
+    path: entry.path,
+    status: entry.status,
+    clientId: entry.clientId,
+    agentId: entry.agentId,
+    signedOut: entry.signedOut,
+    reasoning,
+    received: entry.received,
+    sent: entry.sent,
+    redacted: true,
+  };
+}
+
 module.exports = {
   createPoppyInspectionService,
   narrate,
+  redactEntry,
   shared,
   MAX_ENTRIES,
 };

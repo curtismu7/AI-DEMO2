@@ -86,19 +86,30 @@ export default function PoppyInspectorPage() {
   const [agent, setAgent] = useState('');
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState(null);
+  const [source, setSource] = useState(null); // 'admin' | 'public'
 
   const load = useCallback(async () => {
+    // Admins get the full feed (user + session identity); everyone else gets the
+    // public projection: same requests, same narrative order, identity withheld.
     try {
       const params = agent ? `?agent=${encodeURIComponent(agent)}` : '';
       const res = await apiClient.get(`/api/admin/poppy/inspect${params}`);
       setEntries(res.data.entries || []);
+      setSource('admin');
       setError('');
       const ag = await apiClient.get('/api/admin/poppy/inspect/agents');
       setAgents(ag.data.agents || []);
+      return;
+    } catch { /* not an admin: fall through to the public feed */ }
+    try {
+      const params = agent ? `?agent=${encodeURIComponent(agent)}` : '';
+      const res = await apiClient.get(`/api/poppy/inspector${params}`);
+      setEntries(res.data.entries || []);
+      setSource('public');
+      setError('');
+      setAgents([]);
     } catch (err) {
-      setError(err.response?.data?.error === 'Access denied. Admin role required.'
-        ? 'This feed is admin-only.'
-        : 'Could not load the Poppy inspection feed.');
+      setError('Could not load the Poppy inspection feed.');
     }
   }, [agent]);
 
@@ -116,6 +127,13 @@ export default function PoppyInspectorPage() {
         What Personal Agents sent to the Company&apos;s Poppy API, newest first, and what the
         Company made of each request. Tokens are shown shortened. Refreshes every few seconds.
       </p>
+      {source === 'public' && (
+        <p className="poppy-muted" data-testid="poppy-inspect-public-note">
+          Public view: user and session identity is withheld (Poppy spec §5.1 — User IDs are
+          pseudonymous and are not the Company&apos;s to publish). Sign in as a Company admin to see
+          the full feed.
+        </p>
+      )}
       {error && <p className="poppy-muted" role="alert" data-testid="poppy-inspect-error">{error}</p>}
       {agents.length > 1 && (
         <label className="poppy-inspect-agentpick" htmlFor="poppy-inspect-agent">
