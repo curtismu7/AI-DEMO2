@@ -2,29 +2,47 @@
 // Company's Poppy API and what the Company made of each request. Admin-only. Read-only.
 // Mirrors the Cliffside protocol-inspector demo: newest-first rows, expandable per request
 // into the verification narrative and raw Received / Sent panes. Tokens are fingerprints.
+// JSON renders colored (JsonView) with a Pretty / Raw toggle per pane.
 import { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
+import JsonView from './JsonView';
 import './PoppyInspectorPage.css';
 
 function ReceivedSent({ entry }) {
+  const [view, setView] = useState('pretty');
+  const received = { ...entry.received };
+  const sentBody = entry.sent.body == null ? null : safeParse(entry.sent.body);
   return (
     <div className="poppy-inspect-panes" data-testid="poppy-inspect-panes">
-      <pre className="poppy-inspect-pane" aria-label="Received">
-        <strong>Received</strong>
-        {'\n'}
-        {`${entry.received.method} ${entry.received.url}\n`}
-        {entry.received.poppy_session ? `poppy-session: ${entry.received.poppy_session}\n` : ''}
-        {entry.received.authorization ? `${entry.received.authorization}\n` : ''}
-        {entry.received.body ? `\n${entry.received.body}` : ''}
-      </pre>
-      <pre className="poppy-inspect-pane" aria-label="Sent">
-        <strong>Sent</strong>
-        {'\n'}
-        {`HTTP ${entry.sent.status}\n`}
-        {entry.sent.body ? entry.sent.body : ''}
-      </pre>
+      <h4 className="poppy-inspect-panetitle">Received</h4>
+      <JsonView
+        label="Received"
+        view={view}
+        onChangeView={setView}
+        data={{
+          request: `${received.method} ${received.url}`,
+          'poppy-session': received.poppy_session || undefined,
+          authorization: received.authorization || undefined,
+          body: received.body ? safeParse(received.body) : undefined,
+        }}
+      />
+      <h4 className="poppy-inspect-panetitle">Sent</h4>
+      <JsonView
+        label="Sent"
+        view={view}
+        onChangeView={setView}
+        data={{ status: entry.sent.status, body: sentBody ?? undefined }}
+      />
     </div>
   );
+}
+
+function safeParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 function InspectorRow({ entry, open, onToggle }) {
