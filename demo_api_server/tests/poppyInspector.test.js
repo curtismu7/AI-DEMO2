@@ -164,3 +164,44 @@ describe('Poppy inspector admin routes', () => {
     expect((await request(app).get('/api/admin/poppy/inspect')).body.count).toBe(0);
   });
 });
+
+describe('Poppy inspector public routes (redacted)', () => {
+  const createPoppyPublicInspectorRouter = require('../routes/poppyPublicInspector');
+  const { redactEntry } = require('../services/poppyInspectionService');
+
+  const FULL = {
+    id: 'ins_full', at: '2026-11-14T12:00:00.000Z', method: 'GET', path: '/poppy/api/v1/me',
+    status: 200, agentId: 'agent-x', clientId: CLIENT_ID, userId: 'demouser', signedOut: false,
+    sessionId: 'sid-secret', reasoning: ['1. Legit.'], received: { method: 'GET', url: '/p', poppy_session: 'ABC…f', authorization: 'Bearer XYZ…a' }, sent: { status: 200 },
+  };
+
+  it('redactEntry drops user and session identity and marks the entry redacted', () => {
+    const r = redactEntry(FULL);
+    expect(r.userId).toBeUndefined();
+    expect(r.sessionId).toBeUndefined();
+    expect(r.redacted).toBe(true);
+    expect(r.reasoning).toEqual(FULL.reasoning); // narrative stays
+    expect(r.clientId).toBe(CLIENT_ID);          // which agent stays
+  });
+
+  it('serves the redacted feed publicly: no userId or sessionId anywhere in the body', async () => {
+    const svc = createPoppyInspectionService();
+    svc.record({ method: 'GET', path: '/me', outcome: { ok: true, sub: 'demouser', sid: 'sid-x', agentId: 'agent-x', clientId: CLIENT_ID } });
+    const app = express();
+    app.use('/api/poppy', createPoppyPublicInspectorRouter({ shared: svc }));
+    const res = await request(app).get('/api/poppy/inspector');
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(1);
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain('demouser');
+    expect(body).not.toContain('sid-x');
+    expect(res.body.entries[0].redacted).toBe(true);
+  });
+
+  it('404s unknown ids and never offers a clear route', async () => {
+    const app = express();
+    app.use('/api/poppy', createPoppyPublicInspectorRouter());
+    expect((await request(app).get('/api/poppy/inspector/ins_nope')).status).toBe(404);
+    expect((await request(app).delete('/api/poppy/inspector')).status).toBe(404);
+  });
+});

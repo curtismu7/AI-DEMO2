@@ -732,6 +732,8 @@ app.use('/api/auth/pingfederate', authLimiter, require('./routes/pingfederateRec
 app.use('/api/admin/hosted-registrations', authenticateToken, requireAdmin, require('./routes/hostedRegistrationAdmin'));
 // Poppy protocol inspector (Company side): what Personal Agents sent and what the Company made of it (admin only).
 app.use('/api/admin/poppy', authenticateToken, requireAdmin, require('./routes/poppyInspector')());
+// Poppy inspector, public projection: redacted feed (no user/session identity) for signed-out visitors.
+app.use('/api/poppy', require('./routes/poppyPublicInspector')());
 
 // RFC 6749 §6 — silently refresh near-expired end-user access tokens on
 // authenticated API routes so UIs never serve stale tokens to downstream services.
