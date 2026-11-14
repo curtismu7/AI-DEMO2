@@ -7,6 +7,12 @@ const express = require('express');
 const https = require('node:https');
 const router = express.Router();
 const axios = require('axios');
+const { prettyHealthJson } = require('./healthPretty');
+
+// Browser-opened health endpoints render as a styled, highlighted page with a
+// Formatted/Raw toggle; API clients (Accept: application/json or */*) still get
+// plain JSON. Applied per-route below, immediately before each handler.
+const pretty = prettyHealthJson('API Health');
 
 // Dev HTTPS agent — allows self-signed mkcert certs on loopback. Production keeps
 // TLS verification ON (undefined → axios uses its default secure agent); matches
@@ -19,7 +25,7 @@ const _devHttpsAgent = process.env.NODE_ENV === 'production'
  * Liveness probe - checks if the application is alive
  * Returns 200 if the process is running
  */
-router.get('/live', (_req, res) => {
+router.get('/live', pretty, (_req, res) => {
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString()
@@ -30,7 +36,7 @@ router.get('/live', (_req, res) => {
  * Readiness probe - checks if the application is ready to serve traffic
  * Verifies all dependencies are healthy
  */
-router.get('/ready', async (_req, res) => {
+router.get('/ready', pretty, async (_req, res) => {
   const checks = {
     timestamp: new Date().toISOString(),
     status: 'ready',
@@ -143,7 +149,7 @@ router.get('/ready', async (_req, res) => {
 /**
  * Detailed health check with all components
  */
-router.get('/', async (_req, res) => {
+router.get('/', pretty, async (_req, res) => {
   const health = {
     timestamp: new Date().toISOString(),
     status: 'healthy',
@@ -259,7 +265,7 @@ router.get('/', async (_req, res) => {
  *   200: { status: 'connected', endpoint, timestamp, details: { responseTime, mode, message } }
  *   503: { status: 'failed',    endpoint, timestamp, details: { error, hint } }
  */
-router.get('/introspection', async (req, res) => {
+router.get('/introspection', pretty, async (_req, res) => {
   const introspectionEndpoint = process.env.PINGONE_INTROSPECTION_ENDPOINT;
 
   if (!introspectionEndpoint) {
@@ -376,7 +382,7 @@ router.get('/introspection', async (req, res) => {
 /**
  * Startup probe - checks if application has finished starting up
  */
-router.get('/startup', (_req, res) => {
+router.get('/startup', pretty, (_req, res) => {
   // Check if critical environment variables are set
   const requiredEnvVars = [
     'PINGONE_ENVIRONMENT_ID',
@@ -406,7 +412,7 @@ router.get('/startup', (_req, res) => {
  * Returns which required servers are reachable and exact start commands for any that are not.
  * No auth required — called before the user may have logged in.
  */
-router.get('/demo-status', async (_req, res) => {
+router.get('/demo-status', pretty, async (_req, res) => {
   const normalizeMcpHttpUrl = (url) => (url || 'http://localhost:8080')
     .replace(/^ws:\/\//, 'http://')
     .replace(/^wss:\/\//, 'https://')
@@ -499,7 +505,7 @@ router.get('/demo-status', async (_req, res) => {
  * UI. Each entry is { up: boolean }. The chips that have no standalone "up"
  * probe (PingOne Identity, Authorize) are resolved client-side from config.
  */
-router.get('/services', async (_req, res) => {
+router.get('/services', pretty, async (_req, res) => {
   // Probe a base URL's /health, trying https as a fallback for mkcert dev TLS.
   // withChecks: include the target's health `checks` object in the result
   // (used for the agent service's prompt-store status).
@@ -554,7 +560,7 @@ router.get('/services', async (_req, res) => {
  * Keeps the Kubernetes service private while exposing current tier diagnostics
  * through the BFF's same-origin health surface.
  */
-router.get('/llm-proxy/readyz', async (_req, res) => {
+router.get('/llm-proxy/readyz', pretty, async (_req, res) => {
   const base = (process.env.LLM_PROXY_URL || process.env.LLAMACPP_BASE_URL || 'http://localhost:8090')
     .replace(/\/+$/, '');
   const url = `${base}/readyz`;
@@ -583,7 +589,7 @@ router.get('/llm-proxy/readyz', async (_req, res) => {
  * Used by the import script health check and the UI import-verified banner.
  * No auth required.
  */
-router.get('/readiness', async (_req, res) => {
+router.get('/readiness', pretty, async (_req, res) => {
   try {
     const configStore = require('../services/configStore');
     await configStore.ensureInitialized();
@@ -606,7 +612,7 @@ router.get('/readiness', async (_req, res) => {
  * Used by the import mode UI panel to show machine readiness.
  * No auth required.
  */
-router.get('/packages', (_req, res) => {
+router.get('/packages', pretty, (_req, res) => {
   const nodePath = require('node:path');
   const SERVER_ROOT = nodePath.resolve(__dirname, '..');
 
@@ -651,7 +657,7 @@ router.get('/packages', (_req, res) => {
 
 
 // MCP Server liveness proxy — use configured URL (in-cluster service name), not localhost.
-router.get('/mcp-server', async (_req, res) => {
+router.get('/mcp-server', pretty, async (_req, res) => {
   try {
     const axios = require('axios');
     const configStore = require('../services/configStore');
@@ -668,7 +674,7 @@ router.get('/mcp-server', async (_req, res) => {
 });
 
 // MCP Gateway liveness proxy — resolve via mcpGatewayClient (PingGateway / demo gateway), not localhost:3005.
-router.get('/mcp-gateway', async (_req, res) => {
+router.get('/mcp-gateway', pretty, async (_req, res) => {
   try {
     const axios = require('axios');
     const { getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
@@ -689,7 +695,7 @@ router.get('/mcp-gateway', async (_req, res) => {
  * try each candidate base URL in order (env override → compose hostname →
  * localhost) so the endpoint works in docker and native runs alike.
  */
-router.get('/inventory', async (_req, res) => {
+router.get('/inventory', pretty, async (_req, res) => {
   const { SERVER_INVENTORY } = require('../data/serverInventory');
 
   const probeEntry = async (entry) => {
@@ -740,7 +746,7 @@ router.get('/inventory', async (_req, res) => {
  * entry — separate from /inventory so the 15s status poll never pays for
  * docker-stats or directory walks. Always 200; unavailable data is null.
  */
-router.get('/inventory/sizes', async (_req, res) => {
+router.get('/inventory/sizes', pretty, async (_req, res) => {
   const { getServerSizes } = require('../services/serverSizes');
   return res.status(200).json(await getServerSizes());
 });
