@@ -1,6 +1,6 @@
 // /poppy: AI-DEMO2 as the Company side of the Personal Agent Protocol (Poppy). Public, no live call: it explains and simulates.
 // The diagram is SequenceFlowDiagram (React Flow): Simulate, step speed, Reset and the movie reel.
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
@@ -8,6 +8,21 @@ import {
   POPPY_DETAILS, POPPY_DOCS, POPPY_HOST, POPPY_LANES, POPPY_PAYLOADS, POPPY_SCOPES, POPPY_SOURCE, POPPY_SPEC, POPPY_STATUS, POPPY_WHY,
 } from '../config/poppyPage';
 import './PoppyPage.css';
+
+function CopyCurl({ cmd }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="poppy-curl-btn"
+      data-testid="poppy-copy-curl"
+      onClick={() => navigator.clipboard.writeText(cmd).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); })}
+      title={`Copy: ${cmd}`}
+    >
+      {copied ? 'Copied' : 'Copy as curl'}
+    </button>
+  );
+}
 
 export default function PoppyPage() {
   return (
@@ -23,7 +38,7 @@ export default function PoppyPage() {
         <h2 id="poppy-status">Where this stands</h2>
         <ul className="poppy-status">
           {POPPY_STATUS.map((s) => (
-            <li key={s.text}><span className={`poppy-tag poppy-tag--${s.label === 'Proven' ? 'ok' : 'todo'}`}>{s.label}</span> {s.text}</li>
+            <li key={s.text}><span className={`poppy-tag poppy-tag--${s.label === 'Proven' ? 'ok' : s.label === 'Deferred' || s.label === 'By design' ? 'info' : 'todo'}`}>{s.label}</span> {s.text}</li>
           ))}
         </ul>
         <p className="poppy-muted">Spec: <a href={POPPY_SPEC} target="_blank" rel="noreferrer">{POPPY_SPEC}</a> (Spec 1.0).</p>
@@ -64,7 +79,10 @@ export default function PoppyPage() {
           <thead><tr><th>Path</th><th>What it is</th></tr></thead>
           <tbody>
             {POPPY_DOCS.map((d) => (
-              <tr key={d.path}><td><a href={`https://${POPPY_HOST}${d.path}`} target="_blank" rel="noreferrer"><code>{d.path}</code></a></td><td>{d.what}</td></tr>
+              <tr key={d.path}>
+                <td><a href={`https://${POPPY_HOST}${d.path}`} target="_blank" rel="noreferrer"><code>{d.path}</code></a>{d.curl ? <CopyCurl cmd={d.curl} /> : null}</td>
+                <td>{d.what}</td>
+              </tr>
             ))}
           </tbody>
         </table>
