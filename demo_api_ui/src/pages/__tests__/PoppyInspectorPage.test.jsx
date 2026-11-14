@@ -49,16 +49,29 @@ describe('PoppyInspectorPage', () => {
     fireEvent.click(await screen.findByTestId('poppy-inspect-row-ins_abc123'));
     const detail = await screen.findByTestId('poppy-inspect-detail');
     expect(detail.textContent).toMatch(/1\. Legit: delegation verified\./);
-    expect(detail.textContent).toMatch(/Received/);
-    expect(detail.textContent).toMatch(/Sent/);
+    expect(screen.getAllByRole('group', { name: /view/ }).length).toBe(2);
+    expect(detail.textContent).toMatch(/poppy-session/); // the fingerprint shows inside the colored JSON
     expect(detail.textContent).toMatch(/ABC123…deadbeef/); // fingerprint
     expect(detail.textContent).not.toContain('real-token-never-stored');
+    // Pretty / Raw view toggle on each pane, Pretty pressed by default
+    expect(screen.getAllByTestId('poppy-json-pretty')).toHaveLength(2);
+    expect(screen.getAllByTestId('poppy-json-raw')).toHaveLength(2);
   });
 
   it('shows the empty state when no agent has called yet', async () => {
     mockApi({ feed: [] });
     render(<MemoryRouter><PoppyInspectorPage /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('poppy-inspect-empty')).toBeTruthy());
+  });
+
+  it('the Raw view shows the JSON compact, the Pretty view indented', async () => {
+    mockApi();
+    render(<MemoryRouter><PoppyInspectorPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('poppy-inspect-row-ins_abc123'));
+    fireEvent.click((await screen.findAllByTestId('poppy-json-raw'))[0]);
+    expect(screen.getAllByTestId('poppy-inspect-panes')[0].textContent).toContain('}'); // compact: raw JSON inline
+    fireEvent.click(screen.getAllByTestId('poppy-json-pretty')[0]);
+    expect(screen.getAllByTestId('poppy-inspect-panes')[0].textContent).toMatch(/"request"/); // keys visible again
   });
 
   it('offers an agent filter when more than one agent has been seen', async () => {
