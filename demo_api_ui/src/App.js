@@ -2461,9 +2461,9 @@ function AppWithAuth() {
                             <Route
                               path="/poppy/inspector"
                               element={
-                                <AdminRoute user={user}>
+                                <RequireAdminLogin user={user}>
                                   <PoppyInspectorPage />
-                                </AdminRoute>
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
