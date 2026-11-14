@@ -93,11 +93,11 @@ export default function PoppyInspectorPage() {
     // public projection: same requests, same narrative order, identity withheld.
     try {
       const params = agent ? `?agent=${encodeURIComponent(agent)}` : '';
-      const res = await apiClient.get(`/api/admin/poppy/inspect${params}`);
+      const res = await apiClient.get(`/api/admin/poppy/inspect${params}`, { _noAuthBanner: true });
       setEntries(res.data.entries || []);
       setSource('admin');
       setError('');
-      const ag = await apiClient.get('/api/admin/poppy/inspect/agents');
+      const ag = await apiClient.get('/api/admin/poppy/inspect/agents', { _noAuthBanner: true });
       setAgents(ag.data.agents || []);
       return;
     } catch { /* not an admin: fall through to the public feed */ }
