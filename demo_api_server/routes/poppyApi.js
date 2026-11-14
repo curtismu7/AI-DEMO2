@@ -17,6 +17,7 @@ const express = require('express');
 const configStore = require('../services/configStore');
 const { validateToken } = require('../services/tokenValidationService');
 const { verifyPoppySession, createReplayCache, createSessionBinding } = require('../services/poppySessionService');
+const { shared: defaultInspection } = require('../services/poppyInspectionService');
 const { isPoppyHost } = require('./poppyDiscovery');
 
 const REQUIRED_SCOPE = 'accounts:read';
@@ -87,6 +88,7 @@ function createPoppyApiRouter(deps = {}) {
   const router = express.Router();
   const verifyToken = deps.validateToken || validateToken;
   const resolveJwks = deps.resolveJwks || createAgentJwksResolver();
+  const inspection = deps.inspection || defaultInspection;
   const replayCache = deps.replayCache || createReplayCache();
   const sessionBinding = deps.sessionBinding || createSessionBinding();
   const now = deps.now || (() => undefined);
@@ -97,12 +99,22 @@ function createPoppyApiRouter(deps = {}) {
   router.get('/openapi.json', (_req, res) => res.json(OPENAPI));
 
   router.use('/v1', async (req, res, next) => {
-    const invalidSession = (reason) => res.status(400).json({ error: 'invalid_session', error_description: reason });
+    const pathForLog = `${req.originalUrl}`;
     const sessionJwt = req.get('poppy-session');
+    const accessToken = /^Bearer\s+(.+)$/i.exec(req.get('authorization') || '')?.[1] ?? null;
+    const invalidSession = (reason) => {
+      // The inspector records refusals too: an operator sees what was rejected and why.
+      inspection.record({
+        method: req.method, path: pathForLog, status: 400,
+        outcome: { ok: false, reason },
+        sessionJwt, accessToken,
+        receivedHeaders: { host: req.get('host') }, sentBody: { error: 'invalid_session', error_description: reason },
+      });
+      return res.status(400).json({ error: 'invalid_session', error_description: reason });
+    };
     if (!sessionJwt) return invalidSession('Poppy-Session header is required');
 
-    const match = /^Bearer\s+(.+)$/i.exec(req.get('authorization') || '');
-    if (!match) {
+    if (!accessToken) {
       // Signed out (spec 5.3): a valid Session alone starts a Session with the verified client_id and no User data.
       try {
         req.poppy = await verifyPoppySession({
@@ -120,9 +132,13 @@ function createPoppyApiRouter(deps = {}) {
         return next(err);
       }
       req.poppySignedOut = true;
+      inspection.record({
+        method: req.method, path: pathForLog, status: 200,
+        outcome: { ok: true, signedOut: true, sub: null, sid: req.poppy.sid, agentId: req.poppy.agentId, clientId: req.poppy.clientId },
+        sessionJwt, receivedHeaders: { host: req.get('host') },
+      });
       return next();
     }
-    const accessToken = match[1];
 
     let payload;
     try {
@@ -130,15 +146,30 @@ function createPoppyApiRouter(deps = {}) {
       payload = await verifyToken(accessToken, { jwksUri: process.env.PF_JWKS_URI || `${iss}/pf/JWKS`, issuer: iss });
     } catch {
       res.set('WWW-Authenticate', 'Bearer error="invalid_token"');
+      inspection.record({
+        method: req.method, path: pathForLog, status: 401,
+        outcome: { ok: false, reason: 'bearer token did not verify against the issuer JWKS (invalid_token)' },
+        sessionJwt, accessToken, receivedHeaders: { host: req.get('host') }, sentBody: { error: 'invalid_token' },
+      });
       return res.status(401).json({ error: 'invalid_token' });
     }
     if (typeof payload.client_id !== 'string') {
       res.set('WWW-Authenticate', 'Bearer error="invalid_token"');
+      inspection.record({
+        method: req.method, path: pathForLog, status: 401,
+        outcome: { ok: false, reason: 'bearer token has no client_id claim (invalid_token)' },
+        sessionJwt, accessToken, receivedHeaders: { host: req.get('host') }, sentBody: { error: 'invalid_token' },
+      });
       return res.status(401).json({ error: 'invalid_token' });
     }
     const scopes = scopesOf(payload);
     if (!scopes.includes(REQUIRED_SCOPE)) {
       res.set('WWW-Authenticate', `Bearer error="insufficient_scope", scope="${REQUIRED_SCOPE}"`);
+      inspection.record({
+        method: req.method, path: pathForLog, status: 403,
+        outcome: { ok: false, reason: `token is missing the ${REQUIRED_SCOPE} scope (insufficient_scope)` },
+        sessionJwt, accessToken, tokenClientId: payload.client_id, scopes, receivedHeaders: { host: req.get('host') }, sentBody: { error: 'insufficient_scope' },
+      });
       return res.status(403).json({ error: 'insufficient_scope', scope: REQUIRED_SCOPE });
     }
 
@@ -160,6 +191,12 @@ function createPoppyApiRouter(deps = {}) {
       return next(err);
     }
     req.poppyScopes = scopes;
+    inspection.record({
+      method: req.method, path: pathForLog, status: 200,
+      outcome: { ok: true, sub: req.poppy.sub, sid: req.poppy.sid, agentId: req.poppy.agentId, clientId: req.poppy.clientId },
+      sessionJwt, accessToken, tokenClientId: payload.client_id, scopes,
+      receivedHeaders: { host: req.get('host') },
+    });
     return next();
   });
 

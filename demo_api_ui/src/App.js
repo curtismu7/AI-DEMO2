@@ -62,6 +62,7 @@ const UhgChatgptMcpFlowPage = lazyWithRetry(() => import("./pages/UhgChatgptMcpF
 const PocFlowPage = lazyWithRetry(() => import("./pages/PocFlowPage"));
 const GatewayClaimsPage = lazyWithRetry(() => import("./pages/GatewayClaimsPage"));
 const PoppyPage = lazyWithRetry(() => import("./pages/PoppyPage"));
+const PoppyInspectorPage = lazyWithRetry(() => import("./pages/PoppyInspectorPage"));
 const UnitedPersonalAgentFlowPage = lazyWithRetry(() => import("./pages/UnitedPersonalAgentFlowPage"));
 const PersonalAgentFlowPage = lazyWithRetry(() => import("./pages/PersonalAgentFlowPage"));
 const PersonalAgentReviewPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentReviewPage"));
@@ -2456,6 +2457,15 @@ function AppWithAuth() {
                             />
                             {/* Poppy (Personal Agent Protocol) Company side. Explains only, no live call. */}
                             <Route path="/poppy" element={<PoppyPage />} />
+                            {/* Poppy protocol inspector: what agents sent and what the Company made of it. Admin only. */}
+                            <Route
+                              path="/poppy/inspector"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <PoppyInspectorPage />
+                                </RequireAdminLogin>
+                              }
+                            />
                             <Route
                               path="/privilege-cedar"
                               element={<Navigate to="/privilege-ai-policies" replace />}

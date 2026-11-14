@@ -365,6 +365,7 @@
     "/p1-third-party-exchange": "public",
     "/gateway-claims": "public",
     "/poppy": "public",
+    "/poppy/inspector": "admin",
     "/privilege-docs-index": "public",
     "/privilege-shelf": "public",
     "/privilege-map": "public",

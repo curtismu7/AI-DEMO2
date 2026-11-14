@@ -1,0 +1,27 @@
+/* Poppy protocol inspector (Company side). Tokens only, light and dark. */
+.poppy-inspect-list { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--th-border); border-radius: var(--radius-lg); overflow: hidden; }
+.poppy-inspect-row { border-bottom: 1px solid var(--th-border); }
+.poppy-inspect-row:last-child { border-bottom: none; }
+.poppy-inspect-row__head { display: flex; width: 100%; gap: 10px; align-items: baseline; padding: 9px 12px; background: none; border: none; text-align: left; color: var(--th-text); font-size: var(--font-size-sm); cursor: pointer; font-family: var(--font-primary); }
+.poppy-inspect-row__head:hover {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.poppy-inspect-method { font-family: var(--font-mono); font-weight: 700; font-size: var(--font-size-xs); }
+.poppy-inspect-method--get { color: var(--th-status-info-text); }
+.poppy-inspect-method--post { color: var(--th-status-success-text); }
+.poppy-inspect-path { font-family: var(--font-mono); }
+.poppy-inspect-status { margin-left: auto; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 700; }
+.poppy-inspect-status--ok { color: var(--th-status-success-text); }
+.poppy-inspect-status--err { color: var(--th-status-error-text); }
+.poppy-inspect-agent { color: var(--th-text-muted); font-size: var(--font-size-xs); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poppy-inspect-time { color: var(--th-text-muted); font-size: var(--font-size-xs); }
+.poppy-inspect-detail { padding: 0 12px 12px; }
+.poppy-inspect-reasoning { margin: 0 0 10px; padding-left: 20px; color: var(--th-text-body); font-size: var(--font-size-sm); }
+.poppy-inspect-reasoning li { margin: 3px 0; }
+.poppy-inspect-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 760px) { .poppy-inspect-panes { grid-template-columns: 1fr; } }
+.poppy-inspect-pane {
+  color: var(--th-text);
+  margin: 0; padding: 10px 12px; background: var(--th-bg); border: 1px solid var(--th-border); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: var(--font-size-xs); overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.poppy-inspect-agentpick { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: var(--font-size-sm); font-weight: 600; }

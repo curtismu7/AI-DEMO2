@@ -1,6 +1,7 @@
 // /poppy: AI-DEMO2 as the Company side of the Personal Agent Protocol (Poppy). Public, no live call: it explains and simulates.
 // The diagram is SequenceFlowDiagram (React Flow): Simulate, step speed, Reset and the movie reel.
 import React from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
@@ -27,6 +28,10 @@ export default function PoppyPage() {
         </ul>
         <p className="poppy-muted">Spec: <a href={POPPY_SPEC} target="_blank" rel="noreferrer">{POPPY_SPEC}</a> (Draft 0.3).</p>
       </section>
+
+      <p className="poppy-muted">
+        Operators: <Link to="/poppy/inspector">open the protocol inspector</Link> to see what Personal Agents sent and what the Company made of it (admin only).
+      </p>
 
       <section className="poppy-card" aria-labelledby="poppy-flow">
         <h2 id="poppy-flow">The flow</h2>
