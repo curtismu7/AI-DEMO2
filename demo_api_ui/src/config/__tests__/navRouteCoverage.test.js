@@ -33,6 +33,7 @@ function navPaths() {
 // reached from another page, legacy redirects, dev/showcase pages, and admin sub-consoles opened from
 // their own hub. Keep this list short: a real page belongs in the nav.
 const EXEMPT = new Set([
+  '/poppy/inspector', // reached from the /poppy page's operator link; the nav entry is the parent Poppy Protocol page
   // DaVinci legacy aliases: redirect-only, canonical paths are in the nav (config/davinciFamily.js)
   '/orchestration-sdk',
   '/davinci-orchestration',
