@@ -1,11 +1,15 @@
-// /poppy: how AI-DEMO2 supports the Personal Agent Protocol (Poppy, Draft 0.3) as the Company side.
+// /poppy: how AI-DEMO2 supports the Personal Agent Protocol (Poppy, Spec 1.0) as the Company side.
 // Facts here were proven on a local PingFederate on 2026-10-29. The SE host is not deployed until the owner runs the SE rollout.
 
 export const POPPY_HOST = 'poppy.ai-demo.ping-devops.com';
-export const POPPY_SPEC = 'https://personalagentprotocol.org/docs/introduction';
+export const POPPY_SPEC = 'https://personalagentprotocol.org/docs/1.0/spec';
 
 export const POPPY_DOCS = [
-  { path: '/.well-known/poppy.json', what: 'Spec 3.1: who we are, which scopes and which APIs an agent may use.' },
+  {
+    path: '/.well-known/poppy.json',
+    what: 'Spec 3.1: who we are, which scopes and which APIs an agent may use.',
+    curl: `curl -s https://${POPPY_HOST}/.well-known/poppy.json | python3 -m json.tool`,
+  },
   { path: '/.well-known/oauth-protected-resource', what: 'Spec 3.2: resource is exactly https://{domain}, with PingFederate as the authorization server.' },
   { path: '/poppy/api/openapi.json', what: 'The OpenAPI description of the one Poppy API we serve.' },
   { path: '/poppy/api/v1/me', what: 'Needs a PingFederate bearer token and a Poppy-Session header. Returns who the agent acts for.' },
@@ -22,13 +26,11 @@ export const POPPY_SCOPES = [
 export const POPPY_STATUS = [
   { label: 'Proven', text: 'A real PingFederate token issued to a CIMD agent URL, plus a signed Poppy-Session, got HTTP 200 from /poppy/api/v1/me. A replayed session and a session signed for another token were refused (400).' },
   { label: 'Proven', text: 'PingFederate can issue the token the spec needs: a separate token manager takes client_id from the request, so the token names the agent URL. The shared demo mapping hardcodes client_id, so it is left alone.' },
-  { label: 'Not done', text: 'The issuer metadata does not list protected_resources (spec 3.3). We found no PingFederate setting for it.' },
-  { label: 'Not done', text: 'Not yet deployed to the SE cluster. Until then the host below does not answer.' },
-  { label: 'Not done', text: 'No agent is trusted by default. An operator lists the agent URLs in POPPY_ALLOWED_AGENTS.' },
+  { label: 'Proven', text: 'protected_resources (spec 3.3) is served: a TLS metadata shim in front of PingFederate injects it into /.well-known/oauth-authorization-server, and the agent-side discovery check passes. The product gap remains: PingFederate has no native setting (docs/poppy-ping-gaps.md, ask PF-1).' },
+  { label: 'Deferred', text: 'The SE cluster deploy is deferred by owner decision; local Docker is the supported form until then.' },
+  { label: 'By design', text: 'No agent is trusted by default (spec 4.1: the Company decides which agents it accepts). An operator allow-lists agent URLs in POPPY_ALLOWED_AGENTS — and the demo agent is on it, which is why the live demo succeeds.' },
 ];
 
-// The value case: why the protocol exists and what each side gets. Content mirrors the poppy-agent-tester
-// lab's Why Poppy tab (story data there, static config here) so the two demos teach the same story.
 export const POPPY_WHY = [
   {
     id: 'why-exists',
