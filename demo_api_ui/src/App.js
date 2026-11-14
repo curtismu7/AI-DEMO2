@@ -2457,15 +2457,12 @@ function AppWithAuth() {
                             />
                             {/* Poppy (Personal Agent Protocol) Company side. Explains only, no live call. */}
                             <Route path="/poppy" element={<PoppyPage />} />
-                            {/* Poppy protocol inspector: what agents sent and what the Company made of it. Admin only. */}
-                            <Route
-                              path="/poppy/inspector"
-                              element={
-                                <RequireAdminLogin user={user}>
-                                  <PoppyInspectorPage />
-                                </RequireAdminLogin>
-                              }
-                            />
+                            {/* Poppy protocol inspector: what agents sent and what the Company made of it.
+                                Open to everyone: signed-out visitors get the public redacted feed
+                                (GET /api/poppy/inspector, identity withheld); admins get the full feed
+                                (GET /api/admin/poppy/inspect). The page picks its source; the admin
+                                API stays gated server-side. */}
+                            <Route path="/poppy/inspector" element={<PoppyInspectorPage />} />
                             <Route
                               path="/privilege-cedar"
                               element={<Navigate to="/privilege-ai-policies" replace />}
