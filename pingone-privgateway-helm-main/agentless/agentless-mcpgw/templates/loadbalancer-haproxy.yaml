@@ -91,6 +91,12 @@ data:
       log-format '%ci [%t] "%r" %ST %B node=%s xff=%hr app=%[var(txn.app)]'
       # The ingress always sets X-Forwarded-For; this only keeps a direct hit pinned.
       http-request set-header X-Forwarded-For %[src] unless { req.hdr(X-Forwarded-For) -m found }
+      # Gateway v1.261112+ answers 404 to a one-segment path without a trailing
+      # slash (/<app>, /mcp) and serves it with one (401 challenge). Clients and
+      # docs use the bare form, and the protected-resource metadata advertises it,
+      # so add the slash here. Every other one-segment path already 404s, except
+      # /callback (live) and the LB's own /lb-* pages; dotted names are files.
+      http-request set-path %[path]/ if { path_reg ^/[A-Za-z0-9_-]+$ } !{ path /callback } !{ path_beg /lb- }
       # Pin key: client address + first path segment (the app).
       http-request set-var(txn.app) path,field(2,/)
       http-request set-var(txn.pin) req.hdr(X-Forwarded-For),concat(|,txn.app)
