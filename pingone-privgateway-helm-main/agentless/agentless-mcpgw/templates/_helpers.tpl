@@ -35,3 +35,21 @@
 app: {{ include "agentless-mcpgw.name" . }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end }}
+
+{{- /* nginx backend-protocol for templates/ingress.yaml and ingress-mcp.yaml: whatever the front Service
+       actually speaks. A load balancer front (the chart's own, or frontService)
+       terminates TLS with this release's certificate: HTTPS. A gateway front serves
+       TLS only when oidc.serverUrl's host matches its certificate (hostname), and
+       plain HTTP otherwise. Measured 2026-11-15 on v1.261113: gateway-1 (serverUrl
+       host = hostname) answered plain HTTP with "Client sent an HTTP request to an
+       HTTPS server"; gateway-2 (serverUrl on another host) answered plain HTTP 200. */ -}}
+{{- define "agentless-mcpgw.backendProtocol" -}}
+{{- $oidc := .Values.oidc | default dict -}}
+{{- if or .Values.frontService (.Values.loadBalancer | default dict).enabled -}}
+HTTPS
+{{- else if eq (urlParse ($oidc.serverUrl | default "")).hostname .Values.hostname -}}
+HTTPS
+{{- else -}}
+HTTP
+{{- end -}}
+{{- end }}

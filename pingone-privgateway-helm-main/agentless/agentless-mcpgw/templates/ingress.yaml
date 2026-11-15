@@ -12,13 +12,12 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     {{- /*
-      backend-protocol HTTP, not HTTPS: v1.261112-NYL serves PLAIN HTTP on its
-      SERVER_URL-derived :443 listener (verified in the local compose container
-      2026-11-12 — TLS at :443 answered "wrong version number", plain HTTP got
-      the MCP 401 challenge). TLS terminates at the ingress. Keep this in sync
-      with demo_mcpgw_nginx/nginx.conf, which got the same treatment.
+      Not a fixed value: the ingress fronts either the TLS load balancer or a
+      gateway that serves TLS or plain HTTP depending on oidc.serverUrl. A fixed
+      HTTP (2026-11-12, from a compose container with no certificate) broke the
+      load-balanced release; see agentless-mcpgw.backendProtocol in _helpers.tpl.
     */}}
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/backend-protocol: {{ include "agentless-mcpgw.backendProtocol" . | quote }}
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "off"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
