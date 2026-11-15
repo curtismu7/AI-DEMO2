@@ -29,7 +29,7 @@ describe('Poppy discovery', () => {
   it('serves poppy.json on the Poppy host with scope_hints for every scope', async () => {
     const res = await request(app()).get('/.well-known/poppy.json').set('Host', 'poppy.example');
     expect(res.status).toBe(200);
-    expect(res.body.protocol_version).toBe('0.3');
+    expect(res.body.protocol_version).toBe('1.0');
     expect(res.body.organization.domain).toBe('poppy.example');
     expect(res.body.auth.issuer).toBe('https://pf.example:9031');
     const scopes = Object.keys(res.body.auth.scopes);

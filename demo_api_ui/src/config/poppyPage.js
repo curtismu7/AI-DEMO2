@@ -92,10 +92,10 @@ export const POPPY_SOURCE = [
 
 export const POPPY_PAYLOADS = [
   `GET https://${POPPY_HOST}/.well-known/poppy.json`,
-  '{\n  "protocol_version": "0.3",\n  "organization": { "domain": "' + POPPY_HOST + '" },\n  "auth": { "issuer": "<PingFederate issuer>", "scopes": { "accounts:read": "..." } },\n  "apis": [{ "type": "openapi", "url": "https://' + POPPY_HOST + '/poppy/api/openapi.json" }]\n}',
+  '{\n  "protocol_version": "1.0",\n  "organization": { "domain": "' + POPPY_HOST + '" },\n  "auth": { "issuer": "<PingFederate issuer>", "scopes": { "accounts:read": "..." } },\n  "apis": [{ "type": "openapi", "url": "https://' + POPPY_HOST + '/poppy/api/openapi.json" }]\n}',
   'GET /as/authorization.oauth2\nclient_id=https://agent.example/client.json\ncode_challenge_method=S256\nscope=accounts:read',
   '{\n  "client_id": "https://agent.example/client.json",\n  "scope": "accounts:read",\n  "iss": "<PingFederate issuer>"\n}',
-  `GET https://${POPPY_HOST}/poppy/api/v1/me\nAuthorization: Bearer <access token>\nPoppy-Session: <JWT, typ poppy-session+jwt, ES256>\n  iss = agent URL, aud = issuer, htm, htu, jti, iat,\n  ath = hash of the access token, pap_dlg = delegation JWT`,
+  `GET https://${POPPY_HOST}/poppy/api/v1/me\nAuthorization: Bearer <access token>\nPoppy-Session: <JWT, typ poppy-session+jwt, ES256>\nPoppy-Version: 1.0\n  iss = agent URL, aud = issuer, htm, htu, jti, iat,\n  ath = hash of the access token, poppy_dlg = delegation JWT`,
   'Checked: signature, issuer, expiry, client_id present, scope accounts:read.\nThen the session: delegation signed by the agent JWKS (24h max), htm/htu match, jti unused, ath matches this token, session iss equals the token client_id.',
   'HTTP 200\n{ "user_id": "...", "session_id": "...", "agent_id": "https://agent.example/client.json", "scopes": ["accounts:read"] }',
 ];

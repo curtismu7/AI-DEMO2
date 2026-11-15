@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * Personal Agent Protocol (Poppy, Draft 0.3) — Poppy-Session header (spec §5.2).
+ * Personal Agent Protocol (Poppy, spec 1.0) — Poppy-Session header (spec §5.2).
  * Zero external deps, Node built-in crypto only (same style as dpopKeyService).
  *
  * A Session JWT is signed by a short-lived delegated key; the delegation JWT binding
- * that key to the agent's client_id travels in the `pap_dlg` header and is signed by a
+ * that key to the agent's client_id travels in the `poppy_dlg` header and is signed by a
  * key in the agent's jwks_uri. Both halves live here: the verifier (Company side) and
  * the signers (used by the test signer script and, later, a Personal Agent).
  */
@@ -13,7 +13,7 @@
 const crypto = require('node:crypto');
 
 const SESSION_TYP = 'poppy-session+jwt';
-const DELEGATION_TYP = 'pap-delegation+jwt';
+const DELEGATION_TYP = 'poppy-delegation+jwt';
 const MAX_DELEGATION_SECONDS = 24 * 60 * 60;
 const DEFAULT_IAT_WINDOW_SECONDS = 60;
 
@@ -131,12 +131,12 @@ async function verifyPoppySession(p) {
   const { header } = session;
   if (header.typ !== SESSION_TYP) throw invalid('Poppy-Session typ is wrong');
   if (header.alg !== 'ES256') throw invalid('Poppy-Session alg must be ES256');
-  if (typeof header.kid !== 'string' || typeof header.pap_dlg !== 'string') {
-    throw invalid('Poppy-Session header needs kid and pap_dlg');
+  if (typeof header.kid !== 'string' || typeof header.poppy_dlg !== 'string') {
+    throw invalid('Poppy-Session header needs kid and poppy_dlg');
   }
 
   // 1. Delegation, verified against the agent's jwks_uri.
-  const delegation = decodeJws(header.pap_dlg, 'delegation');
+  const delegation = decodeJws(header.poppy_dlg, 'delegation');
   const d = delegation.payload;
   if (delegation.header.typ !== DELEGATION_TYP) throw invalid('delegation typ is wrong');
   if (!['ES256', 'PS384'].includes(delegation.header.alg)) throw invalid('delegation alg must be ES256 or PS384');
@@ -216,7 +216,7 @@ function signSession({ delegation, delegatedPrivateKey, delegatedPublicJwk, clie
   if (agentId) payload.agent_id = agentId;
   if (accessToken) payload.ath = crypto.createHash('sha256').update(accessToken).digest('base64url');
   return signJws(
-    { typ: SESSION_TYP, alg: 'ES256', kid: jwkThumbprint(delegatedPublicJwk), pap_dlg: delegation },
+    { typ: SESSION_TYP, alg: 'ES256', kid: jwkThumbprint(delegatedPublicJwk), poppy_dlg: delegation },
     payload,
     delegatedPrivateKey,
   );

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Personal Agent Protocol (Poppy, Draft 0.3) discovery — spec §3.
+ * Personal Agent Protocol (Poppy, spec 1.0) discovery — spec §3.
  *
  *   GET /.well-known/poppy.json                   (§3.1)
  *   GET /.well-known/oauth-protected-resource     (§3.2) — only on the Poppy host
@@ -90,7 +90,7 @@ function issuer() {
 function buildPoppyJson() {
   const domain = poppyDomain();
   const doc = {
-    protocol_version: '0.3',
+    protocol_version: '1.0',
     // §3.1: organization.domain is a bare host (no port) even when the Company origin carries one.
     organization: { name: process.env.POPPY_ORG_NAME || 'Super Banking', domain: domain.split(':')[0] },
     auth: {
