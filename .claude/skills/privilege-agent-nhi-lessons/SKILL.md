@@ -1,9 +1,18 @@
 ---
 name: privilege-agent-nhi-lessons
-description: Set up and troubleshoot non-human identities (NHI) for AI agents in PingOne Privilege — agent access keys in the Agent Registry, scopes, custodians, per-agent grants, per-key guardrails, workload-identity (NonHumanIdentity) federation, key rotation and expiry, and the 401/403/429 refusals an agent hits. Use whenever someone is registering an AI agent / service / MCP or A2A caller in Privilege, gets a refusal with an agent key, asks how to give an agent its own identity without a static secret, or asks about rotating or revoking an agent key. Use it even if they never say "NHI".
+description: Set up and troubleshoot non-human identities (NHI) (now called Federated Identity) for AI agents in PingOne Privilege — agent access keys in the Agent Registry, scopes, custodians, per-agent grants, per-key guardrails, workload-identity (NonHumanIdentity) federation, key rotation and expiry, and the 401/403/429 refusals an agent hits. Use whenever someone is registering an AI agent / service / MCP or A2A caller in Privilege, gets a refusal with an agent key, asks how to give an agent its own identity without a static secret, or asks about rotating or revoking an agent key. Use it even if they never say "NHI".
 ---
 
 # AI-agent NHI in PingOne Privilege — setup and lessons learned
+
+> **Terminology (Ping deck "ID4AI Workforce - H2 2026", slide 35, release dated 2026-11-02; not yet seen on our tenant):**
+> **Federated Identity** is the new name for **Non-Human Identity** (display term only). Also renamed: **Self-Hosted Agents**
+> (was "NHI Agents Discovery & Enforcement") and **AI Platform Agents** (was "Workload Agent Discovery & Control").
+> The console API did NOT change as of the 2026-10-31 swagger: the object is still kind `NonHumanIdentity` at
+> `/api/{tenant}/v1/nonhumanidentities` (schema `imodelNonHumanIdentitySpec`), so keep the old names in API calls, `RefKind`
+> values and log greps. Say "Federated Identity" to people; use `NonHumanIdentity` in code. This file's older text says "NHI"
+> for the same object. The deck is inconsistent (slide 57 still lists "Non-Human Identity"), so confirm before correcting a customer.
+> New swagger fields (2026-10-31): see `~/Documents/privilege-swagger-baselines/DIFF-2026-10-26-to-2026-10-31.md`.
 
 Focused on agent identities only. For the full Privilege field guide (aggregate doors, tags, approvals,
 gateway quirks) see `privilege-nhi-setup`.
