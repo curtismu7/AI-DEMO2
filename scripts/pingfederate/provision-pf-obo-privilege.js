@@ -44,6 +44,25 @@
  * (additively) with the PF public issuer + JWKS URL and the ai-demo-pf-user audience,
  * so it accepts the id_token the demo user sign-in produces.
  *
+ * Gateway OBO (Privilege MCP app Auth Mode "OBO", app testobo -> the pftoken-rs backend):
+ * the gateway itself exchanges the caller's verified PF access token at PF for a token
+ * aimed at the backend. Added for that, same idempotent steps:
+ *   8. vault secret PF_GW_OBO_CLIENT_SECRET (typed into the Privilege OBO wizard)
+ *   9. subject processor aiDemoPfAccessSubjectProcessor also accepts the gateway door
+ *      audience (the agent token the gateway exchanges carries aud = the testobo door)
+ *  10. ATM privilegeGwOboAtm - clone of aiDemoPfJwtAtm, audience = the backend resource
+ *      (mcp-resource-server.ping.demo, already in the backend's accepted audiences)
+ *  11. processor policy aiDemoPfGwOboPolicy - subject = ACCESS token (not id token)
+ *  12. mapping: sub = user, act = {"sub": "privilege-gw-obo"}, client_id = the agent's
+ *  13. token exchange SP connection aiDemoPfGwOboSp, resourceUris = the backend resource
+ *      (the gateway sends resource=; without a matching SP PF answers invalid_target)
+ *  14. confidential client privilege-gw-obo: TOKEN_EXCHANGE only, client_secret_basic
+ *  15. ATM testoboAgentAtm (aud + selection resource URI = the testobo door) and its
+ *      mapping from aiDemoPfOboPrivilegePolicy: the agent's exchange with
+ *      resource=<testobo door> gets a testobo-aud token in the same OBO shape
+ * Wizard values: Token URL https://cmuir-pf.ping-devops.com/as/token.oauth2, client
+ * privilege-gw-obo, subject/requested type access_token, Resource = PF_GW_OBO_RESOURCE.
+ *
  * The BFF also needs PF_TOKEN_DEMO_CLIENT_SECRET in demo_api_server/.env (and the
  * compose environment) - the vault set above is the source; copy it if the .env copy
  * is missing. Restart the api-server after changing it.
@@ -86,6 +105,24 @@ const SCOPES = ['mcp', 'opensearch:read', 'opensearch:admin', 'whoami:read'];
 const USER_CLIENT_ID = 'ai-demo-pf-user';
 const PF_ISSUER = 'https://cmuir-pf.ping-devops.com';
 const PF_JWKS = `${PF_ISSUER}/pf/JWKS`;
+
+// Gateway OBO (the gateway does the exchange). GW_DOOR is the aud of the agent token the
+// gateway exchanges; GW_RESOURCE is the aud of the token the pftoken-rs backend receives
+// (must be in its MCP_RESOURCE_SERVER_RESOURCE_URI list, k8s/02-configmap.yaml).
+const GW_DOOR = process.env.PF_GW_OBO_DOOR_URL || 'https://mcpgw.ai-demo.ping-devops.com/testobo/mcp';
+// The wizard's Resource: PF needs an absolute URI here (422 otherwise, hit live 2026-11-15).
+const GW_RESOURCE = process.env.PF_GW_OBO_RESOURCE || 'http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp';
+// The aud the backend receives: set on the ATM, independent of the resource URI.
+const GW_BACKEND_AUD = process.env.PF_GW_OBO_BACKEND_AUD || 'mcp-resource-server.ping.demo';
+// The agent's own token for the testobo door: picked by resource=<GW_DOOR> on the exchange.
+const AGENT_GW_ATM_ID = 'testoboAgentAtm';
+const GW_CLIENT_ID = 'privilege-gw-obo';
+const GW_VAULT_SECRET = 'PF_GW_OBO_CLIENT_SECRET';
+const GW_ATM_ID = 'privilegeGwOboAtm';
+const GW_KEY_ID = `${SIGNING_KEY_ID}-gwobo`;
+const GW_POLICY_ID = 'aiDemoPfGwOboPolicy';
+const GW_SP_ID = 'aiDemoPfGwOboSp';
+const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
 
 const SCOPES_TABLE = (name, values) => ({
     name: 'Scope Assertion Mappings',
@@ -198,7 +235,10 @@ async function main() {
     const atmResource = `oauth/accessTokenManagers/${ATM_ID}`;
     const atmOk = (atm) => {
         if (!atm) return false;
-        return (atm.configuration?.fields || []).some((field) => field.name === 'Audience Claim Value' && field.value === DOOR)
+        // An older copy (cluster PF, 2026-10-28) lacked scope in its contract, and the
+        // mapping below then fails with 422 "The attribute 'scope' is not defined".
+        return (atm.attributeContract?.extendedAttributes || []).some((attribute) => attribute.name === 'scope')
+            && (atm.configuration?.fields || []).some((field) => field.name === 'Audience Claim Value' && field.value === DOOR)
             && (atm.configuration?.fields || []).some((field) => field.name === 'Active Signing Certificate Key ID' && field.value === `${SIGNING_KEY_ID}-routec`)
             && (atm.configuration?.fields || []).some((field) => field.name === 'Publish Keys to the PingFederate JWKS Endpoint' && field.value === 'true');
     };
@@ -382,6 +422,194 @@ async function main() {
                 ? api('PUT', clientResource, clientBody(secret))
                 : api('POST', 'oauth/clients', clientBody(secret));
         });
+
+    // ---- Gateway OBO: the Privilege gateway exchanges the agent token for the backend ----
+    await step(`vault ${GW_VAULT_SECRET}`,
+        async () => !vault(['list']).includes(GW_VAULT_SECRET),
+        async () => { vault(['set', GW_VAULT_SECRET], crypto.randomBytes(32).toString('hex')); });
+
+    const hasAudience = (processor, value) => ((processor?.configuration?.tables || [])
+        .find((table) => table.name === 'Allowed Audiences')?.rows || [])
+        .some((row) => row.fields.some((field) => field.name === 'Audience' && field.value === value));
+    await step(`subject processor ${JWT_PROCESSOR_ID} (+ ${GW_DOOR} audience)`,
+        async () => !hasAudience(await find(processorResource), GW_DOOR),
+        async () => {
+            const processor = await api('GET', processorResource);
+            processor.configuration.tables.find((table) => table.name === 'Allowed Audiences')
+                .rows.push({ fields: [{ name: 'Audience', value: GW_DOOR }], defaultRow: false });
+            return api('PUT', processorResource, processor);
+        });
+
+    // Clone aiDemoPfJwtAtm with routeCTestAtm's signing rules: per-ATM certificate, unique
+    // key id, published to /pf/JWKS (the gateway and the backend verify against it).
+    // resourceUris (selectionSettings) let a request's resource= pick this ATM.
+    const cloneAtm = async (id, name, audience, keyId, resourceUris) => {
+        const resource = `oauth/accessTokenManagers/${id}`;
+        const value = (atm, fieldName) => (atm?.configuration?.fields || []).find((field) => field.name === fieldName)?.value;
+        await step(`ATM ${id} (aud ${audience})`,
+            async () => {
+                const atm = await find(resource);
+                return !(atm && value(atm, 'Audience Claim Value') === audience
+                    && value(atm, 'Active Signing Certificate Key ID') === keyId
+                    && value(atm, 'Publish Keys to the PingFederate JWKS Endpoint') === 'true'
+                    && resourceUris.every((uri) => (atm.selectionSettings?.resourceUris || []).includes(uri)));
+            },
+            async () => {
+                const template = await api('GET', `oauth/accessTokenManagers/${TEMPLATE_ATM}`);
+                const fields = template.configuration.fields.map((field) => {
+                    if (field.name === 'Audience Claim Value') return { ...field, value: audience };
+                    if (field.name === 'Issuer Claim Value') return { ...field, value: PF_ISSUER };
+                    if (field.name === 'Use Centralized Signing Key') return { ...field, value: 'false' };
+                    if (field.name === 'Active Signing Certificate Key ID') return { ...field, value: keyId };
+                    if (field.name === 'Publish Keys to the PingFederate JWKS Endpoint') return { ...field, value: 'true' };
+                    return field;
+                });
+                const tables = template.configuration.tables.map((table) => table.name === 'Certificates'
+                    ? { ...table, rows: [{ fields: [{ name: 'Key ID', value: keyId }, { name: 'Certificate', value: SIGNING_KEY_ID }], defaultRow: true }] }
+                    : table);
+                const body = {
+                    ...template, id, name,
+                    configuration: { ...template.configuration, tables, fields },
+                    selectionSettings: { resourceUris },
+                };
+                delete body.sequenceNumber;
+                return (await find(resource)) ? api('PUT', resource, body) : api('POST', 'oauth/accessTokenManagers', body);
+            });
+    };
+    // The gateway sends resource=<GW_RESOURCE>; PF matches resource= against an ATM's
+    // selection resource URIs (the SP connection alone answered "Unable to find ATM ...",
+    // live 2026-11-15), so the backend URL goes here too.
+    await cloneAtm(GW_ATM_ID, 'Privilege gateway OBO backend tokens', GW_BACKEND_AUD, GW_KEY_ID, [GW_RESOURCE]);
+
+    // Same contract as POLICY above; only the subject token type differs: the gateway
+    // presents the agent's ACCESS token, not the user's id token.
+    const gwPolicyResource = `oauth/tokenExchange/processor/policies/${GW_POLICY_ID}`;
+    const GW_POLICY = {
+        ...POLICY,
+        id: GW_POLICY_ID,
+        name: 'AI Demo PF Privilege gateway OBO Exchange',
+        processorMappings: [{ ...POLICY.processorMappings[0], subjectTokenType: ACCESS_TOKEN_TYPE }],
+    };
+    await step(`policy ${GW_POLICY_ID}`,
+        async () => {
+            const policy = await find(gwPolicyResource);
+            return !(policy && (policy.processorMappings || []).some((mapping) => mapping.subjectTokenType === ACCESS_TOKEN_TYPE
+                && mapping.subjectTokenProcessor?.id === JWT_PROCESSOR_ID));
+        },
+        async () => (await find(gwPolicyResource)
+            ? api('PUT', gwPolicyResource, GW_POLICY)
+            : api('POST', 'oauth/tokenExchange/processor/policies', GW_POLICY)));
+
+    const GW_MAPPING_ID = `urn:ietf:params:oauth:grant-type:token-exchange|${GW_POLICY_ID}|${GW_ATM_ID}`;
+    const gwMappingResource = `oauth/accessTokenMappings/${GW_MAPPING_ID.split('|').map(encodeURIComponent).join('%7C')}`;
+    const GW_MAPPING = {
+        ...MAPPING,
+        // act names the gateway, the exchanging party; client_id stays the agent's.
+        attributeContractFulfillment: {
+            ...MAPPING.attributeContractFulfillment,
+            act: { source: { type: 'EXPRESSION' }, value: `#{"sub": "${GW_CLIENT_ID}"}` },
+        },
+        id: GW_MAPPING_ID,
+        context: {
+            type: 'TOKEN_EXCHANGE_PROCESSOR_POLICY',
+            contextRef: { id: GW_POLICY_ID, location: `${PF_BASE}/oauth/tokenExchange/processor/policies/${GW_POLICY_ID}` },
+        },
+        accessTokenManagerRef: { id: GW_ATM_ID, location: `${PF_BASE}/oauth/accessTokenManagers/${GW_ATM_ID}` },
+    };
+    await step(`mapping ${GW_MAPPING_ID}`,
+        async () => !mappingOk(await find(gwMappingResource)),
+        async () => (await find(gwMappingResource)
+            ? api('PUT', gwMappingResource, GW_MAPPING)
+            : api('POST', 'oauth/accessTokenMappings', GW_MAPPING)));
+
+    const GW_SP = {
+        ...SP,
+        id: GW_SP_ID,
+        name: 'AI Demo PF Privilege gateway OBO backend',
+        entityId: GW_RESOURCE,
+        oauthTokenExchangeSettings: {
+            ...SP.oauthTokenExchangeSettings,
+            resourceUris: [GW_RESOURCE],
+            processorPolicyMappings: [{ ...SP.oauthTokenExchangeSettings.processorPolicyMappings[0], processorPolicyRef: { id: GW_POLICY_ID } }],
+        },
+    };
+    const gwSpResource = `idp/spConnections/${GW_SP_ID}`;
+    await step(`SP connection ${GW_SP_ID}`,
+        async () => {
+            const sp = await find(gwSpResource);
+            return !(sp && sp.active && (sp.oauthTokenExchangeSettings?.resourceUris || []).includes(GW_RESOURCE)
+                && (sp.oauthTokenExchangeSettings?.processorPolicyMappings || []).some((mapping) => mapping.processorPolicyRef?.id === GW_POLICY_ID));
+        },
+        async () => (await find(gwSpResource)
+            ? api('PUT', gwSpResource, GW_SP)
+            : api('POST', 'idp/spConnections', GW_SP)));
+
+    const gwClientResource = `oauth/clients/${GW_CLIENT_ID}`;
+    const gwClientBody = (secret) => ({
+        ...clientBody(secret),
+        clientId: GW_CLIENT_ID,
+        name: 'Privilege gateway OBO exchanger',
+        description: 'The Privilege gateway exchanges agent tokens for the pftoken-rs backend (Auth Mode OBO)',
+        grantTypes: ['TOKEN_EXCHANGE'],
+        tokenExchangeProcessorPolicyRef: { id: GW_POLICY_ID },
+        defaultAccessTokenManagerRef: { id: GW_ATM_ID },
+    });
+    await step(`client ${GW_CLIENT_ID}`,
+        async () => {
+            const existing = await find(gwClientResource);
+            return !(existing && existing.enabled
+                && (existing.grantTypes || []).includes('TOKEN_EXCHANGE')
+                && existing.tokenExchangeProcessorPolicyRef?.id === GW_POLICY_ID
+                && existing.defaultAccessTokenManagerRef?.id === GW_ATM_ID);
+        },
+        async () => {
+            const secret = vault(['get', GW_VAULT_SECRET]).pop();
+            return (await find(gwClientResource))
+                ? api('PUT', gwClientResource, gwClientBody(secret))
+                : api('POST', 'oauth/clients', gwClientBody(secret));
+        });
+
+    // The agent's token for the testobo door: same OBO policy and mapping shape as
+    // routeCTestAtm, aud = the testobo door, picked by resource=<GW_DOOR> on the exchange.
+    await cloneAtm(AGENT_GW_ATM_ID, 'Privilege PF token demo access tokens (testobo)', GW_DOOR, `${SIGNING_KEY_ID}-testobo`, [GW_DOOR]);
+    const AGENT_GW_MAPPING_ID = `urn:ietf:params:oauth:grant-type:token-exchange|${POLICY_ID}|${AGENT_GW_ATM_ID}`;
+    const agentGwMappingResource = `oauth/accessTokenMappings/${AGENT_GW_MAPPING_ID.split('|').map(encodeURIComponent).join('%7C')}`;
+    const AGENT_GW_MAPPING = {
+        ...MAPPING,
+        id: AGENT_GW_MAPPING_ID,
+        accessTokenManagerRef: { id: AGENT_GW_ATM_ID, location: `${PF_BASE}/oauth/accessTokenManagers/${AGENT_GW_ATM_ID}` },
+    };
+    await step(`mapping ${AGENT_GW_MAPPING_ID}`,
+        async () => !mappingOk(await find(agentGwMappingResource)),
+        async () => (await find(agentGwMappingResource)
+            ? api('PUT', agentGwMappingResource, AGENT_GW_MAPPING)
+            : api('POST', 'oauth/accessTokenMappings', AGENT_GW_MAPPING)));
+
+    // Autonomous (client_credentials) testobo token, same shape as the cluster's
+    // client_credentials|routeCTestAtm mapping the BFF /privilege-pf-token page uses:
+    // sub = client, act.sub = the agent (the NHI PFtoken requires act.sub + client_id).
+    const CC_MAPPING_ID = `client_credentials|${AGENT_GW_ATM_ID}`;
+    const ccMappingResource = `oauth/accessTokenMappings/${encodeURIComponent(CC_MAPPING_ID)}`;
+    const CC_MAPPING = {
+        id: CC_MAPPING_ID,
+        attributeSources: [],
+        attributeContractFulfillment: {
+            sub: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+            act: { source: { type: 'EXPRESSION' }, value: `#{"sub": "${AGENT_ACT}"}` },
+            Username: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+            client_id: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+            scope: { source: { type: 'CONTEXT' }, value: 'OAuthScopes' },
+            spiffeId: { source: { type: 'TEXT' }, value: 'placeholder' },
+        },
+        issuanceCriteria: { conditionalCriteria: [] },
+        context: { type: 'CLIENT_CREDENTIALS' },
+        accessTokenManagerRef: { id: AGENT_GW_ATM_ID, location: `${PF_BASE}/oauth/accessTokenManagers/${AGENT_GW_ATM_ID}` },
+    };
+    await step(`mapping ${CC_MAPPING_ID}`,
+        async () => !(await find(ccMappingResource))?.attributeContractFulfillment?.act,
+        async () => (await find(ccMappingResource)
+            ? api('PUT', ccMappingResource, CC_MAPPING)
+            : api('POST', 'oauth/accessTokenMappings', CC_MAPPING)));
 
     log(APPLY ? 'done' : 'dry run only - re-run with --apply');
 }
