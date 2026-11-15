@@ -235,7 +235,10 @@ async function main() {
     const atmResource = `oauth/accessTokenManagers/${ATM_ID}`;
     const atmOk = (atm) => {
         if (!atm) return false;
-        return (atm.configuration?.fields || []).some((field) => field.name === 'Audience Claim Value' && field.value === DOOR)
+        // An older copy (cluster PF, 2026-10-28) lacked scope in its contract, and the
+        // mapping below then fails with 422 "The attribute 'scope' is not defined".
+        return (atm.attributeContract?.extendedAttributes || []).some((attribute) => attribute.name === 'scope')
+            && (atm.configuration?.fields || []).some((field) => field.name === 'Audience Claim Value' && field.value === DOOR)
             && (atm.configuration?.fields || []).some((field) => field.name === 'Active Signing Certificate Key ID' && field.value === `${SIGNING_KEY_ID}-routec`)
             && (atm.configuration?.fields || []).some((field) => field.name === 'Publish Keys to the PingFederate JWKS Endpoint' && field.value === 'true');
     };
