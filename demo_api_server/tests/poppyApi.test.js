@@ -41,7 +41,7 @@ function setup({ tokenPayload = { client_id: CLIENT_ID, scope: 'accounts:read op
   return { app, session };
 }
 
-const get = (app, path = '/poppy/api/v1/me') => request(app).get(path).set('Host', HOST);
+const get = (app, path = '/poppy/api/v1/me') => request(app).get(path).set('Host', HOST).set('Poppy-Version', '1.0');
 
 describe('Poppy API', () => {
   beforeEach(() => { process.env.POPPY_DOMAIN = HOST; });
@@ -92,6 +92,27 @@ describe('Poppy API', () => {
     }));
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_session');
+  });
+
+  it('400 version_unsupported when Poppy-Version is missing, signed in or out (§3.4)', async () => {
+    const { app, session } = setup();
+    const bare = (path = '/poppy/api/v1/me') => request(app).get(path).set('Host', HOST);
+    const signedIn = await bare().set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
+    expect(signedIn.status).toBe(400);
+    expect(signedIn.body).toEqual({ error: 'version_unsupported' });
+    const signedOut = await bare().set('Poppy-Session', session({ accessToken: undefined }));
+    expect(signedOut.status).toBe(400);
+    expect(signedOut.body).toEqual({ error: 'version_unsupported' });
+  });
+
+  it('400 version_unsupported for another major version or a malformed value; a later 1.x minor is compatible', async () => {
+    const { app, session } = setup();
+    for (const v of ['0.3', '2.0', '1', '1.0.0', 'one.zero']) {
+      const res = await get(app).set('Poppy-Version', v).set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
+      expect([v, res.status, res.body.error]).toEqual([v, 400, 'version_unsupported']);
+    }
+    const ok = await get(app).set('Poppy-Version', '1.1').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
+    expect(ok.status).toBe(200);
   });
 
   it('401 invalid_token when the token does not validate', async () => {

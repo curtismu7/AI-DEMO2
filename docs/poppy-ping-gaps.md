@@ -47,8 +47,10 @@ PingOne is not used in our Poppy flow today (PF is the issuer). These are the as
 - private_key_jwt client authentication, header typ `client-authentication+jwt`, `aud` = issuer.
 - Direct Sign-In: authorization code + PKCE, consent screen, RFC 9207 `iss` check on the callback.
 - Poppy-Session verification on the resource: delegation (≤24h, `cnf.jwk`, kid = thumbprint), session signature, `htm`/`htu`, `iat` window, `ath` hash of the access token, jti replay refusal, sid binding (User + agent + client), signed-out Sessions (§5.3, spec 5.3).
-- poppy.json checks: `protocol_version` 0.3, `organization.domain` == host, scope_hints present, resource == origin, authorization_servers listing.
+- `Poppy-Version` check on every Session request (spec 3.4: missing or another major version is `version_unsupported`, HTTP 400); the delegation header is `poppy_dlg` and its JWT type `poppy-delegation+jwt` (spec 1.0 names).
+- poppy.json checks: `protocol_version` 1.0 (the tester accepts any 1.x), `organization.domain` == host, scope_hints present, resource == origin, authorization_servers listing.
 
-## 4. Known version skew
+## 4. Version status
 
-- Our Company publishes `protocol_version: "0.3"` and the tester speaks 0.3. Draft 0.4 (1.0 RC) adds `Poppy-Version`/`Poppy-Extensions` headers, `version_unsupported`, `supported_versions`, `auth.disabled`, Device Sign-In requirements, and the `poppy:browser-sign-in` scope. **Next step:** bump the Company and tester to 0.4 (see `/docs/0.4/spec` §3.4 for the dual-version mechanism so 0.3 agents keep working during transition).
+- Both sides speak spec **1.0** (2026-11-15): the Company publishes `protocol_version: "1.0"`, verifies `Poppy-Version` and the renamed `poppy_dlg` / `poppy-delegation+jwt`; the tester sends `Poppy-Version: 1.0` on every Session request, accepts any 1.x Company, and uses PAR (RFC 9126) whenever the issuer metadata lists the endpoint.
+- Not done, not audited against 1.0: `supported_versions` (we serve 1.0 only, so 0.3 agents are refused with `version_unsupported`), `Poppy-Extensions`, `auth.disabled`, Device Sign-In requirements and the `poppy:browser-sign-in` scope. Read spec 1.0 sections 3.4, 4.3 and 6 before claiming full conformance.

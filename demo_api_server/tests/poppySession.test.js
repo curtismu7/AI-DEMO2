@@ -137,7 +137,7 @@ describe('verifyPoppySession', () => {
     const f = fixture();
     const rsa = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
     const delegated = ecKey();
-    const hdr = { typ: 'pap-delegation+jwt', alg: 'PS384', kid: 'rsa1' };
+    const hdr = { typ: 'poppy-delegation+jwt', alg: 'PS384', kid: 'rsa1' };
     const body = {
       iss: CLIENT_ID, iat: NOW, exp: NOW + 3600, jti: 'd1', cnf: { jwk: delegated.publicJwk },
     };

@@ -1,13 +1,14 @@
 'use strict';
 
 /**
- * Personal Agent Protocol (Poppy, Draft 0.3) — the Company's OpenAPI API (§7).
+ * Personal Agent Protocol (Poppy, spec 1.0) — the Company's OpenAPI API (§7).
  *
  *   GET /poppy/api/openapi.json   public description (listed in poppy.json `apis`)
  *   GET /poppy/api/v1/me          with a Poppy-Session alone: starts a signed-out Session (no user data);
  *                                 with a PingFederate bearer that has accounts:read: the signed-in User
  *
- * Every request to /v1 must carry a Poppy-Session header (§5.2); the token's client_id must be the
+ * Every request to /v1 must carry a Poppy-Session header (§5.2) and a Poppy-Version header (§3.4, major.minor,
+ * compatible with a version this Company serves: 1.x); the token's client_id must be the
  * session's iss. Only agents listed in POPPY_ALLOWED_AGENTS (client_id URLs) are accepted — the
  * list is empty by default, so nothing is accepted until an operator names an agent (§4.1: Companies
  * decide which Personal Agents they accept). Refusals at a resource are `invalid_session` (§4.1).
@@ -22,6 +23,8 @@ const { isPoppyHost } = require('./poppyDiscovery');
 
 const REQUIRED_SCOPE = 'accounts:read';
 const JWKS_TTL_MS = 5 * 60 * 1000;
+// §3.4: this Company serves 1.0. From 1.0 two versions are compatible when they share the major version.
+const SUPPORTED_VERSION = /^1\.\d+$/;
 
 const OPENAPI = {
   openapi: '3.1.0',
@@ -113,6 +116,18 @@ function createPoppyApiRouter(deps = {}) {
       return res.status(400).json({ error: 'invalid_session', error_description: reason });
     };
     if (!sessionJwt) return invalidSession('Poppy-Session header is required');
+
+    // §3.4: an endpoint that verifies the Session header MUST also check Poppy-Version, signed in or out, and never
+    // handles the request under another version.
+    const version = req.get('poppy-version');
+    if (!SUPPORTED_VERSION.test(version || '')) {
+      inspection.record({
+        method: req.method, path: pathForLog, status: 400,
+        outcome: { ok: false, reason: `Poppy-Version ${version ? `"${version}"` : 'is missing'}: this Company serves 1.x (version_unsupported)` },
+        sessionJwt, accessToken, receivedHeaders: { host: req.get('host') }, sentBody: { error: 'version_unsupported' },
+      });
+      return res.status(400).json({ error: 'version_unsupported' });
+    }
 
     if (!accessToken) {
       // Signed out (spec 5.3): a valid Session alone starts a Session with the verified client_id and no User data.
