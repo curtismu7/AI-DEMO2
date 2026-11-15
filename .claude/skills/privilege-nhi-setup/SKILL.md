@@ -284,7 +284,7 @@ Lessons from these:
   backend outage by setting an image to a merge-commit sha CI never built. Check the registry
   manifest first.
 
-## Wiring an agent NHI end to end (found 2026-10-21; gateway acceptance still NOT proven)
+## Wiring an agent NHI end to end (found 2026-10-21; PF token accepted 2026-10-26, OBO shape 2026-11-13)
 
 An NHI is the identity a key acts as. It does **not** authenticate callers by itself. The pieces,
 and what each one told us [verified unless noted]:
@@ -311,14 +311,23 @@ and what each one told us [verified unless noted]:
      manager's CLIENT_CREDENTIALS mapping to it. Token manager "Token Lifetime" is in minutes.
    Check the minted token's `iss`, `sub`, `aud` and `exp - iat` against the NHI before blaming Privilege.
 
-**Open (a question for Ping):** with all of the above in place and the token claims matching, the
-token was rejected on both the MCP door (`401 Bearer token required`) and the LLM route (`401
-invalid virtual key`), and the gateway logged **no** `workload token accepted/rejected` line for
-either — the check was never reached. We could not tell whether the deployed `privilege-aigw` image
-evaluates workload tokens on these routes, whether the token must be presented differently, or
-whether rejections log below info. Neither the container stdout nor `cyonproxy.log` records
-per-request lines. Do not promise a customer that workload-token auth works on a door until this is
-answered. `Pass Agent Token` (forwarding a caller's token to a remote agent) is a separate mode.
+**Resolved (2026-10-26; OBO shape 2026-11-13).** The 2026-10-21 rejections (`401 Bearer token
+required` on the door, `401 invalid virtual key` on the LLM route, no `workload token` log line)
+were not a gateway gap. A PF token was accepted (`mcpgw: workload token accepted for key
+pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`) and `tools/list`
+returned 200 once all of these held: gateway `privilege-aigw:v1.261024` or later; the required
+claim `act.sub` = the agent id (not the audience) and PF emitting `act` as an object, not the
+text `"{}"`; the token manager signing with a published key (a per-ATM certificate with a unique
+Key ID and Publish Keys to the PF JWKS endpoint; "Use Centralized Signing Key" is not in
+`/pf/JWKS` and gives `signature does not verify against any known key`); a grant for the key on
+the agent app (add a rule to the key's existing console-made grant; a separately POSTed grant
+was deleted within seconds); and, on PF 13.1.3, the request pinned with `audience=` (not
+`resource=`) matching a token-exchange SP connection. When a 401 shows no `workload token` line
+on the first read, read the next log lines: the mismatch line names the claim. Full working
+configuration and every fix: `AI-DEMO2/privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`
+("Working configuration") and `PF-OBO-WITH-PINGFEDERATE-SETUP.md` section 9.1 (its script
+`scripts/pingfederate/provision-pf-obo-privilege.js` rebuilds the PF side).
+`Pass Agent Token` (forwarding a caller's token to a remote agent) is a separate mode.
 
 ## When someone is stuck: triage order
 
