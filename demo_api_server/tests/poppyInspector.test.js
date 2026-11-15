@@ -112,7 +112,7 @@ describe('Poppy API records into the inspector', () => {
 
   it('records a verified signed-in call', async () => {
     const { app, session, inspection } = setup();
-    const res = await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
+    const res = await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
     expect(res.status).toBe(200);
     expect(inspection.size()).toBe(1);
     const feed = inspection.feed();
@@ -122,7 +122,7 @@ describe('Poppy API records into the inspector', () => {
 
   it('records a signed-out Session with no user id', async () => {
     const { app, session, inspection } = setup();
-    const res = await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Session', session({ accessToken: undefined }));
+    const res = await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Poppy-Session', session({ accessToken: undefined }));
     expect(res.status).toBe(200);
     expect(inspection.size()).toBe(1);
     expect(inspection.feed()[0].signedOut).toBe(true);
@@ -131,16 +131,16 @@ describe('Poppy API records into the inspector', () => {
 
   it('records refusals: missing header, bad token, wrong scope', async () => {
     const { app, session, inspection } = setup();
-    await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Authorization', `Bearer ${TOKEN}`);
-    await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
+    await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`);
+    await request(app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', session());
     expect(inspection.size()).toBe(2); // refusal + the valid second call
     const reasons = inspection.feed().map((e) => e.reasoning[0]);
     expect(reasons.some((r) => /required/.test(r))).toBe(true);
     const failing = setup({ tokenFails: true });
-    await request(failing.app).get('/poppy/api/v1/me').set('Host', HOST).set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', failing.session());
+    await request(failing.app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', failing.session());
     expect(failing.inspection.feed()[0].sent.status).toBe(401);
     const scoped = setup({ tokenPayload: { client_id: CLIENT_ID, scope: 'openid' } });
-    await request(scoped.app).get('/poppy/api/v1/me').set('Host', HOST).set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', scoped.session());
+    await request(scoped.app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', scoped.session());
     expect(scoped.inspection.feed()[0].sent.status).toBe(403);
     expect(scoped.inspection.feed()[0].reasoning[0]).toMatch(/insufficient_scope|missing the accounts:read scope/);
   });
