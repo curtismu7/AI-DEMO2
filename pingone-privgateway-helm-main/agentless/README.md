@@ -69,11 +69,14 @@ helm install agentless-mcpgw ./agentless-mcpgw-0.1.0.tgz -f my-values.yaml -n <n
      "servers": {
        "opensearch": {
          "type": "http",
-         "url": "https://<your-gateway-hostname>/opensearch-mcp-server"
+         "url": "https://<your-gateway-hostname>/opensearch-mcp-server/"
        }
      }
    }
    ```
+   Keep the trailing slash: gateway v1.261112 and later answer 404 to
+   `/<app>` without it. The chart's load balancer adds it when
+   `loadBalancer.engine: haproxy`; a gateway reached directly does not.
 
 ## Verify
 
