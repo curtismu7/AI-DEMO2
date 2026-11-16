@@ -245,11 +245,26 @@ function pushGrantResultStep(steps, stepKey, label, results) {
 }
 
 /**
+ * Chain-preserving `act` attribute (set on the live tenant 2026-11-16; see
+ * docs/ACT_CLAIM_VERIFICATION.md step 3). One line in PingOne:
+ *
+ * - no actor token         -> forward the subject token's act unchanged
+ * - actor + subject act    -> {sub: <actor>, act: <subject act>}  (earlier actors kept)
+ * - actor, no subject act  -> {sub: <actor>}                      (first hop, no empty inner act)
+ *
+ * Guards on `subjectToken.act.sub`, not `subjectToken.act`: PingOne reads a
+ * missing claim as a non-null object whose sub is null. PingOne refuses T(),
+ * instanceof, ?. , ?: and method calls in these expressions.
+ */
+const ACT_CHAIN_SPEL = "${#root.context.requestData.actorToken == null ? #root.context.requestData.subjectToken.act : ((#root.context.requestData.subjectToken.act != null and #root.context.requestData.subjectToken.act.sub != null) ? {'sub': #root.context.requestData.actorToken.client_id, 'act': #root.context.requestData.subjectToken.act} : {'sub': #root.context.requestData.actorToken.client_id})}";
+
+/**
  * The `act` resource-attribute value for the delegation-mint resources (Agent
  * Gateway, A2A intermediates), selected by ff_may_act_seed.
  *
  * - Default (flag OFF): mint from the ACTOR TOKEN — the RFC 8693 actor_token's
- *   client id, the same source the already-verified nested A2A composer uses.
+ *   client id (ACT_CHAIN_SPEL: also nests earlier actors and forwards act when
+ *   no actor token is sent).
  *   Consent is then enforced per call by the PDP (Rule 2.6 + MayActSub), not
  *   baked in at mint time.
  * - Flag ON (legacy teaching): seed from the SUBJECT token's may_act — consent
@@ -269,7 +284,7 @@ function actAttributeValue() {
   } catch (_e) { /* default OFF */ }
   return flag === 'true'
     ? '${#root.context.requestData.subjectToken.may_act}'
-    : "${{'sub': #root.context.requestData.actorToken.client_id}}";
+    : ACT_CHAIN_SPEL;
 }
 
 /** ff_may_act_seed ON = legacy mode: provision the user `mayAct` attribute and the `may_act` token claim. */
@@ -3631,7 +3646,7 @@ class PingOneProvisionService {
           await this._setResourceAttribute(
             a2aGwResourceResult.resource.id,
             'act',
-            "${{'sub': #root.context.requestData.actorToken.client_id, 'act': #root.context.requestData.subjectToken.act}}",
+            ACT_CHAIN_SPEL,
           );
           steps.push({ step: 'a2a-gateway-act', icon: '✅', message: 'A2A MCP Gateway nested-act composer wired' });
         } catch (a2aActErr) {
@@ -4213,6 +4228,7 @@ module.exports = {
   resolvePingEmail,
   isValidPingEmail,
   actAttributeValue,
+  ACT_CHAIN_SPEL,
   provisionEnvironment: (config, onStep) => provisionService.provisionEnvironment(config, onStep),
   recreateResource: (config, resourceKey) => provisionService.recreateResource(config, resourceKey),
   // Caller MUST construct a fresh service instance for wipe — the module
