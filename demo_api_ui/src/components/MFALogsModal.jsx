@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import apiClient from "../services/apiClient";
 import DraggableModal from "./DraggableModal";
+import JsonPane from "./shared/JsonPane";
 import "./MFALogsModal.css";
 
 export default function MFALogsModal({ onClose }) {
@@ -106,8 +107,9 @@ export default function MFALogsModal({ onClose }) {
                   <span className="logs-time">{new Date(log.timestamp).toLocaleTimeString()}</span>
                 </div>
                 {selectedIndex === idx && log.details && (
-                  <div className="logs-detail">
-                    <pre>{JSON.stringify(log.details, null, 2)}</pre>
+                  // stopPropagation: the pane's Form | JSON switch and Copy buttons live in here, and a click on them must not collapse the row.
+                  <div className="logs-detail" onClick={(e) => e.stopPropagation()}>
+                    <JsonPane value={log.details} label={`Log ${idx + 1} details`} />
                   </div>
                 )}
               </div>
@@ -134,9 +136,7 @@ export default function MFALogsModal({ onClose }) {
               {selectedLog.details && (
                 <div className="logs-detail-field">
                   <label>Details:</label>
-                  <pre className="logs-detail-json">
-                    {JSON.stringify(selectedLog.details, null, 2)}
-                  </pre>
+                  <JsonPane value={selectedLog.details} label="Selected log details" />
                 </div>
               )}
             </div>

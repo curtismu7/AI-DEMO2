@@ -11,6 +11,7 @@
  *              Renders a "PingOne Docs ↗" link next to the endpoint badge.
  */
 import React, { useState } from "react";
+import JsonPane from "./shared/JsonPane";
 import "./PingOneApiPanel.css";
 
 /** Classify a Content-Type value for visual validation. */
@@ -105,9 +106,9 @@ export default function PingOneApiPanel({ request, response, endpoint, docsUrl, 
 									))}
 								</div>
 							)}
-							<pre className="p1-api-panel-body">
-								{JSON.stringify(request.body, null, 2)}
-							</pre>
+							<div className="p1-api-panel-body">
+								<JsonPane value={request.body} label="PingOne request body" />
+							</div>
 						</>
 					)}
 				</div>
@@ -122,9 +123,9 @@ export default function PingOneApiPanel({ request, response, endpoint, docsUrl, 
 						{resOpen ? "▾ Hide PingOne Response" : "▸ Show PingOne Response"}
 					</button>
 					{resOpen && (
-						<pre className="p1-api-panel-body">
-							{JSON.stringify(response, null, 2)}
-						</pre>
+						<div className="p1-api-panel-body">
+							<JsonPane value={response} label="PingOne response" hot={["id", "status", "code"]} />
+						</div>
 					)}
 				</div>
 			)}

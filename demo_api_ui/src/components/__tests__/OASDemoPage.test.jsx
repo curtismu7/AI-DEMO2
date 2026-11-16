@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/__tests__/OASDemoPage.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import OASDemoPage from '../OASDemoPage';
 
@@ -46,6 +46,8 @@ async function expandListUsersRow() {
 beforeEach(() => {
   apiClient.get.mockReset();
   apiClient.post.mockReset();
+  // The JSON button saves a page-wide choice; keep one test from leaking it into the next.
+  localStorage.clear();
 });
 
 describe('OASDemoPage — Try it out', () => {
@@ -92,7 +94,20 @@ describe('OASDemoPage — Try it out', () => {
       tool: 'listUsers',
       params: { environmentId: 'env-123' },
     }));
-    await waitFor(() => expect(screen.getByText(/"curt"/)).toBeInTheDocument());
+    // The result is a shared pane: Form view by default, named by the operation.
+    const result = await screen.findByRole('group', { name: 'listUsers result' });
+    expect(result).toHaveTextContent('curt');
+    expect(result).toHaveTextContent('username');
+
+    // JSON view shows the exact pretty-printed result, and the pane does not scroll.
+    fireEvent.click(within(result.closest('.oas-tryitout-result')).getByRole('button', { name: 'JSON' }));
+    const raw = await waitFor(() => {
+      const el = document.querySelector('.oas-tryitout-result pre.jp-raw');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(raw.textContent).toBe(JSON.stringify({ users: [{ username: 'curt' }] }, null, 2));
+    expect(raw).toHaveAttribute('aria-label', 'listUsers result');
   });
 
   it('blocks execution and shows a required-field error without calling pingone-invoke', async () => {
@@ -169,8 +184,33 @@ describe('OASDemoPage — Try it out', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Try it out' }));
 
-    await screen.findByText(/"curt"/);
-    expect(screen.queryByText(/"jsonrpc"/)).not.toBeInTheDocument();
+    const result = await screen.findByRole('group', { name: 'listUsers result' });
+    expect(result).toHaveTextContent('curt');
+    // Only the unwrapped result is shown: none of the envelope's keys appear in the pane.
+    expect(result).not.toHaveTextContent('jsonrpc');
+    expect(result).not.toHaveTextContent('tools/call');
+  });
+
+  it('shows the raw OAS spec as a pane (Form by default, the exact JSON on request) behind the toggle', async () => {
+    renderPage(null);
+    await screen.findByText('List users in an environment');
+    expect(screen.queryByRole('group', { name: 'Raw OAS spec' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /View Raw OAS Spec/ }));
+    const form = screen.getByRole('group', { name: 'Raw OAS spec' });
+    expect(form).toHaveTextContent('PingOne Platform API (Demo Fragment)');
+    expect(form).toHaveTextContent('listUsers');
+
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+    const raw = await waitFor(() => {
+      const el = document.querySelector('pre.jp-raw[aria-label="Raw OAS spec"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(raw.textContent).toBe(JSON.stringify(SPEC, null, 2));
+
+    fireEvent.click(screen.getByRole('button', { name: /Hide Raw OAS Spec/ }));
+    expect(document.querySelector('pre.jp-raw[aria-label="Raw OAS spec"]')).toBeNull();
   });
 
   it('shows an unavailable message when the hosted tool list has no matching operation', async () => {

@@ -21,6 +21,7 @@
 // (401). Finer-grained authority beyond the door is enforced downstream at
 // the MCP/Authorize layer (the Tool Abuse path), not here.
 import React, { useState } from 'react';
+import JsonPane from './shared/JsonPane';
 import './InterAgentAbuseTester.css';
 
 const VERTICAL = 'sporting-goods'; // Super Sports — the canonical demo specialist
@@ -163,12 +164,12 @@ export default function InterAgentAbuseTester() {
                   </span>
                 ) : null}
                 {r ? (
-                  <details className="iaa-details">
+                  <details className={`iaa-details${r.ok ? ' iaa-details--expected' : ''}`}>
                     <summary>Request and response details</summary>
                     <h4>Request sent</h4>
-                    <pre>{JSON.stringify(r.request, null, 2)}</pre>
+                    <JsonPane value={r.request} label={`${p.label} request`} hot={['method', 'path']} />
                     <h4>Observed response</h4>
-                    <pre>{JSON.stringify({ httpStatus: r.httpStatus, body: r.responseBody }, null, 2)}</pre>
+                    <JsonPane value={{ httpStatus: r.httpStatus, body: r.responseBody }} label={`${p.label} response`} hot={['httpStatus']} />
                   </details>
                 ) : null}
               </div>

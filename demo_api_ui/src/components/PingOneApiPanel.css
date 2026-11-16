@@ -77,18 +77,9 @@
   color: var(--th-text);
 }
 
+/* Wrapper that only spaces the shared JSON pane below its toggle */
 .p1-api-panel-body {
-  background: #051727;
-  color: #ffffff;
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  font-size: 0.82rem;
-  overflow-x: auto;
   margin-top: 6px;
-  max-height: 300px;
-  overflow-y: auto;
-  white-space: pre;
-  font-family: inherit;
 }
 
 /* Request headers table — light background */

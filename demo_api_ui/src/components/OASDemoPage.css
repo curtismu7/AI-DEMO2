@@ -478,15 +478,6 @@
 
 .oas-tryitout-result {
   margin-top: 0.75rem;
-  padding: 0.75rem;
-  background: #051727;
-  color: #ffffff;
-  border-radius: var(--radius-md);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  overflow-x: auto;
-  max-height: 320px;
-  overflow-y: auto;
 }
 
 /* ── Security Scheme ── */
@@ -545,19 +536,6 @@
 .oas-raw-toggle:hover {
   border-color: #93c5fd;
   color: #12538d;
-}
-
-.oas-raw-spec {
-  background: #051727;
-  color: #ffffff;
-  border-radius: var(--radius-lg);
-  padding: 1.25rem 1.5rem;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  line-height: 1.5;
-  overflow: auto;
-  max-height: 500px;
-  border: 1px solid #263746;
 }
 
 /* ── Loading / Error ── */

@@ -260,19 +260,6 @@
   border-top: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   padding: 0.75rem;
-  max-height: 200px;
-  overflow: auto;
-}
-
-.logs-detail pre {
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-primary);
-  font-size: 0.7rem;
-  color: var(--th-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
 }
 
 .logs-modal-detail {
@@ -305,32 +292,16 @@
   gap: 0.5rem;
 }
 
-.logs-detail-field label {
+.logs-detail-field > label {
   font-weight: 600;
   font-size: 0.875rem;
   color: var(--th-text);
 }
 
-.logs-detail-field span {
+.logs-detail-field > span {
   font-size: 0.875rem;
   color: var(--th-text);
   word-break: break-all;
-}
-
-.logs-detail-json {
-  margin: 0;
-  padding: 0.75rem;
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  border-radius: 0.375rem;
-  font-family: var(--font-primary);
-  font-size: 0.7rem;
-  color: var(--th-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 .logs-modal-footer {
@@ -348,30 +319,22 @@
 
 /* Scrollbar styling */
 .logs-list::-webkit-scrollbar,
-.logs-detail::-webkit-scrollbar,
-.logs-detail-json::-webkit-scrollbar,
 .logs-modal-detail::-webkit-scrollbar {
   width: 8px;
 }
 
 .logs-list::-webkit-scrollbar-track,
-.logs-detail::-webkit-scrollbar-track,
-.logs-detail-json::-webkit-scrollbar-track,
 .logs-modal-detail::-webkit-scrollbar-track {
   background: var(--th-bg-inset);
 }
 
 .logs-list::-webkit-scrollbar-thumb,
-.logs-detail::-webkit-scrollbar-thumb,
-.logs-detail-json::-webkit-scrollbar-thumb,
 .logs-modal-detail::-webkit-scrollbar-thumb {
   background: #cdd1d4;
   border-radius: var(--radius-sm);
 }
 
 .logs-list::-webkit-scrollbar-thumb:hover,
-.logs-detail::-webkit-scrollbar-thumb:hover,
-.logs-detail-json::-webkit-scrollbar-thumb:hover,
 .logs-modal-detail::-webkit-scrollbar-thumb:hover {
   background: #909ea4;
 }
