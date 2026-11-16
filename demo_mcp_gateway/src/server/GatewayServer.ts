@@ -31,7 +31,17 @@ import https from 'https';
 import crypto from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
+import {
+  upstreamModernEnabled,
+  upstreamSupportsModern,
+  markUpstreamLegacy,
+  isModernRejection,
+  isModernCaller,
+  toModernRequest,
+  modernRoutingHeaders,
+  stripModernDecorationFromBody,
+} from '../upstreamModern';
 import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
@@ -1176,12 +1186,50 @@ export class GatewayServer {
       baseHeaders['X-Gw-Bridge-Secret'] = process.env.GW_MCP_BRIDGE_SECRET;
     }
 
+    // MCP 2026-07-28 upstream hop (opt-in: GW_UPSTREAM_MODERN). A backend that
+    // advertises the version through server/discover is sent the request
+    // self-contained — no initialize, no notifications/initialized, no session
+    // id. A caller who brought its own session id is mid-Legacy-session and is
+    // left on the handshake path. A backend that refuses the Modern request
+    // before running it is marked Legacy and falls through to the handshake.
+    let sessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
+    let modernUpstream: AxiosResponse<ArrayBuffer> | undefined;
+    if (upstreamModernEnabled() && !isInitialize && !isNotification && !sessionId
+        && await upstreamSupportsModern(upstreamBase, upstreamToken)) {
+      const { [MCP_PROTO_HEADER]: _legacyVersion, ...headersNoVersion } = baseHeaders;
+      void _legacyVersion;
+      try {
+        const modernResp = await axios.post(upstreamUrl, JSON.stringify(toModernRequest(jsonRpc)), {
+          headers: { ...headersNoVersion, ...modernRoutingHeaders(jsonRpc.method, jsonRpc.params) },
+          responseType: 'arraybuffer',
+          timeout: timeoutMs,
+          validateStatus: () => true,
+          httpsAgent: this.upstreamHttpsAgent,
+        });
+        let rejected = false;
+        if (modernResp.status === 400) {
+          try {
+            rejected = isModernRejection(JSON.parse(Buffer.from(modernResp.data).toString('utf-8'))?.error);
+          } catch { /* non-JSON 400: the answer, not a version refusal */ }
+        }
+        if (rejected) markUpstreamLegacy(upstreamBase);
+        else modernUpstream = modernResp;
+      } catch (err) {
+        const axErr = err as AxiosError;
+        if (axErr.code === 'ECONNREFUSED' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNRESET') {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'upstream_unavailable', message: 'Upstream MCP server is unreachable' }));
+          return;
+        }
+        throw err;
+      }
+    }
+
     // For non-initialize requests without a caller-supplied session ID, do the
     // MCP handshake (initialize → notifications/initialized) to get a session ID.
-    let sessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
     // Filled only when THIS request performed the upstream handshake.
     let mcpHandshake: { initialize: Record<string, unknown>; initialized: boolean; sessionId: string | null } | undefined;
-    if (!isInitialize && !isNotification && !sessionId) {
+    if (!isInitialize && !isNotification && !sessionId && !modernUpstream) {
       const initBody = JSON.stringify({
         jsonrpc: '2.0',
         id: 'gw-init',
@@ -1246,7 +1294,7 @@ export class GatewayServer {
     if (sessionId) headers[MCP_SESSION_HEADER] = sessionId;
 
     try {
-      const upstream = await axios.post(upstreamUrl, body, {
+      const upstream: AxiosResponse<ArrayBuffer> = modernUpstream ?? await axios.post<ArrayBuffer>(upstreamUrl, body, {
         headers,
         responseType: 'arraybuffer',
         timeout: timeoutMs,
@@ -1264,7 +1312,11 @@ export class GatewayServer {
       if (upstreamWwwAuth) responseHeaders['WWW-Authenticate'] = upstreamWwwAuth;
       if (mcpHandshake) responseHeaders['X-Gw-Mcp-Handshake'] = JSON.stringify(mcpHandshake);
 
-      let responseBody = Buffer.from(upstream.data);
+      let responseBody: Buffer = Buffer.from(upstream.data);
+      // A Legacy caller served by a Modern backend sees what a Legacy backend would send.
+      if (modernUpstream && !isModernCaller(jsonRpc.params)) {
+        responseBody = stripModernDecorationFromBody(responseBody, responseHeaders['Content-Type']);
+      }
       if (jsonRpc.method === 'tools/list' && decoded && upstream.status >= 200 && upstream.status < 300) {
         // Header fallback parity with the WS transport (index.ts:288) — a
         // token without its own `vertical` claim relies on the BFF-supplied
