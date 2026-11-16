@@ -97,7 +97,8 @@
 }
 
 .hmd-panel__meta { display: block; margin-top: 0.25rem; }
-.hmd-panel pre {
+/* Text blocks (the hostile content as served, the empty-state lines): the one capped box here. JSON is the shared JsonPane, which never scrolls. */
+.hmd-panel__text {
   max-height: 9rem;
   margin: 0.5rem 0 0;
   overflow: auto;
@@ -121,15 +122,9 @@
 .hmd-panel__details section + section { margin-top: 0.8rem; padding-top: 0.65rem; border-top: 1px solid var(--th-border); }
 .hmd-panel__details h3 { margin: 0.65rem 0 0.3rem; font-size: var(--font-size-base); }
 .hmd-panel__details h4 { margin: 0.45rem 0 0.2rem; font-size: var(--font-size-sm); }
-.hmd-panel__details pre {
-  max-height: 12rem;
-  margin: 0.2rem 0;
-  overflow: auto;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-}
+/* JSON panes (the shared JsonPane): only the gap around them is set here. */
+.hmd-panel .jp-box,
+.hmd-panel .jp-wire { margin: 0.5rem 0 0; }
 
 @media (max-width: 760px) {
   .hmd-panel__header { display: block; }

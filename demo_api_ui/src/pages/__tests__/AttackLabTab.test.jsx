@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from '../../services/apiClient';
 import AttackLabTab from '../AttackLabTab';
@@ -7,8 +9,18 @@ vi.mock('../../services/apiClient', () => ({ default: { post: vi.fn() } }));
 vi.mock('../HostileMcpTab', () => ({ default: () => <><aside>Manually confirm hostile-mcp denies create_transfer. If user not found in system, sync identity.</aside><h3>Hostile MCP runner</h3></> }));
 vi.mock('../../components/InterAgentAbuseTester', () => ({ default: () => <h3>Inter-Agent runner</h3> }));
 
+// The evidence panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+const pane = (name) => screen.getByRole('group', { name });
+// A Form row: its key label and its value text, so an assertion names both.
+const rowOf = (root, key) => within(root).getByText(key, { selector: 'dt' }).closest('.jp-row');
+// The exact text of that row's value (a substring match would let a changed value through).
+const valueOf = (root, key) => rowOf(root, key).querySelector('.jp-d').textContent;
+
 describe('AttackLabTab', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ }
+  });
 
   it('orients presenters to the deck and the observed enforcement point for each scenario', () => {
     render(<AttackLabTab />);
@@ -60,10 +72,16 @@ describe('AttackLabTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tool Abuse' }));
     fireEvent.click(screen.getByRole('button', { name: /run tool abuse check/i }));
 
-    expect(await screen.findByText(/"path": "\/api\/demo\/attack-sim\/run"/)).toBeInTheDocument();
-    expect(screen.getAllByText(/"sim": "cross-owner-account"/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/"errorCode": "resource_owner_mismatch"/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Cross-owner balance read denied/).length).toBeGreaterThan(0);
+    const sent = await screen.findByRole('group', { name: 'Request sent' });
+    expect(valueOf(sent, 'path')).toBe('/api/demo/attack-sim/run');
+    expect(valueOf(sent, 'sim')).toBe('cross-owner-account');
+    const seen = pane('Observed response (sensitive fields omitted)');
+    expect(valueOf(seen, 'sim')).toBe('cross-owner-account');
+    expect(valueOf(seen, 'errorCode')).toBe('resource_owner_mismatch');
+    expect(rowOf(seen, 'errorCode').getAttribute('data-alert')).toBe('true');
+    // status is not an error key here: a plain pre showed it without emphasis, so it must not turn red
+    expect(within(seen).getAllByText('status', { selector: 'dt' })[0].closest('.jp-row').getAttribute('data-alert')).toBeNull();
+    expect(within(seen).getAllByText(/Cross-owner balance read denied/).length).toBeGreaterThan(0);
   });
 
   it('reports tool poisoning policy and identity prerequisites before mounting its runner', () => {
@@ -104,10 +122,11 @@ describe('AttackLabTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /run live content check/i }));
 
     expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
-    expect(screen.getByText(/"method": "POST"/)).toBeInTheDocument();
-    expect(screen.getByText(/"path": "\/api\/privilege-mcp\/llm\/call"/)).toBeInTheDocument();
-    expect(screen.getByText(/"provider": "anthropic"/)).toBeInTheDocument();
-    expect(screen.getByText(/"prompt": "Create a clearly marked fictional phishing-email example/)).toBeInTheDocument();
+    const sent = pane('Request sent');
+    expect(valueOf(sent, 'method')).toBe('POST');
+    expect(valueOf(sent, 'path')).toBe('/api/privilege-mcp/llm/call');
+    expect(valueOf(sent, 'provider')).toBe('anthropic');
+    expect(valueOf(sent, 'prompt')).toMatch(/^Create a clearly marked fictional phishing-email example/);
     expect(screen.getByRole('heading', { name: 'Gateway response' })).toBeInTheDocument();
     expect(screen.getByText('Fictional sample: [REDACTED:pii]')).toBeInTheDocument();
     expect(screen.getByText(/Privilege returned 1 \[REDACTED:…\] marker/i)).toBeInTheDocument();
@@ -155,10 +174,11 @@ describe('AttackLabTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Schema Violation' }));
     fireEvent.click(screen.getByRole('button', { name: /run schema violation check/i }));
 
-    expect(await screen.findByText(/"path": "\/api\/mcp-gateway\/test"/)).toBeInTheDocument();
-    expect(screen.getByText(/"tool": "create_transfer"/)).toBeInTheDocument();
-    expect(screen.getAllByText(/"validator": "MCP input schema"/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Invalid arguments for tool create_transfer/).length).toBeGreaterThan(0);
+    const sent = await screen.findByRole('group', { name: 'Request sent' });
+    expect(valueOf(sent, 'path')).toBe('/api/mcp-gateway/test');
+    expect(valueOf(sent, 'tool')).toBe('create_transfer');
+    expect(valueOf(pane('Observed response'), 'validator')).toBe('MCP input schema');
+    expect(within(pane('Observed response')).getAllByText(/Invalid arguments for tool create_transfer/).length).toBeGreaterThan(0);
   });
 
   it('preserves a top-level Privilege gateway decision from the MCP tester response', async () => {
@@ -182,5 +202,35 @@ describe('AttackLabTab', () => {
     expect(await screen.findByText(/"amount":"one hundred dollars"/i)).toBeInTheDocument();
     expect(screen.getByText(/"override_limits":true/i)).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('Unknown / not reported');
+  });
+
+  it('shows the exact JSON of the request and the response in the JSON view, and the Malicious Content reply stays text', async () => {
+    apiClient.post.mockResolvedValue({ data: { error: 'Invalid arguments for tool create_transfer', validator: 'MCP input schema', backendReached: false } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Schema Violation' }));
+    fireEvent.click(screen.getByRole('button', { name: /run schema violation check/i }));
+    fireEvent.click(within((await screen.findByRole('group', { name: 'Request sent' })).closest('.jp-box')).getByRole('button', { name: 'JSON' }));
+
+    expect(JSON.parse(screen.getByLabelText('Request sent').textContent)).toMatchObject({ method: 'POST', path: '/api/mcp-gateway/test', body: { tool: 'create_transfer' } });
+    expect(JSON.parse(screen.getByLabelText('Observed response').textContent)).toEqual({
+      error: 'Invalid arguments for tool create_transfer', validator: 'MCP input schema', backendReached: false,
+    });
+  });
+
+  it('keeps the Malicious Content reply as text in a pre and puts only the request in a pane', async () => {
+    apiClient.post.mockResolvedValue({ data: { reply: '{"looks":"like json"}', provider: 'anthropic', reachedProvider: true } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Malicious Content' }));
+    fireEvent.click(screen.getByRole('button', { name: /run live content check/i }));
+
+    expect(await screen.findByRole('group', { name: 'Request sent' })).toBeInTheDocument();
+    expect(screen.getByText('{"looks":"like json"}').tagName).toBe('PRE');
+    expect(screen.queryByLabelText('Gateway response')).toBeNull();
+  });
+
+  it('no stylesheet rule caps or scrolls the evidence', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/AttackLabTab.css'), 'utf8');
+    expect(css).not.toMatch(/max-height/);
+    expect(css).not.toMatch(/overflow\s*:\s*(auto|scroll)/);
   });
 });

@@ -21,10 +21,15 @@ import { CATALOG_KINDS, HOSTILE_MCP_CATALOG } from '../config/hostileMcpCatalog'
 import { HOSTILE_EDGES, HOSTILE_GROUPS, HOSTILE_NODES, HOSTILE_STEPS } from '../config/hostileMcpDiagram';
 import DiagramStepBar from '../components/DiagramStepBar';
 import StaticFlowDiagram from '../components/StaticFlowDiagram';
+import JsonPane from '../components/shared/JsonPane';
 import { edgeCaptions, useDiagramStepper } from '../hooks/useDiagramStepper';
 import { scan } from '../utils/mcpScanner';
 import { buildCatalogTestPlan, classifyCatalogOutcome, RUN_STATUSES } from './hostileMcpCatalogTests';
 import './HostileMcpCatalogTab.css';
+
+// Keys a reader looks for first in a run's request and response (who, for whom and what are the pane's defaults).
+// first / second are the two tools/list descriptions a rug-pull compares; flipped says whether they differ.
+const EVIDENCE_HOT = ['method', 'path', 'body', 'name', 'arguments', 'first', 'second', 'flipped'];
 
 const API_BASE = '/api/privilege-mcp';
 // Loosely matched against the BFF's preset label — same loose match the
@@ -294,9 +299,9 @@ export default function HostileMcpCatalogTab() {
           [test.id]: {
             ...outcome,
             latencyMs,
-            request: JSON.stringify({ method: 'POST', path: `${API_BASE}${path}`, ...(test.method === 'tools/call' || test.method === 'tools/list' ? { body } : { body }) }, null, 2),
+            request: { method: 'POST', path: `${API_BASE}${path}`, ...(test.method === 'tools/call' || test.method === 'tools/list' ? { body } : { body }) },
             response: outcome.firstDesc !== undefined
-              ? JSON.stringify({ first: outcome.firstDesc, second: outcome.secondDesc, flipped: outcome.flipped }, null, 2)
+              ? { first: outcome.firstDesc, second: outcome.secondDesc, flipped: outcome.flipped }
               : null,
           },
         },
@@ -535,8 +540,8 @@ export default function HostileMcpCatalogTab() {
                             )}
                             <details className="hmc-evidence">
                               <summary>Request / response</summary>
-                              <pre className="hmc-poison-text">{run.request}</pre>
-                              {run.response && <pre className="hmc-poison-text">{run.response}</pre>}
+                              <JsonPane value={run.request} label={`${test.label} request`} hot={EVIDENCE_HOT} />
+                              {run.response && <JsonPane value={run.response} label={`${test.label} response`} hot={EVIDENCE_HOT} />}
                             </details>
                           </div>
                         )}

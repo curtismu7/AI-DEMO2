@@ -15,7 +15,9 @@
 .p1x-page .p1x-fields { display: grid; min-width: 0; gap: 8px; margin: 0 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-sm); padding: 8px 12px 12px; font-size: var(--font-size-sm); color: var(--th-text); }
 .p1x-page .p1x-fields legend { float: none; width: auto; margin: 0; padding: 0 6px; font-size: var(--font-size-sm); font-weight: 700; color: var(--th-text); }
 .p1x-fields input[type='text'], .p1x-fields input[type='number'] { display: block; width: 100%; margin-top: 4px; padding: 4px 8px; font: inherit; color: var(--th-text); background: var(--th-bg-inset); border: 1px solid var(--control-border); border-radius: var(--radius-sm); }
-.p1x-pre { margin: 0 0 8px; padding: 10px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-sm); overflow: auto; line-height: 1.5; color: var(--th-text); }
+/* Text blocks (a raw token, a curl, a form-encoded request, a status line): wrap, never scroll. JSON is the shared JsonPane. */
+.p1x-pre { margin: 0 0 8px; padding: 10px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-sm); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; color: var(--th-text); }
+.p1x-pane { margin: 0 0 8px; min-width: 0; }
 .p1x-wrap { white-space: pre-wrap; word-break: break-all; }
 .p1x-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); margin: 8px 0; }
 .p1x-table th, .p1x-table td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--th-border); }

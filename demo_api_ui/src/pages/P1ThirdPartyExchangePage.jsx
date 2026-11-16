@@ -15,6 +15,7 @@ import {
   PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
 } from '../components/pingUi';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
+import JsonPane from '../components/shared/JsonPane';
 import {
   ADMIN_FACTS, API_SAMPLES, COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, DIAGRAM_LANES, EVIDENCE, NOT_SHOWN, P1_ISSUER, STEPS,
   TOKEN_STATES, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, collapseJwts, exchangeDiagram, findJwts, KEY_CLAIMS, relTime, TIME_CLAIMS, requestText, resultClaims, subjectClaims, validateExchange,
@@ -28,6 +29,12 @@ const REAL_LAB = 'https://local.ping-devops.com:8443/p1-third-party-exchange/';
 
 // Evidence label as a status chip: the word is the label, the tone only adds colour (P7). The note rides as a tooltip.
 const EVIDENCE_TONE = { measured: 'info', guide: 'ok', sample: 'neutral', derived: 'warn', unverified: 'warn' };
+
+// Which keys stand out in the panes. The decoded-claims table already marks KEY_CLAIMS as the ones to read first, so the
+// claim panes use the same list; the trusted-issuer bodies add the fields an admin sets; a header adds alg and kid.
+const ISSUER_HOT = ['issuer', 'jwksUrl', 'audiences', 'trustedIssuer'];
+const HEADER_HOT = ['alg', 'kid'];
+const WIRE_HOT = [...KEY_CLAIMS, ...ISSUER_HOT];
 
 const copy = (text) => { try { navigator.clipboard?.writeText(text); } catch { /* clipboard blocked: the text is on screen */ } };
 
@@ -221,7 +228,7 @@ function RawToken({ title, token, testId }) {
 }
 
 /** Decoded view of every JWT found in a body: header, payload, claims with readable times, expiry badge. */
-function DecodedTokens({ text, where, now }) {
+function DecodedTokens({ text, where, now, scope = '' }) {
   const found = findJwts(text);
   if (!found.length) return null;
   return (
@@ -238,7 +245,7 @@ function DecodedTokens({ text, where, now }) {
               <CopyBtn text={JSON.stringify(t.payload, null, 2)} label="Copy decoded payload" />
             </div>
             <div className="p1x-cols">
-              <div><h5>Header</h5><pre className="p1x-pre">{JSON.stringify(t.header, null, 2)}</pre></div>
+              <div><h5>Header</h5><div className="p1x-pane"><JsonPane value={t.header} label={`Decoded token ${i + 1} header, ${scope ? `${scope} ` : ''}${where}`} hot={HEADER_HOT} /></div></div>
               <div><h5>Signature</h5><pre className="p1x-pre p1x-wrap">{t.signature || '(none)'}</pre></div>
             </div>
             <table className="p1x-table" aria-label="Decoded claims"><thead><tr><th>Claim</th><th>Value</th><th>In plain English</th></tr></thead>
@@ -263,6 +270,7 @@ function WireCall({ c, decode, now, idPrefix = 'p1x-call-', open }) {
   const [rawOn, setRawOn] = useState(false);
   const reqFull = `${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`;
   const resFull = `HTTP ${c.status} ${c.statusText}\n${c.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${c.responseBody}`;
+  const callScope = `${open ? 'Featured call' : 'Call'} ${c.n}`;
   const hasTokens = findJwts(c.requestBody).length + findJwts(c.responseBody).length > 0;
   const shrink = decode && hasTokens && !rawOn;
   return (
@@ -275,23 +283,23 @@ function WireCall({ c, decode, now, idPrefix = 'p1x-call-', open }) {
       <div className="p1x-cols">
         <div>
           <h4>Request <CopyBtn text={reqFull} /></h4>
-          <pre className="p1x-pre p1x-wrap" data-testid={`${idPrefix}${c.n}-req`}>{shrink ? collapseJwts(reqFull) : reqFull}</pre>
-          {decode ? <DecodedTokens text={c.requestBody} where="request body" now={now} /> : null}
+          <div className="p1x-pane" data-testid={`${idPrefix}${c.n}-req`}><JsonPane value={shrink ? collapseJwts(reqFull) : reqFull} label={`${callScope} request`} hot={WIRE_HOT} /></div>
+          {decode ? <DecodedTokens text={c.requestBody} where="request body" now={now} scope={callScope} /> : null}
           <h4>curl <CopyBtn text={c.curl} /></h4>
           <pre className="p1x-pre p1x-wrap">{c.curl}</pre>
         </div>
         <div>
           <h4>Response <CopyBtn text={resFull} /> <CopyBtn text={c.responseBody} label="Copy body" /></h4>
-          <pre className="p1x-pre p1x-wrap" data-testid={`${idPrefix}${c.n}-res`}>{shrink ? collapseJwts(resFull) : resFull}</pre>
-          {decode ? <DecodedTokens text={c.responseBody} where="response body" now={now} /> : null}
+          <div className="p1x-pane" data-testid={`${idPrefix}${c.n}-res`}><JsonPane value={shrink ? collapseJwts(resFull) : resFull} label={`${callScope} response`} hot={WIRE_HOT} /></div>
+          {decode ? <DecodedTokens text={c.responseBody} where="response body" now={now} scope={callScope} /> : null}
         </div>
       </div>
     </details>
   );
 }
 
-function Json({ value, testId }) {
-  return <pre className="p1x-pre" data-testid={testId}>{JSON.stringify(value, null, 2)}</pre>;
+function Json({ value, testId, label, hot = KEY_CLAIMS }) {
+  return <div className="p1x-pane"><JsonPane value={value} label={label} testId={testId} hot={hot} /></div>;
 }
 
 function DecodeSwitch({ decode, onChange }) {
@@ -344,13 +352,13 @@ function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issue
         <CardGrid>
           <Card title={`Actor token: ${vendor.name}`}>
             <p className="pu-status-line"><StatusChip tone="neutral">Sample</StatusChip> Mock signature, never verifiable.</p>
-            <Json value={run.claims} testId="p1x-actor" />
+            <Json value={run.claims} testId="p1x-actor" label="Actor token claims" />
             <RawToken title="Actor token, raw (mock signature, never verifiable)" token={wire.tokens.actor} testId="p1x-raw-actor" />
             {decode ? <DecodedTokens text={wire.tokens.actor} where="actor token" now={now} /> : null}
           </Card>
           <Card tone="neutral" title="Subject token (PingOne, placeholder values)">
             <p className="pu-status-line"><StatusChip tone="neutral">Placeholder</StatusChip> Not issued by a real tenant.</p>
-            <Json value={subject} testId="p1x-subject" />
+            <Json value={subject} testId="p1x-subject" label="Subject token claims" />
             <RawToken title="Subject token, raw (mock)" token={wire.tokens.subject} testId="p1x-raw-subject" />
           </Card>
         </CardGrid>
@@ -387,7 +395,7 @@ function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issue
           </Card>
           <Card tone="neutral" title={<>What the admin sends <Tag kind="measured" /></>}>
             <p className="pu-note pu-mono">{wire.setup[0].method} {wire.setup[0].url}</p>
-            <pre className="p1x-pre p1x-wrap" data-testid="p1x-trust-body">{wire.setup[0].requestBody}</pre>
+            <div className="p1x-pane"><JsonPane value={wire.setup[0].requestBody} label="Trusted issuer request body" testId="p1x-trust-body" hot={ISSUER_HOT} /></div>
           </Card>
         </CardGrid>
       </>
@@ -428,7 +436,12 @@ function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issue
             <strong>{run.ok ? 'Simulated result: the exchange succeeds and a token is issued' : `Simulated result: the exchange is refused, ${run.failed.label}`}</strong>
             <Tag kind="measured" />
           </p>
-          {run.ok ? null : <pre className="p1x-pre" data-testid="p1x-error">{`HTTP ${run.error.status}\n${JSON.stringify({ error: run.error.error, error_description: run.error.error_description }, null, 2)}`}</pre>}
+          {run.ok ? null : (
+            <div data-testid="p1x-error">
+              <pre className="p1x-pre">{`HTTP ${run.error.status}`}</pre>
+              <div className="p1x-pane"><JsonPane value={{ error: run.error.error, error_description: run.error.error_description }} label="Refusal body" /></div>
+            </div>
+          )}
           <p className="pu-note">Each refusal text is what PingOne returned for that fault, run on its own. The order PingOne checks things in is not known, so with two faults at once it may name the other one.</p>
         </Card>
         <CardGrid>
@@ -452,7 +465,7 @@ function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issue
               ))}
             </ul>
             <h3 className="pu-h3 p1x-h3">{run.ok ? 'Issued access token' : 'Nothing issued'}</h3>
-            {run.ok ? <Json value={issued} testId="p1x-issued" /> : <p className="pu-note">The exchange was refused, so no token is issued.</p>}
+            {run.ok ? <Json value={issued} testId="p1x-issued" label="Issued access token claims" /> : <p className="pu-note">The exchange was refused, so no token is issued.</p>}
           </Card>
         </CardGrid>
         {run.ok ? (
@@ -486,8 +499,8 @@ function stepBodies({ vendor, vendorId, setVendorId, run, subject, mapped, issue
       <>
         <h3 className="pu-h3 p1x-h3">Admin API, permissions and licensing <Tag kind="guide" /></h3>
         <CardGrid>
-          <Card tone="neutral" title="POST /trustedIssuers"><Json value={API_SAMPLES.trustedIssuer} testId="p1x-api-issuer" /></Card>
-          <Card tone="neutral" title="POST /applications/<appId>/trustedIssuerAssignments"><Json value={API_SAMPLES.assignment} testId="p1x-api-assignment" /></Card>
+          <Card tone="neutral" title="POST /trustedIssuers"><Json value={API_SAMPLES.trustedIssuer} testId="p1x-api-issuer" label="Trusted issuer sample body" hot={ISSUER_HOT} /></Card>
+          <Card tone="neutral" title="POST /applications/<appId>/trustedIssuerAssignments"><Json value={API_SAMPLES.assignment} testId="p1x-api-assignment" label="Trusted issuer assignment sample body" hot={ISSUER_HOT} /></Card>
         </CardGrid>
         <Card tone="neutral">
           <KvList items={ADMIN_FACTS.map(([label, value]) => ({ label, value }))} />
