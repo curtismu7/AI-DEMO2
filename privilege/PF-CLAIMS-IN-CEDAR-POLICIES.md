@@ -131,11 +131,18 @@ Things to copy exactly:
 statement, runs "MCP · Before inspection"). It was a throwaway probe, never enforced, and was deleted
 afterwards.
 
-**What was not measured:** the policy was never Active, so no real token has been through it. Not yet
-confirmed: a PingFederate token whose `act.sub` matches is allowed, a different `act.sub` is refused, and PF
-must emit `act` as an **object** (as for `RequiredClaims`; the text `"{}"` will not match). To run that
-test, save it Active against a scratch tool and mint a PF token with the exchange in
-`PF-OBO-WITH-PINGFEDERATE-SETUP.md`.
+**What was not measured (this probe):** it was never Active, so no token went through it. Later the same day a
+different pair of policies was run Active (next paragraph).
+
+**Measured 2026-11-16, Active, real PingFederate token (`pftoken` door):** with two Active policies, one for
+CountTool (`act.sub` must contain this client's id) and one for ListIndexTool (`act.sub` must contain another
+value), one token was allowed on CountTool and refused on ListIndexTool with `action denied by policy:
+ListIndexTool requires act.sub to be <other>` (JSON-RPC -32600). With no policy both tools were allowed; after the
+policies were deleted both were allowed again. The refusal showed on the first poll about 7 seconds after
+creation: one observation, not a propagation time. **Still not measured:** a second real agent with a different
+`act.sub`; `act` emitted as the text `"{}"` (PF must emit `act` as an **object**, as for `RequiredClaims`); the
+wording when no token is sent; a Candidate policy not enforcing (console documentation, not re-run); exact versus
+substring matching (the policy uses `contains`).
 
 **Script:** `privilege/scripts/provision-act-sub-cedar-policy.mjs` creates this policy through the console API
 (`--agent`, `--app`, `--tool`; dry run unless `--apply`; Candidate unless `--state Active`). Run live on
@@ -219,7 +226,7 @@ under Access Request Approvals before the client retries. See `AGENT-APPROVALS-D
 | Claim-conditioned policy tiers with dotted claim paths | **From console UI text and code**, not exercised |
 | Door honours workload-identity tokens on the MCP path | **Untested** |
 | PF scopes in `context.token.scopes` | **Untested**; assume absent |
-| `act` in Cedar (`context.token.claims["act.sub"]`) | **Measured 2026-11-16: validates** (Candidate, never enforced). Not run against a real token. |
+| `act` in Cedar (`context.token.claims["act.sub"]`) | **Measured 2026-11-16:** validates as a Candidate; run Active with a real PingFederate token, one tool allowed and one refused (see above). Second agent, `act` as text and the no-token wording not measured. |
 | ID-JAG in Cedar | **No hook found** (2026-10-20; not re-checked) |
 | `act.sub` matched by `RequiredClaims` | **Verified** end to end (see `PF-OBO-WITH-PINGFEDERATE-SETUP.md`) |
 | Route B (PF as `IDProvider`) | **Untested** |

@@ -176,7 +176,7 @@ export default function PrivilegePfTokenDemoPage() {
           id="ppt-actsub-h"
           kicker="1b · The agent gate"
           title="The agent gate: act.sub"
-          lede="One PingFederate token, two tools. A Cedar policy reads the agent's act.sub claim: it lets one tool run and refuses the other."
+          lede="With two Active policies in place: one PingFederate token, two tools. A Cedar policy reads the agent's act.sub claim, lets one tool run and refuses the other."
         >
           <ActSubGate
             actSub={result?.actSub}
@@ -459,11 +459,11 @@ function ActSubResult({ actSub }) {
   const actKinds = { object: 'an object, which is the shape the policy reads', text: 'text, not an object', absent: 'not in the token' };
   let tone = 'warn';
   let chip = 'EXPECTED PATTERN NOT SEEN';
-  let message = 'CountTool was not allowed while ListIndexTool was refused by Cedar, so this run does not show the gate working. The verdicts below say what came back.';
+  let message = 'This run did not produce the pattern the two policies make (CountTool allowed, ListIndexTool refused with a message naming act.sub), so it does not show the gate working. The verdicts below say what came back.';
   if (enforcing) {
     tone = 'ok';
     chip = 'ENFORCING';
-    message = 'CountTool was allowed and ListIndexTool was refused by Cedar with the same token: an act.sub policy was enforcing on this door.';
+    message = 'CountTool was allowed and ListIndexTool was refused with a message naming act.sub, with the same token: an act.sub policy was enforcing on this door.';
   } else if (allowedBoth) {
     chip = 'NOT ENFORCING';
     message = 'No act.sub policy was enforcing on this door when this ran. Both tools answered allowed, which is what happens with no policy. This is not the gate working.';

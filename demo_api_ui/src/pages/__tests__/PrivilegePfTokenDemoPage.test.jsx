@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../services/privilegePfTokenDemoService', () => ({ getState: vi.fn(), runDemo: vi.fn() }));
 import { getState, runDemo } from '../../services/privilegePfTokenDemoService';
 import PrivilegePfTokenDemoPage from '../PrivilegePfTokenDemoPage';
+import { ACT_SUB_POLICIES, PRIVILEGE_CAN } from '../../config/privilegePfTokenDemo';
 
 // @xyflow/react observes its container's size; jsdom has no ResizeObserver.
 global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
@@ -309,9 +310,12 @@ describe('PrivilegePfTokenDemoPage (The agent gate: act.sub)', () => {
     expect(screen.getByTestId('ppt-actsub-result')).toHaveAttribute('data-enforcing', 'true');
     expect(screen.getByTestId('ppt-actsub-summary')).toHaveTextContent('ENFORCING');
     expect(screen.getByTestId('ppt-actsub-summary')).toHaveTextContent('an act.sub policy was enforcing on this door');
+    expect(within(screen.getByTestId('ppt-actsub-summary')).getByText('ENFORCING').className).toContain('pu-chip--ok');
+    expect(screen.getByTestId('ppt-actsub-summary')).toHaveTextContent('refused with a message naming act.sub');
     const count = screen.getByTestId('ppt-actsub-CountTool');
     expect(count).toHaveAttribute('data-verdict', 'allowed');
     expect(within(count).getByText('ALLOWED').className).toContain('pu-chip--ok');
+    expect(count).toHaveTextContent('the call ran (its output is not shown)');
     const list = screen.getByTestId('ppt-actsub-ListIndexTool');
     expect(list).toHaveAttribute('data-verdict', 'blocked-by-cedar');
     expect(list).toHaveTextContent('BLOCKED BY CEDAR');
@@ -339,6 +343,9 @@ describe('PrivilegePfTokenDemoPage (The agent gate: act.sub)', () => {
     ['both refused', [{ ...COUNT_OK, verdict: 'blocked-by-cedar', status: 400, message: 'action denied by policy: x' }, LIST_BLOCKED]],
     ['token rejected', [{ ...COUNT_OK, verdict: 'token-rejected', status: 401, message: 'Unauthorized' }, { ...LIST_OK, verdict: 'token-rejected', status: 401, message: 'Unauthorized' }]],
     ['an error', [COUNT_OK, { ...LIST_OK, verdict: 'error', status: 500, message: 'Internal Server Error' }]],
+    ['a refusal that does not name act.sub', [COUNT_OK, { ...LIST_BLOCKED, message: 'action denied by policy: ListIndexTool requires scope opensearch:search' }]],
+    ['a tool error result', [COUNT_OK, { ...LIST_OK, verdict: 'allowed-with-error-result', message: 'the tool returned an error result (its text is not shown)' }]],
+    ['no tools at all', []],
   ])('does not call %s the gate working, and does not claim there was no policy either', async (_name, tools) => {
     await runWith(withActSub({ claim: CLAIM, tools, enforcing: false }));
     const summary = screen.getByTestId('ppt-actsub-summary');
@@ -351,6 +358,50 @@ describe('PrivilegePfTokenDemoPage (The agent gate: act.sub)', () => {
     await runWith(withActSub({ claim: { act: '{}', actKind: 'text', sub: null }, tools: [COUNT_OK, LIST_OK], enforcing: false }));
     expect(screen.getByTestId('ppt-actsub-claim')).toHaveTextContent('text, not an object');
     expect(screen.getByTestId('ppt-actsub-claim')).toHaveTextContent('—');
+  });
+
+  it('shows a tool error result as its own verdict, not as ALLOWED', async () => {
+    await runWith(withActSub({ claim: CLAIM, tools: [COUNT_OK, { tool: 'ListIndexTool', status: 200, verdict: 'allowed-with-error-result', message: 'the tool returned an error result (its text is not shown)' }], enforcing: false }));
+    const row = screen.getByTestId('ppt-actsub-ListIndexTool');
+    expect(row).toHaveAttribute('data-verdict', 'allowed-with-error-result');
+    expect(row).toHaveTextContent('ALLOWED, TOOL ERROR');
+    expect(row).not.toHaveTextContent('the call ran');
+    expect(row).toHaveTextContent('the tool returned an error result (its text is not shown)');
+    expect(screen.getByTestId('ppt-actsub-summary')).not.toHaveTextContent('No act.sub policy was enforcing');
+  });
+
+  it('pins the recorded Cedar copy to the text read from the console on 2026-11-16', () => {
+    expect(ACT_SUB_POLICIES.map((p) => p.cedar)).toEqual([
+      `@reason("CountTool requires act.sub to be <client id>")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"CountTool")
+when   { context.app == "pftoken" }
+unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("<client id>") };`,
+      `@reason("ListIndexTool requires act.sub to be some-other-agent")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"ListIndexTool")
+when   { context.app == "pftoken" }
+unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("some-other-agent") };`,
+    ]);
+  });
+
+  it('states the measured result with its date, and the 7 seconds as one observation only', () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    render(<PrivilegePfTokenDemoPage />);
+    const notes = screen.getByTestId('ppt-actsub-notes');
+    expect(notes).toHaveTextContent('The refusal showed on the first poll about 7 seconds after the policies were created. That is one observation, not a propagation time.');
+    expect(notes).toHaveTextContent('Not authentication.');
+    expect(notes).toHaveTextContent('Not a second agent.');
+    const row = PRIVILEGE_CAN.find((r) => r.what.startsWith('Cedar rules on other token claims'));
+    expect(row.status).toMatch(/^measured 2026-11-16/);
+  });
+
+  it('does not state the order of the gateway checks or that the tool never ran, which were not measured', () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    render(<PrivilegePfTokenDemoPage />);
+    const section = screen.getByTestId('ppt-section-actsub').closest('section');
+    expect(section).not.toHaveTextContent('before any policy runs');
+    expect(section).not.toHaveTextContent('never reaches Cedar');
+    expect(section).not.toHaveTextContent('the tool never runs');
+    expect(section).toHaveTextContent('With two Active policies in place');
   });
 
   it('shows the recorded Cedar copy with its date, the is / is not notes and the not-measured list, before any run', async () => {

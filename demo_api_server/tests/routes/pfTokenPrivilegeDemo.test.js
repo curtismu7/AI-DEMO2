@@ -184,6 +184,7 @@ describe('POST /run', () => {
       ['reversed', { CountTool: { status: 400, rpc: DENY }, ListIndexTool: { status: 200, rpc: ok() } }, ['blocked-by-cedar', 'allowed']],
       ['token rejected on both', { CountTool: { status: 401, text: 'Unauthorized ' }, ListIndexTool: { status: 401, text: 'Unauthorized ' } }, ['token-rejected', 'token-rejected']],
       ['an error on the blocked tool', { CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 500, text: 'Internal Server Error' } }, ['allowed', 'error']],
+      ['a refusal that says denied but not by policy', { CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 200, rpc: { jsonrpc: '2.0', id: 1, error: { code: -32600, message: 'request denied by upstream: act.sub missing' } } } }, ['allowed', 'error']],
       ['a JSON-RPC error that is not a policy denial', { CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 200, rpc: { jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'index not found' } } } }, ['allowed', 'error']],
     ])('is not enforcing for %s', async (_name, answers, verdicts) => {
       mockDoor(answers);
@@ -210,11 +211,48 @@ describe('POST /run', () => {
       expect(res.body.pfToken.verdict).toBe('allowed'); // the other scenarios are untouched
     });
 
+    it('is not enforcing when ListIndexTool is refused by a policy that does not name act.sub (verdict stays blocked-by-cedar)', async () => {
+      mockDoor({
+        CountTool: { status: 200, rpc: ok() },
+        ListIndexTool: { status: 400, rpc: { jsonrpc: '2.0', id: 1, error: { code: -32600, message: 'action denied by policy: ListIndexTool requires scope opensearch:search' } }, as: 'json' },
+      });
+      const { actSub } = await run();
+      expect(actSub.tools.map((t) => t.verdict)).toEqual(['allowed', 'blocked-by-cedar']);
+      expect(actSub.enforcing).toBe(false);
+    });
+
+    it('does not call a tool allowed when the 200 carries no JSON-RPC result, or a tool error result', async () => {
+      mockDoor({
+        CountTool: { status: 200, text: '<html>captive portal</html>' },
+        ListIndexTool: { status: 200, rpc: { jsonrpc: '2.0', id: 1, result: { isError: true, content: [{ type: 'text', text: 'SECRET_ROW index not found' }] } } },
+      });
+      const res = await request(app).post('/api/pf-token-demo/run');
+      const { actSub } = res.body;
+      expect(actSub.tools).toEqual([
+        { tool: 'CountTool', status: 200, verdict: 'error', message: 'the door answered 200 with no JSON-RPC result' },
+        { tool: 'ListIndexTool', status: 200, verdict: 'allowed-with-error-result', message: 'the tool returned an error result (its text is not shown)' },
+      ]);
+      expect(actSub.enforcing).toBe(false);
+      expect(JSON.stringify(res.body)).not.toContain('SECRET_ROW');
+    });
+
+    it('does not call a tool allowed when the 200 JSON-RPC message has neither result nor error', async () => {
+      mockDoor({ CountTool: { status: 200, rpc: { jsonrpc: '2.0', id: 1 } }, ListIndexTool: { status: 200, rpc: ok() } });
+      const { actSub } = await run();
+      expect(actSub.tools.map((t) => t.verdict)).toEqual(['error', 'allowed']);
+      expect(actSub.enforcing).toBe(false);
+    });
+
     it('reports act as text or absent as such, with no sub to show', async () => {
       const mintWith = (claims) => `${b64u({ alg: 'RS256' })}.${b64u(claims)}.sig`;
       for (const [claims, expected] of [
         [{ ...CLAIMS, act: '{}' }, { act: '{}', actKind: 'text', sub: null }],
         [{ ...CLAIMS, act: undefined }, { act: null, actKind: 'absent', sub: null }],
+        [{ ...CLAIMS, act: null }, { act: null, actKind: 'absent', sub: null }],
+        [{ ...CLAIMS, act: ['pf-route-c-test'] }, { act: ['pf-route-c-test'], actKind: 'object', sub: null }],
+        [{ ...CLAIMS, act: 5 }, { act: 5, actKind: 'text', sub: null }],
+        [{ ...CLAIMS, act: { sub: 5 } }, { act: { sub: 5 }, actKind: 'object', sub: null }],
+        [{ ...CLAIMS, act: {} }, { act: {}, actKind: 'object', sub: null }],
       ]) {
         const jwt = mintWith(claims);
         global.fetch.mockImplementation(async (url, opts) => {
@@ -240,6 +278,32 @@ describe('POST /run', () => {
       const blocked = res.body.actSub.tools[1];
       expect(blocked.verdict).toBe('blocked-by-cedar');
       expect(blocked.message.length).toBeLessThanOrEqual(200);
+    });
+
+    it('scrubs a token-looking string from a refusal even when truncation could not hide it (short token, under the length cap)', async () => {
+      const shortJwt = `${b64u({ alg: 'none' })}.${b64u({ sub: 'a' })}.sig`;
+      expect(`action denied by policy: ListIndexTool requires act.sub to be x bearer ${shortJwt}`.length).toBeLessThan(200);
+      mockDoor({
+        CountTool: { status: 200, rpc: ok() },
+        ListIndexTool: { status: 400, rpc: { jsonrpc: '2.0', id: 1, error: { code: -32600, message: `action denied by policy: ListIndexTool requires act.sub to be x bearer ${shortJwt}` } } },
+      });
+      const blocked = (await run()).actSub.tools[1];
+      expect(blocked.verdict).toBe('blocked-by-cedar');
+      expect(blocked.message).toBe('action denied by policy: ListIndexTool requires act.sub to be x bearer [token]');
+      expect(JSON.stringify(blocked)).not.toMatch(/eyJ[\w-]+\./);
+    });
+
+    it('scrubs a token-looking string from a thrown fetch error too', async () => {
+      const shortJwt = `${b64u({ alg: 'none' })}.${b64u({ sub: 'a' })}.sig`;
+      global.fetch.mockImplementation(async (url, opts) => {
+        if (String(url).endsWith('/as/token.oauth2')) return reply(200, { access_token: JWT });
+        const body = JSON.parse(String(opts.body));
+        if (body.method === 'tools/call' && body.params.name === 'ListIndexTool') throw new Error(`connect failed for bearer ${shortJwt}`);
+        return reply(200, String(url).endsWith('/pftoken-rs/mcp') ? WHOAMI_SSE : TOOLS_SSE, false);
+      });
+      const res = await request(app).post('/api/pf-token-demo/run');
+      expect(res.body.actSub.tools[1]).toEqual({ tool: 'ListIndexTool', status: 0, verdict: 'error', message: 'connect failed for bearer [token]' });
+      expect(JSON.stringify(res.body.actSub)).not.toMatch(/eyJ[\w-]+\./);
     });
 
     it('leaves the mint failure path alone: no actSub when PingFederate did not issue a token', async () => {

@@ -191,21 +191,28 @@ async function actSubCall(cfg, token, call) {
     const { status, rpc, detail } = await postRpc(cfg.doorUrl, token, 'tools/call', call);
     const error = rpc?.error?.message || '';
     const denied = /denied by policy/i.test(error);
-    const ran = status === 200 && !rpc?.error && !rpc?.result?.isError;
-    const verdict = denied ? 'blocked-by-cedar' : ran ? 'allowed' : status === 401 ? 'token-rejected' : 'error';
+    // allowed needs a real JSON-RPC result that is not a tool error; a 200 with no parsable result is not "ran".
+    const ran = status === 200 && !rpc?.error && Boolean(rpc?.result) && !rpc.result.isError;
+    const errorResult = status === 200 && !rpc?.error && rpc?.result?.isError === true;
+    const verdict = denied ? 'blocked-by-cedar' : ran ? 'allowed' : errorResult ? 'allowed-with-error-result' : status === 401 ? 'token-rejected' : 'error';
     // Tool output is never returned: only the refusal or error wording.
-    const message = verdict === 'allowed' ? '' : safeMessage(error || detail);
+    let message = '';
+    if (verdict === 'allowed-with-error-result') message = 'the tool returned an error result (its text is not shown)';
+    else if (verdict === 'error' && status === 200 && !error) message = 'the door answered 200 with no JSON-RPC result';
+    else if (verdict !== 'allowed') message = safeMessage(error || detail);
     return { tool: call.name, status, verdict, message };
   } catch (err) {
     return { tool: call.name, status: 0, verdict: 'error', message: safeMessage(err.message) };
   }
 }
 
-// enforcing is true only for the exact pattern the two policies produce: CountTool allowed, ListIndexTool refused by Cedar.
+// enforcing is true only for the exact pattern the two policies produce: CountTool allowed, ListIndexTool refused by a
+// policy whose refusal names act.sub. Any other policy refusal keeps verdict blocked-by-cedar but is not counted as the gate.
 async function actSubCase(cfg, token, claims) {
   const tools = await Promise.all(ACT_SUB_CALLS.map((c) => actSubCall(cfg, token, c)));
   const [count, list] = tools;
-  return { claim: actClaim(claims), tools, enforcing: count.verdict === 'allowed' && list.verdict === 'blocked-by-cedar' };
+  const enforcing = count.verdict === 'allowed' && list.verdict === 'blocked-by-cedar' && /act\.sub/.test(list.message);
+  return { claim: actClaim(claims), tools, enforcing };
 }
 
 // One tier: mint for this scope, then ask the app for its tools. `scope` is what the token carried.

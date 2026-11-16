@@ -9,6 +9,7 @@ export const VERDICTS = {
   'refused-by-policy': { label: 'REFUSED BY POLICY', tone: 'bad', note: 'The token was accepted, then a Privilege grant refused the call (403). The key has no grant on this agent app.' },
   'token-rejected': { label: 'TOKEN REJECTED', tone: 'bad', note: 'The gateway did not accept the token (401): issuer, audience, subject, a required claim or lifetime did not match the identity.' },
   'blocked-by-cedar': { label: 'BLOCKED BY CEDAR', tone: 'bad', note: 'The grant allowed the tool; an AI policy (Cedar) denied this call.' },
+  'allowed-with-error-result': { label: 'ALLOWED, TOOL ERROR', tone: 'warn', note: 'HTTP 200 and a result flagged as an error, with no policy refusal text. What the tool answered is not shown.' },
   error: { label: 'ERROR', tone: 'bad', note: 'The call did not complete.' },
 };
 
@@ -57,14 +58,14 @@ unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].c
 // What the live check can and cannot show. Measured 2026-11-16 on a real tenant with a real PingFederate token.
 export const ACT_SUB_IS = [
   'One real PingFederate token, two tools on the same door: the policy that names this agent lets its tool run, the policy that names another value refuses its tool.',
-  'The refusal is a JSON-RPC error, "action denied by policy: ... requires act.sub to be ..." (-32600), and the tool never runs.',
+  'The refusal is a JSON-RPC error, "action denied by policy: ... requires act.sub to be ..." (-32600), returned instead of a tool result.',
   'Measured: with no policy both tools were allowed; with the two Active policies one was allowed and one refused; after the policies were deleted both were allowed again.',
   'The refusal showed on the first poll about 7 seconds after the policies were created. That is one observation, not a propagation time.',
 ];
 
 export const ACT_SUB_ISNT = [
   'Not a result without the policies. Created in the console by the owner, they are not created by this page; without them both tools answer allowed and the page says no act.sub policy was enforcing.',
-  'Not authentication. The gateway verifies the token before any policy runs; a token it rejects (401) never reaches Cedar.',
+  'Not authentication. A token the gateway rejects comes back as 401 with no policy refusal text; that is a different answer from the refusal here.',
   'Not a second agent. Every call here carries the same token and the same act.sub.',
 ];
 
