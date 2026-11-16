@@ -14,6 +14,17 @@ import WebSocket from 'ws';
 import axios from 'axios';
 import { getCorrelationId } from './correlationContext';
 import { mcpCallDuration, mcpCallErrors } from './metrics';
+import {
+  upstreamModernEnabled,
+  upstreamSupportsModern,
+  markUpstreamLegacy,
+  isModernRejection,
+  isModernCaller,
+  toModernRequest,
+  modernRoutingHeaders,
+  stripModernDecoration,
+  wsToHttpBase,
+} from './upstreamModern';
 
 export interface MtlsOptions {
   cert: string; // PEM client certificate
@@ -62,7 +73,7 @@ export function proxyJsonRpc(
   signal?: AbortSignal,
 ): Promise<JsonRpcResponse> {
   const endTimer = mcpCallDuration.startTimer({ method: request.method });
-  return proxyJsonRpcImpl(backendWsUrl, backendToken, request, xTratContext, tlsOptions, onProgress, signal).then(
+  return proxyJsonRpcRouted(backendWsUrl, backendToken, request, xTratContext, tlsOptions, onProgress, signal).then(
     (response) => {
       endTimer();
       if (response.error) mcpCallErrors.inc({ method: request.method });
@@ -74,6 +85,40 @@ export function proxyJsonRpc(
       throw err;
     },
   );
+}
+
+/**
+ * Picks the upstream era for one WS call. With GW_UPSTREAM_MODERN unset this
+ * IS proxyJsonRpcImpl, called synchronously (no await in between — callers
+ * and tests drive the socket right after calling). With it set, a backend
+ * that advertises 2026-07-28 via server/discover gets the request without
+ * the initialize handshake; a Legacy caller still receives a Legacy-shaped
+ * reply, and a backend that refuses the Modern request before running it is
+ * marked Legacy and retried over the handshake.
+ */
+function proxyJsonRpcRouted(
+  backendWsUrl: string,
+  backendToken: string,
+  request: JsonRpcRequest,
+  xTratContext?: string,
+  tlsOptions?: MtlsOptions,
+  onProgress?: (params: unknown) => void,
+  signal?: AbortSignal,
+): Promise<JsonRpcResponse> {
+  if (!upstreamModernEnabled() || request.id === undefined || request.method === 'initialize') {
+    return proxyJsonRpcImpl(backendWsUrl, backendToken, request, xTratContext, tlsOptions, onProgress, signal, false);
+  }
+  return (async () => {
+    const base = wsToHttpBase(backendWsUrl);
+    if (await upstreamSupportsModern(base, backendToken)) {
+      const response = await proxyJsonRpcImpl(backendWsUrl, backendToken, request, xTratContext, tlsOptions, onProgress, signal, true);
+      if (!isModernRejection(response.error)) {
+        return isModernCaller(request.params) ? response : stripModernDecoration(response);
+      }
+      markUpstreamLegacy(base);
+    }
+    return proxyJsonRpcImpl(backendWsUrl, backendToken, request, xTratContext, tlsOptions, onProgress, signal, false);
+  })();
 }
 
 function proxyJsonRpcImpl(
@@ -91,6 +136,10 @@ function proxyJsonRpcImpl(
   // connection and rejects with a distinguishable { code: 'cancelled' }
   // error instead of waiting out CALL_TIMEOUT_MS.
   signal?: AbortSignal,
+  // MCP 2026-07-28: skip initialize / notifications/initialized and send the
+  // request self-contained. Only set by proxyJsonRpcRouted, after the backend
+  // advertised the version.
+  modern = false,
 ): Promise<JsonRpcResponse> {
   return new Promise((resolve, reject) => {
     // Guards every settle path against acting twice (e.g. an abort() that
@@ -146,6 +195,22 @@ function proxyJsonRpcImpl(
     // proportional to request volume; avoidable late-terminate race).
     let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
 
+    // The request as it goes on the wire: the caller's, plus the correlation id
+    // the transaction trace follows (same rule on the Legacy and Modern paths).
+    const buildOutRequest = (): JsonRpcRequest => {
+      const _cid2 = getCorrelationId();
+      let outRequest: JsonRpcRequest = request;
+      if (_cid2 && request.params !== undefined) {
+        const existingParams = request.params as Record<string, unknown>;
+        if (!existingParams.correlationId) {
+          outRequest = { ...request, params: { ...existingParams, correlationId: _cid2 } };
+        }
+      } else if (_cid2 && request.params === undefined) {
+        outRequest = { ...request, params: { correlationId: _cid2 } as unknown };
+      }
+      return outRequest;
+    };
+
     ws.on('error', (err) => {
       settled = true;
       clearTimeout(timer);
@@ -156,6 +221,13 @@ function proxyJsonRpcImpl(
 
     ws.on('open', () => {
       openedAt = Date.now();
+      // MCP 2026-07-28: the backend advertised it, so there is no handshake —
+      // the request itself carries version and capabilities in params._meta.
+      if (modern) {
+        initialized = true;
+        ws.send(JSON.stringify(toModernRequest(buildOutRequest())));
+        return;
+      }
       // MCP handshake: initialize
       const _cid = getCorrelationId();
       const initParams: Record<string, unknown> = {
@@ -218,17 +290,7 @@ function proxyJsonRpcImpl(
           initialized: true,
         };
         ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }));
-        const _cid2 = getCorrelationId();
-        let outRequest: JsonRpcRequest = request;
-        if (_cid2 && request.params !== undefined) {
-          const existingParams = request.params as Record<string, unknown>;
-          if (!existingParams.correlationId) {
-            outRequest = { ...request, params: { ...existingParams, correlationId: _cid2 } };
-          }
-        } else if (_cid2 && request.params === undefined) {
-          outRequest = { ...request, params: { correlationId: _cid2 } as unknown };
-        }
-        ws.send(JSON.stringify(outRequest));
+        ws.send(JSON.stringify(buildOutRequest()));
         return;
       }
 
@@ -296,7 +358,7 @@ export async function proxyJsonRpcHttp(
 ): Promise<JsonRpcResponse> {
   const endTimer = mcpCallDuration.startTimer({ method: request.method });
   try {
-    const response = await proxyJsonRpcHttpImpl(backendHttpUrl, backendToken, request, xTratContext);
+    const response = await proxyJsonRpcHttpRouted(backendHttpUrl, backendToken, request, xTratContext);
     if (response.error) mcpCallErrors.inc({ method: request.method });
     return response;
   } catch (err) {
@@ -307,11 +369,36 @@ export async function proxyJsonRpcHttp(
   }
 }
 
+/**
+ * HTTP twin of proxyJsonRpcRouted: with GW_UPSTREAM_MODERN unset it is exactly
+ * proxyJsonRpcHttpImpl's handshake path; with it set, a backend that advertises
+ * 2026-07-28 gets the request self-contained, and one that refuses it before
+ * running it is marked Legacy and retried over the handshake.
+ */
+async function proxyJsonRpcHttpRouted(
+  backendHttpUrl: string,
+  backendToken: string,
+  request: JsonRpcRequest,
+  xTratContext?: string,
+): Promise<JsonRpcResponse> {
+  if (upstreamModernEnabled() && request.id !== undefined && request.method !== 'initialize'
+      && await upstreamSupportsModern(backendHttpUrl, backendToken)) {
+    const response = await proxyJsonRpcHttpImpl(backendHttpUrl, backendToken, request, xTratContext, true);
+    if (!isModernRejection(response.error)) {
+      return isModernCaller(request.params) ? response : stripModernDecoration(response);
+    }
+    markUpstreamLegacy(backendHttpUrl);
+  }
+  return proxyJsonRpcHttpImpl(backendHttpUrl, backendToken, request, xTratContext, false);
+}
+
 async function proxyJsonRpcHttpImpl(
   backendHttpUrl: string,
   backendToken: string,
   request: JsonRpcRequest,
   xTratContext?: string,
+  // MCP 2026-07-28: no initialize / notifications/initialized; see proxyJsonRpcHttpRouted.
+  modern = false,
 ): Promise<JsonRpcResponse> {
   const upstreamUrl = `${backendHttpUrl.replace(/\/$/, '')}/mcp`;
   const baseHeaders: Record<string, string> = {
@@ -321,6 +408,25 @@ async function proxyJsonRpcHttpImpl(
     [MCP_PROTO_HEADER]: MCP_PROTOCOL_VERSION,
   };
   if (xTratContext) baseHeaders['X-TraT-Context'] = xTratContext;
+
+  if (modern) {
+    const cid = getCorrelationId();
+    let outModern: JsonRpcRequest = request;
+    if (cid) {
+      const existingParams = (request.params as Record<string, unknown>) || {};
+      if (!existingParams.correlationId) {
+        outModern = { ...request, params: { ...existingParams, correlationId: cid } };
+      }
+    }
+    const { [MCP_PROTO_HEADER]: _legacyVersion, ...headersNoVersion } = baseHeaders;
+    void _legacyVersion;
+    const resp = await axios.post(upstreamUrl, JSON.stringify(toModernRequest(outModern)), {
+      headers: { ...headersNoVersion, ...modernRoutingHeaders(request.method, request.params) },
+      timeout: CALL_TIMEOUT_MS,
+      validateStatus: () => true,
+    });
+    return resp.data as JsonRpcResponse;
+  }
 
   const _cid = getCorrelationId();
   const initParams: Record<string, unknown> = {
