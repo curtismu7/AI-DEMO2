@@ -1,4 +1,6 @@
 /* eslint-disable no-template-curly-in-string -- SpEL expressions are asserted as text */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -294,13 +296,16 @@ describe('P1ThirdPartyExchangePage: guided walk', () => {
     fireEvent.click(screen.getByTestId('p1x-reset'));
     toStep(5);
     expect(verdictOk()).toBe('true');
-    expect(screen.getByTestId('p1x-issued').textContent).toContain('"act"');
+    // Form view (the default): the issued token's act claim is a labelled row, not a quoted key.
+    expect(within(screen.getByTestId('p1x-issued')).getByText('act')).toBeTruthy();
   });
   it('requiring nbf flips Okta to refused and picking the issuer is remembered on the next steps', () => {
     mountAt(2);
     fireEvent.click(screen.getByTestId('p1x-vendor-okta'));
     toStep(3);
     fireEvent.click(screen.getByTestId('p1x-nbf'));
+    expect(within(screen.getByTestId('p1x-trust-body')).getByText('nbfRequired').closest('.jp-row').querySelector('.jp-d').textContent).toBe('true');
+    fireEvent.click(within(screen.getByTestId('p1x-trust-body-box')).getByRole('button', { name: 'JSON' }));
     expect(screen.getByTestId('p1x-trust-body').textContent).toContain('"nbfRequired": true');
     toStep(5);
     expect(verdictOk()).toBe('false');
@@ -317,6 +322,8 @@ describe('P1ThirdPartyExchangePage: guided walk', () => {
   });
   it('step 3 shows the live trusted-issuer request body for the chosen settings', () => {
     mountAt(3);
+    // The JSON view shows the body exactly as it is sent, so it parses.
+    fireEvent.click(within(screen.getByTestId('p1x-trust-body-box')).getByRole('button', { name: 'JSON' }));
     const before = JSON.parse(screen.getByTestId('p1x-trust-body').textContent);
     expect(before.nbfRequired).toBe(false);
     fireEvent.change(screen.getByTestId('p1x-skew'), { target: { value: '45' } });
@@ -344,7 +351,7 @@ describe('P1ThirdPartyExchangePage: guided walk', () => {
     expect(within(screen.getByTestId('p1x-compare')).getAllByRole('row').length).toBe(COMPARE_ROWS.length + 1);
     toStep(7);
     expect(screen.getByTestId('p1x-notshown').textContent).toMatch(/SUBJECT token/);
-    expect(screen.getByTestId('p1x-api-issuer').textContent).toContain('"issuer"');
+    expect(within(screen.getByTestId('p1x-api-issuer')).getByText('issuer')).toBeTruthy();
   });
 
   it('decodes tokens inline by default; the switch turns it off and is remembered', () => {
@@ -574,5 +581,59 @@ describe('P1ThirdPartyExchangePage: Ping UI Standard', () => {
     fireEvent.click(next);
     expect(screen.getByTestId('p1x-next')).toBe(next);
     expect(next.textContent).toBe('Start over');
+  });
+});
+
+describe('P1ThirdPartyExchangePage: JSON panes', () => {
+  const mountView = (hash) => {
+    try { localStorage.clear(); } catch { /* storage unavailable: the page still works */ }
+    window.history.replaceState(null, '', hash);
+    return render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+  };
+  const isJsonObject = (text) => { try { const v = JSON.parse(text); return v !== null && typeof v === 'object'; } catch { return false; } };
+
+  it('shows the claims as a form by default, the exact JSON in the JSON view, and the choice is page-wide', () => {
+    mountView('#walk=2');
+    const actor = screen.getByTestId('p1x-actor');
+    expect(actor.getAttribute('role')).toBe('group');
+    expect(actor.getAttribute('aria-label')).toBe('Actor token claims');
+    expect(within(actor).getByText('iss')).toBeTruthy();
+    fireEvent.click(within(screen.getByTestId('p1x-actor-box')).getByRole('button', { name: 'JSON' }));
+    expect(isJsonObject(screen.getByTestId('p1x-actor').textContent)).toBe(true);
+    expect(isJsonObject(screen.getByTestId('p1x-subject').textContent)).toBe(true);
+  });
+  it('highlights the key claims in the form', () => {
+    mountView('#walk=2');
+    const issRow = within(screen.getByTestId('p1x-actor')).getByText('iss').closest('.jp-row');
+    expect(issRow.getAttribute('data-hot')).toBe('true');
+  });
+  it('no hand-rolled pre holds JSON any more: every p1x-pre is text', () => {
+    mountView('#walk=all');
+    const pres = Array.from(document.querySelectorAll('pre.p1x-pre'));
+    expect(pres.length).toBeGreaterThan(0); // raw tokens, curl, the form-encoded request and the status line stay text
+    for (const pre of pres) expect(isJsonObject(pre.textContent), pre.textContent.slice(0, 60)).toBe(false);
+  });
+  it('the refusal is the status line as text and its body as a named pane', () => {
+    mountView('#walk=3');
+    fireEvent.click(screen.getByTestId('p1x-state-expired'));
+    fireEvent.click(screen.getByTestId('p1x-rail-5'));
+    const err = screen.getByTestId('p1x-error');
+    expect(err.querySelector('pre.p1x-pre').textContent).toBe('HTTP 400');
+    const body = within(err).getByRole('group', { name: 'Refusal body' });
+    expect(within(body).getByText('error').closest('.jp-row').getAttribute('data-alert')).toBe('true');
+  });
+  it('a decoded header and a wire call body are panes, and an HTTP transcript keeps its head as text', () => {
+    mountView('#walk=4');
+    expect(screen.getAllByRole('group', { name: /^Decoded token \d+ header$/ }).length).toBeGreaterThan(0);
+    const res = screen.getByTestId('p1x-feat-10-res');
+    expect(res.querySelector('.jp-wire')).toBeTruthy();
+    expect(within(res).getByRole('group', { name: 'Featured call 10 response body' })).toBeTruthy();
+  });
+  it('the shared stylesheet no longer caps or scrolls the text blocks (no scroll CSS on .p1x-pre)', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/P1ThirdPartyExchangePage.css'), 'utf8');
+    const rule = /^\.p1x-pre\s*\{([^}]*)\}/m.exec(css)[1];
+    expect(rule).not.toMatch(/overflow\s*:\s*(auto|scroll)/);
+    expect(rule).not.toMatch(/max-height/);
+    expect(rule).toMatch(/white-space:\s*pre-wrap/);
   });
 });

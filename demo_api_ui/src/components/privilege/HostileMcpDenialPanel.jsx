@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { HOSTILE_MCP_SCENARIOS } from '../../config/hostileMcpScenarios';
+import JsonPane from '../shared/JsonPane';
 import './HostileMcpDenialPanel.css';
 
 function sourceText(source, payload) {
@@ -8,9 +9,10 @@ function sourceText(source, payload) {
   return (payload?.messages || []).map((message) => message.content?.text || '').join('\n') || 'Prompt returned no text content.';
 }
 
-function resultText(result) {
-  return result ? JSON.stringify(result, null, 2) : '';
-}
+// Keys a reader looks for first (who, for whom and what are already the pane's defaults). This pane was a plain pre, so
+// only keys that mean a refusal are alert keys (the pane's own defaults: error, reason, decision ...).
+const CALL_HOT = ['name', 'arguments', 'method', 'path', 'body', 'params'];
+const RESULT_HOT = ['status', 'code', 'provider', 'route', 'tool', 'result'];
 
 export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall }) {
   const [scenarioId, setScenarioId] = useState(HOSTILE_MCP_SCENARIOS[0].id);
@@ -109,7 +111,7 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
         <article>
           <h3>Hostile content</h3>
           <span className="hmd-panel__meta">{scenario.source.kind} · {scenario.source.label}</span>
-          <pre>{sourcePayload ? sourceText(scenario.source, sourcePayload) : 'Run the scenario to fetch the hostile content.'}</pre>
+          <pre className="hmd-panel__text">{sourcePayload ? sourceText(scenario.source, sourcePayload) : 'Run the scenario to fetch the hostile content.'}</pre>
         </article>
         <article>
           <h3>Scanner finding</h3>
@@ -117,7 +119,9 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
         </article>
         <article>
           <h3>Induced action</h3>
-          <pre>{inducedCall ? resultText(inducedCall) : 'No tool call attempted yet.'}</pre>
+          {inducedCall
+            ? <JsonPane value={inducedCall} label="Induced action" hot={CALL_HOT} />
+            : <pre className="hmd-panel__text">No tool call attempted yet.</pre>}
         </article>
         <article className={denied ? 'hmd-panel__decision hmd-panel__decision--denied' : 'hmd-panel__decision'}>
           <h3>Privilege decision</h3>
@@ -127,7 +131,7 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
               <p>{[privilegeResult.status, privilegeResult.code, privilegeResult.reason, privilegeResult.provider, privilegeResult.route].filter(Boolean).join(' · ')}</p>
             </>
           ) : privilegeResult?.ok ? (
-            <><strong>Privilege allowed the resulting action</strong><pre>{resultText(privilegeResult.response)}</pre></>
+            <><strong>Privilege allowed the resulting action</strong><JsonPane value={privilegeResult.response} label="Privilege decision response" hot={RESULT_HOT} /></>
           ) : <p>No gateway decision yet.</p>}
         </article>
       </div>
@@ -138,18 +142,18 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
             <section>
               <h3>Hostile content lookup</h3>
               <h4>Request</h4>
-              <pre>{JSON.stringify(sourceExchange.request, null, 2)}</pre>
+              <JsonPane value={sourceExchange.request} label="Hostile content lookup request" hot={CALL_HOT} />
               <h4>Response</h4>
-              <pre>{JSON.stringify(sourceExchange.response, null, 2)}</pre>
+              <JsonPane value={sourceExchange.response} label="Hostile content lookup response" hot={RESULT_HOT} />
             </section>
           ) : null}
           {actionExchange ? (
             <section>
               <h3>Induced tool call through Privilege</h3>
               <h4>Request</h4>
-              <pre>{JSON.stringify(actionExchange.request, null, 2)}</pre>
+              <JsonPane value={actionExchange.request} label="Induced tool call request" hot={CALL_HOT} />
               <h4>Response</h4>
-              <pre>{JSON.stringify(actionExchange.response, null, 2)}</pre>
+              <JsonPane value={actionExchange.response} label="Induced tool call response" hot={RESULT_HOT} />
             </section>
           ) : null}
         </details>

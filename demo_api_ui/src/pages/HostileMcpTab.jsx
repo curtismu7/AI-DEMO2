@@ -12,8 +12,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
+import JsonPane from '../components/shared/JsonPane';
 import { classifyHostileAgentOutcome, hostileAgentOutcomeLabel } from './hostileMcpOutcome';
 import './HostileMcpTab.css';
+
+// Keys a reader looks for first in the evidence panes (who, for whom and what are already the pane's defaults).
+const REQUEST_HOT = ['method', 'path', 'body', 'provider', 'viaPrivilege', 'task'];
+const RESPONSE_HOT = ['answer', 'trace', 'tool', 'tools', 'name', 'status'];
+const SCHEMA_HOT = ['required', 'type'];
 
 const API_BASE = '/api/privilege-mcp';
 // Loosely matched against the BFF's preset label so a label edit on the BFF
@@ -132,18 +138,18 @@ export default function HostileMcpTab() {
       const data = await api('/tools/list', { method: 'POST', body: {} });
       setTools(data.tools || []);
       setToolsListEvidence({
-        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} }, null, 2),
-        response: JSON.stringify({ tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({
+        request: { method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} },
+        response: { tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({
           name: tool.name,
           description: tool.description || '',
           inputSchema: tool.inputSchema || {},
-        })) : [] }, null, 2),
+        })) : [] },
       });
       log(`tools/list — ${data.tools?.length || 0} tools, poison included verbatim`);
     } catch (err) {
       setToolsListEvidence({
-        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} }, null, 2),
-        response: JSON.stringify({ status: err.status ?? null, error: err.message }, null, 2),
+        request: { method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} },
+        response: { status: err.status ?? null, error: err.message },
       });
       if (err.status === 401) { setAuthenticated(false); setError('Not authenticated — click Sign in with Privilege.'); }
       else setError(err.message);
@@ -203,8 +209,8 @@ export default function HostileMcpTab() {
         modelReached: true,
         metadataServerReached: true,
         toolCallBackend,
-        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: requestBody }, null, 2),
-        response: JSON.stringify({
+        request: { method: 'POST', path: '/api/privilege-mcp/agent/run', body: requestBody },
+        response: {
           answer: data.answer ?? null,
           trace: trace.map((step) => ({
             step: step.step || null,
@@ -215,7 +221,7 @@ export default function HostileMcpTab() {
           })),
           tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({ name: tool.name, description: tool.description })) : [],
           steps: Array.isArray(data.steps) ? data.steps : [],
-        }, null, 2),
+        },
       });
       log(`— agent run (${provider}${viaPrivilege ? ' via Privilege' : ''}, ${latency} ms) — task: "${task}"`);
       for (const step of data.trace || []) {
@@ -235,8 +241,8 @@ export default function HostileMcpTab() {
         modelReached: null,
         metadataServerReached: null,
         toolCallBackend: 'unknown',
-        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: requestBody }, null, 2),
-        response: JSON.stringify({ error: err.message }, null, 2),
+        request: { method: 'POST', path: '/api/privilege-mcp/agent/run', body: requestBody },
+        response: { error: err.message },
       });
       log(`✕ agent run — ${err.message}`);
       setError(err.message);
@@ -329,7 +335,8 @@ export default function HostileMcpTab() {
               </div>
               <details className="hmc-tool__desc">
                 <summary>Show the description / schema the model reads</summary>
-                <pre>{(t.description || '') + '\n' + JSON.stringify(t.inputSchema || {}, null, 2)}</pre>
+                {t.description ? <pre>{t.description}</pre> : null}
+                <JsonPane value={t.inputSchema || {}} label={`${t.name} input schema`} hot={SCHEMA_HOT} />
               </details>
               {t.name === 'create_transfer' ? (
                 <button type="button" className="hmc-btn hmc-btn--danger" disabled={busy}
@@ -385,9 +392,9 @@ export default function HostileMcpTab() {
                   <details className="hmc-details">
                     <summary>Agent request and observed response</summary>
                     <h3>Request</h3>
-                    <pre>{agentRunEvidence.request}</pre>
+                    <JsonPane value={agentRunEvidence.request} label="Agent request" hot={REQUEST_HOT} />
                     <h3>Response</h3>
-                    <pre>{agentRunEvidence.response}</pre>
+                    <JsonPane value={agentRunEvidence.response} label="Agent response" hot={RESPONSE_HOT} />
                   </details>
                 ) : null}
                 </>
@@ -398,9 +405,9 @@ export default function HostileMcpTab() {
             <details className="hmc-details">
               <summary>tools/list request and observed response</summary>
               <h3>Request</h3>
-              <pre>{toolsListEvidence.request}</pre>
+              <JsonPane value={toolsListEvidence.request} label="tools/list request" hot={REQUEST_HOT} />
               <h3>Response (tool metadata, including any poison)</h3>
-              <pre>{toolsListEvidence.response}</pre>
+              <JsonPane value={toolsListEvidence.response} label="tools/list response" hot={RESPONSE_HOT} />
             </details>
           ) : null}
         </section>

@@ -5,6 +5,7 @@ import HostileMcpTab from './HostileMcpTab';
 import InterAgentAbuseTester from '../components/InterAgentAbuseTester';
 import ToolSafetyScannerPanel from '../components/ToolSafetyScannerPanel';
 import { normalizeAttackEvidence } from './attackLabEvidence';
+import JsonPane from '../components/shared/JsonPane';
 import './AttackLabTab.css';
 
 const ATTACKS = [
@@ -116,8 +117,18 @@ function maliciousContentEvidence(data, request) {
   };
 }
 
+// Keys a reader looks for first in the evidence panes (who, for whom and what are the pane's defaults). The panes were
+// plain pre blocks, so the only alert keys added are the ones that name a refusal.
+const REQUEST_HOT = ['method', 'path', 'body', 'tool', 'args', 'sim', 'provider', 'prompt'];
+const DETAIL_HOT = ['sim', 'useCaseId', 'backendReached', 'validator', 'tokenChainEvents'];
+const DETAIL_ALERT = ['errorCode', 'privilegeDecision'];
+
 function EvidencePanel({ evidence }) {
   if (!evidence) return null;
+  // The Malicious Content detail is the model's reply as text; every other run's detail is a JSON response.
+  const detailPane = evidence.attackId === 'malicious_content'
+    ? <pre className="attack-lab__detail">{evidence.detail}</pre>
+    : <JsonPane value={evidence.detail} label={evidence.detailLabel || 'Observed response'} hot={DETAIL_HOT} alert={DETAIL_ALERT} />;
   const blockedByPrivilege = evidence.enforcement?.component === 'Privilege LLM Gateway'
     || evidence.enforcement?.component === 'Privilege MCP Gateway';
   return (
@@ -130,12 +141,12 @@ function EvidencePanel({ evidence }) {
           <summary>Request and response details</summary>
           <div>
             <h4>Request sent</h4>
-            <pre className="attack-lab__detail">{evidence.requestPayload}</pre>
+            <JsonPane value={evidence.requestPayload} label="Request sent" hot={REQUEST_HOT} />
           </div>
           {evidence.detail ? (
             <div>
               <h4>{evidence.detailLabel || 'Observed response'}</h4>
-              <pre className="attack-lab__detail">{evidence.detail}</pre>
+              {detailPane}
             </div>
           ) : null}
         </details>
@@ -150,7 +161,7 @@ function EvidencePanel({ evidence }) {
       {evidence.detail && !evidence.requestPayload ? evidence.detailLabel ? (
         <div>
           <h4>{evidence.detailLabel}</h4>
-          <pre className="attack-lab__detail">{evidence.detail}</pre>
+          {detailPane}
         </div>
       ) : <p className="attack-lab__detail">{evidence.detail}</p> : null}
       {evidence.redactionCount > 0 ? (
