@@ -84,10 +84,12 @@ describe('PrivilegeCedarLivePage (live): the start-here content', () => {
     expect(hold).toHaveTextContent('Action::"mcp:InvokeUnattended"');
     expect(screen.getByTestId('pcl-policy-pftoken-scope-search')).toHaveTextContent('context.token.scopes.contains');
     const allow = screen.getByTestId('pcl-policy-pftoken-actsub-allow');
-    expect(allow).toHaveTextContent('Active');
-    expect(allow).toHaveTextContent('console copy read 2026-11-16');
+    expect(allow).not.toHaveTextContent('Active');
+    expect(allow.querySelector('.pu-chip--ok')).toBeNull();
+    expect(allow).toHaveTextContent('console copy read 2026-11-16; this page does not read the console');
     expect(allow).toHaveTextContent('context.token.claims["act.sub"].contains("<client id>")');
     expect(screen.getByTestId('pcl-policy-pftoken-actsub-deny')).toHaveTextContent('some-other-agent');
+    expect(screen.getByTestId('pcl-policy-pftoken-actsub-deny').querySelector('.pu-chip--ok')).toBeNull();
     await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'ready'));
   });
 
@@ -100,6 +102,59 @@ describe('PrivilegeCedarLivePage (live): the start-here content', () => {
     const gaps = screen.getByTestId('pcl-notmeasured');
     for (const g of ACT_SUB_NOT_MEASURED) expect(gaps).toHaveTextContent(g);
     expect(screen.getByTestId('pcl-actsub-isnt')).toHaveTextContent('Not a second agent');
+    await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'ready'));
+  });
+});
+
+describe('PrivilegeCedarLivePage (live): what the page says it does', () => {
+  it('banner: opening the page connects the session to the door and reads the PingFederate setup; only the runs wait for a button', async () => {
+    mockSignedIn();
+    page();
+    const banner = screen.getByTestId('pcl-banner');
+    expect(banner).toHaveTextContent('Opening this page connects your session to the opensearch-hitl door');
+    expect(banner).toHaveTextContent("the same switch the Privilege client's door picker makes");
+    expect(banner).toHaveTextContent('reads the PingFederate setup');
+    expect(banner).toHaveTextContent('the three runs are sent only when you press a button');
+    await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'ready'));
+    // What the banner says is what the page does: the door switch and the setup read happen on open, nothing else.
+    expect(connectDoor).toHaveBeenCalledTimes(1);
+    expect(getState).toHaveBeenCalledTimes(1);
+    expect(runTool).not.toHaveBeenCalled();
+    expect(runDemo).not.toHaveBeenCalled();
+  });
+
+  it('banner and step notes say one press of a PingFederate step runs the whole PingFederate run, each time', async () => {
+    mockSignedIn();
+    page();
+    expect(screen.getByTestId('pcl-banner')).toHaveTextContent('mints real PingFederate tokens');
+    expect(screen.getByTestId('pcl-banner')).not.toHaveTextContent('mints a real PingFederate token');
+    for (const id of ['pcl-step-scope', 'pcl-step-actsub']) {
+      expect(screen.getByTestId(id)).toHaveTextContent('One press runs the whole PingFederate run (several tokens and gateway calls)');
+      expect(screen.getByTestId(id)).toHaveTextContent('Pressing the other step runs it again');
+    }
+    expect(screen.getByTestId('pcl-run-scope')).toHaveTextContent('Run the PingFederate check');
+    expect(screen.getByTestId('pcl-run-actsub')).toHaveTextContent('Run the PingFederate check');
+    await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'ready'));
+  });
+
+  it('the closing lede does not say everything was measured with a PingFederate token, only the act.sub case', async () => {
+    mockSignedIn();
+    page();
+    const lede = screen.getByTestId('pcl-measured').closest('section');
+    expect(lede).not.toHaveTextContent("Measured on the owner's Privilege tenant with a real PingFederate token");
+    expect(lede).toHaveTextContent('Only the act.sub case was measured on 2026-11-16, with a real PingFederate token');
+    expect(lede).toHaveTextContent('the hold and token-scope cases are the earlier measurements the sibling pages record');
+    await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'ready'));
+  });
+
+  it('the act.sub policies are a console copy this page does not read: no Active state, and the owner creates them first', async () => {
+    mockSignedIn();
+    page();
+    const step = screen.getByTestId('pcl-step-actsub');
+    expect(step).toHaveTextContent('created and removed in the console by the owner before this step is used');
+    expect(step).toHaveTextContent('does not read the console');
+    expect(step).not.toHaveTextContent('Active while the check runs');
+    expect(within(screen.getByTestId('pcl-actsub-policies')).queryByText('Active')).toBeNull();
     await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'ready'));
   });
 });
@@ -158,6 +213,23 @@ describe('PrivilegeCedarLivePage (live): sign-in first states', () => {
     expect(screen.getByTestId('pcl-run-actsub')).toBeDisabled();
   });
 
+  it.each([
+    ['a 500', () => getState.mockResolvedValue({ status: 500, data: {} }), 'HTTP 500'],
+    ['a 502', () => getState.mockResolvedValue({ status: 502, data: {} }), 'HTTP 502'],
+    ['a request that throws', () => getState.mockRejectedValue(new Error('socket hang up')), 'socket hang up'],
+  ])('%s while reading the setup is not reported as a missing client secret', async (_n, arrange, text) => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    arrange();
+    page();
+    await waitFor(() => expect(screen.getAllByTestId('pcl-state-problem')).toHaveLength(2));
+    expect(screen.getAllByTestId('pcl-state-problem')[0]).toHaveTextContent(text);
+    expect(screen.getAllByTestId('pcl-state-problem')[0]).toHaveTextContent('could not be read');
+    expect(screen.queryByTestId('pcl-not-configured')).toBeNull();
+    expect(document.body.textContent).not.toContain('client secret is not set');
+    expect(screen.getByTestId('pcl-run-scope')).toBeDisabled();
+    expect(screen.getByTestId('pcl-run-actsub')).toBeDisabled();
+  });
+
   it('a 401 on a run turns into the sign-in strip', async () => {
     mockSignedIn();
     runDemo.mockResolvedValue({ status: 401, data: {} });
@@ -209,6 +281,26 @@ describe('PrivilegeCedarLivePage (live): step 1, hold for a human', () => {
     expect(summary).toHaveTextContent('NOT HELD');
     expect(summary).toHaveTextContent('This is not the gate working.');
     expect(screen.queryByTestId('pcl-retry')).toBeNull();
+    expect(screen.getByTestId('pcl-step-hold').className).toContain('pu-card--warn');
+    expect(screen.getByTestId('pcl-step-hold').className).not.toContain('pu-card--ok');
+  });
+
+  it('colours the card and the verdict chip by what the gateway answered: HELD and ALLOWED ok, DENIED danger', async () => {
+    mockSignedIn();
+    runTool.mockResolvedValueOnce(HOLD).mockResolvedValueOnce(ALLOW).mockResolvedValueOnce({ outcome: 'deny', detail: 'Forbidden', raw: { status: 403 } });
+    await readyPage();
+    fireEvent.click(screen.getByTestId('pcl-run-hold'));
+    await screen.findByTestId('pcl-retry');
+    expect(screen.getByTestId('pcl-step-hold').className).toContain('pu-card--ok');
+    expect(within(screen.getByTestId('pcl-hold-verdict')).getByText('HELD').className).toContain('pu-chip--warn');
+    fireEvent.click(screen.getByTestId('pcl-retry'));
+    await waitFor(() => expect(screen.getByTestId('pcl-hold-verdict')).toHaveAttribute('data-outcome', 'allow'));
+    expect(within(screen.getByTestId('pcl-hold-verdict')).getByText('ALLOWED').className).toContain('pu-chip--ok');
+    expect(screen.getByTestId('pcl-step-hold').className).toContain('pu-card--ok');
+    fireEvent.click(screen.getByTestId('pcl-run-hold'));
+    await waitFor(() => expect(screen.getByTestId('pcl-hold-verdict')).toHaveAttribute('data-outcome', 'deny'));
+    expect(within(screen.getByTestId('pcl-hold-verdict')).getByText('DENIED').className).toContain('pu-chip--danger');
+    expect(screen.getByTestId('pcl-step-hold').className).toContain('pu-card--warn');
   });
 
   it('a sign-in answer from the call moves the door back to the sign-in state', async () => {
@@ -218,6 +310,8 @@ describe('PrivilegeCedarLivePage (live): step 1, hold for a human', () => {
     fireEvent.click(screen.getByTestId('pcl-run-hold'));
     await waitFor(() => expect(screen.getByTestId('pcl-conn')).toHaveAttribute('data-status', 'signin'));
     expect(screen.getByTestId('pcl-hold-summary')).toHaveTextContent('Sign in first');
+    expect(screen.getByTestId('pcl-hold-verdict')).toHaveTextContent('No gateway answer: the call did not reach a verdict');
+    expect(screen.getByTestId('pcl-hold-verdict')).not.toHaveTextContent('The gateway’s answer to this call');
     expect(screen.getByTestId('pcl-run-hold')).toBeDisabled();
   });
 
@@ -251,6 +345,7 @@ describe('PrivilegeCedarLivePage (live): step 2, token-scope gate', () => {
     expect(screen.getByTestId('pcl-scope-without')).toHaveTextContent('BLOCKED BY CEDAR');
     expect(screen.getByTestId('pcl-scope-without')).toHaveTextContent('needs the opensearch:search scope');
     expect(screen.getByTestId('pcl-scope-with')).toHaveAttribute('data-verdict', 'allowed');
+    expect(screen.getByTestId('pcl-step-scope').className).toContain('pu-card--ok');
   });
 
   it('says no policy was enforcing when both tokens are allowed, and does not call it the gate working', async () => {
@@ -260,6 +355,8 @@ describe('PrivilegeCedarLivePage (live): step 2, token-scope gate', () => {
     expect(summary).toHaveTextContent('No scope policy was enforcing on this door when this ran');
     expect(summary).toHaveTextContent('This is not the gate working.');
     expect(summary).not.toHaveTextContent('ENFORCING: ');
+    expect(screen.getByTestId('pcl-step-scope').className).toContain('pu-card--warn');
+    expect(screen.getByTestId('pcl-step-scope').className).not.toContain('pu-card--ok');
   });
 
   it('any other pattern is EXPECTED PATTERN NOT SEEN', async () => {
@@ -277,6 +374,7 @@ describe('PrivilegeCedarLivePage (live): step 2, token-scope gate', () => {
     expect(await screen.findAllByTestId('pcl-mint-error')).toHaveLength(1);
     expect(screen.getByTestId('pcl-mint-error')).toHaveTextContent('invalid_client');
     expect(screen.queryByTestId('pcl-scope-result')).toBeNull();
+    expect(document.body.textContent).not.toContain('may predate');
   });
 
   it.each([
@@ -362,6 +460,8 @@ describe('PrivilegeCedarLivePage (live): step 3, agent act.sub gate', () => {
     await runAct({ status: 200, data: { at: 'now', mint: { status: 400, error: 'unauthorized_client' } } });
     expect(await screen.findByTestId('pcl-mint-error')).toHaveTextContent('unauthorized_client');
     expect(screen.queryByTestId('ppt-actsub-result')).toBeNull();
+    expect(screen.queryByTestId('pcl-actsub-empty')).toBeNull(); // a PingFederate failure is not "the api-server may predate this check"
+    expect(document.body.textContent).not.toContain('may predate');
   });
 
   it('a 500 is an error state', async () => {
@@ -421,6 +521,13 @@ describe('PrivilegeCedarLivePage (walkthrough twin, live=false)', () => {
       expect(screen.queryByTestId(id)).toBeNull();
     }
     expect(screen.getByTestId('pcl-banner')).toHaveTextContent('WALKTHROUGH, NO CALLS');
+  });
+
+  it('does not claim the gateway\'s real answer, nor describe the door switch of the live page', () => {
+    page({ live: false });
+    expect(document.body.textContent).not.toContain('real answer');
+    expect(screen.getByTestId('pcl-banner')).not.toHaveTextContent('connects your session');
+    expect(document.body.textContent).toContain('nothing is called here');
   });
 
   it('still shows the expectation and the Cedar of each step, and points at the live tour', () => {

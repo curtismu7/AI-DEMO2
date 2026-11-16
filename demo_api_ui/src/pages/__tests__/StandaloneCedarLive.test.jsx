@@ -9,15 +9,17 @@ import { connectDoor, runTool } from '../../services/privilegeAiPoliciesDemoServ
 import { getState, runDemo } from '../../services/privilegePfTokenDemoService';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { StandaloneCedarLiveShell, StandaloneIndex } from '../StandaloneSamples';
+import standaloneSource from '../StandaloneSamples.jsx?raw';
+import { StandaloneCedarLiveRoute } from '../../routes/PublicRoutes';
 
 global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
 
 beforeEach(() => { vi.resetAllMocks(); });
 
 describe('/standalone/cedar-live', () => {
-  it('renders the walkthrough in the standalone shell, with no live calls and no live results', () => {
+  it('renders the walkthrough in the standalone shell, with no live calls and no live results', async () => {
     render(<ThemeProvider><MemoryRouter><StandaloneCedarLiveShell /></MemoryRouter></ThemeProvider>);
-    expect(screen.getByRole('heading', { name: 'Cedar in Privilege (live)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Cedar in Privilege (live)' })).toBeInTheDocument();
     expect(screen.getByTestId('pcl-banner')).toHaveTextContent('WALKTHROUGH, NO CALLS');
     expect(connectDoor).not.toHaveBeenCalled();
     expect(runTool).not.toHaveBeenCalled();
@@ -34,5 +36,16 @@ describe('/standalone/cedar-live', () => {
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(hrefs).toContain('/standalone/cedar-live');
     expect(hrefs).toContain('/standalone/ai-policies');
+  });
+
+  it('loads the page lazily, so the standalone index does not pull the PingFederate token page into the eager bundle', () => {
+    expect(standaloneSource).not.toMatch(/^import\s+PrivilegeCedarLivePage\s+from/m);
+    expect(standaloneSource).toMatch(/lazyWithRetry\(\(\) => import\("\.\/PrivilegeCedarLivePage"\)\)/);
+  });
+
+  it('the public route for /standalone/cedar-live renders the Cedar walkthrough, not another shell', async () => {
+    render(<ThemeProvider><MemoryRouter><StandaloneCedarLiveRoute /></MemoryRouter></ThemeProvider>);
+    expect(await screen.findByRole('heading', { name: 'Cedar in Privilege (live)' })).toBeInTheDocument();
+    expect(screen.getByTestId('pcl-banner')).toHaveTextContent('WALKTHROUGH, NO CALLS');
   });
 });

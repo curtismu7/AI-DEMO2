@@ -91,9 +91,14 @@ export default function PrivilegeCedarLivePage({ live = true }) {
     if (!live) return;
     connect();
     // 401 here is the hosted-access wall (no session), not a missing secret.
+    // Only a 2xx answer says whether the secret is set; any other failure is "could not be read", never "not set".
     getState()
-      .then(({ status, data }) => setPf(status === 401 ? { signedOut: true } : data))
-      .catch(() => setPf({ configured: false }));
+      .then(({ status, data }) => {
+        if (status === 401) setPf({ signedOut: true });
+        else if (status >= 200 && status < 300) setPf(data);
+        else setPf({ unreadable: `HTTP ${status}` });
+      })
+      .catch((e) => setPf({ unreadable: e?.message || 'the request failed' }));
   }, [live, connect]);
 
   const onSignedOut = useCallback(() => setPf((s) => ({ ...s, signedOut: true })), []);
@@ -127,8 +132,10 @@ export default function PrivilegeCedarLivePage({ live = true }) {
         {live ? (
           <>
             <strong>LIVE CALLS, RECORDED POLICY COPIES</strong> — each verdict on this page comes from the Privilege gateway, and the page runs no Cedar engine.
-            Real: the three runs, sent only when you press a button (step 1 to the {DOOR_NAME} door with your Privilege sign-in, steps 2 and 3 through this machine&apos;s
-            BFF, which mints a real PingFederate token and never shows it). Not real: the Cedar text, which is a copy read from the console on 2026-11-16.
+            Opening this page connects your session to the {DOOR_NAME} door (the same switch the Privilege client&apos;s door picker makes) and reads the PingFederate setup;
+            the three runs are sent only when you press a button (step 1 to the {DOOR_NAME} door with your Privilege sign-in; steps 2 and 3 through this machine&apos;s
+            BFF, which mints real PingFederate tokens and never shows them). One press of step 2 or 3 runs the whole PingFederate run, several tokens and gateway calls.
+            Not real: the Cedar text, which is a copy read from the console on 2026-11-16.
             Steps 2 and 3 only mean something while the matching policies are Active, and when they are not the page says so.
           </>
         ) : (
@@ -141,7 +148,9 @@ export default function PrivilegeCedarLivePage({ live = true }) {
       <PageHeader
         eyebrow="Ping products · Privilege · Cedar"
         title="Cedar in Privilege (live)"
-        summary="Three Cedar cases against the real Privilege gateway, in order: hold a call for a human, gate a tool by the token's scope, and gate a tool by the agent's act.sub claim. Each shows the gateway's real answer next to the Cedar that decided it."
+        summary={live
+          ? "Three Cedar cases against the real Privilege gateway, in order: hold a call for a human, gate a tool by the token's scope, and gate a tool by the agent's act.sub claim. Each shows the gateway's real answer next to the Cedar that decided it."
+          : "Three Cedar cases, in order: hold a call for a human, gate a tool by the token's scope, and gate a tool by the agent's act.sub claim. Each step says the answer the gateway is expected to give, next to the Cedar that should decide it; nothing is called here. Live runs are in the app."}
       />
       <PageFrame>
         <SetupGuide />
@@ -167,7 +176,7 @@ export default function PrivilegeCedarLivePage({ live = true }) {
           id="pcl-measured-h"
           kicker="Closing"
           title="What is measured, and what is not"
-          lede="Measured on the owner's Privilege tenant with a real PingFederate token. A result on this page is only worth what the policies behind it were: with none Active, every call is allowed."
+          lede="Only the act.sub case was measured on 2026-11-16, with a real PingFederate token; the hold and token-scope cases are the earlier measurements the sibling pages record. A result on this page is only worth what the policies behind it were: with none Active, every call is allowed."
         >
           <CardGrid>
             <Card title="Measured" tone="neutral" data-testid="pcl-measured">
@@ -341,7 +350,13 @@ function PfRunControls({ live, pf, run, lead, onRun, testId, label }) {
   if (!live) return <p className="pu-note">Live runs need the demo app sign-in: <Link to={LIVE_PATH}>open the live tour inside the app</Link>.</p>;
   return (
     <>
-      {pf && !pf.signedOut && !pf.configured && (
+      {pf?.unreadable && (
+        <p className="pu-status-line" data-testid="pcl-state-problem">
+          <StatusChip tone="warn">Setup not read</StatusChip>
+          The PingFederate setup could not be read from the api-server ({pf.unreadable}), so this run is off.
+        </p>
+      )}
+      {pf && !pf.signedOut && !pf.unreadable && !pf.configured && (
         <p className="pu-status-line" data-testid="pcl-not-configured">
           <StatusChip tone="warn">Not configured</StatusChip>
           The PingFederate client secret is not set on the api-server, so this run is off.
@@ -354,6 +369,7 @@ function PfRunControls({ live, pf, run, lead, onRun, testId, label }) {
           {run.problem}
         </p>
       )}
+      <p className="pu-note">One press runs the whole PingFederate run (several tokens and gateway calls); this step shows its own part of the answer. Pressing the other step runs it again.</p>
       <div className="pu-actions">
         <ActionButton lead={lead} disabled={!pf?.configured || Boolean(pf?.signedOut)} busy={run.running} onClick={onRun} data-testid={testId}>
           {run.running ? 'Running…' : label}
@@ -376,7 +392,7 @@ function ScopeStep({ live, pf, run, next, onRun }) {
       <ExpectList step={step} extra={[{ label: 'Tool', value: <code>SearchIndexTool</code> }, { label: 'Door', value: <code>pftoken</code> }]} />
       <p className="pu-note">{step.measured}</p>
       <ConsoleCopy policy={SCOPE_POLICY.policy} state={SCOPE_POLICY.state} summary="Refuses SearchIndexTool unless the token carries opensearch:search." cedar={SCOPE_POLICY.cedar} />
-      <PfRunControls live={live} pf={pf} run={run} lead={next === 'run-scope'} onRun={onRun} testId="pcl-run-scope" label="Mint tokens and call the gateway" />
+      <PfRunControls live={live} pf={pf} run={run} lead={next === 'run-scope'} onRun={onRun} testId="pcl-run-scope" label="Run the PingFederate check" />
       {data?.mint?.error && <MintError mint={data.mint} />}
       {gate && <ScopeResult gate={gate} cases={cases} />}
     </Card>
@@ -425,15 +441,15 @@ function ActSubStep({ live, pf, run, next, onRun }) {
       <ExpectList step={step} extra={[{ label: 'Tools', value: <><code>CountTool</code>, <code>ListIndexTool</code></> }, { label: 'Door', value: <code>pftoken</code> }]} />
       <p className="pu-note">{step.measured}</p>
       <p className="pu-status-line">
-        <StatusChip tone="neutral">Active while the check runs</StatusChip>
-        <span>The two policies below are created and removed in the console by the owner. This page creates none.</span>
+        <StatusChip tone="neutral">Not read by this page</StatusChip>
+        <span>The two policies below are created and removed in the console by the owner before this step is used. This page creates none and does not read the console, so only the result below says whether they were enforcing.</span>
       </p>
       <div data-testid="pcl-actsub-policies">
         {ACT_SUB_POLICIES.map((p) => (
-          <ConsoleCopy key={p.key} policy={p.key} state="Active" label={ACT_SUB_POLICIES_LABEL} summary={p.note} cedar={p.cedar} />
+          <ConsoleCopy key={p.key} policy={p.key} state="Console copy" label={`${ACT_SUB_POLICIES_LABEL}; this page does not read the console`} summary={p.note} cedar={p.cedar} />
         ))}
       </div>
-      <PfRunControls live={live} pf={pf} run={run} lead={next === 'run-actsub'} onRun={onRun} testId="pcl-run-actsub" label="Mint a token and call both tools" />
+      <PfRunControls live={live} pf={pf} run={run} lead={next === 'run-actsub'} onRun={onRun} testId="pcl-run-actsub" label="Run the PingFederate check" />
       {data?.mint?.error && <MintError mint={data.mint} />}
       {data && !data.mint?.error && (actSub ? (
         <div className="ppt-page" data-testid="pcl-actsub-result">

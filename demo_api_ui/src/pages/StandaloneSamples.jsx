@@ -14,7 +14,7 @@
 // sits above the router, so the --th-* tokens still resolve here and dark mode
 // keeps working. Nothing about the chrome was carrying the theme.
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { SAMPLE_APPS, getSampleApp } from "../data/sampleApps";
@@ -24,7 +24,9 @@ import "./StandaloneSamples.css";
 
 // Standalone demos that are not PingOne sample apps.
 import PrivilegeAiPoliciesDemoPage from "./PrivilegeAiPoliciesDemoPage";
-import PrivilegeCedarLivePage from "./PrivilegeCedarLivePage";
+import lazyWithRetry from "../utils/lazyWithRetry";
+// Lazy: this page pulls in the whole PingFederate token page (and its diagram library), which the standalone index does not need.
+const PrivilegeCedarLivePage = lazyWithRetry(() => import("./PrivilegeCedarLivePage"));
 const STANDALONE_DEMOS = [
   {
     id: "ai-policies",
@@ -230,7 +232,9 @@ export function StandaloneCedarLiveShell() {
   useStandaloneTitle("Cedar in Privilege (live)");
   return (
     <StandaloneShell current="cedar-live">
-      <PrivilegeCedarLivePage live={false} />
+      <Suspense fallback={null}>
+        <PrivilegeCedarLivePage live={false} />
+      </Suspense>
     </StandaloneShell>
   );
 }
