@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import SdkExecutionReel from "../SdkExecutionReel";
 
 const LIVE_EVENTS = [
@@ -69,6 +69,9 @@ function renderReel(props = {}) {
 }
 
 describe("SdkExecutionReel", () => {
+  // The JSON button saves a page-wide choice; keep one test from leaking it into the next.
+  beforeEach(() => { localStorage.clear(); });
+
   it("renders the preview concepts with Movie reel selected by default", () => {
     renderReel();
 
@@ -90,7 +93,7 @@ describe("SdkExecutionReel", () => {
     expect(rows[0].querySelectorAll(".sdk-reel-lane-card")).toHaveLength(2);
   });
 
-  it("shows one selected frame with visible code and response in compact workbench mode", () => {
+  it("shows one selected frame with visible code and response in compact workbench mode", async () => {
     renderReel({ events: LIVE_EVENTS, compact: true });
 
     expect(screen.queryByRole("button", { name: "Debugger" })).not.toBeInTheDocument();
@@ -100,8 +103,16 @@ describe("SdkExecutionReel", () => {
     expect(within(detail).getByText("Code", { selector: "summary" }).closest("details")).toHaveAttribute("open");
     expect(within(detail).getByText("Request", { selector: "summary" }).closest("details")).toHaveAttribute("open");
     expect(within(detail).getByText("DaVinci response", { selector: "summary" }).closest("details")).toHaveAttribute("open");
+    // Form view (the default): the request, the response and the collectors are three named panes, each with its fields.
+    expect(within(detail).getByRole("group", { name: "Frame 3 request" })).toHaveTextContent("username");
+    expect(within(detail).getByRole("group", { name: "Frame 3 response" })).toHaveTextContent("Sign On");
+    expect(within(detail).getByRole("group", { name: "Frame 3 collectors" })).toHaveTextContent("TextCollector");
+    // JSON view: the exact text, pretty printed, as the page showed it before.
+    fireEvent.click(within(detail).getAllByRole("button", { name: "JSON" })[0]);
+    await waitFor(() => expect(detail.querySelectorAll("pre.jp-raw")).toHaveLength(3));
     expect(detail).toHaveTextContent('"username": "…"');
     expect(detail).toHaveTextContent('"formName": "Sign On"');
+    expect(detail.querySelector("pre.jp-raw[aria-label='Frame 3 collectors']").textContent).toBe(JSON.stringify({ collectors: LIVE_EVENTS[2].detail.collectors }, null, 2));
   });
 
   it("keeps only the movie reel when compact mode is requested", () => {
@@ -119,6 +130,17 @@ describe("SdkExecutionReel", () => {
     expect(detail).toHaveTextContent("acr_values: flowPolicyId");
   });
 
+  it("leaves host and path out of the request when the frame has a method but no host or path", () => {
+    const events = [{ ...LIVE_EVENTS[1], detail: { method: "GET", responseMode: "pi.flow" } }];
+    renderReel({ events });
+
+    fireEvent.click(screen.getByRole("button", { name: /frame 2: davinci authorize request/i }));
+    const request = within(screen.getByRole("region", { name: /selected frame/i })).getByRole("group", { name: "Frame 2 request" });
+    expect(request).toHaveTextContent("method");
+    expect(request).toHaveTextContent("GET");
+    expect(request).not.toHaveTextContent(/host|path|none/);
+  });
+
   it("selects a real focusable frame button and exposes the four detail disclosures", () => {
     renderReel({ events: LIVE_EVENTS });
 
@@ -134,7 +156,7 @@ describe("SdkExecutionReel", () => {
     expect(within(detail).getByText("DaVinci response", { selector: "summary" })).toBeInTheDocument();
     expect(within(detail).getByText("Collectors", { selector: "summary" })).toBeInTheDocument();
     expect(detail).toHaveTextContent("/as/authorize");
-    expect(detail).toHaveTextContent('"response_mode"');
+    expect(within(detail).getByRole("group", { name: "Frame 2 request" })).toHaveTextContent("response_mode");
   });
 
   it("closes the selected detail with Escape and returns focus to its frame", () => {

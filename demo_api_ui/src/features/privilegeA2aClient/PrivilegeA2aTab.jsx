@@ -4,6 +4,7 @@ import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import A2aDocsLinks from '../../components/shared/A2aDocsLinks';
+import JsonPane from '../../components/shared/JsonPane';
 import { Section, Card, StatusChip } from '../../components/pingUi';
 import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/PageAgentModeToggle';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
@@ -65,8 +66,13 @@ const CALL_GROUPS = [
   ] },
 ];
 
+// The JSON-RPC method and the task state are what a reader looks for in the wire JSON; no alert keys beyond the pane's own.
+const WIRE_HOT = ['method', 'state'];
+
 // What one step sent and got back, as labelled blocks. A step with no wire payload shows its detail text instead.
-function WireBlocks({ entry, open = false }) {
+// `scope` names where the blocks sit ("Trace step 2", "Exchange <row>") so the same step shown in the trace column and in
+// the exchange has differently named panes and toggles.
+function WireBlocks({ entry, scope, open = false }) {
   const blocks = [['Request', entry?.request], ['Response', entry?.response]].filter(([, body]) => body);
   if (!blocks.length && entry?.detail) blocks.push(['Detail', entry.detail]);
   if (!blocks.length) return null;
@@ -76,7 +82,7 @@ function WireBlocks({ entry, open = false }) {
       {blocks.map(([label, body]) => (
         <div key={label}>
           {blocks.length > 1 && <h4>{label}</h4>}
-          <pre tabIndex={0}>{body}</pre>
+          <JsonPane value={body} label={`${scope} ${label}${entry?.text ? `: ${entry.text}` : ''}`} hot={WIRE_HOT} />
         </div>
       ))}
     </details>
@@ -587,7 +593,7 @@ export default function PrivilegeA2aTab() {
                     {entry.from && entry.to && (
                       <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
                     )}
-                    <WireBlocks entry={entry} />
+                    <WireBlocks entry={entry} scope={`Trace step ${index + 1}`} />
                   </li>
                 ))}
               </ol>
@@ -612,7 +618,7 @@ export default function PrivilegeA2aTab() {
                     <span>{row.who}</span>
                     <StatusChip tone={EXCHANGE_TONE[row.state]}>{EXCHANGE_WORD[row.state]}</StatusChip>
                   </button>
-                  {row.step >= 0 && <WireBlocks entry={row.wire || trace[row.step]} open />}
+                  {row.step >= 0 && <WireBlocks entry={row.wire || trace[row.step]} scope={`Exchange ${row.label}`} open />}
                 </li>
               ))}
             </ol>
@@ -631,9 +637,9 @@ export default function PrivilegeA2aTab() {
                   {entry.from && entry.to && (
                     <p className="privilege-a2a__trace-route">{entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}</p>
                   )}
-                  {entry.detail && <><h4 className="privilege-a2a__h4">Details</h4><pre tabIndex={0}>{entry.detail}</pre></>}
-                  {entry.request && <><h4 className="privilege-a2a__h4">What was sent</h4><pre tabIndex={0}>{entry.request}</pre></>}
-                  {entry.response && <><h4 className="privilege-a2a__h4">What came back</h4><pre tabIndex={0}>{entry.response}</pre></>}
+                  {entry.detail && <><h4 className="privilege-a2a__h4">Details</h4><JsonPane value={entry.detail} label={`Details: ${entry.text || entry.kind}`} /></>}
+                  {entry.request && <><h4 className="privilege-a2a__h4">What was sent</h4><JsonPane value={entry.request} label={`What was sent: ${entry.text || entry.kind}`} hot={WIRE_HOT} /></>}
+                  {entry.response && <><h4 className="privilege-a2a__h4">What came back</h4><JsonPane value={entry.response} label={`What came back: ${entry.text || entry.kind}`} hot={WIRE_HOT} /></>}
                 </>
               );
             })() : (

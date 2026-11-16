@@ -213,11 +213,15 @@
 
 /* ── Expanded evidence ────────────────────────────────────────────────────── */
 
+/* In the canvas grid's flow (not absolute) so the canvas grows to hold the whole evidence card: the pane never scrolls,
+   and .a2fv clips overflow. It starts level with its packet via --detail-top as a top margin. */
 .a2fv-detail {
   color: var(--th-text);
-  position: absolute;
-  left: 8px;
-  right: 8px;
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-self: start;
+  margin: var(--detail-top, 0) 8px 0;
   z-index: 3;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
@@ -239,18 +243,6 @@
   color: var(--th-text-muted);
   font-size: 0.9rem;
   cursor: pointer;
-}
-.a2fv-detail-json {
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  overflow: auto;
-  max-height: 260px;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  margin: 0;
 }
 
 .a2fv-footnote {

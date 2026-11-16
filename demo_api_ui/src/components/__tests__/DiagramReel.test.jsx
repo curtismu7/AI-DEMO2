@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import DiagramReel from "../DiagramReel";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import DiagramReel, { splitCode } from "../DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../../utils/diagramReel";
 
 const nodes = [
@@ -108,19 +108,70 @@ describe("DiagramReel", () => {
   });
 });
 
-describe("DiagramReel details: JSON colour and font size", () => {
+describe("splitCode", () => {
+  const body = '{\n  "iss": "https://x",\n  "exp": 3600\n}';
+
+  it("keeps request lines and notes as text and lifts only the JSON block", () => {
+    expect(splitCode(`POST /token\n  Content-Type: application/json\n\n${body}\n\n  <- 200 OK`)).toEqual([
+      { text: "POST /token\n  Content-Type: application/json" },
+      { json: body },
+      { text: "  <- 200 OK" },
+    ]);
+  });
+
+  it("finds several blocks, a one-line block and a list", () => {
+    expect(splitCode(`A\n{"a":1}\nB\n[\n  1,\n  2\n]`)).toEqual([{ text: "A" }, { json: '{"a":1}' }, { text: "B" }, { json: "[\n  1,\n  2\n]" }]);
+  });
+
+  it("leaves text that only looks like JSON alone (indented, unclosed, or not parseable)", () => {
+    for (const code of ["  grant_type=x\n  &scope=y", '  {\n    "a": 1\n  }', "{\n  not json\n}", "{ open but never closed", "[note] a line"]) {
+      expect(splitCode(code)).toEqual([{ text: code }]);
+    }
+  });
+});
+
+describe("DiagramReel details: JSON panes, text, and font size", () => {
+  beforeEach(() => { localStorage.clear(); });
   const jsonNodes = [{ id: "a", label: "A" }, { id: "b", label: "B" }];
-  const nodeDetail = { title: "T", lines: [{ who: "Token", code: 'Header line\n{\n  "iss": "https://x",\n  "exp": 3600,\n  "ok": true\n}' }] };
+  const json = '{\n  "iss": "https://x",\n  "exp": 3600,\n  "ok": true\n}';
+  const nodeDetail = { title: "T", lines: [{ who: "Token", code: `Header line\n${json}` }] };
   const stepper = { step: -1, goTo: vi.fn() };
   const steps = buildReelSteps({ edges: [["a", "b", "x"]], nodes: jsonNodes });
 
-  it("colours JSON keys, strings, numbers and literals without changing the text", () => {
+  it("shows the JSON of a code line in the shared pane (Form by default) and only the other lines in the code box", async () => {
     const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={nodeDetail} />);
+    const code = container.querySelectorAll(".dreel-code");
+    expect(code).toHaveLength(1);
+    expect(code[0].textContent).toBe("Header line");
+    const form = screen.getByRole("group", { name: "Token JSON" });
+    expect(form.textContent).toContain("https://x");
+    expect(form.textContent).toContain("3600");
+
+    // the JSON view is the exact block, with no height cap or scroll of its own
+    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
+    await waitFor(() => expect(container.querySelector("pre.jp-raw")).not.toBeNull());
+    expect(container.querySelector("pre.jp-raw").textContent).toBe(json);
+  });
+
+  it("names each pane of a line with several JSON blocks apart, and keeps toggling a pane out of the live region", () => {
+    const two = { title: "T", lines: [{ who: "Token", code: `A\n{"a":1}\nB\n{"b":2}` }] };
+    const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={two} />);
+    expect(screen.getByRole("group", { name: "Token JSON 1" })).toHaveTextContent("a");
+    expect(screen.getByRole("group", { name: "Token JSON 2" })).toHaveTextContent("b");
+    expect(screen.queryByRole("group", { name: "Token JSON" })).toBeNull();
+    // the pane (and its toggle) sits in aria-live="off" inside the polite details row
+    expect(container.querySelector('.dreel-detail[aria-live="polite"] [aria-live="off"] .jp-form')).not.toBeNull();
+  });
+
+  it("keeps a code line with no JSON block as one coloured code box, text unchanged", () => {
+    const text = 'GET /x\n  "iss": "https://x"\n  "exp": 3600, "ok": true';
+    const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={{ title: "T", lines: [{ who: "Request", code: text }] }} />);
+    expect(container.querySelector(".jp-box")).toBeNull();
     expect(container.querySelector(".dreel-json-key").textContent).toBe('"iss"');
     expect(container.querySelector(".dreel-json-str").textContent).toBe('"https://x"');
     expect(container.querySelector(".dreel-json-num").textContent).toBe("3600");
     expect(container.querySelector(".dreel-json-lit").textContent).toBe("true");
-    expect(container.querySelector(".dreel-code").textContent).toBe(nodeDetail.lines[0].code);
+    expect(container.querySelector(".dreel-code").textContent).toBe(text);
   });
 
   it("changes the details font size from the A-/A/A+ buttons", () => {

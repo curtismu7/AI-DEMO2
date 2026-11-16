@@ -8,7 +8,9 @@
 // contract) is exercised separately by a2aChainDetail.test.js.
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { A2A_RECORDED_RUN } from '../../data/a2aRecordedRun';
 import { buildA2aChainDetail } from '../../utils/a2aChainDetail';
@@ -35,6 +37,9 @@ describe('A2AFlowVisualizer — token canvas (default)', () => {
 });
 
 describe('A2AFlowVisualizer — timeline mode', () => {
+  // Clicking the pane's JSON button saves the page-wide choice; a test must not leak it into the next.
+  beforeEach(() => { localStorage.clear(); });
+
   async function renderTimeline() {
     const user = (await import('@testing-library/user-event')).default.setup();
     const utils = render(<A2AFlowVisualizer tokenEvents={A2A_RECORDED_RUN.tokenEvents} />);
@@ -71,14 +76,55 @@ describe('A2AFlowVisualizer — timeline mode', () => {
 
     const detail = document.querySelector('.a2fv-detail');
     expect(detail).not.toBeNull();
-    const json = detail.querySelector('.a2fv-detail-json');
-    expect(json.textContent).toContain('"membership:read"');
+    // The evidence is the shared pane, in its Form view by default, with no height cap of its own.
+    const form = detail.querySelector('.jp-form');
+    expect(form).not.toBeNull();
+    expect(form.textContent).toContain('membership:read');
     // Nested act: specialist acting for the generalist.
+    expect(form.textContent).toContain('act');
+
+    await user.click(within(detail).getByRole('button', { name: 'JSON' }));
+    await waitFor(() => expect(detail.querySelector('.jp-raw')).not.toBeNull());
+    const json = detail.querySelector('.jp-raw');
+    expect(json.textContent).toContain('"membership:read"');
     expect(json.textContent).toContain('"act"');
+  });
+
+  it('keeps the open evidence card in the canvas flow so the canvas grows to hold all of it', async () => {
+    const user = await renderTimeline();
+    await user.click(screen.getByText(/exchange #2 · nested act/i).closest('button'));
+    const detail = document.querySelector('.a2fv-detail');
+    // the offset is a custom property (a top margin in CSS), not an inline absolute `top`
+    expect(detail.style.top).toBe('');
+    expect(detail.style.getPropertyValue('--detail-top')).toMatch(/^\d+px$/);
+    const css = readFileSync(path.resolve(__dirname, '../A2AFlowVisualizer.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const rule = css.match(/\.a2fv-detail\s*\{([^}]*)\}/)[1];
+    expect(rule).toMatch(/position:\s*relative/);
+    expect(rule).not.toMatch(/position:\s*absolute/);
   });
 
   it('renders nothing when the run has no events', () => {
     render(<A2AFlowVisualizer tokenEvents={[]} />);
     expect(document.querySelector('.a2fv')).toBeNull();
+  });
+});
+
+describe('A2AFlowVisualizer — Ping-style evidence list', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('lists the real evidence of each hop as a pane with a name, no height cap, and the JSON view on request', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    render(<A2AFlowVisualizer tokenEvents={A2A_RECORDED_RUN.tokenEvents} pingStyle />);
+
+    const list = screen.getByTestId('a2fv-evidence');
+    const items = list.querySelectorAll('details.a2fv-evidence-item');
+    expect(items.length).toBeGreaterThan(0);
+    const first = items[0];
+    // a pane is a named region, never an unnamed tab stop
+    expect(first.querySelector('.jp-form').getAttribute('aria-label')).toMatch(/evidence$/);
+
+    await user.click(within(first).getByRole('button', { name: 'JSON' }));
+    await waitFor(() => expect(first.querySelector('.jp-raw')).not.toBeNull());
+    expect(first.querySelector('.jp-raw').textContent.trim().startsWith('{')).toBe(true);
   });
 });
