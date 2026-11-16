@@ -18,6 +18,7 @@ export const PRIVILEGE_CAN = [
   { what: 'Accept only this agent', how: 'Required claims on the identity (act.sub, client_id) must match exactly, or the token is rejected (401).', status: 'measured' },
   { what: 'Hold no secret for the agent', how: 'The PingFederate token is the only credential. Privilege issues no key value to the agent.', status: 'measured' },
   { what: 'Decide which tools, per agent app', how: 'The agent key\'s grant lists tools per agent app. No rule for the app is 403; tools not listed are hidden.', status: 'measured' },
+  { what: 'Cedar rules on other token claims (act.sub)', how: 'Cedar reads context.token.claims, including a nested claim such as act.sub: context.token.claims["act.sub"].contains("<agent id>"). The console template "Restrict a tool to tokens carrying a claim" writes it. The controller validated it (2026-11-16, Candidate, never enforced); no token has been through it yet. The identity\'s required claims and the grant rules\' RequiredClaims still do the same job earlier, and are measured.', status: 'validated, not run' },
   { what: 'Give different tools by scope (tiers)', how: 'Two grant rules for the same app, each with RequiredClaims on scope: the token\'s scope picks 3 tools, 9 tools, or 403. Each scope is matched on its own; a list means any of.', status: 'measured 2026-10-27' },
   { what: 'Pass the agent\'s token through', how: 'Pass Agent Token forwards the PingFederate token unchanged, so the MCP server can verify it too (see What the backend received).', status: 'measured' },
   { what: 'Find the tools without a person signing in', how: 'The first accepted agent call discovers the app\'s tools (gateway v1.261024).', status: 'measured' },
@@ -34,7 +35,6 @@ unless { context has token && context.token.scopes.contains("opensearch:search")
 export const PRIVILEGE_CANNOT = [
   { what: 'Token exchange (on behalf of a user)', how: 'Privilege does not exchange tokens. A user in sub with the agent in act has to come from PingFederate. Privilege\'s OBO support is in staging (Ping, 2026-10-23).' },
   { what: 'Narrow the token it forwards', how: 'The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway.' },
-  { what: 'Cedar rules on other token claims', how: 'Cedar reads the token\'s scopes but no other claim: context.token.claims (act.sub, client_id …) is due in a later release. Other claim checks today are the identity\'s required claims and the grant rules\' RequiredClaims, exact match only.' },
   { what: 'Wildcard audiences', how: 'The audience must name the gateway; no wildcard. An allow-list of audiences is possible on request.' },
   { what: 'New grant policies through the API', how: 'Grants created with POST are deleted within about a minute (cause unknown). Edit the key\'s existing grant instead.' },
 ];
