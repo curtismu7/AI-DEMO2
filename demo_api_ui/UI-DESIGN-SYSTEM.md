@@ -419,7 +419,8 @@ reports them (advisory for now). The pane has five properties:
    true`; `none` clears only `note` and `reason`, never `decision`, `outcome` or `verdict` ("no decision" is not good
    news). Anything else (`deny`, `blocked`, `allow_with_conditions`, `passed with warnings`, error text, free text,
    unknown words, non-empty objects, other numbers) keeps the alert colour, so nothing real is hidden. Free-text `note`
-   and `reason` values are still red (owner decision pending). A benign key that is also important keeps its important style.
+   and `reason` values stay red by default; a pane whose data is neutral turns that off with `alert={false}` (below),
+   one pane at a time. A benign key that is also important keeps its important style.
    **Opt-out: `alert={false}`** turns alert emphasis off for the whole pane, in both views and in the body pane of an HTTP
    transcript: no `data-alert` on rows, no `jp-tok--alert` tokens, keys render normal (a key that is also in `hot` keeps
    its hot style). `alert` undefined or an array behaves as above (an array can only add keys). Use it for neutral data
