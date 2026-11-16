@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../services/apiClient';
+import JsonPane from './shared/JsonPane';
 import './ApiCallDisplay.css';
 
 export default function ApiCallDisplay({ sessionId = 'default' }) {
@@ -129,19 +130,20 @@ export default function ApiCallDisplay({ sessionId = 'default' }) {
                 </span>
               </div>
               {selectedCall?.id === call.id && (
-                <div className="api-call-details">
+                // stopPropagation: the panes' Form | JSON switch and Copy buttons live in here, and a click on them must not collapse the row.
+                <div className="api-call-details" onClick={(e) => e.stopPropagation()}>
                   <div className="api-call-detail-section">
                     <h4>Request</h4>
                     {call.request.headers && (
                       <div className="api-call-headers">
                         <h5>Headers</h5>
-                        <pre>{JSON.stringify(call.request.headers, null, 2)}</pre>
+                        <JsonPane value={call.request.headers} label="Request headers" />
                       </div>
                     )}
                     {call.request.body && (
                       <div className="api-call-body">
                         <h5>Body</h5>
-                        <pre>{call.request.body}</pre>
+                        <JsonPane value={call.request.body} label="Request body" />
                       </div>
                     )}
                   </div>
@@ -150,13 +152,13 @@ export default function ApiCallDisplay({ sessionId = 'default' }) {
                     {call.response.headers && (
                       <div className="api-call-headers">
                         <h5>Headers</h5>
-                        <pre>{JSON.stringify(call.response.headers, null, 2)}</pre>
+                        <JsonPane value={call.response.headers} label="Response headers" />
                       </div>
                     )}
                     {call.response.body && (
                       <div className="api-call-body">
                         <h5>Body</h5>
-                        <pre>{call.response.body}</pre>
+                        <JsonPane value={call.response.body} label="Response body" />
                       </div>
                     )}
                   </div>

@@ -4,8 +4,8 @@
    Banner, frame, cards, chips and buttons come from the shared Ping UI primitives
    (src/styles/ping-ui.css, docs/ping-ui-primitives.md). This file keeps only what is specific to the page:
    the draggable window shell, the table, and the expanded JSON / token-chain rows. Surfaces, lines and ink are
-   --th-* tokens, so light and dark need no second block. .audit-json (the JSON preview) stays deliberately
-   always-dark, matching the JsonHighlight component's dark-only syntax theme elsewhere in the app.
+   --th-* tokens, so light and dark need no second block. The JSON in the expanded rows is the shared JsonPane,
+   which paints its own ground and never scrolls.
    ============================================================ */
 
 /* ── Floating window shell ── */
@@ -87,9 +87,7 @@
 .audit-float-btn:focus-visible,
 .audit-float-close:focus-visible,
 .audit-view-tab:focus-visible,
-.audit-details-toggle:focus-visible,
-.audit-json:focus-visible,
-.audit-details-pre:focus-visible {
+.audit-details-toggle:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
@@ -373,34 +371,6 @@ tr.audit-detail-row > td {
   padding: 0 12px 12px;
   background: var(--th-bg-card);
   border-top: none;
-}
-
-.audit-json {
-  margin: 0;
-  width: 100%;
-  box-sizing: border-box;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-  background: #1e2433;
-  color: #ffffff;
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  overflow-x: auto;
-  white-space: pre;
-}
-
-.audit-details-pre {
-  margin: 6px 0 0;
-  font-size: var(--font-size-2xs);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  overflow-x: auto;
-  max-width: 320px;
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 
 /* ── Pop-out page mode (standalone OS window) ── */

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { unusedSuggestions } from '../config/dotSuggestions';
+import JsonPane from './shared/JsonPane';
 import './AgentClientSkin.css';
 
 function ToolUseBlock({ toolName, toolInput, colors }) {
@@ -9,40 +10,18 @@ function ToolUseBlock({ toolName, toolInput, colors }) {
         <span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>
         <span style={{ fontWeight: 700 }}>{toolName}</span>
       </div>
-      {toolInput && Object.keys(toolInput).length > 0 && (
-        <div style={{ color: colors.toolResultColor, opacity: 0.9 }}>
-          {Object.entries(toolInput).map(([k, v]) => (
-            <div key={k} style={{ lineHeight: 1.6 }}>
-              <span style={{ opacity: 0.65 }}>{k}: </span>
-              {JSON.stringify(v)}
-            </div>
-          ))}
-        </div>
-      )}
+      {toolInput && Object.keys(toolInput).length > 0 && <JsonPane value={toolInput} label={`Input of ${toolName}`} />}
     </div>
   );
 }
 
 function ToolResultBlock({ toolName, data, colors }) {
-  const [expanded, setExpanded] = useState(false);
-  const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-  const isLong = text && text.length > 220;
   return (
     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: colors.toolResultBg, border: `1px solid ${colors.toolBorder}`, borderRadius: 6, padding: '8px 12px', maxWidth: '100%', marginTop: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+      <div style={{ marginBottom: 4 }}>
         <span style={{ color: colors.toolColor, opacity: 0.65, fontSize: 10 }}>result: {toolName}</span>
-        {isLong && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{ fontSize: 10, color: colors.toolColor, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', opacity: 0.8 }}
-          >
-            {expanded ? 'collapse' : 'expand'}
-          </button>
-        )}
       </div>
-      <pre style={{ color: colors.toolResultColor, margin: 0, whiteSpace: 'pre-wrap', maxHeight: isLong && !expanded ? 80 : undefined, overflow: 'hidden', fontSize: 11, lineHeight: 1.5 }}>
-        {text}
-      </pre>
+      <JsonPane value={data} label={`Result of ${toolName}`} />
     </div>
   );
 }
@@ -69,7 +48,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#d20e0f', userBubbleColor: '#ffffff',
       inputAreaBg: '#14101f', inputBorder: '#331415', inputColor: '#d8caff',
       toolBg: '#1a0708', toolBorder: '#331415', toolColor: '#fca5a5',
-      toolResultBg: '#0b0714', toolResultColor: '#8b6fd8',
+      toolResultBg: '#0b0714',
     },
     light: {
       bg: '#faf8ff', headerBg: '#ffffff', headerBorder: '#e4dcf5',
@@ -78,7 +57,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#d20e0f', userBubbleColor: '#ffffff',
       inputAreaBg: '#f2eefc', inputBorder: '#e4dcf5', inputColor: '#3b2185',
       toolBg: '#ece5fb', toolBorder: '#d0c2f0', toolColor: '#5b34b8',
-      toolResultBg: '#e2d8f8', toolResultColor: '#452a90',
+      toolResultBg: '#e2d8f8',
     },
   },
 
@@ -103,7 +82,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
       toolBg: '#07121e', toolBorder: '#1a3560', toolColor: '#4a90d0',
-      toolResultBg: '#051020', toolResultColor: '#6ba3dd',
+      toolResultBg: '#051020',
     },
     light: {
       bg: '#f5f8ff', headerBg: '#ffffff', headerBorder: '#dde8f7',
@@ -112,7 +91,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#f0f4fa', inputBorder: '#dde8f7', inputColor: '#0d2a52',
       toolBg: '#eaf0ff', toolBorder: '#c0d4f0', toolColor: '#2a60a8',
-      toolResultBg: '#e0ecff', toolResultColor: '#1a4880',
+      toolResultBg: '#e0ecff',
     },
   },
 
@@ -146,7 +125,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#2e1e0e', userBubbleColor: '#ead6bc',
       inputAreaBg: '#1e1410', inputBorder: '#352010', inputColor: '#ead6bc',
       toolBg: '#2a1c0c', toolBorder: '#4a2e18', toolColor: '#c07848',
-      toolResultBg: '#1c1408', toolResultColor: '#c98050',
+      toolResultBg: '#1c1408',
     },
     light: {
       bg: '#fffdf8', headerBg: '#fffdf8', headerBorder: '#f0e6d0',
@@ -155,7 +134,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#f5ece0', userBubbleColor: '#2c1a08',
       inputAreaBg: '#fffdf8', inputBorder: '#f0e6d0', inputColor: '#2c1a08',
       toolBg: '#faf0e0', toolBorder: '#e0c8a0', toolColor: '#804830',
-      toolResultBg: '#f5e8d0', toolResultColor: '#603820',
+      toolResultBg: '#f5e8d0',
     },
   },
 
@@ -178,7 +157,7 @@ const SKIN_CONFIG = {
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
       toolBg: '#161b22', toolBorder: '#30363d', toolColor: '#56d364',
-      toolResultBg: '#0d1117', toolResultColor: '#79c0ff',
+      toolResultBg: '#0d1117',
     },
     light: {
       bg: '#0d1117', headerBg: '#0d1117', headerBorder: '#21262d',
@@ -187,7 +166,7 @@ const SKIN_CONFIG = {
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
       toolBg: '#161b22', toolBorder: '#30363d', toolColor: '#56d364',
-      toolResultBg: '#0d1117', toolResultColor: '#79c0ff',
+      toolResultBg: '#0d1117',
     },
   },
 
@@ -211,7 +190,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#2f2f2f', userBubbleColor: '#ececec',
       inputAreaBg: '#2f2f2f', inputBorder: '#3d3d3d', inputColor: '#ececec',
       toolBg: '#2a2a2a', toolBorder: '#3a3a3a', toolColor: '#10a37f',
-      toolResultBg: '#1e1e1e', toolResultColor: '#ababab',
+      toolResultBg: '#1e1e1e',
     },
     light: {
       bg: '#ffffff', headerBg: '#ffffff', headerBorder: '#e5e5e5',
@@ -220,7 +199,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#f4f4f4', userBubbleColor: '#0d0d0d',
       inputAreaBg: '#ffffff', inputBorder: '#e5e5e5', inputColor: '#0d0d0d',
       toolBg: '#f4f4f4', toolBorder: '#dcdcdc', toolColor: '#10a37f',
-      toolResultBg: '#eeeeee', toolResultColor: '#444444',
+      toolResultBg: '#eeeeee',
     },
   },
 
@@ -251,7 +230,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#252545', userBubbleColor: '#e0e0ff',
       inputAreaBg: '#252545', inputBorder: '#3a3a60', inputColor: '#e0e0ff',
       toolBg: '#1e1e38', toolBorder: '#3a3a60', toolColor: '#9e9ee8',
-      toolResultBg: '#181830', toolResultColor: '#9898d8',
+      toolResultBg: '#181830',
     },
     light: {
       bg: '#ffffff', headerBg: '#ffffff', headerBorder: '#e8e8f0',
@@ -260,7 +239,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#f0f4ff', userBubbleColor: '#1a1a3a',
       inputAreaBg: '#f8f9fa', inputBorder: '#e8e8f0', inputColor: '#1a1a3a',
       toolBg: '#fee2e2', toolBorder: '#c8d0f0', toolColor: '#1a73e8',
-      toolResultBg: '#e8f0ff', toolResultColor: '#3c4043',
+      toolResultBg: '#e8f0ff',
     },
   },
 
@@ -282,7 +261,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#252a2c', userBubbleColor: '#ecefef',
       inputAreaBg: '#252a2c', inputBorder: '#343c3e', inputColor: '#ecefef',
       toolBg: '#20282a', toolBorder: '#343c3e', toolColor: '#5fd3c5',
-      toolResultBg: '#181c1e', toolResultColor: '#9bb0b2',
+      toolResultBg: '#181c1e',
     },
     light: {
       bg: '#f6f9f9', headerBg: '#f6f9f9', headerBorder: '#d9e3e3',
@@ -291,7 +270,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#e4eeee', userBubbleColor: '#1c2123',
       inputAreaBg: '#edf3f3', inputBorder: '#d9e3e3', inputColor: '#1c2123',
       toolBg: '#e8f2f1', toolBorder: '#c6dcda', toolColor: '#0e6f64',
-      toolResultBg: '#dcebea', toolResultColor: '#2c5450',
+      toolResultBg: '#dcebea',
     },
   },
 };
@@ -340,16 +319,15 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       return (
         <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <div style={{ color: colors.toolColor }}><span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>{msg.toolName}</div>
-          {msg.toolInput && <pre style={{ color: colors.toolResultColor, margin: '4px 0 0 16px', whiteSpace: 'pre-wrap', fontSize: 11 }}>{JSON.stringify(msg.toolInput, null, 2)}</pre>}
+          {msg.toolInput && <div style={{ margin: '4px 0 0 16px' }}><JsonPane value={msg.toolInput} label={`Input of ${msg.toolName}`} /></div>}
         </div>
       );
     }
     if (type === 'tool_result') {
-      const text = typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data, null, 2);
       return (
         <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <div style={{ color: colors.toolColor, opacity: 0.65, marginBottom: 2 }}>result: {msg.toolName}</div>
-          <pre style={{ color: colors.toolResultColor, margin: '0 0 0 16px', whiteSpace: 'pre-wrap' }}>{text}</pre>
+          <div style={{ margin: '0 0 0 16px' }}><JsonPane value={msg.data} label={`Result of ${msg.toolName}`} /></div>
         </div>
       );
     }

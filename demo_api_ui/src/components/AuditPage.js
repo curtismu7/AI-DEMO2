@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import JsonHighlight from './shared/JsonHighlight';
+import JsonPane from './shared/JsonPane';
+import { LEGACY_ALERT, LEGACY_HOT } from './shared/jsonEmphasis';
 import { useThemeOptional } from '../context/ThemeContext';
 import './AuditPage.css';
 import InlineSpinner from './shared/InlineSpinner';
@@ -500,17 +501,17 @@ export default function AuditPage({ onClose } = {}) {
                                 <div className="audit-token-detail">
                                   <div className="audit-token-section">
                                     <h4>User Token</h4>
-                                    <pre className="audit-details-pre" tabIndex={0} aria-label="User token JSON"><JsonHighlight value={userToken} /></pre>
+                                    <JsonPane value={userToken} label="User token JSON" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                                   </div>
                                   {exchangedToken && (
                                     <div className="audit-token-section">
                                       <h4>Exchanged Token (Delegation)</h4>
-                                      <pre className="audit-details-pre" tabIndex={0} aria-label="Exchanged token JSON"><JsonHighlight value={exchangedToken} /></pre>
+                                      <JsonPane value={exchangedToken} label="Exchanged token JSON" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                                     </div>
                                   )}
                                   <div className="audit-token-section">
                                     <h4>Execution</h4>
-                                    <pre className="audit-details-pre" tabIndex={0} aria-label="Execution result JSON"><JsonHighlight value={result} /></pre>
+                                    <JsonPane value={result} label="Execution result JSON" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                                   </div>
                                 </div>
                               </td>
@@ -569,7 +570,7 @@ export default function AuditPage({ onClose } = {}) {
                       {detailObj && isExpanded && (
                         <tr className="audit-detail-row">
                           <td colSpan={8}>
-                            <pre className="audit-json jh-dark" tabIndex={0} aria-label={`Details JSON: ${opName}`}><JsonHighlight value={detailObj} /></pre>
+                            <JsonPane value={detailObj} label={`Details JSON: ${opName}`} hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                           </td>
                         </tr>
                       )}

@@ -198,20 +198,3 @@
   color: var(--th-text);
   text-transform: uppercase;
 }
-
-.api-call-headers,
-.api-call-body {
-  pre {
-    margin: 0;
-    padding: 0.5rem;
-    background: var(--th-bg-card);
-    border: 1px solid #e0e2e4;
-    border-radius: var(--radius-sm);
-    font-size: 0.75rem;
-    color: var(--th-text);
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-}
-

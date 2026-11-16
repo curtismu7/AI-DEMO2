@@ -2,7 +2,7 @@
 // Guards the title-bar drag fix: mousedown on the action buttons (refresh /
 // pop-out / close) must NOT start a window drag, otherwise a sub-pixel move
 // swallows the button's click (PR #389).
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AuditPage from "../AuditPage";
 
@@ -24,6 +24,8 @@ async function renderSettled(props) {
 }
 
 beforeEach(() => {
+  // The JSON panes keep one Form | JSON choice for the whole page in localStorage: a test that picks JSON must not leak it.
+  localStorage.clear();
   vi.clearAllMocks();
   searchParamsValue = "";
   // Floating window mode fetches the audit feed + summary on mount.
@@ -387,20 +389,32 @@ describe("AuditPage - class names, dialog behaviour and live regions", () => {
     expect(screen.getByRole("button", { name: "Refresh audit log now" })).toBeInTheDocument();
   });
 
-  it("names every scrollable <pre> and makes it focusable", async () => {
+  it("names every JSON pane and makes it focusable", async () => {
     mockAudit();
     await renderSettled({ onClose: vi.fn() });
-    // One row is expanded at a time: the token_chain row shows three boxes, a plain row shows one.
+    const panes = () => [...document.querySelectorAll(".jp-form, .jp-raw")];
+    // One row is expanded at a time: the token_chain row shows three panes, a plain row shows one.
     fireEvent.click(screen.getByRole("button", { name: "Show token details: get_accounts" }));
-    const pres = [...document.querySelectorAll("pre")];
+    const chain = panes();
     fireEvent.click(screen.getByRole("button", { name: "Show details: get_balance" }));
-    const plain = [...document.querySelectorAll("pre")];
-    expect(pres.length).toBe(3);
-    expect(plain.length).toBe(1);
-    for (const pre of [...pres, ...plain]) {
-      expect(pre).toHaveAttribute("tabindex", "0");
-      expect(pre.getAttribute("aria-label")).toMatch(/JSON/);
-    }
+    const plain = panes();
+    expect(chain.map((p) => p.getAttribute("aria-label"))).toEqual(["User token JSON", "Exchanged token JSON", "Execution result JSON"]);
+    expect(plain.map((p) => p.getAttribute("aria-label"))).toEqual(["Details JSON: get_balance"]);
+    for (const pane of [...chain, ...plain]) expect(pane).toHaveAttribute("tabindex", "0");
+  });
+
+  it("shows the expanded row's JSON as a Form by default and as exact JSON on request, without scrolling", async () => {
+    mockAudit();
+    await renderSettled({ onClose: vi.fn() });
+    fireEvent.click(screen.getByRole("button", { name: "Show details: get_balance" }));
+    const row = document.querySelector("tr.audit-detail-row");
+    const form = within(row).getByRole("group", { name: "Details JSON: get_balance" });
+    expect(form.textContent).toContain("Customers");
+    expect(within(form).getAllByRole("button", { name: /^Copy / }).length).toBeGreaterThan(0);
+    expect(row.querySelector("pre")).toBeNull();
+    fireEvent.click(within(row).getByRole("button", { name: "JSON" }));
+    await waitFor(() => expect(row.querySelector(".jp-raw")).not.toBeNull());
+    expect(row.querySelector(".jp-raw").textContent).toContain('"requiredGroup": "Customers"');
   });
 
   it("breaks stat labels after the underscore, not before it", async () => {

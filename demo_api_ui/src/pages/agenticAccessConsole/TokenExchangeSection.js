@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import apiClient from "../../services/apiClient";
+import JsonPane from "../../components/shared/JsonPane";
 
 /** Minimal base64url decode — no library needed for one JWT payload. */
 function decodeJwtPayload(token) {
@@ -54,6 +55,9 @@ const RFC8693_REQUEST = `{
   "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
   "audience": "demo-resource-server"
 }`;
+
+// Keys worth a second look in the exchange request and response, on top of the pane's own important keys.
+const EXCHANGE_HOT = ["audience", "requested_token_type", "issued_token_type", "token_type"];
 
 const TABS = [
   { id: "agentMcp", label: "Agent → MCP tool" },
@@ -130,7 +134,7 @@ export default function TokenExchangeSection() {
           What this chain's Final Token looks like in a real deployment — fictional
           identities, shown to illustrate the nested <code>act</code> shape.
         </p>
-        <pre className="aac-prompt-block">{finalToken}</pre>
+        <JsonPane value={finalToken} label="Decoded final token" />
       </div>
 
       <div className="aac-section-block">
@@ -143,7 +147,7 @@ export default function TokenExchangeSection() {
           actually run.
         </p>
         <p className="aac-card-sub" style={{ marginBottom: 8 }}>Request this button sends</p>
-        <pre className="aac-prompt-block">{RFC8693_REQUEST}</pre>
+        <JsonPane value={RFC8693_REQUEST} label="Token exchange request" hot={EXCHANGE_HOT} />
         <button type="button" className="aac-filter-btn" style={{ marginTop: 10 }} onClick={runLiveExchange} disabled={liveLoading}>
           {liveLoading ? "Exchanging…" : "Send it — POST /api/demo/rfc8693/token"}
         </button>
@@ -155,11 +159,11 @@ export default function TokenExchangeSection() {
         {liveResult && (
           <>
             <p className="aac-card-sub" style={{ margin: "12px 0 8px" }}>Real response, just now</p>
-            <pre className="aac-prompt-block">{JSON.stringify(liveResult.response, null, 2)}</pre>
+            <JsonPane value={liveResult.response} label="Token exchange response" hot={EXCHANGE_HOT} />
             {liveResult.claims && (
               <>
                 <p className="aac-card-sub" style={{ margin: "10px 0 8px" }}>Decoded claims (client-side base64url, from the real token above)</p>
-                <pre className="aac-prompt-block">{JSON.stringify(liveResult.claims, null, 2)}</pre>
+                <JsonPane value={liveResult.claims} label="Decoded claims of the real token" />
               </>
             )}
           </>
