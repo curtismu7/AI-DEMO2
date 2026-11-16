@@ -24,8 +24,8 @@ test('shows exchange request and claims inline without requiring a click', () =>
   expect(screen.getAllByText(/gateway:mcp:invoke/).length).toBeGreaterThan(0);
   expect(document.querySelector('.afd-tc-pill--aud')?.textContent).toMatch(/mcpgateway/);
   expect(document.querySelector('.afd-tc-pill--scope')?.textContent).toMatch(/gateway:mcp:invoke/);
-  // Nothing to click to see the payloads: the only buttons are the shared Form | JSON switches.
-  expect(screen.queryAllByRole('button').every((b) => ['Form', 'JSON'].includes(b.textContent))).toBe(true);
+  // Nothing to click to see the payloads: the only buttons are the shared Form | JSON switches and the per-field Copy buttons.
+  expect(screen.queryAllByRole('button').every((b) => ['Form', 'JSON'].includes(b.textContent) || /^Copy /.test(b.getAttribute('aria-label') ?? ''))).toBe(true);
 });
 
 test('surfaces error pill and hop narrative on exchange-failed', () => {

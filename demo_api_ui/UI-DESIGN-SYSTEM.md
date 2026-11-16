@@ -401,7 +401,7 @@ Use semantic colors from §1.4.
 Every place the UI shows JSON uses `components/shared/JsonPane.jsx` (`JsonHighlight` and `FormJsonToggle` are thin
 wrappers around it, so their call sites get it unchanged). Never write `<pre>{JSON.stringify(x, null, 2)}</pre>`:
 `jsonPaneRatchet.test.js` counts those and fails when the count rises, and rule J1 of `npm run check:ui-patterns`
-reports them (advisory for now). The pane has four properties:
+reports them (advisory for now). The pane has five properties:
 
 1. **One colour standard** (table below; `--th-*` tokens only, measured in both themes by `jsonPaneContrast.test.js`).
 2. **A `Form | JSON` toggle**: one choice for the whole page, kept in `localStorage` (`ai-demo.json.view`). Form is the
@@ -411,6 +411,10 @@ reports them (advisory for now). The pane has four properties:
    (`error error_description detail_code outcome decision verdict reason note`, plus `alert={[...]}`) in the alert colour.
 4. **Full view**: the pane never scrolls. No `max-height`, no `overflow: auto|scroll` on the pane or its wrapper; long
    lines wrap. Above 150000 characters it shows plain text; the Form view stops nesting at depth 60.
+5. **Per-field Copy**: in the Form view every primitive value (string, number, boolean, token, url, id, time) and every
+   chip has its own small Copy button, `aria-label="Copy <key>"` (`Copied <key>` for a moment after a click). It copies
+   the value's text exactly as it is in the data (a masked value copies as the mask) and shows on row hover or focus, is
+   always tabbable, and is always on for touch. `copyFields={false}` turns it off; the JSON view never has it.
 
 A string holding a JSON object or array gets the same panes (the JSON view shows it exactly as given); an HTTP
 transcript with a JSON body keeps its headers as text and gives the body its own pane. `deep` unwraps nested
