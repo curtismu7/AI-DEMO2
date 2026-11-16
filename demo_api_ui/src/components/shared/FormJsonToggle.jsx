@@ -6,8 +6,11 @@
 // it in two places at once (the token chain's step detail and the agent's
 // results panel). `children` is the Form view — whatever rich rendering the
 // caller already has — and `value` is the payload shown as JSON.
-import React, { useState } from "react";
-import JsonHighlight from "./JsonHighlight";
+//
+// The Form | JSON choice is the page-wide one of the shared JsonPane (kept in localStorage, shared with every
+// JSON pane); `defaultView` applies only until the visitor has chosen. The JSON view is the shared JsonPane.
+import React from "react";
+import JsonPane, { JsonViewOnly, JsonViewToggle, useJsonView } from "./JsonPane";
 import "./FormJsonToggle.css";
 
 /**
@@ -57,35 +60,16 @@ export default function FormJsonToggle({
   children,
   jsonView,
 }) {
-  const [view, setView] = useState(defaultView);
+  const [view] = useJsonView(defaultView);
   return (
     <div className="fjt">
-      <div className="fjt-switch" role="group" aria-label={ariaLabel}>
-        <button
-          type="button"
-          className={view === "form" ? "is-active" : ""}
-          aria-pressed={view === "form"}
-          onClick={() => setView("form")}
-        >
-          Form
-        </button>
-        <button
-          type="button"
-          className={view === "json" ? "is-active" : ""}
-          aria-pressed={view === "json"}
-          onClick={() => setView("json")}
-        >
-          JSON
-        </button>
-      </div>
+      <JsonViewToggle view={view} label={ariaLabel} />
       {view === "form" ? (
         children ?? <PayloadFormView value={value} />
       ) : (
-        jsonView ?? (
-          <pre className="fjt-json">
-            <JsonHighlight value={value} deep />
-          </pre>
-        )
+        <JsonViewOnly>
+          {jsonView ?? <JsonPane value={value} deep toggle={false} />}
+        </JsonViewOnly>
       )}
     </div>
   );

@@ -116,6 +116,8 @@ test("renders nested policy statement payloads as readable JSON", () => {
       ]],
     },
   };
+  // The shared JsonPane opens on Form; the readable JSON text is its JSON view, which a saved choice selects.
+  window.localStorage.setItem("ai-demo.json.view", "json");
   const { container } = render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
   const statements = container.querySelector(".tctr-kv-v--json");
 
@@ -123,6 +125,7 @@ test("renders nested policy statement payloads as readable JSON", () => {
   expect(statements.textContent).toContain('"payload": {');
   expect(statements.textContent).toContain('"denied": true');
   expect(statements.textContent).not.toContain('\\"denied\\"');
+  window.localStorage.removeItem("ai-demo.json.view");
 });
 
 test("Learn more opens the education drawer when moreDetail.edu is set", () => {

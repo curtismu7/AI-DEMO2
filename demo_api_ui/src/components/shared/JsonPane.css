@@ -1,0 +1,324 @@
+/* demo_api_ui/src/components/shared/JsonPane.css
+ *
+ * The one JSON pane (owner standard 2026-11-14): Form | JSON toggle, colour by role, important keys stood out,
+ * FULL VIEW (never scrolls). Colours are --th-* tokens only; dark mode is :root[data-theme="dark"], never
+ * prefers-color-scheme. The pane paints its OWN ground (--th-code-bg / --th-code-text, one token family), so its
+ * inks read the same wherever a caller puts it, including inside a call site's own dark <pre class="jh-dark">.
+ * The role -> token table is in UI-DESIGN-SYSTEM.md ("JSON panes"); jsonPaneContrast.test.js measures every pair.
+ *
+ * Several --th-status-*-text tokens equal --th-text in the light theme (info) or are too light to read on the code
+ * ground (the plain status colours), so a role reads the plain status colour in light and its -text variant in dark.
+ */
+.jp-box,
+.jp-wire {
+  --jp-ground: var(--th-code-bg);
+  --jp-key: var(--th-status-info);
+  --jp-string: var(--th-status-success-text);
+  --jp-number: var(--th-status-warning-text);
+  --jp-bool: var(--th-code-text);
+  --jp-null: color-mix(in srgb, var(--th-code-text) 62%, var(--jp-ground));
+  --jp-punct: color-mix(in srgb, var(--th-code-text) 65%, var(--jp-ground));
+  --jp-url: color-mix(in srgb, var(--th-status-info) 55%, var(--th-status-success-text));
+  --jp-id: color-mix(in srgb, var(--th-status-success-text) 60%, var(--th-code-text));
+  --jp-time: color-mix(in srgb, var(--th-status-warning-text) 55%, var(--th-code-text));
+  --jp-alert: var(--th-status-error-text);
+  --jp-jwt1: var(--th-status-error);
+  --jp-jwt2: var(--th-status-warning-text);
+  --jp-jwt3: var(--th-status-info);
+  --jp-edge: var(--th-status-info);
+  --jp-hot-bg: color-mix(in srgb, var(--jp-edge) 16%, var(--jp-ground));
+}
+
+:root[data-theme="dark"] .jp-box,
+:root[data-theme="dark"] .jp-wire {
+  --jp-key: var(--th-status-info-text);
+  --jp-url: color-mix(in srgb, var(--th-status-info-text) 55%, var(--th-status-success-text));
+  --jp-jwt1: var(--th-status-error-text);
+  --jp-jwt3: var(--th-status-info-text);
+  --jp-edge: var(--th-status-info-text);
+}
+
+/* ---- Box, bar and toggle ---- */
+.jp-box {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.jp-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 4px;
+}
+
+/* The copy button of JsonHighlight (position: absolute in JsonHighlight.css) sits in the bar, beside the switch. */
+.jp-bar .jh-copy {
+  position: static;
+}
+
+.jp-toggle {
+  display: inline-flex;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.jp-toggle button {
+  border: 0;
+  margin: 0;
+  padding: 1px 10px;
+  min-height: 0;
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.6;
+  cursor: pointer;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.jp-toggle button + button {
+  border-left: 1px solid var(--th-border-strong);
+}
+
+.jp-toggle button:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.jp-toggle button[aria-pressed="true"] {
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+
+.jp-toggle button:focus-visible {
+  outline: 2px solid var(--th-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ---- FULL VIEW: the pane is never a scroll box. It grows to its content; long lines and tokens wrap. ---- */
+.jp-box,
+.jp-wire,
+.jp-raw,
+.jp-form {
+  max-height: none;
+  height: auto;
+  overflow: visible;
+}
+
+.jp-wire {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.jp-raw {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--jp-ground);
+  color: var(--th-code-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.jp-raw--head {
+  background: var(--jp-ground);
+}
+
+/* ---- JSON view tokens, by role ---- */
+.jp-tok--key { color: var(--jp-key); font-weight: 700; }
+.jp-tok--string { color: var(--jp-string); }
+.jp-tok--number { color: var(--jp-number); }
+.jp-tok--bool { color: var(--jp-bool); font-weight: 700; }
+.jp-tok--null { color: var(--jp-null); font-weight: 700; }
+.jp-tok--punct { color: var(--jp-punct); }
+.jp-tok--url { color: var(--jp-url); text-decoration: underline; text-decoration-style: dotted; }
+.jp-tok--id { color: var(--jp-id); }
+.jp-tok--time { color: var(--jp-time); font-weight: 700; }
+.jp-tok--hot { color: var(--th-code-text); background: var(--jp-hot-bg); font-weight: 700; border-radius: var(--radius-sm); box-shadow: -2px 0 0 var(--jp-edge); }
+.jp-tok--alert { color: var(--jp-alert); font-weight: 700; }
+.jp-tok--plain { color: var(--th-code-text); }
+.jp-tok--jwt1 { color: var(--jp-jwt1); }
+.jp-tok--jwt2 { color: var(--jp-jwt2); }
+.jp-tok--jwt3 { color: var(--jp-jwt3); }
+
+/* ---- Form view ---- */
+.jp-form {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--jp-ground);
+  color: var(--th-code-text);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.jp-fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.jp-fields[data-depth="1"],
+.jp-fields[data-depth="2"],
+.jp-fields[data-depth="3"] {
+  padding-left: 10px;
+  border-left: 2px solid var(--th-border-strong);
+}
+
+.jp-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 28%) minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: start;
+}
+
+.jp-row[data-nested="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.jp-k {
+  margin: 0;
+  padding-top: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  color: var(--jp-key);
+  overflow-wrap: anywhere;
+}
+
+.jp-d {
+  margin: 0;
+  min-width: 0;
+}
+
+.jp-v {
+  display: block;
+  padding: 2px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+}
+
+.jp-v--string { color: var(--jp-string); }
+.jp-v--number { color: var(--jp-number); }
+.jp-v--url { color: var(--jp-url); }
+.jp-v--id { color: var(--jp-id); }
+.jp-v--time { color: var(--jp-time); }
+.jp-v--null { color: var(--jp-null); }
+.jp-sub { color: var(--th-text-body); }
+
+.jp-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jp-chip {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--jp-string);
+}
+
+.jp-chip[data-on="true"] {
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  font-weight: 700;
+}
+
+.jp-chip[data-on="false"] {
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-weight: 700;
+}
+
+/* IMPORTANT keys (HOT, or the caller's own `hot` list): a tinted row with an accent edge. Error / decision keys: a danger edge. */
+.jp-chips[data-hot="true"] .jp-chip {
+  border-color: var(--jp-edge);
+  background: var(--jp-hot-bg);
+  color: var(--th-code-text);
+  font-weight: 700;
+}
+
+.jp-row[data-hot="true"] {
+  background: var(--jp-hot-bg);
+  border-left: 3px solid var(--jp-edge);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px 2px 6px;
+}
+
+.jp-row[data-hot="true"] > .jp-k,
+.jp-row[data-hot="true"] > .jp-d > .jp-v {
+  color: var(--th-code-text);
+}
+
+.jp-row[data-hot="true"] > .jp-d > .jp-v {
+  font-weight: 700;
+}
+
+.jp-row[data-alert="true"] {
+  border-left: 3px solid var(--jp-alert);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px 2px 6px;
+}
+
+.jp-row[data-alert="true"] > .jp-k,
+.jp-row[data-alert="true"] > .jp-d > .jp-v {
+  color: var(--jp-alert);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .jp-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.jp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.jp-idx {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--th-text);
+}

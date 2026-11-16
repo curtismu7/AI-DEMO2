@@ -396,6 +396,42 @@ Use semantic colors from §1.4.
 }
 ```
 
+### 6.5 JSON panes
+
+Every place the UI shows JSON uses `components/shared/JsonPane.jsx` (`JsonHighlight` and `FormJsonToggle` are thin
+wrappers around it, so their call sites get it unchanged). Never write `<pre>{JSON.stringify(x, null, 2)}</pre>`:
+`jsonPaneRatchet.test.js` counts those and fails when the count rises, and rule J1 of `npm run check:ui-patterns`
+reports them (advisory for now). The pane has four properties:
+
+1. **One colour standard** (table below; `--th-*` tokens only, measured in both themes by `jsonPaneContrast.test.js`).
+2. **A `Form | JSON` toggle**: one choice for the whole page, kept in `localStorage` (`ai-demo.json.view`). Form is the
+   default; a visitor's saved choice always wins.
+3. **Important keys stand out**: `sub act may_act aud scope client_id azp iss cnf grant_type subject_token actor_token
+   access_token authorization`, plus the `hot={[...]}` keys a caller adds; error / decision keys
+   (`error error_description detail_code outcome decision verdict reason note`, plus `alert={[...]}`) in the alert colour.
+4. **Full view**: the pane never scrolls. No `max-height`, no `overflow: auto|scroll` on the pane or its wrapper; long
+   lines wrap. Above 150000 characters it shows plain text; the Form view stops nesting at depth 60.
+
+A string holding a JSON object or array gets the same panes (the JSON view shows it exactly as given); an HTTP
+transcript with a JSON body keeps its headers as text and gives the body its own pane. `deep` unwraps nested
+stringified JSON. Everything is React text; control and bidi characters show as `\uXXXX` escapes. The pane paints its
+own ground (`--th-code-bg` / `--th-code-text`), so it reads the same inside a call site's `jh-dark` block.
+
+| Part | Light | Dark | Style |
+| --- | --- | --- | --- |
+| key | `--th-status-info` | `--th-status-info-text` | bold |
+| string | `--th-status-success-text` | same token | |
+| number | `--th-status-warning-text` | same token | |
+| true / false | `--th-code-text` | same token | bold |
+| null | `--th-code-text` 62% on the ground | same mix | bold |
+| url | `--th-status-info` 55% + `--th-status-success-text` | `--th-status-info-text` 55% + success text | dotted underline |
+| id (uuid) | `--th-status-success-text` 60% + `--th-code-text` | same mix | |
+| time (`iat exp nbf`, ISO) | `--th-status-warning-text` 55% + `--th-code-text` | same mix | bold |
+| punctuation | `--th-code-text` 65% on the ground | same mix | |
+| IMPORTANT key | tinted ground (info 16%) + accent edge, `--th-code-text` | same, info-text edge | bold |
+| error / decision key | `--th-status-error-text` | same token | bold |
+| token, header . payload . signature | `--th-status-error` . `--th-status-warning-text` . `--th-status-info` | `--th-status-error-text` . warning-text . `--th-status-info-text` | one colour each |
+
 ---
 
 ## 7. Remediation Plan

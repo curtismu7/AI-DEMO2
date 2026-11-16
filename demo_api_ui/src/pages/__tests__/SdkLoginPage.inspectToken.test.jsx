@@ -17,8 +17,12 @@ const ACCESS_TOKEN = fakeJwt({ sub: "demo-user", aud: "banking-gateway" });
 const ID_TOKEN = fakeJwt({ sub: "demo-user", id_token_marker: "only-in-id-token" });
 
 describe("SdkLoginPage — Inspect token", () => {
+  afterEach(() => window.localStorage.removeItem("ai-demo.json.view"));
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // The decoded claims are read as JSON text; the shared JsonPane opens on Form, so save the JSON choice.
+    window.localStorage.setItem("ai-demo.json.view", "json");
     isSdkError.mockImplementation((result) => !result || Boolean(result?.error));
     getSdkClient.mockResolvedValue({
       token: {

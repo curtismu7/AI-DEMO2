@@ -228,7 +228,8 @@ test('the Form tab renders the gateway test result as labeled fields', async () 
   fireEvent.click(await screen.findByText('get_my_accounts'));
   fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
   await screen.findByText('200 OK');
-  fireEvent.click(screen.getByRole('button', { name: 'Form' }));
+  // The output tab bar comes first; the shared JsonPane switches below it are also named Form.
+  fireEvent.click(screen.getAllByRole('button', { name: 'Form' })[0]);
   expect(screen.getByText('Currency')).toBeInTheDocument();
   expect(screen.getByText('USD')).toBeInTheDocument();
   expect(screen.getByText('Count')).toBeInTheDocument();
