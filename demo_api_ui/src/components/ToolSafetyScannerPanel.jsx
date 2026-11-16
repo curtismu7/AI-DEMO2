@@ -12,7 +12,14 @@
 import { useMemo, useState } from 'react';
 import { TOOL_ATTACKS } from '../config/toolAttackCatalog';
 import { scanAgentCard, scanContent, scanTools, validateToolCall } from '../utils/toolSafetyScanner';
+import JsonPane from './shared/JsonPane';
 import './ToolSafetyScannerPanel.css';
+
+// Keys a reader looks for first in the scanner panes (who, for whom and what are the pane's defaults). The panes were
+// plain pre blocks and nothing in them is a refusal, so no alert keys are added.
+const SCHEMA_HOT = ['required'];
+const SCANNED_HOT = ['tool', 'arguments', 'hostileTools', 'hostileContent', 'agentCard', 'call'];
+const FINDING_HOT = ['kind', 'target', 'detail'];
 
 const KIND_LABELS = {
   'tool-poisoning': 'Tool Poisoning',
@@ -115,9 +122,9 @@ export default function ToolSafetyScannerPanel({ hostileTools = [], hostileConte
       <details className="tss-payload">
         <summary>Show the create_transfer schema and payload being validated</summary>
         <h4>Tool schema (what a valid call must match)</h4>
-        <pre>{JSON.stringify(TRANSFER_TOOL.inputSchema, null, 2)}</pre>
+        <JsonPane value={TRANSFER_TOOL.inputSchema} label="Tool schema" hot={SCHEMA_HOT} />
         <h4>Arguments sent</h4>
-        <pre>{JSON.stringify(callMode === 'attack' ? ABUSE_ARGS : CLEAN_ARGS, null, 2)}</pre>
+        <JsonPane value={callMode === 'attack' ? ABUSE_ARGS : CLEAN_ARGS} label="Arguments sent" hot={SCANNED_HOT} />
       </details>
 
       {!run ? (
@@ -140,14 +147,14 @@ export default function ToolSafetyScannerPanel({ hostileTools = [], hostileConte
           <details className="tss-details">
             <summary>Scanner request and observed findings</summary>
             <h4>Inputs scanned</h4>
-            <pre>{JSON.stringify({
+            <JsonPane label="Inputs scanned" hot={SCANNED_HOT} value={{
               hostileTools: hostileTools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })),
               hostileContent,
               agentCard,
               call: { tool: TRANSFER_TOOL.name, arguments: callMode === 'attack' ? ABUSE_ARGS : CLEAN_ARGS },
-            }, null, 2)}</pre>
+            }} />
             <h4>Findings</h4>
-            <pre>{JSON.stringify(allFindings, null, 2)}</pre>
+            <JsonPane value={allFindings} label="Findings" hot={FINDING_HOT} />
           </details>
           <p className="tss-attribution">Client-side heuristics (same checks as standalone/mcp-scanner). Local validation is not a Privilege policy decision.</p>
         </div>

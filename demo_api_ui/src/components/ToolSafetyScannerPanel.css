@@ -83,18 +83,6 @@
 
 .tss-payload h4 { margin: 10px 0 4px; color: var(--th-text); }
 
-.tss-payload pre,
-.tss-details pre {
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  padding: 10px;
-  overflow-x: auto;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-}
-
 .tss-idle {
   color: var(--th-text-muted);
   font-size: var(--font-size-sm);

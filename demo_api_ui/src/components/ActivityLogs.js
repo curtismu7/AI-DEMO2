@@ -5,6 +5,7 @@ import { notifyError } from '../utils/appToast';
 import SignInPrompt from './SignInPrompt';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import ApiCallDisplay from './ApiCallDisplay';
+import JsonPane from './shared/JsonPane';
 import './ActivityLogs.css';
 
 const BUCKET_ORDER = ['AI Agent', 'Banking', 'Identity', 'Admin'];
@@ -390,14 +391,16 @@ const ActivityLogs = ({ user, onLogout }) => {
                 </div>
                 <div className="activity-record-modal__section">
                   <h3>Request Headers</h3>
-                  <div className="activity-record-modal__code">
-                    <pre>{JSON.stringify({ 'User-Agent': selectedLog.userAgent, 'Content-Type': 'application/json', Authorization: selectedLog.username ? 'Bearer [TOKEN]' : 'None' }, null, 2)}</pre>
-                  </div>
+                  <JsonPane
+                    label="Request headers"
+                    hot={['User-Agent', 'Content-Type']}
+                    value={{ ...(selectedLog.userAgent !== undefined && { 'User-Agent': selectedLog.userAgent }), 'Content-Type': 'application/json', Authorization: selectedLog.username ? 'Bearer [TOKEN]' : 'None' }}
+                  />
                 </div>
                 {selectedLog.requestBody && (
                   <div className="activity-record-modal__section">
                     <h3>Request Body</h3>
-                  <div className="activity-record-modal__code"><pre>{JSON.stringify(selectedLog.requestBody, null, 2)}</pre></div>
+                  <JsonPane value={selectedLog.requestBody} label="Request body" />
                   </div>
                 )}
                 <div className="activity-record-modal__section">
@@ -412,7 +415,7 @@ const ActivityLogs = ({ user, onLogout }) => {
                 {selectedLog.responseBody && (
                   <div className="activity-record-modal__section">
                     <h3>Response Body</h3>
-                  <div className="activity-record-modal__code"><pre>{JSON.stringify(selectedLog.responseBody, null, 2)}</pre></div>
+                  <JsonPane value={selectedLog.responseBody} label="Response body" />
                   </div>
                 )}
               </div>

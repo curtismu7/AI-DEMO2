@@ -220,6 +220,11 @@
 .mgc-code-block {
   position: relative;
 }
+/* The shared JSON pane sits under the floated buttons, full width, with the gap the old pre had. */
+.mgc-code-block .jp-box {
+  clear: both;
+  margin-top: 8px;
+}
 .mgc-copy-btn {
   float: right;
   margin-bottom: 8px;

@@ -171,8 +171,6 @@
 
 .webmcp-stream-log {
   margin-top: 14px;
-  max-height: 200px;
-  overflow-y: auto;
   background: #f4f7fb;
   border: 1px solid #d0d9e8;
   border-radius: var(--radius-md);
@@ -187,19 +185,6 @@
   letter-spacing: 0.5px;
 }
 
-.webmcp-stream-event {
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  color: var(--th-text);
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin-bottom: 4px;
-  padding: 6px 8px;
-  border-radius: 3px;
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-}
-
 /* ── Result area ────────────────────────────────────────────────────────── */
 
 .webmcp-result {
@@ -212,21 +197,6 @@
   color: #4a6080;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.webmcp-result pre {
-  margin: 0;
-  padding: 12px;
-  background: #f4f7fb;
-  border: 1px solid #d0d9e8;
-  border-radius: var(--radius-md);
-  font-family: inherit;
-  font-size: var(--font-size-body);
-  color: #0f2044;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 340px;
-  overflow-y: auto;
 }
 
 /* Interpretation banner shown above Server Response */
@@ -312,7 +282,8 @@
   font-size: var(--font-size-sm);
 }
 
-.webmcp-error pre {
+/* The raw (non-JSON) body; the JSON "Full response" is a shared pane and keeps its own look. */
+.webmcp-error details > pre {
   margin: 6px 0 0;
   padding: 8px;
   background: var(--th-bg-card);
@@ -370,9 +341,6 @@
   cursor: pointer;
 }
 
-.webmcp-error__full pre {
-  margin: 6px 0 0;
-  font-size: var(--font-size-xs);
-  max-height: 300px;
-  overflow-y: auto;
+.webmcp-error__full .jp-box {
+  margin-top: 6px;
 }

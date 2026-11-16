@@ -23,7 +23,7 @@ import McpParamToggle from './McpParamToggle';
 import McpParamSuggest from './McpParamSuggest';
 import McpParamText from './McpParamText';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
-import FormJsonToggle from './shared/FormJsonToggle';
+import JsonPane from './shared/JsonPane';
 
 // Use the built-in Web Crypto / Node crypto.randomUUID() instead of the
 // `uuid` npm package — same output (RFC 4122 v4), no dependency, no Jest
@@ -35,6 +35,11 @@ const uuid = () =>
   "00000000-0000-4000-8000-".concat(
     Math.floor(Math.random() * 1e12).toString(16).padStart(12, "0"),
   );
+
+// Keys a reader looks for first in the panes (who, for whom and what are the pane's defaults). The error pane was a
+// plain pre, so no alert keys are added beyond the pane's own error / decision keys.
+const PIPELINE_HOT = ["phase", "status", "tool"];
+const RESULT_HOT = ["content", "text", "isError", "result", "structuredContent"];
 
 const TRANSFER_TOOL = "create_transfer";
 // Tools that always require HITL browser consent (can't execute inline)
@@ -162,7 +167,6 @@ export default function WebMcpPanel() {
   const [userOptions, setUserOptions]       = useState([]); // [{value, label}]
   const [adminAccountOptions, setAdminAccountOptions] = useState([]); // [{value, label}]
   const accountsFetched = useRef(false);
-  const streamLogRef = useRef(null);
   const disconnectRef = useRef(null);
   const { setWebMcpLastResult } = useAgentUiMode();
   const { open } = useEducationUI();
@@ -247,12 +251,6 @@ export default function WebMcpPanel() {
       controller.abort();
     };
   }, []);
-
-  useEffect(() => {
-    if (streamLogRef.current) {
-      streamLogRef.current.scrollTop = streamLogRef.current.scrollHeight;
-    }
-  }, [streamEvents]);
 
   useEffect(() => {
     return () => {
@@ -489,7 +487,7 @@ export default function WebMcpPanel() {
                 {error.parsedBody && (
                   <details className="webmcp-error__full">
                     <summary>Full response</summary>
-                    <pre>{JSON.stringify(error.parsedBody, null, 2)}</pre>
+                    <JsonPane value={error.parsedBody} label="Full error response" />
                   </details>
                 )}
                 {error.rawBody && (
@@ -677,13 +675,9 @@ export default function WebMcpPanel() {
                 )}
 
                 {streamEvents.length > 0 && (
-                  <div className="webmcp-stream-log" ref={streamLogRef}>
+                  <div className="webmcp-stream-log">
                     <h5>Pipeline Events</h5>
-                    {streamEvents.map((item) => (
-                      <div key={item.key} className="webmcp-stream-event">
-                        {JSON.stringify(item.data, null, 2)}
-                      </div>
-                    ))}
+                    <JsonPane value={streamEvents.map((item) => item.data)} label="Pipeline events" hot={PIPELINE_HOT} />
                   </div>
                 )}
 
@@ -708,7 +702,7 @@ export default function WebMcpPanel() {
                       )
                     )}
                     <h5>Server Response</h5>
-                    <FormJsonToggle value={result} ariaLabel="Server response view" />
+                    <JsonPane value={result} deep label="Server response" hot={RESULT_HOT} />
                   </div>
                 )}
 
@@ -737,7 +731,7 @@ export default function WebMcpPanel() {
                       {error.parsedBody && (
                         <details className="webmcp-error__full">
                           <summary>Full response</summary>
-                          <pre>{JSON.stringify(error.parsedBody, null, 2)}</pre>
+                          <JsonPane value={error.parsedBody} label="Full error response" />
                         </details>
                       )}
                       {error.rawBody && (

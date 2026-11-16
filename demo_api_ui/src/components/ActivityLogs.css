@@ -114,15 +114,6 @@
 .activity-record-modal__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .activity-record-modal__item { display: flex; flex-direction: column; gap: 4px; color: var(--modal-body-text); }
 .activity-record-modal__item label { color: var(--modal-body-text-secondary); font-size: var(--font-size-2xs); font-weight: 600; }
-.activity-record-modal__code {
-  padding: 12px;
-  overflow-x: auto;
-  background: var(--th-bg-inset);
-  color: var(--th-text-body);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-}
-.activity-record-modal__code pre { margin: 0; color: var(--modal-body-text); font-family: var(--font-mono); font-size: var(--font-size-xs); white-space: pre-wrap; }
 
 @media (max-width: 800px) {
   .activity-records-page { padding: 16px; }
