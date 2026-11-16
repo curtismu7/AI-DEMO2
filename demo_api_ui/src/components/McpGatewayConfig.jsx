@@ -17,8 +17,15 @@ import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
 import { useTheme } from "../context/ThemeContext";
 import InlineSpinner from './shared/InlineSpinner';
+import JsonPane from './shared/JsonPane';
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
+
+// Keys a reader looks for first in the gateway's JSON panes (who, for whom and what are the pane's defaults). The
+// panes were plain pre blocks, so no alert keys are added: nothing here is a failure.
+const LIVE_CONFIG_HOT = ['devBypass', 'mcpServerPassthrough', 'p1azEnabled', 'pingAuthorizeEndpoint', 'hitlServiceUrl', 'gatewayResourceUri'];
+const ROUTE_FILE_HOT = ['name', 'condition', 'handler', 'baseURI', 'pingOneEnvID', 'pingOneResourceID', 'gatewayUrl', 'mcpServerUrl'];
+const ADMIN_JSON_HOT = ['streamingEnabled', 'adminConnector', 'connectors'];
 
 const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "traffic", "tokensecurity"];
 
@@ -190,7 +197,8 @@ function McpGatewayConfigInner() {
 			baseURI: '&{mcpServerUrl}',
 		};
 	}
-	const liveMcpJsonStr = JSON.stringify(buildLiveMcpJson(), null, 2);
+	const liveMcpJson = buildLiveMcpJson();
+	const liveMcpJsonStr = JSON.stringify(liveMcpJson, null, 2);
 
 	const handleRouteSave = async () => {
 		setRouteSaving(true);
@@ -367,7 +375,7 @@ function McpGatewayConfigInner() {
 							{mock.liveConfig ? (
 								<div className="mgc-code-block" style={{ marginTop: 8 }}>
 									<CopyButton text={JSON.stringify(mock.liveConfig, null, 2)} label="Copy live config" />
-									<pre className="mgc-pre mgc-pre--code">{JSON.stringify(mock.liveConfig, null, 2)}</pre>
+									<JsonPane value={mock.liveConfig} label="Live gateway config" hot={LIVE_CONFIG_HOT} />
 								</div>
 							) : (
 								<div className="mgc-alert mgc-alert--info" style={{ marginTop: 8 }}>
@@ -587,7 +595,7 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 									<div className="mgc-code-block">
 										<button type="button" className="mgc-download-btn" onClick={handleDownloadMcpJson}>Download mcp.json</button>
 										<CopyButton text={liveMcpJsonStr} label="Copy mcp.json" />
-										<pre className="mgc-pre mgc-pre--code">{liveMcpJsonStr}</pre>
+										<JsonPane value={liveMcpJson} label="Live mcp.json preview" hot={ROUTE_FILE_HOT} />
 									</div>
 								</div>
 							</div>
@@ -622,7 +630,7 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 								<div className="mgc-code-block">
 									<button className="mgc-download-btn" onClick={handleDownloadMcpJson}>Download mcp.json</button>
 									<CopyButton text={pingGwJsonStr} label="Copy mcp.json" />
-									<pre className="mgc-pre mgc-pre--code">{pingGwJsonStr}</pre>
+									<JsonPane value={pingGatewayJson} label="mcp.json route file" hot={ROUTE_FILE_HOT} />
 								</div>
 							</div>
 						</div>
@@ -640,7 +648,7 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 								</p>
 								<div className="mgc-code-block">
 									<CopyButton text={pingGwAdminJsonStr} label="Copy admin.json snippet" />
-									<pre className="mgc-pre mgc-pre--code">{pingGwAdminJsonStr}</pre>
+									<JsonPane value={pingGatewayAdminJson} label="admin.json snippet" hot={ADMIN_JSON_HOT} />
 								</div>
 							</div>
 						</div>

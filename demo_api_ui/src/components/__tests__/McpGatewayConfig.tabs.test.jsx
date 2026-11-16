@@ -25,3 +25,18 @@ test('MCP Tool Tester tab uses the non-collapsing traffic host + embedded page',
   expect(css).toContain('.mgc-panel--traffic');
   expect(css).toMatch(/height:\s*calc\(100vh/);
 });
+
+test('the gateway JSON (live config, mcp.json preview and route file, admin.json) is shared panes, not hand-rolled pre blocks', () => {
+  expect(jsx).toContain("import JsonPane from './shared/JsonPane'");
+  for (const label of ['Live gateway config', 'Live mcp.json preview', 'mcp.json route file', 'admin.json snippet']) {
+    expect(jsx).toContain(`label="${label}"`);
+  }
+  // Only the .env text snippet is still a pre; no JSON is shown through mgc-pre--code any more here.
+  expect(jsx).not.toContain('mgc-pre--code');
+  // The Copy and Download buttons keep working on the same text.
+  expect(jsx).toContain('label="Copy live config"');
+  expect(jsx).toContain('label="Copy mcp.json"');
+  expect(jsx).toContain('label="Copy admin.json snippet"');
+  // The pane sits under the floated buttons without a scroll box.
+  expect(css).toMatch(/\.mgc-code-block \.jp-box\s*\{[^}]*clear:\s*both/);
+});

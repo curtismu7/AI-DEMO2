@@ -8,7 +8,8 @@ import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { decodeMcpTextContent } from '../utils/decodeMcpTextContent';
 import { TOOL_ATTACK_CATEGORIES, TOOL_ATTACKS } from '../config/toolAttackCatalog';
-import JsonHighlight from './shared/JsonHighlight';
+import JsonPane from './shared/JsonPane';
+import { LEGACY_ALERT, LEGACY_HOT } from './shared/jsonEmphasis';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
@@ -1047,7 +1048,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
           />
           {outputTab === 'chain' ? (
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code">
+              <div className="inspector-shell-output-code">
                 {chainResults.length === 0 ? (
                   <div style={{ padding: 16, color: '#64748b', fontSize: 12 }}>
                     {chainRunning
@@ -1068,7 +1069,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
                     </div>
                   ))
                 )}
-              </pre>
+              </div>
             </div>
           ) : sending ? (
             <div className="inspector-shell-output-empty">
@@ -1093,11 +1094,12 @@ export default function AgentGatewayTester({ twoStep = false }) {
               )}
               <div className="inspector-shell-output-body">
                 {outputTab === 'form' && <JsonFormView value={resultValue} />}
+                {/* The result and audit tabs are bare panes; the authorize and 5W1H tabs keep the boxed table above their raw pane. */}
                 {outputTab !== 'form' && (
-                <pre className="inspector-shell-output-code">
-                  {outputTab === 'result' && <JsonHighlight value={resultValue} />}
+                <div className={outputTab === 'authorize' || outputTab === 'mcpAudit' ? 'inspector-shell-output-code' : undefined}>
+                  {outputTab === 'result' && <JsonPane value={resultValue} label="Result" hot={LEGACY_HOT} alert={LEGACY_ALERT} />}
                   {outputTab === 'audit' && (
-                    <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
+                    <JsonPane value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} label="Audit trail" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                   )}
                   {outputTab === 'authorize' && (
                     <>
@@ -1169,11 +1171,11 @@ export default function AgentGatewayTester({ twoStep = false }) {
                           </table>
                           <div style={{ marginTop: 12, borderTop: '1px solid #cbd5e1', paddingTop: 12 }}>
                             <div style={{ fontSize: 10, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Raw JSON</div>
-                            <JsonHighlight value={az} />
+                            <JsonPane value={az} label="Authorize decision" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                           </div>
                         </div>
                       ) : (
-                        <JsonHighlight value={{ note: 'No authorize decision on this response.' }} />
+                        <JsonPane value={{ note: 'No authorize decision on this response.' }} label="Authorize decision" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                       )}
                     </>
                   )}
@@ -1232,15 +1234,15 @@ export default function AgentGatewayTester({ twoStep = false }) {
                           </table>
                           <div style={{ marginTop: 12, borderTop: '1px solid #cbd5e1', paddingTop: 12 }}>
                             <div style={{ fontSize: 10, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Raw JSON</div>
-                            <JsonHighlight value={mcpAudit} />
+                            <JsonPane value={mcpAudit} label="McpAudit event" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                           </div>
                         </div>
                       ) : (
-                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingOne Agent Gateway.' }} />
+                        <JsonPane value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingOne Agent Gateway.' }} label="McpAudit event" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
                       )}
                     </>
                   )}
-                </pre>
+                </div>
                 )}
               </div>
               <div className="inspector-shell-output-footer">
@@ -1262,9 +1264,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
           ) : burstResp ? (
             <>
               <div className="inspector-shell-output-body">
-                <pre className="inspector-shell-output-code">
-                  <JsonHighlight value={burstResp} />
-                </pre>
+                <JsonPane value={burstResp} label="Burst test result" hot={LEGACY_HOT} alert={LEGACY_ALERT} />
               </div>
               <div className="inspector-shell-output-footer">
                 <span><strong>Burst test:</strong> {burstResp.summary || `${(burstResp.results || []).length} calls`}</span>

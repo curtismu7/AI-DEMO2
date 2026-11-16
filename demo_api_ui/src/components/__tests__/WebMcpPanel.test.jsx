@@ -69,6 +69,8 @@ async function renderComponent() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The result pane keeps the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+  localStorage.clear();
   listMcpTools.mockResolvedValue({ tools: MOCK_TOOLS });
   // Component switched from listMcpTools to listMcpToolsWithStream; delegate
   // so existing tests that set listMcpTools.mockResolved/RejectedValue still
@@ -219,6 +221,46 @@ describe("WebMcpPanel — tool invocation", () => {
     expect(screen.getByText(/token_exchange/)).toBeInTheDocument();
   });
 
+  it("shows the pipeline events as one full-view pane (no scroll box)", async () => {
+    let capturedOnEvent;
+    openMcpToolStream.mockImplementation((_traceId, onEvent) => {
+      capturedOnEvent = onEvent;
+      return () => {};
+    });
+    callMcpTool.mockImplementation(async () => {
+      capturedOnEvent?.({ phase: "token_exchange", status: "ok" });
+      capturedOnEvent?.({ phase: "tool_call", tool: "get_my_accounts" });
+      return { result: { content: [{ text: "accounts listed" }] } };
+    });
+
+    await renderComponent();
+    await screen.findByText("get_my_accounts");
+    fireEvent.click(screen.getByText("get_my_accounts"));
+    fireEvent.click(screen.getByRole("button", { name: /Call Tool/i }));
+
+    const pane = await screen.findByRole("group", { name: "Pipeline events" });
+    expect(pane).toHaveTextContent("token_exchange");
+    expect(pane).toHaveTextContent("tool_call");
+    // Both events sit in the one pane, in order.
+    expect(pane.textContent.indexOf("token_exchange")).toBeLessThan(pane.textContent.indexOf("tool_call"));
+  });
+
+  it("shows an error response body as a JSON pane, and a non-JSON body as plain text", async () => {
+    callMcpTool.mockRejectedValueOnce(Object.assign(new Error("403"), { body: JSON.stringify({ error: "forbidden", detail_code: "scope_missing" }) }));
+    await renderComponent();
+    await screen.findByText("get_my_accounts");
+    fireEvent.click(screen.getByText("get_my_accounts"));
+    fireEvent.click(screen.getByRole("button", { name: /Call Tool/i }));
+    const pane = await screen.findByRole("group", { name: "Full error response" });
+    expect(pane).toHaveTextContent("scope_missing");
+    expect(document.querySelector(".webmcp-error details > pre")).toBeNull();
+
+    callMcpTool.mockRejectedValueOnce(Object.assign(new Error("502"), { body: "upstream exploded" }));
+    fireEvent.click(screen.getByRole("button", { name: /Call Tool/i }));
+    await waitFor(() => expect(screen.queryByRole("group", { name: "Full error response" })).toBeNull());
+    expect(document.querySelector(".webmcp-error details > pre")).toHaveTextContent("upstream exploded");
+  });
+
   it("displays the tool result after successful call", async () => {
     callMcpTool.mockResolvedValue({
       result: { content: [{ text: "account balance: $5000" }] },
@@ -235,8 +277,17 @@ describe("WebMcpPanel — tool invocation", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByRole("group", { name: "Server response view" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
+    // The pane starts in Form: the value is already there as a field.
     expect(screen.getByText(/account balance/)).toBeInTheDocument();
+    expect(document.querySelector('pre.jp-raw[aria-label="Server response"]')).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
+    // Wait for the JSON view itself before reading it: the click switches the view on the next render.
+    await waitFor(() => {
+      expect(document.querySelector('pre.jp-raw[aria-label="Server response"]')).not.toBeNull();
+    });
+    expect(JSON.parse(document.querySelector('pre.jp-raw[aria-label="Server response"]').textContent)).toEqual({
+      result: { content: [{ text: "account balance: $5000" }] },
+    });
   });
 
   it("shows error section when callMcpTool rejects", async () => {

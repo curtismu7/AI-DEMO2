@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/__tests__/AgentGatewayTester.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import apiClient from '../../services/apiClient';
 import AgentGatewayTester from '../AgentGatewayTester';
 
@@ -26,6 +26,8 @@ function mockDefaultEndpoints() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The result panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+  localStorage.clear();
   mockDefaultEndpoints();
 });
 
@@ -233,6 +235,73 @@ test('the Form tab renders the gateway test result as labeled fields', async () 
   expect(screen.getByText('Currency')).toBeInTheDocument();
   expect(screen.getByText('USD')).toBeInTheDocument();
   expect(screen.getByText('Count')).toBeInTheDocument();
+});
+
+function mockOneTool(postData) {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: { tools: [{ name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } }], _source: 'live' },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({ data: postData });
+}
+
+async function executeTool() {
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+}
+
+test('the Result tab is a bare shared pane: Form by default, the exact JSON after the switch, no code box around it', async () => {
+  mockOneTool({ ok: true, result: { currency: 'USD', count: 2 }, durationMs: 42 });
+  render(<AgentGatewayTester />);
+  await executeTool();
+
+  const form = screen.getByRole('group', { name: 'Result' });
+  expect(form).toHaveTextContent('USD');
+  expect(form.closest('.inspector-shell-output-code')).toBeNull();
+  expect(document.querySelector('pre.jp-raw[aria-label="Result"]')).toBeNull();
+
+  fireEvent.click(within(form.closest('.jp-box')).getByRole('button', { name: 'JSON' }));
+  // Wait for the JSON view itself before reading it: the click switches the view on the next render.
+  await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Result"]')).not.toBeNull());
+  expect(JSON.parse(document.querySelector('pre.jp-raw[aria-label="Result"]').textContent)).toEqual({ currency: 'USD', count: 2 });
+});
+
+test('the Audit Trail tab shows the audit trail as a pane, or a note pane when the response has none', async () => {
+  mockOneTool({ ok: true, result: { count: 1 }, durationMs: 5 });
+  render(<AgentGatewayTester />);
+  await executeTool();
+  fireEvent.click(screen.getByRole('button', { name: 'Audit Trail' }));
+  const pane = await screen.findByRole('group', { name: 'Audit trail' });
+  expect(pane).toHaveTextContent('No audit trail on this response.');
+});
+
+test('the Authorize Decision and McpAudit tabs keep their boxed table and show the raw JSON as a pane', async () => {
+  mockOneTool({
+    ok: true,
+    result: { count: 1 },
+    durationMs: 5,
+    gwAuditTrail: {
+      authorize: { decision: 'PERMIT', toolName: 'get_my_accounts', clientId: 'client-1' },
+      mcpAudit: { who: 'alice', what: 'get_my_accounts' },
+    },
+  });
+  render(<AgentGatewayTester />);
+  await executeTool();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Authorize Decision' }));
+  const az = await screen.findByRole('group', { name: 'Authorize decision' });
+  expect(az).toHaveTextContent('client-1');
+  expect(az.closest('.inspector-shell-output-code')).not.toBeNull();
+  expect(screen.getByText('P1AZ Field')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'McpAudit (5W1H)' }));
+  const audit = await screen.findByRole('group', { name: 'McpAudit event' });
+  expect(audit).toHaveTextContent('alice');
+  expect(screen.getByText('5W1H')).toBeInTheDocument();
 });
 
 test('running get_my_accounts captures the account id and autofills it into get_account_balance', async () => {
