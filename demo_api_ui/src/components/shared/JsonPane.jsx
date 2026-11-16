@@ -6,7 +6,7 @@
 //   4. FULL VIEW             the pane never scrolls: no max-height, no overflow auto|scroll, long lines wrap (JsonPane.css)
 // Everything is React text, never markup, and passes visible(): control and bidi characters show as escapes.
 // Ported from the standalone labs' JsonPane (shared/json/JsonPane.jsx); the colour tokens are AI-DEMO2's --th-* family.
-import React, { createContext, useContext, useSyncExternalStore } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { visible } from '../../utils/safeText';
 import './JsonPane.css';
 
@@ -246,27 +246,101 @@ function RawJson({ text, hot, alert }) {
   });
 }
 
+// ---- Per-field Copy (Form view) ---------------------------------------------------------------------------------
+// Every primitive leaf (and each chip) gets its own Copy button, so a presenter can lift one token, claim or id without
+// selecting text by hand. It copies the leaf's text exactly as it is in the data (a masked value copies as the mask).
+const CopyFieldsContext = createContext(true);
+
+// navigator.clipboard where it works; otherwise (insecure origin, permission denied) a hidden textarea and execCommand.
+async function writeClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    /* fall through to the textarea route */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.setAttribute('aria-hidden', 'true');
+    ta.className = 'jp-copy-sink';
+    document.body.appendChild(ta);
+    ta.select();
+    const done = document.execCommand('copy');
+    ta.remove();
+    return done;
+  } catch {
+    return false;
+  }
+}
+
+const COPIED_MS = 1200;
+const trim = (s, n = 40) => (s.length > n ? `${s.slice(0, n)}\u2026` : s);
+
+function FieldCopy({ text, name }) {
+  const on = useContext(CopyFieldsContext);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const copy = useCallback(async () => {
+    if (!(await writeClipboard(text))) return;
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), COPIED_MS);
+  }, [text]);
+  if (!on || text === '') return null;
+  const label = visible(name || 'value');
+  return (
+    <button type="button" className="jp-copy" data-copied={copied ? 'true' : undefined} aria-label={`${copied ? 'Copied' : 'Copy'} ${label}`} onClick={copy}>
+      {copied ? (
+        'Copied'
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="5" y="5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M3 11V3a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// A primitive value with its Copy button beside it (the button is a sibling of the value, never inside it).
+function Leaf({ v, k, children }) {
+  return (
+    <span className="jp-leaf">
+      {children}
+      <FieldCopy text={String(v)} name={k} />
+    </span>
+  );
+}
+
 // ---- Form view: a form ------------------------------------------------------------------------------------------
 function Value({ v, k, hot }) {
   const kind = kindOf(v, k);
   if (kind === 'null') return <span className="jp-v jp-v--null">none</span>;
-  if (kind === 'bool') return <span className="jp-chip" data-on={v ? 'true' : 'false'}>{v ? 'true' : 'false'}</span>;
-  if (kind === 'token') return <span className="jp-v jp-v--token"><Jwt text={v} /></span>;
+  if (kind === 'bool') return <Leaf v={v} k={k}><span className="jp-chip" data-on={v ? 'true' : 'false'}>{v ? 'true' : 'false'}</span></Leaf>;
+  if (kind === 'token') return <Leaf v={v} k={k}><span className="jp-v jp-v--token"><Jwt text={v} /></span></Leaf>;
   if (typeof v === 'string' && SPLIT.has(k) && /\s/.test(v.trim())) return <ChipList items={v.trim().split(/\s+/)} k={k} hot={hot} />;
   if (kind === 'time') {
     const d = typeof v === 'number' ? date(v) : null;
-    return <span className="jp-v jp-v--time">{visible(String(v))}{d && <span className="jp-sub"> {d}</span>}</span>;
+    return <Leaf v={v} k={k}><span className="jp-v jp-v--time">{visible(String(v))}{d && <span className="jp-sub"> {d}</span>}</span></Leaf>;
   }
   // A string that would read as another type (the text "{}", "[]", "5", "true", "null") keeps its quotes, so the Form view never hides string-versus-object.
   const typed = typeof v === 'string' && /^(?:\{[\s\S]*\}|\[[\s\S]*\]|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)$/.test(v.trim());
-  return <span className={`jp-v jp-v--${kind}`}>{visible(typed ? JSON.stringify(v) : String(v))}</span>;
+  return <Leaf v={v} k={k}><span className={`jp-v jp-v--${kind}`}>{visible(typed ? JSON.stringify(v) : String(v))}</span></Leaf>;
 }
 
 function ChipList({ items, k, hot }) {
   if (!items.length) return <span className="jp-v jp-v--null">none</span>;
   return (
     <ul className="jp-chips" data-hot={hot.has(k) ? 'true' : undefined}>
-      {items.map((x, i) => <li key={`${x}-${i}`} className="jp-chip">{visible(String(x))}</li>)}
+      {items.map((x, i) => (
+        <li key={`${x}-${i}`} className="jp-chip">
+          {visible(String(x))}
+          <FieldCopy text={String(x)} name={trim(String(x))} />
+        </li>
+      ))}
     </ul>
   );
 }
@@ -318,8 +392,9 @@ function Form({ value, hot, alert, k = '', depth = 0 }) {
  * @param {'form'|'json'} [props.view]  Force one view and hide the switch (FormJsonToggle's JSON view).
  * @param {'form'|'json'} [props.defaultView]  View while the visitor has made no choice (default Form).
  * @param {React.ReactNode} [props.actions]  Controls shown beside the switch (e.g. a copy button).
+ * @param {boolean} [props.copyFields]  Form view: a Copy button beside every primitive value and chip (default true); false hides them.
  */
-export function JsonPane({ value: given, label, testId, toggle = true, hot, alert, deep = false, view: forced, defaultView = 'form', actions }) {
+export function JsonPane({ value: given, label, testId, toggle = true, hot, alert, deep = false, view: forced, defaultView = 'form', actions, copyFields = true }) {
   const [chosen] = useJsonView(defaultView);
   const jsonOnly = useContext(JsonOnlyContext);
   const mode = forced ?? (jsonOnly ? 'json' : chosen);
@@ -334,7 +409,7 @@ export function JsonPane({ value: given, label, testId, toggle = true, hot, aler
     return (
       <div className="jp-wire" data-testid={testId ? `${testId}-box` : undefined}>
         <pre className="jp-raw jp-raw--head" tabIndex={0} aria-label={label ? `${label} headers` : 'Headers'} data-testid={testId ? `${testId}-head` : undefined}>{visible(wire.head)}</pre>
-        <JsonPane value={wire.body} label={label ? `${label} body` : 'Body'} testId={testId ? `${testId}-body` : undefined} toggle={toggle} hot={hot} alert={alert} view={forced} defaultView={defaultView} />
+        <JsonPane value={wire.body} label={label ? `${label} body` : 'Body'} testId={testId ? `${testId}-body` : undefined} toggle={toggle} hot={hot} alert={alert} view={forced} defaultView={defaultView} copyFields={copyFields} />
       </div>
     );
   }
@@ -369,7 +444,9 @@ export function JsonPane({ value: given, label, testId, toggle = true, hot, aler
         </div>
       )}
       {asForm ? (
-        <div className="jp-form" tabIndex={0} role="group" aria-label={label} data-testid={testId}><Form value={data} hot={hotSet} alert={alertSet} /></div>
+        <div className="jp-form" tabIndex={0} role="group" aria-label={label} data-testid={testId}>
+          <CopyFieldsContext.Provider value={copyFields}><Form value={data} hot={hotSet} alert={alertSet} /></CopyFieldsContext.Provider>
+        </div>
       ) : (
         <pre className="jp-raw" tabIndex={0} aria-label={label} data-testid={testId}>
           {isJson ? <RawJson text={text} hot={hotSet} alert={alertSet} /> : kindOf(text) === 'token' ? <Jwt text={text} /> : visible(text)}

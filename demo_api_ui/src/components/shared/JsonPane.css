@@ -235,7 +235,9 @@
 }
 
 .jp-chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   max-width: 100%;
   overflow-wrap: anywhere;
   padding: 1px 8px;
@@ -277,11 +279,11 @@
 }
 
 .jp-row[data-hot="true"] > .jp-k,
-.jp-row[data-hot="true"] > .jp-d > .jp-v {
+.jp-row[data-hot="true"] > .jp-d > .jp-leaf > .jp-v {
   color: var(--th-code-text);
 }
 
-.jp-row[data-hot="true"] > .jp-d > .jp-v {
+.jp-row[data-hot="true"] > .jp-d > .jp-leaf > .jp-v {
   font-weight: 700;
 }
 
@@ -292,9 +294,96 @@
 }
 
 .jp-row[data-alert="true"] > .jp-k,
-.jp-row[data-alert="true"] > .jp-d > .jp-v {
+.jp-row[data-alert="true"] > .jp-d > .jp-leaf > .jp-v {
   color: var(--jp-alert);
   font-weight: 700;
+}
+
+/* ---- Per-field Copy: a small real button beside each primitive value and chip ----
+ * Shown on row / chip hover and on focus-within; always in the DOM and tabbable, and visible whenever it has keyboard
+ * focus. Touch screens (no hover) show it all the time. It is a sibling of the value, never inside a <pre> or a button. */
+.jp-leaf {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.jp-leaf > .jp-v {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.jp-copy {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
+  margin: 0;
+  padding: 0 4px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.jp-chip > .jp-copy {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0 2px;
+  margin-right: -4px;
+  border-color: transparent;
+}
+
+.jp-leaf:hover > .jp-copy,
+.jp-leaf:focus-within > .jp-copy,
+.jp-row:hover > .jp-d > .jp-leaf > .jp-copy,
+.jp-chip:hover > .jp-copy,
+.jp-chip:focus-within > .jp-copy,
+.jp-copy:focus-visible,
+.jp-copy[data-copied="true"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .jp-copy {
+    opacity: 1;
+  }
+}
+
+.jp-copy:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.jp-copy:focus-visible {
+  outline: 2px solid var(--th-focus-ring);
+  outline-offset: 1px;
+}
+
+.jp-copy[data-copied="true"] {
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+/* The off-screen textarea of the clipboard fallback. */
+.jp-copy-sink {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 @media (max-width: 480px) {
