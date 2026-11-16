@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
  * test files are not counted; the shared pane itself is the standard, so it is the one allowed file.
  */
 const SRC = path.resolve(__dirname, '..');
-const MAX_HAND_ROLLED_PANES = 74;
+const MAX_HAND_ROLLED_PANES = 70;
 const ALLOWED = ['components/shared/JsonPane.jsx'];
 
 const PRE = /<pre[\s>]/;

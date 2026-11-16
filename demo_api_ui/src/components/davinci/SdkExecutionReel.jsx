@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import JsonPane from "../shared/JsonPane";
 import { PREVIEW_EVENTS } from "./sdkExecutionEvents";
 import "./SdkExecutionReel.css";
 
@@ -14,10 +15,6 @@ const codeFor = {
   "update-next": "client.update(collector)(value);\nconst node = await client.next();",
   logout: "// Requires a registered redirect URI.\nawait signOutOfPingOne(cfg); // GET /as/signoff, then return to cfg.redirectUri",
 };
-
-function json(value) {
-  return JSON.stringify(value || {}, null, 2);
-}
 
 function elapsed(events, event) {
   const first = events[0]?.at;
@@ -79,15 +76,15 @@ function FrameDetails({ event, compact = false }) {
       </details>
       <details open={compact}>
         <summary>Request</summary>
-        <pre><code>{json(request)}</code></pre>
+        <JsonPane value={request} label={`Frame ${event.sequence} request`} hot={["method", "path"]} />
       </details>
       <details open={compact}>
         <summary>{event.codeKey === "logout" ? "PingOne sign-out" : "DaVinci response"}</summary>
-        <pre><code>{json(response)}</code></pre>
+        <JsonPane value={response} label={`Frame ${event.sequence} response`} hot={["status", "eventName"]} />
       </details>
       <details>
         <summary>Collectors</summary>
-        <pre><code>{json({ collectors: detail.collectors || [] })}</code></pre>
+        <JsonPane value={{ collectors: detail.collectors || [] }} label={`Frame ${event.sequence} collectors`} />
       </details>
     </section>
   );

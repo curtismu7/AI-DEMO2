@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import A2ATokenFlowDiagram from './A2ATokenFlowDiagram';
 import A2ALearnPingFlow from './A2ALearnPingFlow';
+import JsonPane from './shared/JsonPane';
 import './A2AFlowVisualizer.css';
 
 /**
@@ -16,6 +17,9 @@ import './A2AFlowVisualizer.css';
  * special cases. Unknown event ids fall back to a generic PingOne packet so a
  * captured run with a new event type still renders instead of vanishing.
  */
+
+// Plain evidence (no alert keys of its own): the JSON-RPC method is the one extra key a reader looks for.
+const EVIDENCE_HOT = ['method'];
 
 const ACTOR_ORDER = ['user', 'generalist', 'pingone', 'specialist', 'gateway'];
 
@@ -163,7 +167,7 @@ export default function A2AFlowVisualizer({ tokenEvents, labels, pingStyle = fal
               return (
                 <details key={key} className="a2fv-evidence-item">
                   <summary>{index + 1}. {ev.label || key}</summary>
-                  <pre className="a2fv-detail-json">{JSON.stringify(evidence, null, 2)}</pre>
+                  <JsonPane value={evidence} label={`${ev.label || key} evidence`} hot={EVIDENCE_HOT} />
                 </details>
               );
             })}
@@ -237,7 +241,7 @@ export default function A2AFlowVisualizer({ tokenEvents, labels, pingStyle = fal
                       ✕
                     </button>
                   </div>
-                  <pre className="a2fv-detail-json">{JSON.stringify(evidence, null, 2)}</pre>
+                  <JsonPane value={evidence} label={`${ev.label || key} evidence`} hot={EVIDENCE_HOT} />
                 </div>
               )}
             </React.Fragment>

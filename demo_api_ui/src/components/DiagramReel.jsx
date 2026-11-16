@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import JsonPane, { parseJsonText } from "./shared/JsonPane";
 import "./DiagramStepBar.css";
 import "./DiagramReel.css";
 
@@ -19,6 +20,47 @@ export function JsonCode({ text }) {
   }
   if (last < text.length) out.push(text.slice(last));
   return out;
+}
+
+// A code line is often an HTTP transcript: request or status lines and headers (text), a pretty-printed JSON body, and a note
+// after it. Only the JSON goes to the shared pane. A block starts at a line that opens `{` or `[` in column 0 and ends at the
+// first later column-0 line closing it, and only counts when the whole block parses; anything else stays text.
+export function splitCode(code) {
+  const lines = String(code).split("\n");
+  const parts = [];
+  let text = [];
+  const flush = () => {
+    const t = text.join("\n").replace(/^\n+|\n+$/g, "");
+    if (t.trim()) parts.push({ text: t });
+    text = [];
+  };
+  for (let i = 0; i < lines.length; i += 1) {
+    let end = -1;
+    if (/^[{[]/.test(lines[i])) {
+      for (let j = i; j < lines.length && end < 0; j += 1) {
+        const closes = j === i ? /[}\]]\s*$/.test(lines[j]) : /^[}\]]/.test(lines[j]);
+        if (closes && parseJsonText(lines.slice(i, j + 1).join("\n")) !== undefined) end = j;
+      }
+    }
+    if (end < 0) {
+      text.push(lines[i]);
+    } else {
+      flush();
+      parts.push({ json: lines.slice(i, end + 1).join("\n") });
+      i = end;
+    }
+  }
+  flush();
+  return parts;
+}
+
+// One code line of the details row: text in the code box (JSON-looking tokens coloured as before), each JSON block in a pane.
+function ReelCode({ code, label }) {
+  const parts = splitCode(code);
+  if (!parts.some((p) => p.json !== undefined)) return <pre className="dreel-code"><JsonCode text={code} /></pre>;
+  return parts.map((p, i) => (p.json !== undefined
+    ? <JsonPane key={i} value={p.json} label={label} />
+    : <pre key={i} className="dreel-code"><JsonCode text={p.text} /></pre>));
 }
 
 const SIZES = [["small", "A−", "Decrease details font size"], ["medium", "A", "Default details font size"], ["large", "A+", "Increase details font size"]];
@@ -116,7 +158,7 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
               {panel.lines.map((l, i) => (
                 <div key={i}>
                   {l.who && <dt>{l.who}</dt>}
-                  <dd>{l.code ? <pre className="dreel-code"><JsonCode text={l.code} /></pre> : l.text}</dd>
+                  <dd>{l.code ? <ReelCode code={l.code} label={l.who ? `${l.who} JSON` : `${panel.title} JSON`} /> : l.text}</dd>
                 </div>
               ))}
             </dl>

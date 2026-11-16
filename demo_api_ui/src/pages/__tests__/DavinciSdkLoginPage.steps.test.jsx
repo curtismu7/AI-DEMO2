@@ -70,6 +70,7 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear(); // the pane's JSON button saves a page-wide choice
     current = SIGN_ON;
     startStatus = "continue";
     flowStatus = "continue";
@@ -162,9 +163,15 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
 
     fireEvent.click(await findByRole("button", { name: "Sign On" }));
 
-    await waitFor(() => expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"formName": "Enter Passcode"'));
-    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"flowStatus": "continue"');
+    // Form view (the default): the response fields and the collector names
+    await waitFor(() => expect(within(container.querySelector(".sdk-reel-detail")).getByRole("group", { name: /response$/ })).toHaveTextContent("Enter Passcode"));
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent("flowStatus");
     expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent("PasswordCollector");
+    // JSON view: the exact pretty text, as before the pane
+    fireEvent.click(within(container.querySelector(".sdk-reel-detail")).getAllByRole("button", { name: "JSON" })[0]);
+    await waitFor(() => expect(container.querySelector(".sdk-reel-detail pre.jp-raw[aria-label$='response']")).not.toBeNull());
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"formName": "Enter Passcode"');
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"flowStatus": "continue"');
   });
 
   it("keeps the form, execution evidence, and lessons in a compact workbench", async () => {
@@ -250,6 +257,13 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     fireEvent.click(terminal);
     const detail = await findByRole("region", { name: /Selected frame: SDK callback failed/i });
 
+    // Form view: the failure status, and neither the secret detail nor the code
+    expect(within(detail).getByRole("group", { name: /response$/ })).toHaveTextContent("failure");
+    expect(detail).not.toHaveTextContent("BFF callback rejected with secret detail");
+    expect(detail).not.toHaveTextContent("REJECTED-AUTHORIZATION-CODE");
+    // JSON view: the same, in the exact text
+    fireEvent.click(within(detail).getAllByRole("button", { name: "JSON" })[0]);
+    await waitFor(() => expect(detail.querySelector("pre.jp-raw[aria-label$='response']")).not.toBeNull());
     expect(detail).toHaveTextContent('"status": "failure"');
     expect(detail).not.toHaveTextContent("BFF callback rejected with secret detail");
     expect(detail).not.toHaveTextContent("REJECTED-AUTHORIZATION-CODE");

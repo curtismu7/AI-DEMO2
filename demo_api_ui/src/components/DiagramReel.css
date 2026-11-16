@@ -96,6 +96,7 @@
 .dreel-detail dl { margin: 8px 0 0; display: grid; gap: 8px; }
 .dreel-detail dt { font-size: var(--font-size-2xs); font-weight: 700; color: var(--th-text-muted); }
 .dreel-detail dd { margin: 0; font-size: var(--font-size-sm); line-height: 1.5; }
+.dreel-detail dd > * + * { margin-top: 6px; }
 .dreel-detail-empty { margin: 8px 0 0; font-size: var(--font-size-sm); color: var(--th-text-muted); }
 
 /* Ring the two ends of the arrow in focus — one look on every diagram. */
@@ -105,8 +106,8 @@
   border-radius: 10px;
 }
 
-/* Code (request form, mock token) and the standards list in the step detail. */
-.dreel-code { margin: 0; padding: 8px 10px; max-height: 260px; overflow: auto; border: 1px solid #c9ced8; border-radius: var(--radius-md); background: #ffffff; color: #000000; font-family: var(--font-mono); font-size: var(--font-size-2xs); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+/* The text of a code line (request line, headers, notes; its JSON bodies are shared JsonPanes) and the standards list in the step detail. */
+.dreel-code { margin: 0; padding: 8px 10px; border: 1px solid #c9ced8; border-radius: var(--radius-md); background: #ffffff; color: #000000; font-family: var(--font-mono); font-size: var(--font-size-2xs); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 .dreel-refs { margin-top: 12px; }
 .dreel-refs h4 { margin: 0 0 6px; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: .06em; }
 .dreel-refs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }

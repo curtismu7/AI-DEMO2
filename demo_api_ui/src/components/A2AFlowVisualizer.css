@@ -240,18 +240,6 @@
   font-size: 0.9rem;
   cursor: pointer;
 }
-.a2fv-detail-json {
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  overflow: auto;
-  max-height: 260px;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  margin: 0;
-}
 
 .a2fv-footnote {
   margin: 12px 0 0;

@@ -16,7 +16,7 @@ const HOLD = { outcome: 'hold', instructionId: 'ins_0123456789abcdef', detail: '
 const ALLOW = { outcome: 'allow', detail: 'index-a', raw: { result: { content: [{ text: 'index-a' }] } } };
 const DENY = { outcome: 'deny', detail: 'Forbidden', raw: { error: 'Forbidden', status: 403 } };
 
-beforeEach(() => { vi.resetAllMocks(); });
+beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); });
 
 describe('PrivilegeAiPoliciesDemoPage (live)', () => {
   it('says plainly that the decisions come from the gateway and the page runs no Cedar engine', async () => {
@@ -144,6 +144,27 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     expect(policy.querySelector('.pu-chip--ok')).not.toBeNull();
     expect(policy).toHaveTextContent('Tool::"GenericOpenSearchApiTool"');
     expect(within(scn).getByText(/Raw response|raw response/i)).toBeInTheDocument();
+  });
+
+  it('the raw gateway response is the shared pane: Form by default, the exact JSON on request, red only for the error', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    runTool.mockResolvedValue(DENY);
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-deny')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('apd-run-deny'));
+    const scn = screen.getByTestId('apd-scn-deny');
+    await waitFor(() => expect(within(scn).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'deny'));
+    const form = within(scn).getByRole('group', { name: 'Raw gateway response' });
+    expect(form).toHaveTextContent('Forbidden');
+    expect(form.querySelector('.jp-row[data-alert="true"]')).not.toBeNull();
+    fireEvent.click(within(scn).getByRole('button', { name: 'JSON' }));
+    const raw = await waitFor(() => {
+      const el = scn.querySelector('pre.jp-raw');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(raw.textContent).toBe(JSON.stringify(DENY.raw, null, 2));
+    expect(raw).toHaveAttribute('aria-label', 'Raw gateway response');
   });
 
   it('not signed in: run buttons stay disabled and the page points at the Privilege client to sign in', async () => {

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import PageHeader from '../components/common/PageHeader';
+import JsonPane from '../components/shared/JsonPane';
 import {
   PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
 } from '../components/pingUi';
@@ -306,7 +307,7 @@ function Scenario({ s, live, ready, state, onRun, nextAction }) {
           </p>
           <details className="apd-policy apd-raw">
             <summary>The raw response from the gateway</summary>
-            <pre role="region" tabIndex={0} aria-label="Raw gateway response">{JSON.stringify(state.result.raw, null, 2)}</pre>
+            <JsonPane value={state.result.raw} label="Raw gateway response" hot={['status', 'isError']} />
           </details>
         </>
       )}

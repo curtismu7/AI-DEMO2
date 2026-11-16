@@ -113,13 +113,21 @@ describe('PrivilegeA2aTab', () => {
     expect(await trace.findByText('Care Concierge → Claims Analyst')).toBeTruthy();
     // the step carries its request and response; timing stays out of the middle column
     expect(trace.getByText('Request · Response')).toBeTruthy();
-    expect(trace.getByText(/"method":"message\/send"/)).toBeTruthy();
-    expect(trace.getByText(/"kind":"message"/)).toBeTruthy();
+    // The wire headers stay text; each JSON body is the shared pane (Form by default), named for its step.
+    expect(trace.getByText('POST http://w/jsonrpc')).toBeTruthy();
+    expect(trace.getByRole('group', { name: 'Request: concierge → analyst_agent body' })).toHaveTextContent('message/send');
+    expect(trace.getByRole('group', { name: 'Response: concierge → analyst_agent body' })).toHaveTextContent('message');
     expect(trace.queryByText(/80 ms/)).toBeNull();
+
+    // The JSON view shows the exact text the agent sent.
+    await user.click(trace.getAllByRole('button', { name: 'JSON' })[0]);
+    await waitFor(() => expect(trace.getByLabelText('Request: concierge → analyst_agent body').classList.contains('jp-raw')).toBe(true));
+    expect(trace.getByLabelText('Request: concierge → analyst_agent body').textContent).toBe('{"method":"message/send"}');
+    expect(trace.getByLabelText('Response: concierge → analyst_agent body').textContent).toBe('{"result":{"kind":"message"}}');
 
     const panel = within(screen.getByRole('complementary', { name: 'Step details' }));
     await user.click(trace.getByText('concierge → analyst_agent'));
-    expect(panel.getAllByText(/"method":"message\/send"/).length).toBeGreaterThan(0);
+    expect(panel.getByLabelText('What was sent: concierge → analyst_agent body').textContent).toBe('{"method":"message/send"}');
     expect(panel.getByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
   });
 

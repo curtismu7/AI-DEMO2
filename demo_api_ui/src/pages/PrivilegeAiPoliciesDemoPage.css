@@ -38,13 +38,13 @@
 }
 
 .apd-policy summary:focus-visible,
-.apd-policy pre:focus-visible,
+.apd-policy pre:not(.jp-raw):focus-visible,
 .apd-cedar:focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
 
-.apd-policy pre,
+.apd-policy pre:not(.jp-raw),
 .apd-cedar {
   max-height: 260px;
   margin: 8px 0 4px;

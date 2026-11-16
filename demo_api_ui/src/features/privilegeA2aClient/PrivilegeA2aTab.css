@@ -244,7 +244,7 @@
 .a2a-page .privilege-a2a__exchange button:focus-visible,
 .a2a-page .privilege-a2a__calls-menu button:focus-visible,
 .a2a-page .privilege-a2a__wire summary:focus-visible,
-.a2a-page .pu-card pre:focus-visible {
+.a2a-page .pu-card pre:not(.jp-raw):focus-visible {
   outline: 3px solid var(--th-status-info-text);
   outline-offset: 2px;
 }
@@ -492,7 +492,7 @@ body.privilege-a2a-route > .banking-agent-float-root {
   font-weight: var(--font-weight-semibold);
 }
 
-.a2a-page .pu-card pre {
+.a2a-page .pu-card pre:not(.jp-raw) {
   max-height: 220px;
   margin: 0 0 6px;
   padding: 8px;
