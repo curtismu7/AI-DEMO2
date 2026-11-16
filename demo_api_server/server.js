@@ -769,7 +769,7 @@ const SERVED_REVISION = (() => {
 })();
 
 // Health check endpoint
-app.get('/api/healthz', (req, res) => {
+app.get('/api/healthz', require('./routes/healthPretty').prettyHealthJson('/api/healthz'), (req, res) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
