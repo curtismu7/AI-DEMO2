@@ -4,7 +4,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import JsonPane, { JSON_VIEW_KEY, JsonViewOnly, MAX_FORM_DEPTH, MAX_PANE_CHARS, deepParse, kindOf, parseJsonText, setJsonView, splitWire } from '../JsonPane';
+import JsonPane, { JSON_VIEW_KEY, JsonViewOnly, MAX_FORM_DEPTH, MAX_PANE_CHARS, deepParse, isBenignAlertValue, kindOf, parseJsonText, setJsonView, splitWire } from '../JsonPane';
 
 const JWT = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEifQ.c2lnbmF0dXJlMTIz';
 const TOKEN = { s: 'text', sub: 'user-1', aud: 'gateway', scope: 'read write', n: 42, ok: true, bad: false, none: null, site: 'https://example.com/a', id: '123e4567-e89b-12d3-a456-426614174000', exp: 1893456000 };
@@ -166,6 +166,66 @@ describe('JsonPane: important and error keys', () => {
     expect([...c.querySelectorAll('.jp-row[data-alert="true"] > .jp-k')].map((n) => n.textContent)).toEqual(['error', 'decision', 'status']);
     await asJson();
     expect(tok(c, 'alert')).toEqual(expect.arrayContaining(['"error"', '"invalid_grant"', '"decision"', '"DENY"', '"status"']));
+  });
+});
+
+describe('JsonPane: alert emphasis follows the value', () => {
+  const BENIGN = [['decision', 'allow'], ['decision', 'ALLOWED'], ['outcome', ' success '], ['verdict', 'pass'], ['reason', 'ok'], ['note', 'none'], ['decision', 'permit'], ['decision', 'approved'], ['decision', 'granted'], ['outcome', 'succeeded'], ['verdict', 'valid'], ['reason', 'active'], ['note', 'true'], ['error', null], ['error', false], ['error', 0], ['error_description', ''], ['decision', undefined], ['detail_code', '']];
+  const FAILING = [['decision', 'deny'], ['decision', 'denied'], ['decision', 'blocked'], ['error', 'invalid_grant'], ['error', true], ['error', 'access denied by policy'], ['note', 'scope narrowed from transfer:read'], ['reason', 'unknown_word'], ['outcome', 'partial'], ['verdict', false], ['reason', 0], ['error', { code: 1 }], ['decision', ['allow']], ['error', 500]];
+
+  it('the helper: a failure-or-unknown value is not benign, a clearly good or empty one is', () => {
+    for (const [k, v] of BENIGN) expect(isBenignAlertValue(k, v), `${k}=${JSON.stringify(v)}`).toBe(true);
+    for (const [k, v] of FAILING) expect(isBenignAlertValue(k, v), `${k}=${JSON.stringify(v)}`).toBe(false);
+  });
+
+  it.each(BENIGN.filter(([, v]) => v !== undefined))('Form: %s = %j is a normal row', (key, v) => {
+    const c = pane(<JsonPane value={{ [key]: v }} />);
+    expect(c.querySelector('.jp-row')).toBeTruthy();
+    expect(c.querySelector('.jp-row[data-alert="true"]')).toBeNull();
+  });
+
+  it.each(FAILING)('Form: %s = %j keeps the alert row', (key, v) => {
+    const c = pane(<JsonPane value={{ [key]: v }} />);
+    expect(c.querySelector('.jp-row[data-alert="true"] > .jp-k').textContent).toBe(key);
+  });
+
+  it.each(BENIGN.filter(([, v]) => v !== undefined))('JSON: %s = %j paints no alert token', async (key, v) => {
+    const c = pane(<JsonPane value={{ [key]: v }} />);
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(tok(c, 'alert')).toEqual([]);
+    expect(tok(c, 'key')).toContain(JSON.stringify(key));
+  });
+
+  it.each(FAILING)('JSON: %s = %j paints the key in the alert colour', async (key, v) => {
+    const c = pane(<JsonPane value={{ [key]: v }} />);
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(tok(c, 'alert')).toContain(JSON.stringify(key));
+    if (typeof v === 'string') expect(tok(c, 'alert')).toContain(JSON.stringify(v));
+  });
+
+  it('one pane mixes both: only the failing key is alert, in both views', async () => {
+    const c = pane(<JsonPane value={{ decision: 'allow', error: null, outcome: 'success', reason: 'policy_denied' }} />);
+    expect([...c.querySelectorAll('.jp-row[data-alert="true"] > .jp-k')].map((n) => n.textContent)).toEqual(['reason']);
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(tok(c, 'alert')).toEqual(['"reason"', '"policy_denied"']);
+  });
+
+  it('a benign alert key that is also hot keeps its hot style, in both views', async () => {
+    const c = pane(<JsonPane value={{ decision: 'allow' }} hot={['decision']} />);
+    expect(c.querySelector('.jp-row[data-hot="true"]')).toBeTruthy();
+    expect(c.querySelector('.jp-row[data-alert="true"]')).toBeNull();
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(tok(c, 'hot')).toEqual(expect.arrayContaining(['"decision"', '"allow"']));
+    expect(tok(c, 'alert')).toEqual([]);
+  });
+
+  it('the alert prop is value-aware too', () => {
+    const c = pane(<JsonPane value={{ status: 'ok', result: 'blocked' }} alert={['status', 'result']} />);
+    expect([...c.querySelectorAll('.jp-row[data-alert="true"] > .jp-k')].map((n) => n.textContent)).toEqual(['result']);
   });
 });
 

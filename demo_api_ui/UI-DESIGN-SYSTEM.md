@@ -409,6 +409,12 @@ reports them (advisory for now). The pane has five properties:
 3. **Important keys stand out**: `sub act may_act aud scope client_id azp iss cnf grant_type subject_token actor_token
    access_token authorization`, plus the `hot={[...]}` keys a caller adds; error / decision keys
    (`error error_description detail_code outcome decision verdict reason note`, plus `alert={[...]}`) in the alert colour.
+   The alert colour is **value-aware** (`isBenignAlertValue(key, value)` in `JsonPane.jsx`, used by the Form row and the
+   JSON view alike): an alert key reads as a normal row, not red, when its value is `null`, `undefined` or empty text; `false`
+   or `0` on an error-type key (a key containing "error"); or one of these words, case-insensitive and trimmed: `allow
+   allowed permit permitted approve approved grant granted ok success succeeded successful pass passed none valid active
+   true`. Anything else (`deny`, `blocked`, error text, free text, unknown words, objects, other numbers) keeps the alert
+   colour, so nothing real is hidden. A benign key that is also important keeps its important style.
 4. **Full view**: the pane never scrolls. No `max-height`, no `overflow: auto|scroll` on the pane or its wrapper; long
    lines wrap. Above 150000 characters it shows plain text; the Form view stops nesting at depth 60.
 5. **Per-field Copy**: in the Form view every primitive value (string, number, boolean, token, url, id, time) and every
@@ -419,7 +425,9 @@ reports them (advisory for now). The pane has five properties:
 A string holding a JSON object or array gets the same panes (the JSON view shows it exactly as given); an HTTP
 transcript with a JSON body keeps its headers as text and gives the body its own pane. `deep` unwraps nested
 stringified JSON. Everything is React text; control and bidi characters show as `\uXXXX` escapes. The pane paints its
-own ground (`--th-code-bg` / `--th-code-text`), so it reads the same inside a call site's `jh-dark` block.
+own ground (`--th-code-bg` / `--th-code-text`), so it reads the same inside a call site's `jh-dark` block. The Form and JSON
+regions are keyboard-focusable (`tabIndex` 0) and show a 3px `--th-focus-ring` outline on `:focus-visible`; the ring is
+measured at 3:1 or better on `--th-code-bg` and `--th-bg-card` in both themes by `jsonPaneContrast.test.js`.
 
 | Part | Light | Dark | Style |
 | --- | --- | --- | --- |
@@ -433,7 +441,7 @@ own ground (`--th-code-bg` / `--th-code-text`), so it reads the same inside a ca
 | time (`iat exp nbf`, ISO) | `--th-status-warning-text` 55% + `--th-code-text` | same mix | bold |
 | punctuation | `--th-code-text` 65% on the ground | same mix | |
 | IMPORTANT key | tinted ground (info 16%) + accent edge, `--th-code-text` | same, info-text edge | bold |
-| error / decision key | `--th-status-error-text` | same token | bold |
+| error / decision key (failure or unknown value only) | `--th-status-error-text` | same token | bold |
 | token, header . payload . signature | `--th-status-error` . `--th-status-warning-text` . `--th-status-info` | `--th-status-error-text` . warning-text . `--th-status-info-text` | one colour each |
 
 ---
