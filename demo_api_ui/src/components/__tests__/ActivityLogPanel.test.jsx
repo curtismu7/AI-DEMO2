@@ -121,6 +121,10 @@ describe('ActivityLogPanel — use-case filter pills', () => {
 describe('ActivityLogPanel — event details pane', () => {
   beforeEach(() => localStorage.clear());
 
+  // The pane is named by the event's message and its time (the time zone is the machine's), so two events with one message stay apart.
+  const PANE = /^Event details: Token exchanged at \d\d:\d\d:\d\d$/;
+  const PANE_VIEW = /^Event details: Token exchanged at \d\d:\d\d:\d\d view$/;
+
   const withEvent = (extra) => {
     _mockReturn = baseState({
       events: [{ id: 'e1', category: 'agent', severity: 'info', message: 'Token exchanged', timestamp: '2026-07-15T12:00:00.000Z', ...extra }],
@@ -132,7 +136,7 @@ describe('ActivityLogPanel — event details pane', () => {
     withEvent({ metadata: { aud: 'mcp-server', scope: 'read', hops: 2 } });
     expect(screen.queryByRole('group', { name: /^Event details/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
-    const pane = screen.getByRole('group', { name: 'Event details: Token exchanged' });
+    const pane = screen.getByRole('group', { name: PANE });
     expect(pane).toHaveTextContent('mcp-server');
     expect(pane.tagName).toBe('DIV');
     await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
@@ -143,9 +147,9 @@ describe('ActivityLogPanel — event details pane', () => {
     const metadata = { aud: 'mcp-server', nested: { a: 1 } };
     withEvent({ metadata });
     await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
-    await userEvent.click(within(screen.getByRole('group', { name: 'Event details: Token exchanged view' })).getByRole('button', { name: 'JSON' }));
+    await userEvent.click(within(screen.getByRole('group', { name: PANE_VIEW })).getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
-      const el = document.querySelector('pre.jp-raw[aria-label="Event details: Token exchanged"]');
+      const el = document.querySelector('pre.jp-raw[aria-label^="Event details: Token exchanged at "]');
       expect(el).not.toBeNull();
       return el;
     });
@@ -155,7 +159,7 @@ describe('ActivityLogPanel — event details pane', () => {
   it('falls back to the tag when there is no metadata, and is not expandable with neither', async () => {
     const { unmount } = withEvent({ tag: 'agent/route' });
     await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
-    expect(screen.getByRole('group', { name: 'Event details: Token exchanged' })).toHaveTextContent('agent/route');
+    expect(screen.getByRole('group', { name: PANE })).toHaveTextContent('agent/route');
     unmount();
 
     withEvent({});

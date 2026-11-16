@@ -99,4 +99,12 @@ describe("ProtocolTrace", () => {
     rerender(<ProtocolTrace />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("leads every pane name with the trace's context, so two traces on one page stay apart", () => {
+    render(<><ProtocolTrace steps={steps} context="CIMD" /><ProtocolTrace steps={steps} context="CIBA" /></>);
+    expect(screen.queryAllByRole("group", { name: "Step 1 response body" })).toHaveLength(0);
+    expect(screen.getByRole("group", { name: "CIMD, Step 1 response body" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "CIBA, Step 1 response body" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "CIBA, Step 2 decoded ID token claims (who signed in)" })).toBeInTheDocument();
+  });
 });

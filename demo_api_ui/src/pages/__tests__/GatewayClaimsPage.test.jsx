@@ -403,7 +403,8 @@ describe('GatewayClaimsPage', () => {
       expect(el).not.toBeNull();
       return el;
     });
-    expect(body.textContent).toContain('"method":"tools/call"');
+    // Exactly the JSON body of the transcript, compact as sent (everything after the blank line that ends the headers).
+    expect(body.textContent).toBe(nextWire(s).request.split('\n\n')[1]);
   });
 
   it('shows the form-encoded token request of the PingFederate group as text, not as a JSON pane', () => {
@@ -427,7 +428,15 @@ describe('GatewayClaimsPage', () => {
       expect(el).not.toBeNull();
       return el;
     });
-    expect(raw.textContent).toBe(JSON.stringify(AGENTCORE_SCENARIOS.find((x) => x.id === 'bypass-open').result, null, 2));
+    const scenario = AGENTCORE_SCENARIOS.find((x) => x.id === 'bypass-open');
+    expect(raw.textContent).toBe(JSON.stringify(scenario.result, null, 2));
+    // The page-wide choice applies to the input pane too: its JSON view is the exact input.
+    const input = await waitFor(() => {
+      const el = sec.querySelector('pre.jp-raw[aria-label="Input"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(input.textContent).toBe(JSON.stringify(scenario.input, null, 2));
   });
 
   it('labels every cell of a stacked table, so the narrow layout keeps its column headings', () => {

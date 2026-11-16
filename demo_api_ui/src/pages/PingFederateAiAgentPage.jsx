@@ -524,7 +524,7 @@ export default function PingFederateAiAgentPage({ user }) {
                 <li>The client_id is a URL that serves its own metadata; nothing was registered in PingFederate beforehand.</li>
                 <li>The ID token says {cimdResult.subject} signed in at {cimdResult.issuer}.</li>
               </ul>
-              <ProtocolTrace steps={cimdResult.trace} explain={CIMD_EXPLAIN} />
+              <ProtocolTrace steps={cimdResult.trace} explain={CIMD_EXPLAIN} context="CIMD" />
             </Card>
           )}
         </FlowSection>
@@ -614,7 +614,7 @@ export default function PingFederateAiAgentPage({ user }) {
                   <ul className="pfai-points">
                     {exchangeProofPoints(exchangeResult).map((point) => <li key={point}>{point}</li>)}
                   </ul>
-                  <ProtocolTrace steps={exchangeResult.trace} explain={EXCHANGE_EXPLAIN} />
+                  <ProtocolTrace steps={exchangeResult.trace} explain={EXCHANGE_EXPLAIN} context="ID-JAG token exchange" />
                 </div>
               )}
             </Card>
@@ -692,7 +692,7 @@ export default function PingFederateAiAgentPage({ user }) {
               <ul className="pfai-points">
                 {rarProofPoints(rarResult).map((point) => <li key={point}>{point}</li>)}
               </ul>
-              <ProtocolTrace steps={rarResult.trace} explain={RAR_EXPLAIN} />
+              <ProtocolTrace steps={rarResult.trace} explain={RAR_EXPLAIN} context="Rich authorization request" />
             </Card>
           )}
         </FlowSection>
@@ -765,7 +765,7 @@ export default function PingFederateAiAgentPage({ user }) {
               <ul className="pfai-points">
                 {cibaProofPoints(cibaState).map((point) => <li key={point}>{point}</li>)}
               </ul>
-              <ProtocolTrace steps={cibaState.trace} explain={CIBA_EXPLAIN} />
+              <ProtocolTrace steps={cibaState.trace} explain={CIBA_EXPLAIN} context="CIBA" />
             </Card>
           )}
         </FlowSection>

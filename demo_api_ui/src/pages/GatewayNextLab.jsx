@@ -62,7 +62,7 @@ export default function GatewayNextLab() {
         </CardGrid>
         <CardGrid>
           <Card tone="neutral" title="Request and decoded token (placeholder values)">
-            <div data-testid="gwc-next-request"><JsonPane value={wire.request} label="Request" testId="gwc-next-request-pane" hot={['method', 'params', 'name']} /></div>
+            <div className="gwc-pane-gap" data-testid="gwc-next-request"><JsonPane value={wire.request} label="Request" testId="gwc-next-request-pane" hot={['method', 'params', 'name']} /></div>
             <JsonPane value={wire.token} label="Decoded token" testId="gwc-next-token" />
           </Card>
           <Card tone="neutral" title="Response and gateway log">

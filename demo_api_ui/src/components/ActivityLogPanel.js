@@ -101,7 +101,7 @@ const EventRow = React.memo(function EventRow({ event }) {
       </button>
       {expanded && hasDetail && (
         <div className="alp-row-detail">
-          <JsonPane value={detail} label={`Event details: ${event.message || event.tag || 'event'}`} />
+          <JsonPane value={detail} label={`Event details: ${event.message || event.tag || 'event'} at ${timeStr}`} />
         </div>
       )}
     </div>
