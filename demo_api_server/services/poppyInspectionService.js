@@ -31,13 +31,24 @@ const clip = (value) => {
  * The human-readable verification narrative for one request, in the order the
  * Company actually checked things. `outcome` comes from the Poppy API router:
  * either a verified session ({ ok, sub, sid, agentId, clientId, signedOut }) or
- * a refusal ({ ok: false, reason }).
+ * a refusal ({ ok: false, reason }). `error` is the error code the Company
+ * actually sent for a refusal (sentBody.error).
  */
-function narrate({ method, path, outcome, tokenClientId, scopes }) {
+const REFUSAL_SOURCE = {
+  invalid_session: 'spec 4.1',
+  version_unsupported: 'spec 3.4',
+  invalid_token: 'RFC 6750',
+  insufficient_scope: 'RFC 6750',
+};
+
+function narrate({ method, path, outcome, tokenClientId, scopes, error }) {
   const steps = [];
   if (!outcome.ok) {
     steps.push(`1. Refused: ${outcome.reason}.`);
-    steps.push('2. Nothing about this request was accepted; the response is invalid_session (spec 4.1).');
+    const source = REFUSAL_SOURCE[error];
+    steps.push(error
+      ? `2. Nothing about this request was accepted; the response is ${error}${source ? ` (${source})` : ''}.`
+      : '2. Nothing about this request was accepted.');
     return steps;
   }
   const { clientId, agentId, sid, sub, signedOut } = outcome;
@@ -77,7 +88,7 @@ function createPoppyInspectionService({ maxEntries = MAX_ENTRIES } = {}) {
           userId: outcome.ok && !outcome.signedOut ? outcome.sub ?? null : null,
           signedOut: Boolean(outcome.signedOut),
           sessionId: outcome.sid ?? null,
-          reasoning: narrate({ method, path: entry.path, outcome, scopes: entry.scopes }),
+          reasoning: narrate({ method, path: entry.path, outcome, scopes: entry.scopes, error: entry.sentBody?.error }),
           received: {
             method,
             url: entry.path ?? '/',
