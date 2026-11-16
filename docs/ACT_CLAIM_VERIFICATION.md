@@ -102,7 +102,7 @@ Things PingOne's expression parser does and does not accept (MEASURED, each refu
 
 **Not changed, on purpose:** `OBO Test` (its `act` is `{'client_id': …}` and the OBO demo code and Authorize's `ActClientId` read `act.client_id`), `Demo PingGateway MCP` and `Muse Privilege MCP` (they forward `act` and are called without an actor on their second hop), and the legacy-mode `test` resource.
 
-> **Provisioning code is not updated yet.** `pingoneProvisionService.actAttributeValue()` and `OBO_ACT_SPEL` still write the single-level form. Re-provisioning an environment overwrites the chain-preserving form above with the single-level one. Until the code is changed, re-apply this expression after provisioning.
+> **Provisioning writes this form too** (PR #3612: `ACT_CHAIN_SPEL` in `pingoneProvisionService.js`, used by `actAttributeValue()` with `ff_may_act_seed` off, the A2A MCP Gateway composer and `scripts/provision-workload-agent-gateway.js`). Re-provisioning keeps it on those resources. Provisioning does not write `act` on `mcpgateway`, `agentgateway`, `mcpserver`, `enduser`, `meridian-api`, `p1tpx` or `appfire-agent-governance`; those were set on the tenant directly, so re-apply the expression there after a fresh environment setup. `OBO_ACT_SPEL` still uses the `client_id` key.
 
 **Legacy flag-ON mode** uses the official PingOne "Securing AI Agents" SPEL **wrapped in `${…}`** (the wrapper is what makes PingOne evaluate it), in its **null-safe** form (currently deployed on `mcpgateway`, `mcpserver`, and `agentgateway`):
 
