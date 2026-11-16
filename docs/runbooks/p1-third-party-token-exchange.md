@@ -90,6 +90,8 @@ This is the existing resource attribute mapping. On the custom resource that is 
 | `security` | `${#root.context.requestData.actorToken.securityLevel}` | `"security": "Class 3"` |
 | any claim of a third-party **subject** token | `${#root.context.requestData.subjectToken.<claim>}` | the claim's value (tested with `sub` and `email`) |
 
+Chain-preserving variant (set on `meridian-api`, 2026-11-16): to keep earlier actors when the subject token already carries an `act`, and to forward `act` when no actor token is sent, use `${#root.context.requestData.actorToken == null ? #root.context.requestData.subjectToken.act : ((#root.context.requestData.subjectToken.act != null and #root.context.requestData.subjectToken.act.sub != null) ? {'sub': #root.context.requestData.actorToken.sub, 'act': #root.context.requestData.subjectToken.act} : {'sub': #root.context.requestData.actorToken.sub})}` (one line). Details and the full test table are in [ACT_CLAIM_VERIFICATION.md](../ACT_CLAIM_VERIFICATION.md), step 3. The variant was measured with same-environment actor tokens (its `client_id` form); the `actorToken.sub` form on `meridian-api` has not been exercised with a real third-party token.
+
 Notes: a bare `${...sub}` for `act` would give a string, so wrap it in `{'sub': ...}` as above. If the source claim is absent, PingOne **leaves the attribute out and still issues the token** (MEASURED). If there is no actor token at all, an `act` attribute like the one above comes out as `"act": {"sub": null}` (MEASURED), so only put it on a resource that is always exchanged with an actor, or check for it downstream.
 
 ## 4. Send the token exchange (MEASURED)
