@@ -74,6 +74,13 @@ describe('POST /run', () => {
     expect(JSON.stringify(res.body)).not.toContain('test-secret');
   });
 
+  it('never asks PingFederate for the openid scope (refused for this client; selects another token manager)', async () => {
+    await request(app).post('/api/pf-token-demo/run');
+    const scopes = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('scope'));
+    expect(scopes).toHaveLength(5); // three tiers + two Cedar cases
+    scopes.forEach((scope) => expect(scope.split(' ')).not.toContain('openid'));
+  });
+
   it('labels a 403 as refused by policy (token accepted, no grant)', async () => {
     global.fetch.mockImplementation(async (url) => (String(url).endsWith('/as/token.oauth2') ? reply(200, { access_token: JWT }) : reply(403, 'Forbidden ', false)));
     const res = await request(app).post('/api/pf-token-demo/run');
@@ -95,13 +102,13 @@ describe('POST /run', () => {
     });
     const res = await request(app).post('/api/pf-token-demo/run');
     const scopes = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('scope'));
-    expect(scopes).toEqual(expect.arrayContaining(['openid opensearch:admin whoami:read', 'openid opensearch:read', 'openid whoami:read']));
+    expect(scopes).toEqual(expect.arrayContaining(['opensearch:admin whoami:read', 'opensearch:read', 'whoami:read']));
     const audiences = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('audience'));
     expect(new Set(audiences)).toEqual(new Set(['https://gw.example/pftoken/mcp']));
     expect(res.body.tiers).toEqual([
-      expect.objectContaining({ key: 'full', scope: 'openid opensearch:admin whoami:read', verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] }),
-      expect.objectContaining({ key: 'read', scope: 'openid opensearch:read', verdict: 'allowed', tools: ['ListIndexTool'] }),
-      expect.objectContaining({ key: 'none', scope: 'openid whoami:read', status: 403, verdict: 'refused-by-policy' }),
+      expect.objectContaining({ key: 'full', scope: 'opensearch:admin whoami:read', verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] }),
+      expect.objectContaining({ key: 'read', scope: 'opensearch:read', verdict: 'allowed', tools: ['ListIndexTool'] }),
+      expect.objectContaining({ key: 'none', scope: 'whoami:read', status: 403, verdict: 'refused-by-policy' }),
     ]);
     expect(JSON.stringify(res.body)).not.toContain('.sig');
   });
@@ -122,8 +129,8 @@ describe('POST /run', () => {
     });
     const res = await request(app).post('/api/pf-token-demo/run');
     expect(res.body.cedar).toEqual([
-      expect.objectContaining({ key: 'without', scope: 'openid opensearch:admin', status: 400, verdict: 'blocked-by-cedar', message: expect.stringContaining('needs the opensearch:search scope') }),
-      expect.objectContaining({ key: 'with', scope: 'openid opensearch:admin opensearch:search', status: 200, verdict: 'allowed', message: 'search ran (935 documents matched)' }),
+      expect.objectContaining({ key: 'without', scope: 'opensearch:admin', status: 400, verdict: 'blocked-by-cedar', message: expect.stringContaining('needs the opensearch:search scope') }),
+      expect.objectContaining({ key: 'with', scope: 'opensearch:admin opensearch:search', status: 200, verdict: 'allowed', message: 'search ran (935 documents matched)' }),
     ]);
     expect(JSON.stringify(res.body)).not.toContain('PRIVATE_ROW');
   });

@@ -774,7 +774,7 @@ A plain string value is refused with 400 `cannot unmarshal string into Go value 
 
 `pftoken-rs` (`whoami`) has no condition.
 
-**The page.** Run mints three tokens for the same agent: `openid opensearch:admin whoami:read` (also used for the main answer and `whoami`), `openid opensearch:read`, and `openid whoami:read`, and shows what the agent app answered for each.
+**The page.** Run mints three tokens for the same agent: `opensearch:admin whoami:read` (also used for the main answer and `whoami`), `opensearch:read`, and `whoami:read`, and shows what the agent app answered for each.
 
 ## 17. Gateway v1.261029, v1.261030 and v1.261102 (read 2026-11-01 and 2026-11-02, not run)
 

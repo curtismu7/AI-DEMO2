@@ -17,13 +17,13 @@ const PASS = {
   pfToken: { status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'], detail: '' },
   garbage: { status: 401, verdict: 'token-rejected', tools: [], detail: 'Bearer token required' },
   tiers: [
-    { key: 'full', scope: 'openid opensearch:admin whoami:read', status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] },
-    { key: 'read', scope: 'openid opensearch:read', status: 200, verdict: 'allowed', tools: ['ListIndexTool'] },
-    { key: 'none', scope: 'openid whoami:read', status: 403, verdict: 'refused-by-policy', tools: [], detail: 'Forbidden' },
+    { key: 'full', scope: 'opensearch:admin whoami:read', status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] },
+    { key: 'read', scope: 'opensearch:read', status: 200, verdict: 'allowed', tools: ['ListIndexTool'] },
+    { key: 'none', scope: 'whoami:read', status: 403, verdict: 'refused-by-policy', tools: [], detail: 'Forbidden' },
   ],
   cedar: [
-    { key: 'without', scope: 'openid opensearch:admin', status: 400, verdict: 'blocked-by-cedar', message: "action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token" },
-    { key: 'with', scope: 'openid opensearch:admin opensearch:search', status: 200, verdict: 'allowed', message: 'search ran (935 documents matched)' },
+    { key: 'without', scope: 'opensearch:admin', status: 400, verdict: 'blocked-by-cedar', message: "action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token" },
+    { key: 'with', scope: 'opensearch:admin opensearch:search', status: 200, verdict: 'allowed', message: 'search ran (935 documents matched)' },
   ],
   backend: { status: 200, verdict: 'allowed', detail: '', received: { issuer: 'https://cmuir-pf.ping-devops.com', claims: { iss: 'https://cmuir-pf.ping-devops.com', sub: 'pf-route-c-test', act: { sub: 'pf-route-c-test' }, jti: 'abc' } } },
 };
