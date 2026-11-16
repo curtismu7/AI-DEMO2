@@ -11,6 +11,11 @@
   color: var(--th-text-muted);
 }
 
+/* Space between two stacked shared JSON panes in one card (the panes carry no outer margin). */
+.gwc-pane-gap {
+  margin-bottom: 8px;
+}
+
 .gwc-pre {
   margin: 0 0 8px;
   padding: 10px;

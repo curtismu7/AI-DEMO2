@@ -4,6 +4,8 @@
 .ptrace__num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--th-bg-inset); border: 1px solid var(--th-border-strong); font-size: var(--font-size-sm); font-weight: 700; }
 .ptrace__explain { margin: 0 0 10px; color: var(--th-text-muted); font-size: var(--font-size-sm); line-height: 1.5; }
 .ptrace__block { margin-top: 10px; }
+/* The shared JSON pane has no outer margin; this spaces it under its label, as the old code block was. */
+.ptrace__pane { margin-top: 6px; }
 .ptrace__label { margin: 0 0 4px; color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .ptrace__line { margin: 0 0 2px; font-family: inherit; font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .ptrace__code { margin: 6px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--th-bg-inset); color: var(--th-text); font-family: inherit; font-size: var(--font-size-sm); white-space: pre-wrap; overflow-wrap: anywhere; }

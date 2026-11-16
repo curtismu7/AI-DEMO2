@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import GatewayClaimsPage from '../GatewayClaimsPage';
 import { parseSequence } from '../../utils/parseSequence';
@@ -12,7 +12,7 @@ import {
 import {
   CHECKED_ON, IMAGE_COMPARE, IMAGE_DIGESTS, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE, VERSION_THIRD,
 } from '../../config/gatewayLatest';
-import { AGENTCORE_FACTS } from '../../config/gatewayAgentcore';
+import { AGENTCORE_FACTS, AGENTCORE_SCENARIOS } from '../../config/gatewayAgentcore';
 import { DIAGRAMS_INDEX } from '../../config/diagramsIndex';
 import { NAV_PAGE_PATHS } from '../../config/navPagePaths';
 import { NAV_SEARCH_ALIASES } from '../../config/navSearchAliases';
@@ -365,7 +365,8 @@ describe('GatewayClaimsPage', () => {
     const lab = screen.getByTestId('gwc-next-lab');
     expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-status')).toBe('400');
     expect(within(lab).getByTestId('gwc-next-response').textContent).toContain('-32600');
-    expect(within(lab).getByTestId('gwc-next-request').textContent).toContain('"tools/call"');
+    // The request body is a pane now (Form view by default), so the method reads as a row value, not as quoted JSON text.
+    expect(within(lab).getByRole('group', { name: 'Request body' })).toHaveTextContent('tools/call');
     fireEvent.click(screen.getByTestId('gwc-next-cedar-candidate'));
     expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-allowed')).toBe('true');
     expect(within(lab).getByTestId('gwc-next-response').textContent).toContain('mcp_policy_shadow_delta');
@@ -377,6 +378,65 @@ describe('GatewayClaimsPage', () => {
     fireEvent.click(screen.getByTestId('gwc-group-tiers'));
     fireEvent.click(screen.getByTestId('gwc-next-tier-none'));
     expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-status')).toBe('403');
+  });
+
+  it('shows the lab token and the cedar request body as named panes, Form view by default, exact JSON on request', async () => {
+    renderPage();
+    const lab = screen.getByTestId('gwc-next-lab');
+    const token = within(lab).getByRole('group', { name: 'Decoded token' });
+    expect(token).toHaveTextContent('sub');
+    expect(token.tagName).toBe('DIV');
+    // The request is an HTTP transcript: its head stays text, its JSON body is its own pane.
+    expect(within(lab).getByRole('group', { name: 'Request body' })).toHaveTextContent('tools/call');
+    expect(within(lab).getByLabelText('Request headers')).toHaveTextContent('POST');
+    fireEvent.click(within(within(lab).getByRole('group', { name: 'Decoded token view' })).getByRole('button', { name: 'JSON' }));
+    const raw = await waitFor(() => {
+      const el = lab.querySelector('pre.jp-raw[aria-label="Decoded token"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    const s = NEXT_SCENARIOS.find((x) => x.id === 'cedar-missing');
+    expect(raw.textContent).toBe(JSON.stringify(nextWire(s).token, null, 2));
+    // The page-wide choice now applies to the request body too: its JSON view shows the body exactly as sent (compact, quoted).
+    const body = await waitFor(() => {
+      const el = lab.querySelector('pre.jp-raw[aria-label="Request body"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    // Exactly the JSON body of the transcript, compact as sent (everything after the blank line that ends the headers).
+    expect(body.textContent).toBe(nextWire(s).request.split('\n\n')[1]);
+  });
+
+  it('shows the form-encoded token request of the PingFederate group as text, not as a JSON pane', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('gwc-group-pf'));
+    const lab = screen.getByTestId('gwc-next-lab');
+    expect(within(lab).getByTestId('gwc-next-request')).toHaveTextContent('grant_type=client_credentials');
+    expect(within(lab).queryByRole('group', { name: /^Request.* view$/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the AgentCore input and result as named panes, Form view by default, exact JSON on request', async () => {
+    renderPage();
+    const sec = screen.getByTestId('gwc-agentcore');
+    const result = within(sec).getByRole('group', { name: 'Result' });
+    expect(result).toHaveTextContent('bypassPossible');
+    expect(within(sec).getByRole('group', { name: 'Input' })).toHaveTextContent('gatewayOnly');
+    expect(result.tagName).toBe('DIV');
+    fireEvent.click(within(within(sec).getByRole('group', { name: 'Result view' })).getByRole('button', { name: 'JSON' }));
+    const raw = await waitFor(() => {
+      const el = sec.querySelector('pre.jp-raw[aria-label="Result"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    const scenario = AGENTCORE_SCENARIOS.find((x) => x.id === 'bypass-open');
+    expect(raw.textContent).toBe(JSON.stringify(scenario.result, null, 2));
+    // The page-wide choice applies to the input pane too: its JSON view is the exact input.
+    const input = await waitFor(() => {
+      const el = sec.querySelector('pre.jp-raw[aria-label="Input"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(input.textContent).toBe(JSON.stringify(scenario.input, null, 2));
   });
 
   it('labels every cell of a stacked table, so the narrow layout keeps its column headings', () => {

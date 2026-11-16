@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import { Section, CardGrid, Card } from '../components/pingUi';
+import JsonPane from '../components/shared/JsonPane';
 import { Caveat, ChoiceGroup, EvidenceTag as Tag, SimVerdict } from '../components/gatewayClaims/parts';
 import {
   AGENTCORE_DETAILS, AGENTCORE_FACTS, AGENTCORE_GROUPS, AGENTCORE_LANES, AGENTCORE_SCENARIOS, ANALYZE_VIEWS, GATEWAY_VERSION_AGENTCORE, MANAGE_ACTIONS, agentcoreDiagram,
@@ -78,8 +79,8 @@ export default function GatewayAgentcoreLab() {
           </SimVerdict>
         </CardGrid>
         <CardGrid>
-          <Card tone="neutral" title="Input (placeholder values)"><pre className="gwc-pre" data-testid="gwc-ag-input">{JSON.stringify(s.input, null, 2)}</pre></Card>
-          <Card tone="neutral" title="Result"><pre className="gwc-pre" data-testid="gwc-ag-result">{JSON.stringify(s.result, null, 2)}</pre></Card>
+          <Card tone="neutral" title="Input (placeholder values)"><JsonPane value={s.input} label="Input" testId="gwc-ag-input" hot={['gatewayOnly', 'authorizerType']} /></Card>
+          <Card tone="neutral" title="Result"><JsonPane value={s.result} label="Result" testId="gwc-ag-result" hot={['bypassPossible', 'risky', 'callerClass', 'summary']} /></Card>
         </CardGrid>
         <Card tone="neutral" title="Step through the check (simulated)">
           <SequenceFlowDiagram key={s.id} source={diagram.source} payloads={diagram.payloads} details={AGENTCORE_DETAILS} lanes={AGENTCORE_LANES} label={`Simulated check, ${GATEWAY_VERSION_AGENTCORE}: ${s.label}`} />
