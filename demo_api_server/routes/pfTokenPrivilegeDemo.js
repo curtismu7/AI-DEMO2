@@ -28,10 +28,12 @@ const router = express.Router();
 const CALL_TIMEOUT_MS = 15000;
 // Same agent, three scopes. The grant gives opensearch:admin all tools, opensearch:read the read tools,
 // and nothing to a token with neither. The first tier's token is also the one used for the main answer.
+// No tier asks for openid: PingFederate refuses it for this client_credentials client (invalid_scope), and
+// where it is allowed it selects another token manager (no act.sub) that the gateway rejects.
 const SCOPE_TIERS = [
-  { key: 'full', scope: 'openid opensearch:admin whoami:read' },
-  { key: 'read', scope: 'openid opensearch:read' },
-  { key: 'none', scope: 'openid whoami:read' },
+  { key: 'full', scope: 'opensearch:admin whoami:read' },
+  { key: 'read', scope: 'opensearch:read' },
+  { key: 'none', scope: 'whoami:read' },
 ];
 
 function config() {
@@ -139,8 +141,8 @@ async function askBackend(whoamiUrl, bearer) {
 
 // Cedar check: the same tool call with two tokens. Only the outcome is returned, never the search results.
 const CEDAR_CASES = [
-  { key: 'without', scope: 'openid opensearch:admin' },
-  { key: 'with', scope: 'openid opensearch:admin opensearch:search' },
+  { key: 'without', scope: 'opensearch:admin' },
+  { key: 'with', scope: 'opensearch:admin opensearch:search' },
 ];
 const CEDAR_CALL = { name: 'SearchIndexTool', arguments: { index: 'gateway-events', query_dsl: { query: { match_all: {} }, size: 1 } } };
 
