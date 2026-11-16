@@ -86,6 +86,7 @@
 
 .jp-toggle button:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .jp-toggle button[aria-pressed="true"] {
