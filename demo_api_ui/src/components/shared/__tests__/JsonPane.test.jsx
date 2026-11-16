@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import JsonPane, { JSON_VIEW_KEY, JsonViewOnly, MAX_FORM_DEPTH, MAX_PANE_CHARS, deepParse, kindOf, parseJsonText, setJsonView, splitWire } from '../JsonPane';
 
@@ -79,8 +79,9 @@ describe('JsonPane: Form | JSON toggle', () => {
   });
 
   it('toggle={false} hides the switch; JsonViewOnly forces the JSON view without a second switch', () => {
+    const sw = { name: /^(form|json)$/i }; // the switch only: the Form view's per-field Copy buttons are not part of it
     const a = pane(<JsonPane value={{ a: 1 }} toggle={false} />);
-    expect(within(a).queryByRole('button')).toBeNull();
+    expect(within(a).queryByRole('button', sw)).toBeNull();
     const b = pane(
       <JsonViewOnly>
         <JsonPane value={{ a: 1 }} />
@@ -300,5 +301,120 @@ describe('JsonPane: full view', () => {
     const c = pane(<JsonPane value={{ s: 'a'.repeat(5000) }} />);
     await asJson();
     expect(c.querySelector('.jp-raw').textContent).toContain('a'.repeat(5000));
+  });
+});
+
+describe('JsonPane: per-field Copy (Form view)', () => {
+  const writeText = vi.fn();
+  const copyBtn = (c, name) => within(c).getByRole('button', { name });
+
+  beforeEach(() => {
+    writeText.mockReset();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  });
+
+  it('gives every primitive leaf its own Copy button, named for its key', () => {
+    const c = pane(<JsonPane value={{ ...TOKEN, access_token: JWT }} label="Claims" />);
+    for (const k of ['s', 'sub', 'aud', 'n', 'ok', 'bad', 'site', 'id', 'exp', 'access_token']) {
+      expect(copyBtn(c, `Copy ${k}`)).toHaveAttribute('type', 'button');
+    }
+    expect(within(c).queryByRole('button', { name: 'Copy none' })).toBeNull(); // null shows "none": nothing to copy
+  });
+
+  it('copies exactly the data text: string, number, boolean, time, url, id and the whole compact token', async () => {
+    const c = pane(<JsonPane value={{ ...TOKEN, access_token: JWT, quoted: '{}' }} />);
+    const cases = { s: 'text', n: '42', ok: 'true', bad: 'false', exp: '1893456000', site: 'https://example.com/a', id: '123e4567-e89b-12d3-a456-426614174000', access_token: JWT, quoted: '{}' };
+    for (const [k, text] of Object.entries(cases)) {
+      writeText.mockClear();
+      await userEvent.click(copyBtn(c, `Copy ${k}`));
+      expect(writeText).toHaveBeenCalledWith(text);
+    }
+  });
+
+  it('copies each chip of a list and of a scope string, not the whole list', async () => {
+    const c = pane(<JsonPane value={{ scope: 'read write', roles: ['a', 'b'] }} />);
+    await userEvent.click(copyBtn(c, 'Copy write'));
+    expect(writeText).toHaveBeenLastCalledWith('write');
+    await userEvent.click(copyBtn(c, 'Copy b'));
+    expect(writeText).toHaveBeenLastCalledWith('b');
+    expect(c.querySelectorAll('.jp-chip > .jp-copy')).toHaveLength(4);
+  });
+
+  it('copies a masked value as the mask, exactly what is displayed', async () => {
+    const c = pane(<JsonPane value={{ client_secret: '********' }} />);
+    await userEvent.click(copyBtn(c, 'Copy client_secret'));
+    expect(writeText).toHaveBeenCalledWith('********');
+  });
+
+  it('says Copied after a copy, then goes back to Copy', async () => {
+    const c = pane(<JsonPane value={{ sub: 'user-1' }} />);
+    await userEvent.click(copyBtn(c, 'Copy sub'));
+    const done = await within(c).findByRole('button', { name: 'Copied sub' });
+    expect(done).toHaveTextContent('Copied');
+    await waitFor(() => expect(copyBtn(c, 'Copy sub')).toBeTruthy(), { timeout: 3000 });
+  });
+
+  it('falls back to a hidden textarea when the clipboard is blocked, and says nothing if that fails too', async () => {
+    writeText.mockRejectedValue(new Error('blocked'));
+    const exec = vi.fn().mockReturnValue(true);
+    document.execCommand = exec;
+    const c = pane(<JsonPane value={{ sub: 'user-1' }} />);
+    await userEvent.click(copyBtn(c, 'Copy sub'));
+    expect(exec).toHaveBeenCalledWith('copy');
+    expect(await within(c).findByRole('button', { name: 'Copied sub' })).toBeTruthy();
+    expect(document.querySelector('.jp-copy-sink')).toBeNull();
+    exec.mockReturnValue(false);
+    const d = pane(<JsonPane value={{ sub: 'user-2' }} />);
+    await userEvent.click(within(d).getByRole('button', { name: 'Copy sub' }));
+    expect(within(d).queryByRole('button', { name: 'Copied sub' })).toBeNull();
+    delete document.execCommand;
+  });
+
+  it('is reachable by keyboard: a real button in the tab order, activated with Enter', async () => {
+    const c = pane(<JsonPane value={{ sub: 'user-1' }} />);
+    const b = copyBtn(c, 'Copy sub');
+    expect(b.tagName).toBe('BUTTON');
+    expect(b).not.toHaveAttribute('tabindex', '-1');
+    expect(b).not.toHaveAttribute('hidden');
+    expect(b.parentElement.closest('pre, button')).toBeNull(); // never inside a <pre> or inside another button
+    await userEvent.tab(); // Form | JSON switch
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.tab(); // the pane itself (tabIndex 0), then the Copy button
+    expect(b).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    expect(writeText).toHaveBeenCalledWith('user-1');
+  });
+
+  it('copyFields={false} removes every per-field button and keeps the switch', () => {
+    const c = pane(<JsonPane value={{ sub: 'user-1', scope: 'read write', n: 1 }} copyFields={false} />);
+    expect(c.querySelector('.jp-copy')).toBeNull();
+    expect(within(c).getAllByRole('button')).toHaveLength(2); // Form, JSON
+  });
+
+  it('puts no button beside the JSON view, and none in a body pane when copyFields is off', async () => {
+    const c = pane(<JsonPane value={{ sub: 'user-1' }} />);
+    await asJson();
+    expect(c.querySelector('.jp-copy')).toBeNull();
+    setJsonView('form');
+    const w = pane(<JsonPane copyFields={false} value={'POST /x HTTP/1.1\nHost: a\n\n{"sub":"u"}'} />);
+    expect(w.querySelector('.jp-copy')).toBeNull();
+  });
+
+  it('an HTTP transcript body pane gets the buttons too', () => {
+    const w = pane(<JsonPane value={'POST /x HTTP/1.1\nHost: a\n\n{"sub":"u"}'} />);
+    expect(within(w).getByRole('button', { name: 'Copy sub' })).toBeTruthy();
+  });
+
+  it('keeps the full view: the stylesheet shows the button on hover / focus and always on touch, and caps nothing', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'JsonPane.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.jp-copy:focus-visible/);
+    expect(css).toMatch(/:focus-within\s*>\s*\.jp-copy/);
+    expect(css).toMatch(/@media \(hover: none\)\s*\{\s*\.jp-copy\s*\{\s*opacity:\s*1/);
+    const rule = css.match(/\.jp-copy\s*\{[^}]*\}/)[0];
+    expect(rule).toMatch(/background:\s*var\(--th-/);
+    expect(rule).toMatch(/\bcolor:\s*var\(--th-/); // a --th background always carries its own colour
+    expect(rule).toMatch(/font-size:\s*var\(--font-size-3xs\)/);
   });
 });
