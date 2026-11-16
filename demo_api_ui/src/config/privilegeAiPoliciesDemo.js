@@ -87,11 +87,95 @@ export const PF_AGENT = {
 export const CEDAR_VOCABULARY = [
   { attr: 'principal in Group::"x"', from: 'Privilege directory (user matched by email alias), not a raw PF groups claim' },
   { attr: 'context.token.scopes', from: 'the presented token' },
+  { attr: 'context.token.claims["act.sub"]', from: 'the presented token: any claim the issuer signed, a nested one named with dots. Validated 2026-11-16 as a Candidate policy; not yet run against a real token' },
   { attr: 'context.agent.scopes', from: 'the agent key' },
   { attr: 'context.app', from: 'the door' },
   { attr: 'resource == Tool::"x"', from: 'the tool being called' },
   { attr: 'context.args.<name>', from: 'tool arguments' },
   { attr: 'context.approval_count', from: 'human approvals recorded for the call' },
+];
+
+// "Set up Cedar in Privilege": the console path, read and walked on the local console on 2026-11-16 (nothing saved).
+export const SETUP_STEPS = [
+  { step: 'Sign in to the Privilege console', detail: 'The desktop app serves a local console; a hosted tenant has its own console URL.' },
+  { step: 'Open Access Management, then AI Policies', detail: 'The sidebar sections expand on hover. The page lists every policy with how it was authored, its effect, the stage it runs at, its validation and its state.' },
+  { step: 'Click New Policy', detail: 'A form with a name, a state, a description and three ways to write the rule.' },
+  { step: 'Name it and set the state to Candidate', detail: 'Candidate is stored and validated but never enforced, so you can try a rule without it touching any call. Active is enforced on every request.' },
+  { step: 'Pick how to write it: From a template, Build a rule, or Write Cedar', detail: 'There are 40 templates, filterable by MCP, LLM, A2A and Coding agent.' },
+  { step: 'Fill in the template and read the Cedar it will save', detail: 'The form shows the generated Cedar under the fields as you type, so the template is never a black box.' },
+  { step: 'Click Create Policy and read Validation & Stages', detail: 'The controller validates it. It reports Valid or the reason it would not compile, how many statements it holds and the stage each runs at, for example "MCP, before inspection".' },
+  { step: 'When you are happy, click Enforce, wait, then test', detail: 'Policy changes take about 4 minutes to reach the gateway. A refused call is HTTP 400 with JSON-RPC -32600, and the gateway log names the policy.' },
+];
+
+// Four use cases, picked from the AI policies already on the demo tenant. cedar is the console copy read on 2026-11-16
+// (the approver id is elided). A Candidate is validated and stored but never enforced, so it is not run here.
+export const USE_CASES = [
+  {
+    id: 'hold',
+    title: 'Force a human to approve (HITL)',
+    policy: 'hitl-opensearch',
+    state: 'Active',
+    what: 'Holds SearchIndexTool until a person approves. The agent retries after the approval and the call goes through. It is a forbid on mcp:InvokeUnattended with an unless clause that lifts once an approval is on record.',
+    cedar: POLICIES['hitl-opensearch'].cedar,
+    run: 'Run it live in the scenarios below ("Hold for a human, then approve and retry").',
+  },
+  {
+    id: 'scope',
+    title: 'Only agents whose token carries a scope',
+    policy: 'pftoken-scope-search',
+    state: 'Active',
+    what: 'Refuses SearchIndexTool unless the presented token carries the opensearch:search scope. It also refuses when no token was presented at all. Works for callers who are not provisioned in the directory.',
+    cedar: `@reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
+when   { context.app == "pftoken" }
+unless { context has token && context.token.scopes.contains("opensearch:search") };`,
+    run: 'Run it on the PingFederate Token Demo page, where a token with and without the scope is sent.',
+    link: '/privilege-pf-token',
+  },
+  {
+    id: 'cap',
+    title: 'A hard ceiling no approval can lift',
+    policy: 'cedar-demo-s23-forbid-over-cap',
+    state: 'Candidate',
+    what: 'Refuses book_fare above an amount for everyone, on both the refuse and the hold action, so asking a human does not help. Contrast with the hold above, which a person can lift.',
+    cedar: `@reason("Hard cap: no booking over 10000 for anyone")
+forbid (principal, action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"], resource == Tool::"book_fare")
+when { context.args has amount && context.args.amount > 10000 };`,
+    run: 'Not run here: it is a Candidate, so it is stored and validated but never enforced.',
+    note: 'The console lints this one: it forbids an unattended action but never reads approval_count, so on the hold action it would ask for a human and then refuse the approval it asked for. That is a useful thing to show.',
+  },
+  {
+    id: 'pii',
+    title: 'Withhold a model reply carrying personal data',
+    policy: 'llm-response-pii-withhold',
+    state: 'Candidate',
+    what: 'Runs on the response from the model. The tokens are already spent, so the completion is withheld rather than the call refused. It reads the findings from content inspection, because Cedar has no regex.',
+    cedar: `@reason("completion carries restricted personal data")
+forbid (
+  principal,
+  action == Action::"llm:Receive",
+  resource
+)
+when { context.aiguard.pii_kinds.containsAny(["pii-ssn", "pii-email"]) };`,
+    run: 'Not run here: it is a Candidate, so it is stored and validated but never enforced.',
+  },
+];
+
+export const CEDAR_IS = [
+  'A rule engine inside the gateway that decides each agent action, per tool call, before it reaches the tool.',
+  'Narrowing only: a refusal always wins, and a policy never grants access the agent\'s own policy does not already allow.',
+  'Three actions: mcp:Invoke (refuse), mcp:InvokeUnattended (hold for a human) and llm:Receive (withhold a reply).',
+  'Able to read the token\'s scopes and, validated on 2026-11-16 as a Candidate policy, other signed token claims such as act.sub.',
+  'Safe to try: a Candidate is validated by the controller and never enforced.',
+];
+
+export const CEDAR_ISNT = [
+  'Not authentication. The gateway verifies the token (signature, issuer, audience) before any policy runs.',
+  'Not a grant. A permit cannot give an agent a tool its own policy withholds.',
+  'Not the claim gate. RequiredClaims on the identity or a grant rule checks the presented token earlier and is the one verified end to end for act.sub.',
+  'Not a regex engine. To act on personal data in a call it reads the inspection findings instead.',
+  'Not instant. Changes take about 4 minutes to reach the gateway, and a policy created through the API stays a Candidate until it is enforced.',
+  'Not everything. Principal attributes, a raw groups claim and an ID-JAG hook were not found in the editor on 2026-10-20 and were not re-checked.',
 ];
 
 export const OUTCOMES = {
