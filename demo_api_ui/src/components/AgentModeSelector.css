@@ -65,13 +65,14 @@
   padding: 8px 10px;
   font-size: var(--font-size-2xs);
   line-height: 1.4;
-  color: #92400e;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
   border-radius: var(--radius-md);
 }
 .ams-degraded code {
-  background: #fef3c7;
+  color: var(--th-code-text);
+  background: var(--th-code-bg);
   padding: 0 3px;
   border-radius: 3px;
 }
@@ -87,25 +88,59 @@
 .ams-degraded-chip {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #92400e;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
   border-radius: var(--radius-sm);
   padding: 1px 6px;
   white-space: nowrap;
 }
 /* Auto-deselect notice: shown when a dead mode is switched to Heuristics.
-   High-contrast amber (matches .ams-degraded), never muted hint text. */
-.ams-autoswitch {
+   High-contrast amber (matches .ams-degraded), never muted hint text.
+   The Privilege LLM switch's save error uses the same treatment. */
+.ams-autoswitch,
+.ams-privllm-error {
   margin: 4px 0 0;
   padding: 8px 10px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
   line-height: 1.4;
-  color: #92400e;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
   border-radius: var(--radius-md);
+}
+
+/* Route LLM through Privilege (ff_privilege_llm_first) — stack-wide switch. */
+.ams-privllm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.ams-privllm .ctl-check-text {
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--th-text);
+}
+.ams-privllm-hint {
+  flex-basis: 100%;
+  font-size: var(--font-size-2xs);
+  line-height: 1.4;
+  color: var(--th-text-body);
+}
+/* Compact (header row): the hint stays the switch's accessible description
+   and the wrapper's title tooltip; it is just not painted. */
+.ams-privllm-hint--sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Phone: as a flex child of .ba-header-tools (which already wraps), .ams-select

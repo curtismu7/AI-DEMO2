@@ -1,9 +1,25 @@
 // banking_api_ui/src/components/AgentModeSelector.jsx
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { CORE_MODE_IDS, MODE_PROVIDER, DEFAULT_MODE } from "../config/agentModes";
 import InlineSpinner from "./shared/InlineSpinner";
+import Check from "./common/Check";
 import "./AgentModeSelector.css";
+
+// Stack-wide flag behind the "Route LLM through Privilege" switch. Same
+// PATCH /api/admin/feature-flags write the Routing select uses: any signed-in
+// session may write it (middleware/featureFlagsAuthGate.js), signed out → 401.
+const PRIVILEGE_LLM_FLAG = "ff_privilege_llm_first";
+
+/** Pick ff_privilege_llm_first out of a feature-flags `flags` array. */
+function readPrivilegeLlmFlag(flags) {
+  const f = Array.isArray(flags) ? flags.find((x) => x && x.id === PRIVILEGE_LLM_FLAG) : null;
+  if (!f) return null;
+  return {
+    value: f.value === true || f.value === "true",
+    pinnedBy: f.pinned ? f.pinnedBy || "an env var" : null,
+  };
+}
 
 // FIVE single-brain modes (four production + one MLX demo). Each maps to one
 // provider; heuristics needs none. A mode is greyed out when its provider is
@@ -145,6 +161,49 @@ export default function AgentModeSelector({
     }
   }, [onHeuristicFallbackChange]);
 
+  // Route LLM through Privilege (ff_privilege_llm_first). null = not loaded:
+  // the switch stays hidden rather than guessing a value. No optimistic flip —
+  // the switch only moves to what the server confirms, so a failed PATCH shows
+  // an error and leaves the switch where it was.
+  const [privLlm, setPrivLlm] = useState(null);
+  const [privLlmSaving, setPrivLlmSaving] = useState(false);
+  const [privLlmError, setPrivLlmError] = useState(null);
+  const privLlmHintId = useId();
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/feature-flags", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d) setPrivLlm(readPrivilegeLlmFlag(d.flags)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const handlePrivLlmChange = useCallback(async (enabled) => {
+    setPrivLlmSaving(true);
+    setPrivLlmError(null);
+    try {
+      const res = await fetch("/api/admin/feature-flags", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: { [PRIVILEGE_LLM_FLAG]: enabled } }),
+      });
+      if (!res.ok) {
+        setPrivLlmError(res.status === 401
+          ? "Sign in to change LLM routing."
+          : `Could not change LLM routing (HTTP ${res.status}).`);
+        return;
+      }
+      const data = await res.json();
+      const saved = readPrivilegeLlmFlag(data && data.flags);
+      if (saved) setPrivLlm(saved);
+    } catch (_) {
+      setPrivLlmError("Could not change LLM routing (network error).");
+    } finally {
+      setPrivLlmSaving(false);
+    }
+  }, []);
+
   if (loading || modeOptions.length === 0) return null;
 
   // The four single-brain modes, in picker order. Filtering by id is robust
@@ -203,6 +262,37 @@ export default function AgentModeSelector({
           <option value="llm-only">LLM only</option>
         </select>
       </label>
+
+      {privLlm && (
+        <div
+          className="ams-privllm"
+          title="Stack-wide: applies to everyone on this demo stack. ON sends Gemini, Claude and Groq calls through PingOne Privilege; OpenAI is refused while ON."
+        >
+          <Check
+            variant="switch"
+            checked={privLlm.value}
+            disabled={privLlmSaving || !!privLlm.pinnedBy}
+            onChange={(e) => handlePrivLlmChange(e.target.checked)}
+            aria-describedby={privLlmHintId}
+          >
+            Route LLM through Privilege
+          </Check>
+          {privLlmSaving && <InlineSpinner size="sm" label="Saving…" />}
+          <span
+            id={privLlmHintId}
+            className={`ams-privllm-hint${compact ? " ams-privllm-hint--sr" : ""}`}
+          >
+            {privLlm.pinnedBy ? `Pinned by ${privLlm.pinnedBy}. ` : ""}
+            Applies to everyone on this demo stack.
+          </span>
+        </div>
+      )}
+
+      {privLlmError && (
+        <p className="ams-privllm-error" role="alert">
+          ⚠️ {privLlmError}
+        </p>
+      )}
 
       {autoSwitchNotice && (
         <p className="ams-autoswitch" role="status">

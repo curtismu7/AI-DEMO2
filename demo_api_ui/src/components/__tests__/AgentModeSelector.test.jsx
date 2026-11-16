@@ -163,3 +163,70 @@ test("LLM mode shows Fallback / LLM-only toggle and notifies on change", async (
     );
   });
 });
+
+// ── Route LLM through Privilege (ff_privilege_llm_first) ──────────────────
+// GET /api/admin/feature-flags drives the switch; a PATCH writes only this
+// flag, and the switch moves only to what the server confirms.
+function mockFlagsFetch({ value = false, pinned = false, patch } = {}) {
+  global.fetch = vi.fn((url, opts = {}) => {
+    if (url === "/api/admin/feature-flags" && opts.method === "PATCH") {
+      return Promise.resolve(patch());
+    }
+    if (url === "/api/admin/feature-flags") {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          flags: [{
+            id: "ff_privilege_llm_first",
+            value,
+            ...(pinned ? { pinned: true, pinnedBy: "FF_PRIVILEGE_LLM_FIRST" } : {}),
+          }],
+        }),
+      });
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "available" }) });
+  });
+}
+
+test("Privilege LLM switch reflects the current flag value and says it is stack-wide", async () => {
+  mockFlagsFetch({ value: true });
+  render(<AgentModeSelector />);
+  const sw = await screen.findByRole("checkbox", { name: /route llm through privilege/i });
+  expect(sw).toBeChecked();
+  expect(sw).not.toBeDisabled();
+  expect(sw).toHaveAccessibleDescription(/applies to everyone on this demo stack/i);
+});
+
+test("Privilege LLM switch PATCHes only ff_privilege_llm_first and shows the saved value", async () => {
+  mockFlagsFetch({
+    value: false,
+    patch: () => ({
+      ok: true,
+      json: () => Promise.resolve({ updated: true, flags: [{ id: "ff_privilege_llm_first", value: true }] }),
+    }),
+  });
+  render(<AgentModeSelector />);
+  const sw = await screen.findByRole("checkbox", { name: /route llm through privilege/i });
+  expect(sw).not.toBeChecked();
+  fireEvent.click(sw);
+  await waitFor(() => expect(sw).toBeChecked());
+  const patchCall = global.fetch.mock.calls.find(([, o]) => o && o.method === "PATCH");
+  expect(JSON.parse(patchCall[1].body)).toEqual({ updates: { ff_privilege_llm_first: true } });
+});
+
+test("Privilege LLM switch shows the error and does not flip when the PATCH fails", async () => {
+  mockFlagsFetch({ value: false, patch: () => ({ ok: false, status: 401, json: () => Promise.resolve({}) }) });
+  render(<AgentModeSelector />);
+  const sw = await screen.findByRole("checkbox", { name: /route llm through privilege/i });
+  fireEvent.click(sw);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/sign in to change llm routing/i);
+  expect(sw).not.toBeChecked();
+});
+
+test("Privilege LLM switch is locked when the flag is env-pinned", async () => {
+  mockFlagsFetch({ value: true, pinned: true });
+  render(<AgentModeSelector compact />);
+  const sw = await screen.findByRole("checkbox", { name: /route llm through privilege/i });
+  expect(sw).toBeDisabled();
+  expect(sw).toHaveAccessibleDescription(/pinned by FF_PRIVILEGE_LLM_FIRST/i);
+});
