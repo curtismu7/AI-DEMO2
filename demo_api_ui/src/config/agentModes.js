@@ -29,6 +29,8 @@ export const AGENT_MODES = [
   // (CORE_MODE_IDS).
   { id: "llamacpp",     label: "llama.cpp",     provider: "llamacpp",  pure: true  },
   { id: "groq",         label: "Groq",          provider: "groq",      pure: true  },
+  // Same idea as privilege_llm, proxied Groq instead of Google.
+  { id: "privilege_groq", label: "Groq via Privilege", provider: "privilege_groq", pure: true },
   { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
   // Same Gemini backend, but the call is proxied through a PingOne Privilege
   // virtual key (Privilege injects the real Google key and can deny the call
@@ -57,6 +59,7 @@ const SOURCE_LABELS = {
   anthropic: "Anthropic",
   privilege_claude: "Claude via Privilege",
   groq: "Groq",
+  privilege_groq: "Groq via Privilege",
   lmstudio: "LM Studio",
   "anthropic-lmstudio": "LM Studio",
   "direct-mcp": "Direct MCP",

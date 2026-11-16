@@ -1,6 +1,6 @@
 // demo_agent_service/tests/reasoningGraph.privilege.test.ts
 //
-// ff_privilege_llm_first: the BFF resolver sends privilege_claude / privilege_llm.
+// ff_privilege_llm_first: the BFF resolver sends privilege_claude / privilege_llm / privilege_groq.
 // Before this mapping reasonOnce logged "unknown provider" for both and the chat
 // agent silently fell to the heuristic floor. Each lane must construct its
 // client against the Privilege gateway with the virtual key, never a vendor key.
@@ -38,7 +38,7 @@ const base = (provider: ReasonRequest['provider']): ReasonRequest => ({
   tools: [],
 });
 
-const ENV = ['PRIVILEGE_LLM_GATEWAY_URL', 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC', 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE', 'ANTHROPIC_API_KEY'];
+const ENV = ['PRIVILEGE_LLM_GATEWAY_URL', 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC', 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE', 'PRIVILEGE_LLM_VIRTUAL_KEY_GROQ', 'PRIVILEGE_LLM_MODEL_GROQ', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY'];
 const saved: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -46,7 +46,9 @@ beforeEach(() => {
   process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://mcpgw.example/';
   process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'vk-anthropic';
   process.env.PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE = 'vk-google';
+  process.env.PRIVILEGE_LLM_VIRTUAL_KEY_GROQ = 'vk-groq';
   process.env.ANTHROPIC_API_KEY = 'sk-real-vendor-key';
+  process.env.GROQ_API_KEY = 'gsk-real-vendor-key';
   chatOpenAIOpts.length = 0;
   invoke.mockReset();
 });
@@ -77,12 +79,40 @@ describe('reasonOnce — Privilege virtual-key lanes', () => {
     });
   });
 
+  test('privilege_groq constructs ChatOpenAI against the custom lane with the virtual key and default model', async () => {
+    invoke.mockResolvedValueOnce({ content: 'groq via privilege', tool_calls: [], usage_metadata: {} });
+    const out = await reasonOnce(base('privilege_groq'));
+    expect(out.type).toBe('final');
+    if (out.type === 'final') expect(out.answer).toBe('groq via privilege');
+    expect(chatOpenAIOpts[0]).toMatchObject({
+      model: 'openai/gpt-oss-20b',
+      apiKey: 'vk-groq',
+      configuration: { baseURL: 'https://mcpgw.example/llm/custom/v1' },
+    });
+  });
+
+  test('privilege_groq honours PRIVILEGE_LLM_MODEL_GROQ', async () => {
+    process.env.PRIVILEGE_LLM_MODEL_GROQ = 'openai/gpt-oss-120b';
+    invoke.mockResolvedValueOnce({ content: 'ok', tool_calls: [], usage_metadata: {} });
+    await reasonOnce(base('privilege_groq'));
+    expect(chatOpenAIOpts[0]).toMatchObject({ model: 'openai/gpt-oss-120b' });
+  });
+
+  test('privilege_groq virtual key unset → reasoningUnavailable, never the vendor Groq key', async () => {
+    delete process.env.PRIVILEGE_LLM_VIRTUAL_KEY_GROQ;
+    const out = await reasonOnce(base('privilege_groq'));
+    expect(out.type === 'final' && out.reasoningUnavailable).toBe(true);
+    expect(chatOpenAIOpts).toHaveLength(0);
+  });
+
   test('gateway URL unset → reasoningUnavailable, and the vendor key is never used', async () => {
     delete process.env.PRIVILEGE_LLM_GATEWAY_URL;
     const claude = await reasonOnce(base('privilege_claude'));
     expect(claude.type === 'final' && claude.reasoningUnavailable).toBe(true);
     const gemini = await reasonOnce(base('privilege_llm'));
     expect(gemini.type === 'final' && gemini.reasoningUnavailable).toBe(true);
+    const groq = await reasonOnce(base('privilege_groq'));
+    expect(groq.type === 'final' && groq.reasoningUnavailable).toBe(true);
     expect(chatOpenAIOpts).toHaveLength(0);
   });
 });

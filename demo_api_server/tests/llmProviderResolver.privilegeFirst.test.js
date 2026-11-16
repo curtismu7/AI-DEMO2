@@ -29,6 +29,7 @@ describe('ff_privilege_llm_first', () => {
     expect(resolveLlmProvider({ provider: 'google' }).provider).toBe('google');
     expect(resolveLlmProvider({ provider: 'anthropic' }).provider).toBe('anthropic');
     expect(resolveLlmProvider({ provider: 'openai' }).provider).toBe('openai');
+    expect(resolveLlmProvider({ provider: 'groq' }).provider).toBe('groq');
   });
 
   it('ON: google -> privilege_llm, anthropic -> privilege_claude, model preserved', () => {
@@ -36,6 +37,12 @@ describe('ff_privilege_llm_first', () => {
     expect(resolveLlmProvider({ provider: 'google', model: 'gemini-2.0-flash' }))
       .toEqual({ provider: 'privilege_llm', model: 'gemini-2.0-flash' });
     expect(resolveLlmProvider({ provider: 'anthropic' }).provider).toBe('privilege_claude');
+  });
+
+  it('ON: groq -> privilege_groq, model preserved', () => {
+    const { resolveLlmProvider } = load('true');
+    expect(resolveLlmProvider({ provider: 'groq', model: 'openai/gpt-oss-20b' }))
+      .toEqual({ provider: 'privilege_groq', model: 'openai/gpt-oss-20b' });
   });
 
   it('ON: openai is refused loudly rather than silently going vendor-direct', () => {
@@ -48,6 +55,7 @@ describe('ff_privilege_llm_first', () => {
     const { resolveLlmProvider } = load('true');
     delete process.env.PRIVILEGE_LLM_GATEWAY_URL;
     expect(resolveLlmProvider({ provider: 'google' }).provider).toBe('google');
+    expect(resolveLlmProvider({ provider: 'groq' }).provider).toBe('groq');
   });
 
   it('ON: local and Helix providers are untouched', () => {

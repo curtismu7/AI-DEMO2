@@ -126,13 +126,17 @@ function extractTextContent(content: unknown): string {
 const LMSTUDIO_PROVIDERS = new Set<string>(['anthropic-lmstudio', 'lmstudio']);
 
 // PingOne Privilege virtual-key lanes (ff_privilege_llm_first on the BFF). The
-// BFF resolver sends privilege_claude / privilege_llm; each rides an existing
+// BFF resolver sends privilege_claude / privilege_llm / privilege_groq; each rides an existing
 // branch below with the gateway as base URL and the virtual key as the API key,
 // so the provider key never leaves Privilege. Route shapes mirror
 // demo_api_server/services/privilegeLlmProxyService.js LANES.
 const PRIVILEGE_LANES: Record<string, { branch: 'anthropic' | 'openai'; path: string; keyEnv: string; modelEnv: string; defaultModel: string }> = {
   privilege_claude: { branch: 'anthropic', path: '/llm/anthropic', keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC', modelEnv: 'PRIVILEGE_LLM_MODEL_ANTHROPIC', defaultModel: 'claude-haiku-4-5-20251001' },
   privilege_llm: { branch: 'openai', path: '/llm/google/v1', keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE', modelEnv: 'PRIVILEGE_LLM_MODEL', defaultModel: 'gemini-2.0-flash' },
+  // Groq is an OpenAI-Compatible (Custom) connection on the gateway, so it rides
+  // /llm/custom/v1 (the same route as LANES.custom) — /llm/groq does not exist.
+  // The virtual key picks the upstream; a model off its allow-list gets a 403.
+  privilege_groq: { branch: 'openai', path: '/llm/custom/v1', keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_GROQ', modelEnv: 'PRIVILEGE_LLM_MODEL_GROQ', defaultModel: 'openai/gpt-oss-20b' },
 };
 
 function privilegeGatewayBase(): string {
@@ -373,8 +377,8 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
   if (req.provider === 'groq' || isPrivilegeOpenAi) {
     // GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real key required
     // (billed cloud service), same contract as the Google branch above.
-    // The Privilege Gemini lane (/llm/google/v1) is OpenAI-compatible too and
-    // rides this same branch with the gateway as base URL.
+    // The Privilege Gemini (/llm/google/v1) and Groq (/llm/custom/v1) lanes are
+    // OpenAI-compatible too and ride this same branch with the gateway as base URL.
     const apiKey = isPrivilegeOpenAi
       ? (privilegeGatewayBase() ? (process.env[privilegeLane.keyEnv] || '') : '')
       : (req.groqApiKey || process.env.GROQ_API_KEY || '');

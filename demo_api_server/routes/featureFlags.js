@@ -855,7 +855,8 @@ const FLAG_REGISTRY = [
     name:         'Privilege first: LLM',
     category:     'LLM',
     description:
-      'When **ON**, the BFF resolves `google` → `privilege_llm` and `anthropic` → `privilege_claude`, and ' +
+      'When **ON**, the BFF resolves `google` → `privilege_llm`, `anthropic` → `privilege_claude` and ' +
+      '`groq` → `privilege_groq`, and ' +
       'refuses `openai` (no Privilege dispatch exists for it yet), so every cloud LLM call enters the PingOne ' +
       'Agent Privilege first and the provider API key never leaves Privilege. Requires ' +
       '`PRIVILEGE_LLM_GATEWAY_URL` and the virtual keys. Local models (llama.cpp / MLX) and Helix are unaffected.',
