@@ -99,6 +99,7 @@ const EXEMPT = new Set([
   '/privilege-cedar',
   '/standalone',
   '/standalone/ai-policies',
+  '/standalone/cedar-live',
   '/standalone/cedar',
   '/standalone/runner/m2m',
   '/themes',

@@ -44,6 +44,7 @@ describe("side-nav ownership", () => {
     ["/standalone/mfa-demo", user, "shell"],
     ["/standalone/runner/m2m", user, "shell"],
     ["/standalone/ai-policies", user, "shell"],
+    ["/standalone/cedar-live", user, "shell"],
     ["/standalone/cedar", user, "shell"],
     ["/standalone/mfa-demo", null, "shell"], // and the same for guests
   ];

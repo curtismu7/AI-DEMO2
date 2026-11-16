@@ -34,6 +34,7 @@ export const NAV_PAGE_PATHS = {
   "Agent Privilege Demo": "/privilege-demo",
   "AI Policies Demo": "/privilege-ai-policies",
   "PingFederate Token Demo": "/privilege-pf-token",
+  "Cedar in Privilege (live)": "/privilege-cedar-live",
   "Platform Update: Intent, Purpose and Behaviour": "/privilege-intent-triage",
   "Platform Update: Coding Agents": "/privilege-coding-agents",
   "Platform Update: SaaS Access Management": "/privilege-saas-access",

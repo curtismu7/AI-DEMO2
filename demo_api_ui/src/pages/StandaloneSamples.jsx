@@ -24,6 +24,7 @@ import "./StandaloneSamples.css";
 
 // Standalone demos that are not PingOne sample apps.
 import PrivilegeAiPoliciesDemoPage from "./PrivilegeAiPoliciesDemoPage";
+import PrivilegeCedarLivePage from "./PrivilegeCedarLivePage";
 const STANDALONE_DEMOS = [
   {
     id: "ai-policies",
@@ -32,6 +33,14 @@ const STANDALONE_DEMOS = [
     tagline:
       "How Privilege decides an AI agent's tool calls with Cedar policies inside the gateway: allowed, refused, or held for a human, next to the real policies that decide it. A walkthrough here; live runs are in the app.",
     meta: "walkthrough · no sign-in needed · live runs need a Privilege sign-in",
+  },
+  {
+    id: "cedar-live",
+    label: "Cedar in Privilege (live)",
+    to: "/standalone/cedar-live",
+    tagline:
+      "Three Cedar cases against the Privilege gateway, in order: hold for a human, a token-scope gate and an agent act.sub gate, each next to the Cedar that decides it, and what was and was not measured. A walkthrough here; live runs are in the app.",
+    meta: "walkthrough · no sign-in needed · live runs need a Privilege sign-in and a PingFederate client",
   },
 ];
 
@@ -211,6 +220,17 @@ export function StandaloneAiPoliciesShell() {
   return (
     <StandaloneShell current="ai-policies">
       <PrivilegeAiPoliciesDemoPage live={false} />
+    </StandaloneShell>
+  );
+}
+
+// /standalone/cedar-live: "Cedar in Privilege (live)" as a walkthrough. Same arrangement as the AI Policies twin above: its own
+// route ahead of /standalone/:sampleId, no calls, the live tour is in the app shell at /privilege-cedar-live.
+export function StandaloneCedarLiveShell() {
+  useStandaloneTitle("Cedar in Privilege (live)");
+  return (
+    <StandaloneShell current="cedar-live">
+      <PrivilegeCedarLivePage live={false} />
     </StandaloneShell>
   );
 }

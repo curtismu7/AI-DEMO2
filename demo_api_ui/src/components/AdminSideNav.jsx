@@ -1423,6 +1423,12 @@ export default function AdminSideNav({
         searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent federated identity",
       },
       {
+        label: "Cedar in Privilege (live)",
+        path: "/privilege-cedar-live",
+        icon: "pol",
+        searchAlias: "cedar privilege live tour hold human approval token scope gate act.sub claim agent policy forbid unless active candidate pingfederate",
+      },
+      {
         label: "Platform Update: Intent, Purpose and Behaviour",
         path: "/privilege-intent-triage",
         icon: "pol",

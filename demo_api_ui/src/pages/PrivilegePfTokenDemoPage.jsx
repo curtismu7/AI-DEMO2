@@ -292,7 +292,7 @@ export default function PrivilegePfTokenDemoPage() {
 }
 
 // Result pieces. Declared after the page: the pattern check reads the file top to bottom and wants the banner first.
-function VerdictChip({ verdict, status }) {
+export function VerdictChip({ verdict, status }) {
   const v = verdictOf(verdict);
   return (
     <>
@@ -452,7 +452,7 @@ function ActSubGate({ actSub, ran, canRun, running, onRun }) {
   );
 }
 
-function ActSubResult({ actSub }) {
+export function ActSubResult({ actSub }) {
   const { claim, tools = [], enforcing } = actSub;
   const allowedBoth = tools.length > 0 && tools.every((t) => t.verdict === 'allowed');
   const actText = claim?.act == null ? 'none' : show(claim.act);

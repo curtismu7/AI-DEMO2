@@ -33,6 +33,7 @@ const McpGatewayOauthFlowPage = lazyWithRetry(() => import("./components/McpGate
 const PrivilegeMcpDiagramPage = lazyWithRetry(() => import("./components/PrivilegeMcpDiagramPage"));
 const PrivilegeAiPoliciesDemoPage = lazyWithRetry(() => import("./pages/PrivilegeAiPoliciesDemoPage"));
 const PrivilegePfTokenDemoPage = lazyWithRetry(() => import("./pages/PrivilegePfTokenDemoPage"));
+const PrivilegeCedarLivePage = lazyWithRetry(() => import("./pages/PrivilegeCedarLivePage"));
 const P1ThirdPartyExchangePage = lazyWithRetry(() => import("./pages/P1ThirdPartyExchangePage"));
 const PrivilegeGatewayTopologyPage = lazyWithRetry(() => import("./components/PrivilegeGatewayTopologyPage"));
 const GatewayStatsPage = lazyWithRetry(() => import("./components/GatewayStatsPage"));
@@ -310,6 +311,7 @@ import PublicRoutes, {
   StandaloneSampleRoute,
   StandaloneRunnerRoute,
   StandaloneAiPoliciesRoute,
+  StandaloneCedarLiveRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -926,6 +928,10 @@ function AppWithAuth() {
                 <Route
                   path="/standalone/ai-policies"
                   element={<StandaloneAiPoliciesRoute />}
+                />
+                <Route
+                  path="/standalone/cedar-live"
+                  element={<StandaloneCedarLiveRoute />}
                 />
                 {/* The first version of this page was a browser Cedar toy at /standalone/cedar; keep shared links alive. */}
                 <Route
@@ -2449,6 +2455,11 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-pf-token"
                               element={<PrivilegePfTokenDemoPage />}
+                            />
+                            {/* Cedar in Privilege (live): three real Cedar cases in order; the walkthrough twin is /standalone/cedar-live. */}
+                            <Route
+                              path="/privilege-cedar-live"
+                              element={<PrivilegeCedarLivePage />}
                             />
                             {/* What gateway v1.261024 added: nested-claim gate + AgentCore posture. Explains only, no live call. */}
                             <Route

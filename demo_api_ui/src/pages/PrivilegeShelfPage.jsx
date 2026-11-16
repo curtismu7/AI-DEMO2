@@ -53,6 +53,7 @@ const SECTIONS = [
     cards: [
       { title: "AI Policies Demo", text: "Cedar AI policies: allow, deny and hold.", to: "/privilege-ai-policies" },
       { title: "PingFederate Token Demo", text: "A PingFederate token presented to the gateway.", to: "/privilege-pf-token" },
+      { title: "Cedar in Privilege (live)", text: "Three live Cedar cases: hold, token scope and act.sub.", to: "/privilege-cedar-live" },
       { title: "Agent Privilege Demo", text: "The Privilege demo app.", to: "/privilege-demo" },
       { title: "Intent, Purpose and Behaviour", text: "Three signals per call: what it attempts, whether it was in scope, whether the agent normally does it.", isNew: true, to: "/privilege-intent-triage" },
       { title: "Coding Agents", text: "Privilege at the hook: Claude Code, Cursor, Codex, Gemini CLI, Copilot, Antigravity.", isNew: true, to: "/privilege-coding-agents" },

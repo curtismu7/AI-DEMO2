@@ -32,6 +32,7 @@ import {
   StandaloneSample,
   StandaloneRunnerShell,
   StandaloneAiPoliciesShell,
+  StandaloneCedarLiveShell,
 } from "../pages/StandaloneSamples";
 const PingOneSetup = lazyWithRetry(() => import("../pages/PingOneSetup"));
 const SelfServicePage = lazyWithRetry(() => import("../components/SelfServicePage"));
@@ -180,6 +181,10 @@ export function StandaloneRunnerRoute() {
 
 export function StandaloneAiPoliciesRoute() {
   return <StandaloneAiPoliciesShell />;
+}
+
+export function StandaloneCedarLiveRoute() {
+  return <StandaloneCedarLiveShell />;
 }
 
 export function M2mCredentialsSamplePageRoute({ user, logout }) {
