@@ -30,9 +30,9 @@ const { getManagementToken } = require('../services/pingOneClientService');
 
 const RESOURCE_NAME = 'Demo Workload Agent Gateway';
 const DEFAULT_AUDIENCE = 'workloadgateway.ping.demo';
-// The actor of this hop, taken from the actor token. Same inline-map SpEL form
-// the A2A MCP Gateway composer uses (pingoneProvisionService.js).
-const ACT_FROM_ACTOR = "${{'sub': #root.context.requestData.actorToken.client_id}}";
+// The actor of this hop, taken from the actor token, with earlier actors kept
+// under act.act. Same chain-preserving SpEL as the other agent-facing resources.
+const { ACT_CHAIN_SPEL: ACT_FROM_ACTOR } = require('../services/pingoneProvisionService');
 const BUILDER_MARKER = 'Created by Agent Builder for ';
 
 const args = process.argv.slice(2);

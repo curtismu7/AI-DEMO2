@@ -20,7 +20,7 @@ jest.mock('../services/configStore', () => ({
     key === 'ff_may_act_seed' ? global.__FF_MAY_ACT_SEED__ : '',
 }));
 
-const { actAttributeValue } = require('../services/pingoneProvisionService');
+const { actAttributeValue, ACT_CHAIN_SPEL } = require('../services/pingoneProvisionService');
 
 describe('actAttributeValue — the act SpEL selected per ff_may_act_seed', () => {
   const ORIGINAL = global.__FF_MAY_ACT_SEED__;
@@ -30,21 +30,45 @@ describe('actAttributeValue — the act SpEL selected per ff_may_act_seed', () =
     else global.__FF_MAY_ACT_SEED__ = ORIGINAL;
   });
 
-  test('flag OFF (default): act is minted from the actor token client id', () => {
+  test('flag OFF (default): act is minted from the actor token client id, chain-preserving', () => {
     global.__FF_MAY_ACT_SEED__ = 'false';
     const v = actAttributeValue();
-    expect(v).toBe("${{'sub': #root.context.requestData.actorToken.client_id}}");
+    expect(v).toBe(ACT_CHAIN_SPEL);
+    expect(v).toContain('actorToken.client_id');
   });
 
   test('flag unset: defaults to actor-token minting (same as OFF)', () => {
     delete global.__FF_MAY_ACT_SEED__;
-    const v = actAttributeValue();
-    expect(v).toBe("${{'sub': #root.context.requestData.actorToken.client_id}}");
+    expect(actAttributeValue()).toBe(ACT_CHAIN_SPEL);
   });
 
   test('flag ON: act is seeded from the subject token may_act (legacy teaching form)', () => {
     global.__FF_MAY_ACT_SEED__ = 'true';
     const v = actAttributeValue();
     expect(v).toBe('${#root.context.requestData.subjectToken.may_act}');
+  });
+
+  describe('ACT_CHAIN_SPEL shape (the parts PingOne needs, verified live 2026-11-16)', () => {
+    test('is one line wrapped in ${...}', () => {
+      expect(ACT_CHAIN_SPEL.startsWith('${')).toBe(true);
+      expect(ACT_CHAIN_SPEL.endsWith('}')).toBe(true);
+      expect(ACT_CHAIN_SPEL).not.toMatch(/\n/);
+    });
+
+    test('forwards the subject act when there is no actor token', () => {
+      expect(ACT_CHAIN_SPEL).toContain('actorToken == null ? #root.context.requestData.subjectToken.act');
+    });
+
+    test('guards on subjectToken.act.sub, not on act alone', () => {
+      expect(ACT_CHAIN_SPEL).toContain('subjectToken.act.sub != null');
+    });
+
+    test('nests the earlier act under the new actor', () => {
+      expect(ACT_CHAIN_SPEL).toContain("{'sub': #root.context.requestData.actorToken.client_id, 'act': #root.context.requestData.subjectToken.act}");
+    });
+
+    test('avoids constructs PingOne refuses (T(), instanceof, ?., ?:, method calls)', () => {
+      expect(ACT_CHAIN_SPEL).not.toMatch(/T\(|instanceof|\?\.|\?:|\.toString\(|\.[a-zA-Z]+\(/);
+    });
   });
 });
