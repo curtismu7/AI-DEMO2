@@ -35,6 +35,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 - **UI mode** (dev server or built bundle): `npm run ui:mode`. Details: [docs/worktree-and-stack.md](docs/worktree-and-stack.md).
 - **Default deployment target is local Docker only.** Do not deploy to `ping-devops-cmuir` or any other remote Ping DevOps environment unless the user explicitly names that target. When the user says “deploy” without a remote target, use `npm run serve:worktree here` for an isolated worktree (or `scripts/deploy-live.sh` from the merged main checkout); never infer a remote deployment from the request.
 - **When sync backs off:** `npm run sync:status` names the blocking files; `npm run sync:unblock` parks stray edits on a `wip/main-<timestamp>` branch. Details: [docs/worktree-and-stack.md](docs/worktree-and-stack.md).
+- **Never leave files in the main checkout.** Screenshots and scratch output go to your session's scratchpad or `$TMPDIR`; notes you want kept go in a worktree and a PR. Anything left untracked there blocks the sync and gets swept onto a local `wip/` branch, where it is easily lost.
 
 ## Project
 

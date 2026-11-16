@@ -159,6 +159,12 @@ demo_api_server/data/persistent/lmdb/data.mdb
 
 # evidence screenshots/results from the real e2e evidence + use-case suites (never commit)
 /demo_api_ui/evidence/
+# Ad-hoc screenshots sessions drop in the repo root or .data/e2e-screenshots (never commit).
+# Untracked, they block scripts/sync-main-checkout.sh and get swept onto wip/ branches.
+/*.png
+/*.jpg
+/*.jpeg
+/.data/e2e-screenshots/
 
 # Loose LLM/provider API-key scratch files kept in the repo root (never commit).
 # Real keys belong in the gitignored service .env files; these are the ad-hoc
