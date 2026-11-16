@@ -73,6 +73,37 @@ Add a CUSTOM attribute named `act` on the **audience resource** (the resource th
 ${{'sub': #root.context.requestData.actorToken.client_id}}
 ```
 
+**Chain-preserving form (set on the live tenant 2026-11-16).** The single-level expression above drops every earlier actor, and with no actor token it emits `"act": {"sub": null}`. On the live tenant these 21 audience resources now carry this instead: `mcpgateway`, `agentgateway`, `mcpserver`, `enduser`, `mcpgateway-a2a`, `p1tpx` MCP gateway, `workloadgateway`, `appfire-agent-governance`, the 11 `a2a-intermediate-*` specialists, and `meridian-api`.
+
+```text
+${#root.context.requestData.actorToken == null
+  ? #root.context.requestData.subjectToken.act
+  : ((#root.context.requestData.subjectToken.act != null and #root.context.requestData.subjectToken.act.sub != null)
+      ? {'sub': #root.context.requestData.actorToken.client_id, 'act': #root.context.requestData.subjectToken.act}
+      : {'sub': #root.context.requestData.actorToken.client_id})}
+```
+
+(Write it as ONE line in PingOne. `meridian-api` uses `actorToken.sub` in both places, because its actor is a third-party token with no `client_id`.)
+
+| Exchange | Issued `act` |
+|---|---|
+| First hop, actor token, subject has no `act` | `{"sub": "<agent 1>"}`. No empty inner object. |
+| Later hop, actor token, subject already has `act` | `{"sub": "<agent 2>", "act": {"sub": "<agent 1>"}}`. Every earlier actor is kept, one level per hop. |
+| No actor token (for example hop 2 of `pingOneAdminAccessService`, which sends none) | The subject's `act` is forwarded unchanged. |
+
+Measured live on 2026-11-16 with all three cases above.
+
+Things PingOne's expression parser does and does not accept (MEASURED, each refused one returns 400 `INVALID_DATA` on the attribute write):
+
+- Refused: `T(...)`, `instanceof`, `?.` (safe navigation), `?:` (elvis), method calls such as `.toString()`.
+- Accepted: `==`, `!=`, `and`, `&&`, the ternary `? :`, and inline maps `{'k': v}`.
+- A claim that is **missing** on a token does not read as `null` on its own object: `subjectToken.act` is a non-null object whose `sub` is null. So guard on `subjectToken.act.sub != null`, not on `subjectToken.act != null` alone. The `act != null` test by itself kept the empty inner object.
+- A client-credentials token minted for one of these resources has no actor, so it comes out with `"act": {"sub": null}` (forwarded empty `act`). Do not use such a token as the subject when you test a first hop. Use one from a resource with no `act` attribute (for example the MCP API-key resource, scope `gear:read`).
+
+**Not changed, on purpose:** `OBO Test` (its `act` is `{'client_id': …}` and the OBO demo code and Authorize's `ActClientId` read `act.client_id`), `Demo PingGateway MCP` and `Muse Privilege MCP` (they forward `act` and are called without an actor on their second hop), and the legacy-mode `test` resource.
+
+> **Provisioning code is not updated yet.** `pingoneProvisionService.actAttributeValue()` and `OBO_ACT_SPEL` still write the single-level form. Re-provisioning an environment overwrites the chain-preserving form above with the single-level one. Until the code is changed, re-apply this expression after provisioning.
+
 **Legacy flag-ON mode** uses the official PingOne "Securing AI Agents" SPEL **wrapped in `${…}`** (the wrapper is what makes PingOne evaluate it), in its **null-safe** form (currently deployed on `mcpgateway`, `mcpserver`, and `agentgateway`):
 
 ```http
