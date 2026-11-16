@@ -58,6 +58,7 @@ import type { TratClaims, PolicySource, AuthzDecision } from '../auth/PingOneAut
 import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 import { createPendingElicitation, consumePendingElicitation } from '../elicitationStore';
+import { mintRequestState, consumeRequestState, digestToolArgs } from '../requestState';
 import { extractRequestedProtocolVersion } from '../modernNegotiation';
 
 // ---------------------------------------------------------------------------
@@ -576,15 +577,20 @@ export function buildAuthorizeMcpRequest(
     // MCP spec 2026-07-28 MRTR: a Modern retry carries top-level
     // params.inputResponses + params.requestState instead of the Legacy
     // _elicitation_confirmed/_elicitation_id tool-argument markers above.
-    // requestState IS the elicitation_id — reusing the same crypto-random,
-    // one-time-use, session+tool-bound record from elicitationStore.ts.
+    // requestState is a signed, self-contained token (requestState.ts) bound to
+    // tool + principal + arguments, expiring and single-use — a Modern caller
+    // has no Mcp-Session-Id to bind a stored record to. It is never looked up
+    // in the Legacy elicitationStore, and a Legacy marker is never checked as
+    // a signed token: the two flows cannot redeem each other's state.
     // Only 'accept' counts as confirmed; decline/cancel/missing all fall
     // through to a fresh obligation check, same fail-closed default as an
     // absent Legacy confirmation.
     const modernInputResponses = parsedBody.params?.inputResponses as Record<string, { action?: string }> | undefined;
     const modernRequestState = parsedBody.params?.requestState as string | undefined;
+    let elicitationViaRequestState = false;
     if (modernInputResponses?.elicitation?.action === 'accept' && modernRequestState) {
       elicitationConfirmed = true;
+      elicitationViaRequestState = true;
       elicitationId = modernRequestState;
       if (parsedBody.params) {
         delete parsedBody.params.inputResponses;
@@ -597,12 +603,21 @@ export function buildAuthorizeMcpRequest(
     // this session + tool BEFORE calling P1AZ. One-time use: consumed here.
     // Mirrors index.ts (WS path) so both transports share the same store.
     if (elicitationConfirmed) {
-      // `_hdr` (Step 2c) is not defined yet at this point in the pipeline —
-      // read the session-binding header directly, same extraction it uses.
-      const _rawSessionId = _req?.headers?.['mcp-session-id'];
-      const sessionId = (Array.isArray(_rawSessionId) ? _rawSessionId[0] : _rawSessionId || '').toString().trim();
-      const rec = elicitationId ? consumePendingElicitation(elicitationId, toolName ?? '', sessionId) : null;
-      if (!rec) {
+      let elicitationValid: boolean;
+      if (elicitationViaRequestState) {
+        elicitationValid = !!elicitationId && consumeRequestState(elicitationId, {
+          tool: toolName ?? '',
+          sub: decoded.sub ?? '',
+          argsDigest: digestToolArgs(toolArgs),
+        });
+      } else {
+        // `_hdr` (Step 2c) is not defined yet at this point in the pipeline —
+        // read the session-binding header directly, same extraction it uses.
+        const _rawSessionId = _req?.headers?.['mcp-session-id'];
+        const sessionId = (Array.isArray(_rawSessionId) ? _rawSessionId[0] : _rawSessionId || '').toString().trim();
+        elicitationValid = (elicitationId ? consumePendingElicitation(elicitationId, toolName ?? '', sessionId) : null) !== null;
+      }
+      if (!elicitationValid) {
         setAuditHeader(res);
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -1067,21 +1082,27 @@ export function buildAuthorizeMcpRequest(
       // Branch on obligation (NOT reason) — reason is 'HITL_REQUIRED' for ALL
       // non-stepUp obligations, so branching on reason would misclassify this as
       // a HITL consent challenge. HTTP-transport counterpart of index.ts's WS
-      // handler; mints into the same shared store (src/elicitationStore.ts).
+      // handler; a Legacy caller's record goes into the shared store
+      // (src/elicitationStore.ts), a Modern caller's into a signed requestState.
       if (authzDecision.obligation === 'elicitation') {
         const sessionId = _hdr('mcp-session-id') ?? '';
         const prompt = authzDecision.advice?.find(
           (a: { id: string }) => a.id === 'elicitation-prompt',
         )?.value ?? `Confirm ${toolName}?`;
-        const rec = createPendingElicitation(toolName ?? '', sessionId, prompt);
         // MCP spec 2026-07-28 MRTR: a Modern caller gets the server-initiated
         // input request embedded in an InputRequiredResult instead of the
         // Legacy elicitation_required error — MRTR replaced server-initiated
-        // requests over an open connection entirely. requestState carries
-        // the same elicitation_id the Legacy path uses; requestedSchema is
+        // requests over an open connection entirely. requestState is a signed
+        // token bound to this tool, principal and arguments (requestState.ts),
+        // so no per-session record is stored; requestedSchema is
         // empty because the meaningful signal is the accept/decline action
         // itself, not any collected data (this is a confirm, not a form).
         if (extractRequestedProtocolVersion(parsedBody.params) !== undefined) {
+          const requestState = mintRequestState({
+            tool: toolName ?? '',
+            sub: decoded.sub ?? '',
+            argsDigest: digestToolArgs(toolArgs),
+          });
           res.end(JSON.stringify({
             jsonrpc: '2.0',
             id: parsedBody.id ?? null,
@@ -1093,12 +1114,13 @@ export function buildAuthorizeMcpRequest(
                   params: { mode: 'form', message: prompt, requestedSchema: { type: 'object', properties: {} } },
                 },
               },
-              requestState: rec.elicitation_id,
+              requestState,
             },
           }));
           return;
         }
         // Legacy (2025-11-25 and earlier): unchanged.
+        const rec = createPendingElicitation(toolName ?? '', sessionId, prompt);
         res.end(JSON.stringify({
           error: 'elicitation_required',
           message: prompt,

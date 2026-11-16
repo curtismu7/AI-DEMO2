@@ -22,6 +22,7 @@ import {
   modernRoutingHeaders,
   stripModernDecoration,
   stripModernDecorationFromBody,
+  finalizeModernBody,
   wsToHttpBase,
 } from '../src/upstreamModern';
 import { proxyJsonRpc, proxyJsonRpcHttp } from '../src/proxy';
@@ -172,6 +173,23 @@ describe('helpers', () => {
     expect(bare.result).toEqual({});
     const err = { jsonrpc: '2.0', id: 1, error: { code: 1, message: 'x' } };
     expect(stripModernDecoration(err)).toBe(err);
+  });
+
+  it('finalizeModernBody gives a Modern caller resultType, and makes tools/list per-caller', () => {
+    const fin = (r: unknown, method: string) =>
+      JSON.parse(finalizeModernBody(Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 1, result: r })), 'application/json', method).toString()).result;
+    // A Legacy backend's plain result gains resultType; non-list methods get no cache hints invented.
+    expect(fin({ content: [] }, 'tools/call')).toEqual({ resultType: 'complete', content: [] });
+    // The gateway filters the catalogue per caller: 'public' from a backend is overridden, a missing ttlMs becomes 0.
+    expect(fin({ tools: [], cacheScope: 'public', ttlMs: 5000 }, 'tools/list')).toMatchObject({ cacheScope: 'private', ttlMs: 5000 });
+    expect(fin({ tools: [] }, 'tools/list')).toMatchObject({ resultType: 'complete', cacheScope: 'private', ttlMs: 0 });
+    // An interim result carries no caching hints.
+    expect(fin({ resultType: 'input_required', requestState: 's' }, 'tools/list')).toEqual({ resultType: 'input_required', requestState: 's' });
+    // Errors and non-JSON are untouched.
+    const err = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: 1, message: 'x' } }));
+    expect(finalizeModernBody(err, 'application/json', 'tools/list')).toBe(err);
+    const sse = Buffer.from('data: x');
+    expect(finalizeModernBody(sse, 'text/event-stream', 'tools/list')).toBe(sse);
   });
 
   it('stripModernDecorationFromBody leaves non-JSON bodies alone', () => {
@@ -388,6 +406,26 @@ describe('HTTP /mcp ingress -> upstream', () => {
     expect(methods()).toEqual(['server/discover', 'tools/call']);
     expect(res.body.result.resultType).toBe('complete');
     expect(res.body.result.ttlMs).toBe(60_000);
+  });
+
+  it('GET and DELETE are 405 (Allow: POST) for a caller that speaks 2026-07-28, with or without a bearer', async () => {
+    const gw = new GatewayServer({ config: stubConfig, upstreamMcpUrl: base });
+    for (const verb of ['get', 'delete'] as const) {
+      const bare = await supertest(gw.httpServer)[verb]('/mcp').set('MCP-Protocol-Version', '2026-07-28');
+      expect(bare.status).toBe(405);
+      expect(bare.headers.allow).toBe('POST');
+      const authed = await supertest(gw.httpServer)[verb]('/mcp')
+        .set('MCP-Protocol-Version', '2026-07-28').set('Authorization', `Bearer ${token()}`);
+      expect(authed.status).toBe(405);
+    }
+    expect(methods()).toEqual([]);
+  });
+
+  it('GET and DELETE for a Legacy caller still go through auth, as before', async () => {
+    const gw = new GatewayServer({ config: stubConfig, upstreamMcpUrl: base });
+    expect((await supertest(gw.httpServer).get('/mcp')).status).toBe(401);
+    expect((await supertest(gw.httpServer).delete('/mcp')).status).toBe(401);
+    expect((await supertest(gw.httpServer).get('/mcp').set('MCP-Protocol-Version', '2025-11-25')).status).toBe(401);
   });
 
   it('a caller that brings its own session id stays on the Legacy path', async () => {

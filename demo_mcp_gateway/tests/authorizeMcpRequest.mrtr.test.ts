@@ -10,11 +10,11 @@
  * green throughout this file's existence, proving Legacy callers are
  * unaffected.
  *
- * Reuses the exact same elicitationStore.ts record (crypto-random,
- * one-time-use, session+tool-bound, TTL-bound) as `requestState` — already
- * satisfies the spec's requestState integrity requirement (unforgeable,
- * single-use, principal-bound, server-validated) without a redundant HMAC
- * layer on top of an already-unguessable UUID.
+ * `requestState` is a signed, self-contained token (requestState.ts) bound to
+ * tool + principal + arguments, expiring and single-use — a Modern caller has
+ * no Mcp-Session-Id to hang a stored record on. What the binding refuses is
+ * covered in authorizeMcpRequest.requestState.test.ts; this file covers the
+ * mint/accept/decline round trip.
  */
 
 import { buildAuthorizeMcpRequest } from '../src/middleware/authorizeMcpRequest';
