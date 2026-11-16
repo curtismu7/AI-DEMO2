@@ -217,9 +217,9 @@ paths work (`act.sub`). Remove a condition by deleting the `RequiredClaims` fiel
 
 ### Optional: Cedar policy on token scopes
 
-Cedar reads the token's scopes as `context.token.scopes` (other claims, including
-`act.sub`, are not in Cedar yet — `context.token.claims` is coming in a later release
-[ping]):
+Cedar reads the token's scopes as `context.token.scopes`. Other claims, including `act.sub`, are
+readable through `context.token.claims` (**validated 2026-11-16; the 2026-11-13 note that this was "coming in a
+later release" is out of date**; see the next subsection):
 
 ```cedar
 @reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
@@ -231,6 +231,23 @@ unless { context has token && context.token.scopes.contains("opensearch:search")
 **Make the policy Active.** An API-created AI policy has `State: ""` — compiled and logged
 but never enforced. Use the console's **Enforce** button or a `PUT` with `"State": "Active"`.
 [verified]
+
+### Optional: Cedar policy on the agent (`act.sub`)
+
+The AI Policy editor's template **"Restrict a tool to tokens carrying a claim"** generates this (2026-11-16):
+
+```cedar
+@reason("SearchIndexTool requires act.sub to be <agent id>")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
+when   { context.app == "<agent app>" }
+unless { context.token.claims has "act.sub"
+         && context.token.claims["act.sub"].contains("<agent id>") };
+```
+
+The dotted name is a literal key and the value is a set, so use `["act.sub"]` with `.contains(...)`. A missing
+claim or token is refused. **Measured:** the controller validated it as a Candidate (Valid, one statement,
+MCP · Before inspection). **Not measured:** a real PF token through an Active policy. `act` must be an object in
+the PF token, as for the required claims above. Make it Active the same way as the scope policy. Details: `PF-CLAIMS-IN-CEDAR-POLICIES.md`, "Token claims in Cedar".
 
 ## 8. First call and test
 
