@@ -137,6 +137,10 @@ must emit `act` as an **object** (as for `RequiredClaims`; the text `"{}"` will 
 test, save it Active against a scratch tool and mint a PF token with the exchange in
 `PF-OBO-WITH-PINGFEDERATE-SETUP.md`.
 
+**Script:** `privilege/scripts/provision-act-sub-cedar-policy.mjs` creates this policy through the console API
+(`--agent`, `--app`, `--tool`; dry run unless `--apply`; Candidate unless `--state Active`). Run live on
+2026-11-16 as Candidate: created, Valid, stage `mcp:pre_guard`; the probe was deleted afterwards.
+
 `RequiredClaims` (identity or grant rule) still does the same job earlier in the chain, and is the one
 **verified end to end** for `act.sub`. Use Cedar when the claim decision belongs with a specific tool
 policy; use `RequiredClaims` to gate the caller before any tool is chosen.
