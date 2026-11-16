@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import JsonPane from '../components/shared/JsonPane';
+import { LEGACY_ALERT, LEGACY_HOT } from '../components/shared/jsonEmphasis';
 import './LlmTestPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -81,8 +82,8 @@ function bodyFor(path, model) {
 }
 
 // What a reader of a chat-completion body or the request looks for first, on top of the pane's default important keys.
-const RESPONSE_HOT = ['model', 'finish_reason', 'stop_reason', 'usage'];
-const REQUEST_HOT = ['url', 'method'];
+const RESPONSE_HOT = ['model', 'finish_reason', 'stop_reason', 'usage', ...LEGACY_HOT];
+const REQUEST_HOT = ['url', 'method', ...LEGACY_HOT];
 
 export default function LlmTestPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
@@ -386,13 +387,13 @@ export default function LlmTestPage() {
                 <span className="lt-k">Response</span>
                 {/* Only a parsed body has fields to lay out; raw text stays text and gets no Form | JSON switch. */}
                 {result.response?.json
-                  ? <JsonPane value={result.response.json} label="Response" testId="lt-response" hot={RESPONSE_HOT} />
+                  ? <JsonPane value={result.response.json} label="Response" testId="lt-response" hot={RESPONSE_HOT} alert={LEGACY_ALERT} />
                   : <pre data-testid="lt-response">{result.response?.raw || '(empty body)'}</pre>}
               </div>
 
               <div className="lt-pane">
                 <span className="lt-k">Request as sent</span>
-                <JsonPane value={result.request} label="Request as sent" hot={REQUEST_HOT} />
+                <JsonPane value={result.request} label="Request as sent" hot={REQUEST_HOT} alert={LEGACY_ALERT} />
               </div>
             </>
           )}
@@ -469,13 +470,13 @@ export default function LlmTestPage() {
               <div className="lt-pane">
                 <span className="lt-k">Direct response</span>
                 {cmp.completion.direct.json
-                  ? <JsonPane value={cmp.completion.direct.json} label="Direct response" hot={RESPONSE_HOT} />
+                  ? <JsonPane value={cmp.completion.direct.json} label="Direct response" hot={RESPONSE_HOT} alert={LEGACY_ALERT} />
                   : <pre>{cmp.completion.direct.error ?? cmp.completion.direct.raw}</pre>}
               </div>
               <div className="lt-pane">
                 <span className="lt-k">Gateway response</span>
                 {cmp.completion.gateway.json
-                  ? <JsonPane value={cmp.completion.gateway.json} label="Gateway response" hot={RESPONSE_HOT} />
+                  ? <JsonPane value={cmp.completion.gateway.json} label="Gateway response" hot={RESPONSE_HOT} alert={LEGACY_ALERT} />
                   : <pre>{cmp.completion.gateway.error ?? cmp.completion.gateway.raw}</pre>}
               </div>
             </div>

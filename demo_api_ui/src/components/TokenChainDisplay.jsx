@@ -8,6 +8,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { isMockIdJagTrace, isNativeIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
+import { LEGACY_ALERT, LEGACY_HOT } from "./shared/jsonEmphasis";
 import JsonView, { JSON_VIEW_TABS } from "./shared/JsonView";
 import InspectorTabs from "./shared/InspectorTabs";
 import "./TokenChainDisplay.css";
@@ -196,7 +197,7 @@ function StatusBadge({ status }) {
 // ─── Claims viewer ────────────────────────────────────────────────────────────
 
 // Keys a reader of an AAM sideband request or reply looks for first, on top of the JSON pane's defaults.
-const SIDEBAND_HOT = ["method", "path", "url", "status", "authorization_details"];
+const SIDEBAND_HOT = ["method", "path", "url", "status", "authorization_details", ...LEGACY_HOT];
 
 function ClaimsPanel({ claims, alg, hiddenClaims = [], jsonMode = "json" }) {
   if (!claims) {
@@ -2194,7 +2195,7 @@ export function AamDecisionEduBox({ event }) {
           <>
             <div className="tcd-edu-detail">Sideband request</div>
             <div className="tcd-edu-code">
-              <JsonPane value={event.request} label="Sideband request" hot={SIDEBAND_HOT} />
+              <JsonPane value={event.request} label="Sideband request" hot={SIDEBAND_HOT} alert={LEGACY_ALERT} />
             </div>
           </>
         ) : null}
@@ -2202,7 +2203,7 @@ export function AamDecisionEduBox({ event }) {
           <>
             <div className="tcd-edu-detail">Sideband response</div>
             <div className="tcd-edu-code">
-              <JsonPane value={event.response} label="Sideband response" hot={SIDEBAND_HOT} />
+              <JsonPane value={event.response} label="Sideband response" hot={SIDEBAND_HOT} alert={LEGACY_ALERT} />
             </div>
           </>
         ) : null}

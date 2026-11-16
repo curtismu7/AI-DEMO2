@@ -97,7 +97,8 @@ describe("AamDecisionEduBox", () => {
   test("degrades without throwing when the probe returned no trail", () => {
     const bare = { id: "gw-aam", decision: null, request: null, response: null };
     const { container } = render(<AamDecisionEduBox event={bare} />);
-    expect(container.querySelectorAll("pre.tcd-edu-code").length).toBe(0);
+    // No payload to show: neither the code box nor a JSON pane may render.
+    expect(container.querySelectorAll(".tcd-edu-code, .jp-box").length).toBe(0);
     expect(screen.getByText(/unknown/i)).toBeInTheDocument();
   });
 });

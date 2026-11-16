@@ -10,6 +10,7 @@ import { hitlToolsFor } from '../config/privilegeAiPoliciesDemo';
 import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
 import CimdClientIdentity from '../components/privilege/CimdClientIdentity';
 import JsonPane, { deepParse } from '../components/shared/JsonPane';
+import { LEGACY_ALERT, LEGACY_HOT } from '../components/shared/jsonEmphasis';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
@@ -263,6 +264,7 @@ function JsonOutput({ value, deep = false, emptyMessage = 'No data.', label = 'O
       deep={deep}
       label={label}
       hot={OUTPUT_HOT}
+      alert={LEGACY_ALERT}
       actions={(
         <button type="button" className="cur-jsoncopy" onClick={copy} aria-label={`Copy ${label} view as JSON`}>
           {copied ? 'Copied' : 'Copy'}
@@ -273,8 +275,8 @@ function JsonOutput({ value, deep = false, emptyMessage = 'No data.', label = 'O
 }
 
 // What a reader of an MCP result looks for first, on top of the pane's default important keys.
-const TRACE_HOT = ['method', 'url', 'phase', 'direction'];
-const OUTPUT_HOT = ['tool', 'name', 'method', 'uri', 'authorization_details'];
+const TRACE_HOT = ['method', 'url', 'phase', 'direction', ...LEGACY_HOT];
+const OUTPUT_HOT = ['tool', 'name', 'method', 'uri', 'authorization_details', ...LEGACY_HOT];
 
 export default function PrivilegeMcpClientPage() {
   // The setter matters as much as the getter here: `auth` used to be left in the
@@ -1600,7 +1602,7 @@ export default function PrivilegeMcpClientPage() {
               This stands in for the approver in Privilege. Nothing is approved for real and the gateway is not called again:
               you get a sample result, marked as simulated.
             </p>
-            <div className="cur-approver__args"><JsonPane value={hold?.args} label="Tool arguments" /></div>
+            <div className="cur-approver__args"><JsonPane value={hold?.args} label="Tool arguments" hot={LEGACY_HOT} alert={LEGACY_ALERT} /></div>
             <div className="cur-btn-row">
               <button className="cur-btn cur-btn--primary" onClick={mockApprove}>Approve (mock)</button>
               <button className="cur-btn" onClick={() => setShowApprover(false)}>Cancel</button>
@@ -2376,7 +2378,7 @@ export default function PrivilegeMcpClientPage() {
                         </div>
                       )}
                       {msg.extra && (
-                        <div className="cur-msg-meta"><JsonPane value={msg.extra} label="Message detail" /></div>
+                        <div className="cur-msg-meta"><JsonPane value={msg.extra} label="Message detail" hot={LEGACY_HOT} alert={LEGACY_ALERT} /></div>
                       )}
                     </div>
                   ))}
@@ -2502,7 +2504,7 @@ export default function PrivilegeMcpClientPage() {
                           <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
                           {e.type === 'error' && e.note !== 'policy_denied' && <span className="cur-trace-error">{e.message}</span>}
                         </summary>
-                        <div className="cur-trace-json"><JsonPane value={rest} label="Trace frame" hot={TRACE_HOT} /></div>
+                        <div className="cur-trace-json"><JsonPane value={rest} label="Trace frame" hot={TRACE_HOT} alert={LEGACY_ALERT} /></div>
                       </details>
                     );
                   })}
