@@ -499,8 +499,8 @@ PY
 # ai-demo-secrets, which the BFF DOES mount (unlike the langchain-secrets
 # mirrors above, which exist because the agent mounts a different secret).
 #
-# 03-secrets.yaml.template declares all four keys but ships them empty, because
-# the three virtual keys are credentials and a populated template would commit
+# 03-secrets.yaml.template declares all five keys but ships them empty, because
+# the four virtual keys are credentials and a populated template would commit
 # them. Without this mirror the BFF gets empty strings and every Privilege LLM
 # call fails with "PRIVILEGE_LLM_VIRTUAL_KEY_* not configured" — a named error,
 # but only after a deploy that looked clean.
@@ -511,7 +511,8 @@ mirror_privilege_llm_config() {
   for key in PRIVILEGE_LLM_GATEWAY_URL \
              PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC \
              PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE \
-             PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI; do
+             PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI \
+             PRIVILEGE_LLM_VIRTUAL_KEY_GROQ; do
     value=$(grep -E "^${key}=.+" "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
     [ -z "$value" ] && continue
     export MIRROR_KEY="$key" MIRROR_VALUE="$value"

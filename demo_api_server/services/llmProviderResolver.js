@@ -17,14 +17,14 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock'|'groq'|'privilege_llm'|'privilege_claude', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock'|'groq'|'privilege_llm'|'privilege_claude'|'privilege_groq', model: string|undefined }}
  */
 const { isBedrockLlmEffective } = require('./bedrockPathGate');
 
 // ff_privilege_llm_first: cloud providers enter the PingOne Agent Privilege
 // first (virtual-key lanes). The aliased names are what geminiNlIntent.js and
 // :3006's reasonOnce already dispatch. No openai alias yet — refused loudly.
-const PRIVILEGE_FIRST_ALIAS = { google: 'privilege_llm', anthropic: 'privilege_claude' };
+const PRIVILEGE_FIRST_ALIAS = { google: 'privilege_llm', anthropic: 'privilege_claude', groq: 'privilege_groq' };
 
 function privilegeFirstOn() {
   // Lazy: the bedrock and lmstudio resolver tests load this module without a configStore mock.
@@ -42,7 +42,9 @@ function resolveLlmProvider(langchainConfig = {}) {
     };
   }
 
-  if (requested === 'openai' || requested === 'anthropic' || requested === 'google') {
+  // Cloud providers. groq is GroqCloud — LPU-hosted, OpenAI-compatible /v1 API;
+  // real key required, langchain_agent's get_llm() fails fast when GROQ_API_KEY is absent.
+  if (requested === 'openai' || requested === 'anthropic' || requested === 'google' || requested === 'groq') {
     if (privilegeFirstOn()) {
       if (!process.env.PRIVILEGE_LLM_GATEWAY_URL) {
         console.warn('[llmProvider] ff_privilege_llm_first is ON but PRIVILEGE_LLM_GATEWAY_URL is unset — vendor-direct');
@@ -74,12 +76,6 @@ function resolveLlmProvider(langchainConfig = {}) {
   if (requested === 'mlx') {
     // Apple mlx-lm demo server — OpenAI-compatible /v1 on MLX_LM_BASE_URL (:8098).
     return { provider: 'mlx', model };
-  }
-
-  if (requested === 'groq') {
-    // GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real key required;
-    // langchain_agent's get_llm() fails fast when GROQ_API_KEY is absent.
-    return { provider: 'groq', model };
   }
 
   if (requested === 'helix') return { provider: 'helix', model };

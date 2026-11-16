@@ -38,7 +38,7 @@ describe('Privilege-first LLM posture is env-driven', () => {
 
   it('the reason service documents the Privilege lane env it reads', () => {
     const env = read('demo_agent_service/.env.example');
-    for (const key of ['PRIVILEGE_LLM_GATEWAY_URL', 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC', 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE']) {
+    for (const key of ['PRIVILEGE_LLM_GATEWAY_URL', 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC', 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE', 'PRIVILEGE_LLM_VIRTUAL_KEY_GROQ']) {
       assert.match(env, new RegExp(`^${key}=`, 'm'), `${key} missing from demo_agent_service/.env.example`);
     }
   });

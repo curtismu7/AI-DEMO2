@@ -25,7 +25,7 @@ const FORK_CAPTIONS = edgeCaptions(FORK_EDGES, Object.fromEntries(FORK_NODES.map
 const FLAGS = [
   {
     code: ["ff_privilege_llm_first"],
-    text: "BFF chat: google → privilege_llm, anthropic → privilege_claude. Default off. Works locally and on SE.",
+    text: "BFF chat: google → privilege_llm, anthropic → privilege_claude, groq → privilege_groq. Default off. Works locally and on SE.",
   },
   {
     code: ["AGENT_LLM_BASE_URL", "AGENT_LLM_API_KEY"],

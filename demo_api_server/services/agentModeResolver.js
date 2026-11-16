@@ -32,6 +32,8 @@ const AGENT_MODES = [
   { id: 'privilege_claude', label: 'Claude via Privilege', provider: 'privilege_claude', heuristicRouting: false, external: true },
   { id: 'helix_google', label: 'Helix',           provider: 'helix',     heuristicRouting: false, external: true  },
   { id: 'groq',         label: 'Groq',            provider: 'groq',      heuristicRouting: false, external: true  },
+  // Same backend as 'groq', proxied through a Privilege virtual key — Groq sibling of 'privilege_llm'.
+  { id: 'privilege_groq', label: 'Groq via Privilege', provider: 'privilege_groq', heuristicRouting: false, external: true },
 ];
 
 const DEFAULT_MODE = 'heuristics'; // stable, no-config-safe default (deterministic)
