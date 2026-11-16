@@ -33,7 +33,7 @@ What this covers:
 What it does not cover yet:
 
 - **On behalf of a user** (user in `sub`, agent in `act.sub`, via PingFederate token exchange): the identity settings below already fit this shape, but it has not been run end to end. Privilege's OBO support is in staging (Ping, 2026-10-23).
-- **Token claims in Cedar policies**: `context.token.claims` is coming in a later release. Today claim checks live in the identity (required claims) and in the Access Policy step of the agent key.
+- ~~**Token claims in Cedar policies**~~ **Superseded 2026-11-16:** Cedar can read token claims, including `act.sub`, through `context.token.claims["act.sub"]`. The console template "Restrict a tool to tokens carrying a claim" generates it and the controller validated it (Candidate, never enforced); no real token has been through an Active policy yet. See `PF-CLAIMS-IN-CEDAR-POLICIES.md`, "Token claims in Cedar". The identity's required claims and the grant rules' `RequiredClaims` still do the same job earlier and are verified.
 - **Per-MCP audiences on a shared identity**: the audience must contain the gateway; an allow-list of audiences is possible on request.
 
 Example: a customer such as NYLife has agents registered in PingFederate and wants Privilege to govern which MCP tools those agents may call, without issuing each agent a Privilege key.
@@ -49,6 +49,7 @@ Example: a customer such as NYLife has agents registered in PingFederate and wan
 | Holds no secret for the agent | The PingFederate token is the only credential. |
 | Decides which tools, per agent app | The agent key's grant lists tools per agent app. No rule for the app is 403; unlisted tools are hidden. |
 | Blocks one tool by token scope (Cedar) | An AI policy reads `context.token.scopes`: `SearchIndexTool` is denied unless the scope has `opensearch:search`; other tools still work. The policy must be State Active (part I). Measured 2026-10-27. |
+| Blocks one tool by the agent's `act.sub` (Cedar) | An AI policy reads `context.token.claims["act.sub"]` (console template "Restrict a tool to tokens carrying a claim"). **Validated 2026-11-16** (Candidate, never enforced); not run on a real token yet. `act` must be an object in the PingFederate token. |
 | Gives different tools by scope (tiers) | Two grant rules for the same app, each with `RequiredClaims` on `scope`: the token's scope picks 3 tools, 9 tools, or 403. Measured 2026-10-27, section 16. |
 | Passes the agent's token through | Pass Agent Token forwards the PingFederate token unchanged; the MCP server verifies it too (section 15). |
 | Finds the tools without a person signing in | The first accepted agent call discovers the app's tools (gateway `v1.261024`). |
@@ -60,7 +61,6 @@ Example: a customer such as NYLife has agents registered in PingFederate and wan
 |---|---|
 | Token exchange (on behalf of a user) | Privilege does not exchange tokens. A token with the user in `sub` and the agent in `act` has to come from PingFederate. Privilege's OBO support is in staging (Ping, 2026-10-23). |
 | Narrow the token it forwards | The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway. |
-| Cedar rules on other token claims | Cedar reads the token's scopes (part I) but no other claim: `context.token.claims` (`act.sub`, `client_id` …) is due in a later release. Other claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
 | Wildcard audiences | The audience must name the gateway; no wildcard. An allow-list is possible on request. |
 | New grant policies through the API | A POSTed grant is deleted within about a minute (cause unknown). Edit the key's existing grant. |
 
@@ -320,7 +320,7 @@ In the AI Policies list, a policy in **Candidate** (here `llm-response-pii-withh
 
 ![AI Policies list: Candidate with Enforce, and Active](images/pf-token-exchange/guide/i3-ai-policies-page2.png)
 
-Cedar sees only the token's scopes. Other claims (`act.sub`, `client_id`) are not in Cedar yet; use the identity's required claims or the grant's `RequiredClaims` for those.
+Cedar reads the token's scopes (`context.token.scopes`) and, as of 2026-11-16, other signed claims through `context.token.claims`, including `act.sub` (validated, not run on a real token; see `PF-CLAIMS-IN-CEDAR-POLICIES.md`). The identity's required claims and the grant's `RequiredClaims` still work for those and are verified.
 
 ## Working configuration (verified 2026-10-26, 18:12 UTC)
 
@@ -529,12 +529,12 @@ Our current test [measured 2026-10-22] reached the policy step and was refused, 
 3. What deletes `pftoken-agent-grant`? (blocks step 6)
 4. Is a per-MCP audience acceptable in production, or must it be the gateway? (Suman says gateway)
 5. Does PF issue the exchanged token with `act.sub` and `sub` as section 1 needs? (exchange exists for OBO; the claims for our agent are untested)
-6. When does `context.token.claims["act.sub"]` reach Cedar? (Suman: next release)
+6. ~~When does `context.token.claims["act.sub"]` reach Cedar? (Suman: next release)~~ **Answered (2026-11-16):** it is in the console now. The AI Policy template "Restrict a tool to tokens carrying a claim" generates `context.token.claims["act.sub"].contains("<agent>")` and the controller validates it. Not yet run on a real token.
 
 ## 11. Ping thread, summarized
 
 - Federico (2026-10-23): the agent's token has user in `sub` and agent in `act.sub`; Privilege expects the agent id in `sub`. The attributes are inverted for OBO. Audience should live with the MCP, not the agent. The logs and policies should resolve both attributes.
-- Suman (2026-10-23): the subject config is the issue. Use Subject `*` (or AllowAnySubject), `RequiredClaims["act.sub"]` = the agent, `UserClaim` = `sub`, `SubjectBinding` = `resolved` (or `opaque`). The audience must include the gateway; OBO is the intended route. Cedar `context.token.claims` checks are coming in the next release.
+- Suman (2026-10-23): the subject config is the issue. Use Subject `*` (or AllowAnySubject), `RequiredClaims["act.sub"]` = the agent, `UserClaim` = `sub`, `SubjectBinding` = `resolved` (or `opaque`). The audience must include the gateway; OBO is the intended route. Cedar `context.token.claims` checks were "coming in the next release" then; they validate on the console as of 2026-11-16 (see question 6 above).
 
 ## 12. Test results, 2026-10-25
 
@@ -680,7 +680,7 @@ The client only ever sees a bare `403 Forbidden` for a policy denial, and `401 B
 ### Claims you can check today (Suman, 2026-10-23)
 
 - Claim conditions can be set today in the **Access Policy** step of the Agent Registry creation flow, on four fixed claims only: **scopes, `client_id`, subject, issuer**.
-- Cedar cannot read token claims yet. `context.token.claims` (including `act.sub`) is coming in the next release.
+- Cedar can read token claims, including `act.sub`, through `context.token.claims` (validated 2026-11-16, Candidate, never enforced; not yet run on a real token). On 2026-10-23 this was "coming in the next release"; see `PF-CLAIMS-IN-CEDAR-POLICIES.md`.
 - The audience must contain the gateway; a wildcard is not allowed (RFC 7519 §4.1.3). OBO, in staging and due at the end of next week, is the intended route for per-MCP audiences. An allow-list of audiences is possible on request.
 
 ## 15. Proving the passthrough: `whoami` behind agent app `pftoken-rs` (2026-10-27 UTC)
