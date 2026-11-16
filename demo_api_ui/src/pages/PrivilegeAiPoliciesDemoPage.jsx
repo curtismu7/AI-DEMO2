@@ -42,56 +42,6 @@ const CONN_META = {
   error: { tone: 'danger', word: 'Error' },
 };
 
-// Start here: where Cedar lives in the console, what it is and is not, and four use cases from the policies already on the tenant.
-function SetupGuide() {
-  return (
-    <div data-testid="apd-setup">
-      <Section
-        id="apd-setup-h"
-        kicker="Start here"
-        title="Set up Cedar in Privilege"
-        lede="Cedar policies are written and enforced in the Privilege console. This page does not create or change any."
-      >
-        <CardGrid>
-          <Card title="How to get to it" tone="neutral">
-            <ol className="pu-note apd-list" data-testid="apd-setup-steps">
-              {SETUP_STEPS.map((x) => <li key={x.step}><strong>{x.step}.</strong> {x.detail}</li>)}
-            </ol>
-            <p className="pu-note">Walked on the local console on 2026-11-16, stopping before saving. The console text is the source for the descriptions.</p>
-          </Card>
-          <Card title="What Cedar is, and is not" tone="neutral" data-testid="apd-is-isnt">
-            <p className="pu-status-line"><StatusChip tone="ok">Is</StatusChip></p>
-            <ul className="pu-note apd-list" data-testid="apd-is">{CEDAR_IS.map((t) => <li key={t}>{t}</li>)}</ul>
-            <p className="pu-status-line"><StatusChip tone="warn">Is not</StatusChip></p>
-            <ul className="pu-note apd-list" data-testid="apd-isnt">{CEDAR_ISNT.map((t) => <li key={t}>{t}</li>)}</ul>
-          </Card>
-        </CardGrid>
-      </Section>
-      <Section
-        id="apd-cases-h"
-        kicker="Start here"
-        title="Four use cases, from the policies already on the tenant"
-        lede="The Cedar is the console copy, read on 2026-11-16. Only an Active policy is enforced; a Candidate is stored and validated and does not run."
-      >
-        <CardGrid>
-          {USE_CASES.map((u) => (
-            <Card key={u.id} title={u.title} tone="neutral" data-testid={`apd-case-${u.id}`}>
-              <p className="pu-status-line">
-                <StatusChip tone={u.state === 'Active' ? 'ok' : 'warn'}>{u.state}</StatusChip>
-                <span>policy <code>{u.policy}</code></span>
-              </p>
-              <p className="pu-note">{u.what}</p>
-              <pre className="apd-cedar" role="region" tabIndex={0} aria-label={`Cedar for ${u.policy}`}>{u.cedar}</pre>
-              <p className="pu-note">{u.link ? <Link to={u.link}>{u.run}</Link> : u.run}</p>
-              {u.note && <p className="pu-note">{u.note}</p>}
-            </Card>
-          ))}
-        </CardGrid>
-      </Section>
-    </div>
-  );
-}
-
 export default function PrivilegeAiPoliciesDemoPage({ live = true }) {
   const [conn, setConn] = useState({ status: live ? 'connecting' : 'off' });
   const [runs, setRuns] = useState({});
@@ -507,3 +457,52 @@ function OptionsLab() {
   );
 }
 
+// Start here: where Cedar lives in the console, what it is and is not, and four use cases from the policies already on the tenant.
+function SetupGuide() {
+  return (
+    <div data-testid="apd-setup">
+      <Section
+        id="apd-setup-h"
+        kicker="Start here"
+        title="Set up Cedar in Privilege"
+        lede="Cedar policies are written and enforced in the Privilege console. This page does not create or change any."
+      >
+        <CardGrid>
+          <Card title="How to get to it" tone="neutral">
+            <ol className="pu-note apd-list" data-testid="apd-setup-steps">
+              {SETUP_STEPS.map((x) => <li key={x.step}><strong>{x.step}.</strong> {x.detail}</li>)}
+            </ol>
+            <p className="pu-note">Walked on the local console on 2026-11-16, stopping before saving. The console text is the source for the descriptions.</p>
+          </Card>
+          <Card title="What Cedar is, and is not" tone="neutral" data-testid="apd-is-isnt">
+            <p className="pu-status-line"><StatusChip tone="ok">Is</StatusChip></p>
+            <ul className="pu-note apd-list" data-testid="apd-is">{CEDAR_IS.map((t) => <li key={t}>{t}</li>)}</ul>
+            <p className="pu-status-line"><StatusChip tone="warn">Is not</StatusChip></p>
+            <ul className="pu-note apd-list" data-testid="apd-isnt">{CEDAR_ISNT.map((t) => <li key={t}>{t}</li>)}</ul>
+          </Card>
+        </CardGrid>
+      </Section>
+      <Section
+        id="apd-cases-h"
+        kicker="Start here"
+        title="Four use cases, from the policies already on the tenant"
+        lede="The Cedar is the console copy, read on 2026-11-16. Only an Active policy is enforced; a Candidate is stored and validated and does not run."
+      >
+        <CardGrid>
+          {USE_CASES.map((u) => (
+            <Card key={u.id} title={u.title} tone="neutral" data-testid={`apd-case-${u.id}`}>
+              <p className="pu-status-line">
+                <StatusChip tone={u.state === 'Active' ? 'ok' : 'warn'}>{u.state}</StatusChip>
+                <span>policy <code>{u.policy}</code></span>
+              </p>
+              <p className="pu-note">{u.what}</p>
+              <pre className="apd-cedar" role="region" tabIndex={0} aria-label={`Cedar for ${u.policy}`}>{u.cedar}</pre>
+              <p className="pu-note">{u.link ? <Link to={u.link}>{u.run}</Link> : u.run}</p>
+              {u.note && <p className="pu-note">{u.note}</p>}
+            </Card>
+          ))}
+        </CardGrid>
+      </Section>
+    </div>
+  );
+}
