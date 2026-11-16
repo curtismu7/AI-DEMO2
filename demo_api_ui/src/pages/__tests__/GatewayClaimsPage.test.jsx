@@ -334,6 +334,11 @@ describe('GatewayClaimsPage', () => {
     expect(screen.getByTestId('gwc-verdict').getAttribute('data-allowed')).toBe('true');
     fireEvent.click(screen.getByTestId('gwc-scenario-act-text'));
     expect(screen.getByTestId('gwc-verdict').getAttribute('data-allowed')).toBe('false');
+    // Form view (the default): act is the quoted TEXT "{}", never an object with a sub row.
+    const act = within(screen.getByTestId('gwc-token')).getByText('act').closest('.jp-row');
+    expect(act.textContent).toBe('act"{}"');
+    expect(act.querySelector('.jp-row')).toBeNull();
+    fireEvent.click(within(screen.getByTestId('gwc-token-box')).getByRole('button', { name: 'JSON' }));
     expect(screen.getByTestId('gwc-token').textContent).toContain('"act": "{}"');
     expect(within(screen.getByTestId('gwc-checks')).getAllByText('no match').length).toBe(1);
     fireEvent.click(screen.getByTestId('gwc-scenario-match'));

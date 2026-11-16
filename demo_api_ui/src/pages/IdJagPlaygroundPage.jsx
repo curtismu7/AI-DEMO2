@@ -8,6 +8,8 @@ import { openSignIn } from "../utils/signInService";
 import { PI_FLOW_SIGNIN_EVENT } from "../utils/authUi";
 import { MOCK_CONFIG, mockApi } from "../utils/idJagPlaygroundMock";
 import { codeSnippet } from "../utils/codeSnippet";
+import JsonPane, { JsonViewOnly, useJsonView } from "../components/shared/JsonPane";
+import { LEGACY_ALERT, LEGACY_HOT } from "../components/shared/jsonEmphasis";
 import { buildReport, downloadFile } from "../utils/runReport";
 import { mcpcCommand, vscodeMcpJson, vscodeSettings } from "../utils/realClients";
 import "./IdJagPlaygroundPage.css";
@@ -104,6 +106,10 @@ const VENDORS = [
 ];
 
 const ViewContext = createContext("form");
+// The playground's own View switch (Form | JSON | Code) is the page's one Form | JSON switch: Form and JSON are the shared pane's
+// page-wide choice, Code is the page's third view. Who, for whom and what come out of the pane's defaults; these are the extras.
+const PANE_HOT = [...LEGACY_HOT, "resource", "requested_token_type", "token_type"];
+const PANE_ALERT = [...LEGACY_ALERT, "gatewayStatus", "gatewayErrorCode", "gatewayMessage"];
 const TIME_CLAIMS = new Set(["exp", "iat", "nbf", "auth_time"]);
 
 // A long URN/URL may only break after ":" "/" "." so it wraps at natural points, never mid-word.
@@ -153,7 +159,7 @@ function Data({ value }) {
   const view = useContext(ViewContext);
   if (value === undefined || value === null) return null;
   if (view === "code" && isRequest(value)) return <pre className="ijp-json ijp-code" data-testid="ijp-code">{codeSnippet(value)}</pre>;
-  if (view === "json") return <pre className="ijp-json">{JSON.stringify(value, null, 2)}</pre>;
+  if (view === "json") return <JsonViewOnly><JsonPane value={value} hot={PANE_HOT} alert={PANE_ALERT} /></JsonViewOnly>;
   return <div className="ijp-form"><Fields value={value} /></div>;
 }
 
@@ -522,7 +528,10 @@ function TrustedIdpsPanel({ api, endpoints }) {
 
 export default function IdJagPlaygroundPage() {
   const [mode, setMode] = useState(() => modeFromUrl() || stored(MODE_KEY, MODES, "oauth-mcp"));
-  const [view, setView] = useState(() => stored(VIEW_KEY, VIEWS, "form"));
+  const storedView = stored(VIEW_KEY, VIEWS, "form");
+  const [codeOn, setCodeOn] = useState(() => storedView === "code");
+  const [paneView, setPaneView] = useJsonView(storedView === "json" ? "json" : "form"); // a saved choice on the old key still opens as JSON
+  const view = codeOn ? "code" : paneView;
   const [protocol, setProtocol] = useState(() => stored(PROTOCOL_KEY, PROTOCOLS, "oidc"));
   const [realModes, setRealModes] = useState(null);
   const [config, setConfig] = useState(null);
@@ -688,7 +697,7 @@ export default function IdJagPlaygroundPage() {
     }, { step: "mode", params: { mode: m } });
   };
 
-  const pickView = (v) => { store(VIEW_KEY, v); setView(v); };
+  const pickView = (v) => { store(VIEW_KEY, v); setCodeOn(v === "code"); if (v !== "code") setPaneView(v); };
   const pickProtocol = (p) => {
     if (p === protocol) return;
     store(PROTOCOL_KEY, p); clearResults(); setError(null); setProtocol(p);

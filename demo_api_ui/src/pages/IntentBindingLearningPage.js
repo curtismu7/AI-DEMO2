@@ -6,6 +6,8 @@ import SignInPrompt from "../components/SignInPrompt";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import "./IntentBindingLearningPage.css";
 import PageHeader from '../components/common/PageHeader';
+import JsonPane from "../components/shared/JsonPane";
+import { LEGACY_ALERT, LEGACY_HOT } from "../components/shared/jsonEmphasis";
 import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } from '../components/pingUi';
 
 /**
@@ -32,6 +34,9 @@ import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } fro
  * flight takes aria-disabled, not disabled, so keyboard focus stays on it.
  */
 const PAR_CAP = 100;
+// The amount and payee are what the intent binds; request_uri is what PAR hands back. The rest of the emphasis is the pane's.
+const PANE_HOT = [...LEGACY_HOT, "amount", "payee", "request_uri", "requestUri"];
+
 const PAR_PAYLOAD = { type: "banking_transaction", tool: "create_transfer", amount: PAR_CAP, payee: "acme-utilities" };
 
 // `detail` is the lesson and the Live run. `sim` is what the card says while Live mode is off: the lesson stays,
@@ -263,7 +268,7 @@ export default function IntentBindingLearningPage() {
           </div>
           <div id="par">
             <Card tone="neutral" title="RAR authorization_details (RFC 9396), pushed via PAR (RFC 9126)" data-testid="ib-grant">
-              <pre className="ib-grant-json">{JSON.stringify(PAR_PAYLOAD, null, 2)}</pre>
+              <JsonPane value={PAR_PAYLOAD} label="RAR authorization_details" hot={PANE_HOT} alert={LEGACY_ALERT} />
             </Card>
           </div>
         </Section>
@@ -448,7 +453,7 @@ function RunReel({ kind, result, action, amount, live }) {
       >
         <div className="ib-reel-title">{frame.title}</div>
         {frame.caption ? <p className="ib-reel-caption">{frame.caption}</p> : null}
-        <pre className="ib-reel-json">{JSON.stringify(frame.body, null, 2)}</pre>
+        <JsonPane value={frame.body} label={frame.title} hot={PANE_HOT} alert={LEGACY_ALERT} />
       </div>
     </div>
   );

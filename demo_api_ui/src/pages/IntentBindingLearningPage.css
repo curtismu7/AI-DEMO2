@@ -21,19 +21,6 @@
   }
 }
 
-/* The grant payload. */
-.pu-page.intent-binding-page .ib-grant-json {
-  margin: 8px 0 0;
-  padding: 10px 12px;
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-xs);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 /* Flow strip: five hops, left to right; one column with down arrows on a narrow screen. */
 .pu-page.intent-binding-page .ib-flow {
   list-style: none;
@@ -316,19 +303,4 @@
   font-size: var(--font-size-3xs);
   color: var(--th-text-muted);
   line-height: 1.4;
-}
-
-.pu-page.intent-binding-page .ib-reel-json {
-  margin: 8px 0 0;
-  max-height: 220px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  font-size: var(--font-size-3xs);
-  line-height: 1.45;
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
 }

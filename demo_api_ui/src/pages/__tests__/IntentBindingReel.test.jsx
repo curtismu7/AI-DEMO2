@@ -63,7 +63,10 @@ describe("ib-split track sizing", () => {
     expect(css).toMatch(/\.ib-split \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   });
 
+  // The reel's JSON is the shared pane: it wraps (JsonPane.css) and the page no longer styles, caps or scrolls its own.
   it("wraps long JSON instead of widening the column", () => {
-    expect(css).toMatch(/\.ib-reel-json \{[^}]*white-space: pre-wrap/);
+    const pane = fs.readFileSync(path.join(__dirname, "..", "..", "components", "shared", "JsonPane.css"), "utf8");
+    expect(pane).toMatch(/\.jp-raw \{[^}]*white-space: pre-wrap/);
+    expect(css).not.toMatch(/ib-reel-json|ib-grant-json/);
   });
 });

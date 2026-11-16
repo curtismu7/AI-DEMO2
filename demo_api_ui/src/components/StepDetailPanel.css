@@ -146,8 +146,8 @@
   padding: 6px 9px;
 }
 
-/* Payloads render open, as the agreed mock shows them. .sdp-pre caps its own
-   height and scrolls, so a long body cannot push the rest of the panel away. */
+/* Payloads render open, as the agreed mock shows them, in full: a JSON body is the shared JsonPane and the
+   display-text .sdp-pre wraps; neither caps its height or scrolls. */
 .sdp-payload { margin-bottom: 9px; }
 
 .sdp-payload-title {
@@ -166,19 +166,13 @@
 
 .sdp-pre {
   margin: 0;
-  /* This is the JSON half of the Form/JSON switch (StepDetailPanel passes it as
-     `jsonView`), so it has to match the Form half's size — at 11.5px the same
-     payload shrank when you flipped to JSON. Off the literal and onto the scale
-     while here, per THEMING.md. */
+  /* Display-text payloads (a request line, form-encoded text) that have no JSON body. */
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--th-text);
   background: var(--th-bg-card);
   border-radius: var(--radius-md);
   padding: 8px 10px;
-  /* a long payload must not push the rest of the rail off screen */
-  max-height: 260px;
-  overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

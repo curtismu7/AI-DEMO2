@@ -16,6 +16,7 @@
 // the browser proof is the evidence (see the PR).
 import { useMemo, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
+import JsonPane from '../components/shared/JsonPane';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
   PingPage, SimBanner, PageFrame, Section, CardGrid, Card, KvList,
@@ -88,7 +89,7 @@ export default function GatewayClaimsPage() {
         >
           <CardGrid>
             <Card tone="neutral" title="The rule">
-              <pre className="gwc-pre" data-testid="gwc-rule">{JSON.stringify({ requiredClaims: REQUIRED_CLAIMS }, null, 2)}</pre>
+              <JsonPane value={{ requiredClaims: REQUIRED_CLAIMS }} label="The rule" testId="gwc-rule" hot={['requiredClaims', 'act.sub']} />
               <KvList items={MAPPING_ROWS.map((r) => ({ label: r.where, value: <code>{r.value}</code> }))} />
             </Card>
             <div className="gwc-stack">
@@ -117,7 +118,7 @@ export default function GatewayClaimsPage() {
 
           <CardGrid>
             <Card tone="neutral" title="Decoded token (placeholder values)">
-              <pre className="gwc-pre" data-testid="gwc-token">{JSON.stringify(scenario.claims, null, 2)}</pre>
+              <JsonPane value={scenario.claims} label="Decoded token" testId="gwc-token" />
             </Card>
             <Card tone="neutral" title="Flattened claims and the checks">
               <table className="gwc-table gwc-table--stack" data-testid="gwc-flat" aria-label="Flattened claims">
@@ -183,7 +184,7 @@ export default function GatewayClaimsPage() {
               ))}
             </CardGrid>
             <Card tone="neutral" title="Sample shape (not real data)">
-              <pre className="gwc-pre" data-testid="gwc-sample">{JSON.stringify(POSTURE_SAMPLE, null, 2)}</pre>
+              <JsonPane value={POSTURE_SAMPLE} label="Sample shape" testId="gwc-sample" hot={['authorizerType', 'allowedAudiences', 'linkedAgents']} />
               <p className="pu-note gwc-muted">Every value above is a placeholder to show the shape. The real structure may differ.</p>
             </Card>
           </Section>

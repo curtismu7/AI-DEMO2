@@ -122,12 +122,14 @@ describe("ID-JAG playground page", () => {
     const { container } = mount(config());
     fireEvent.click(screen.getByRole("button", { name: "Request ID-JAG" }));
     await screen.findByTestId("ijp-checks", {}, slow);
-    expect(container.querySelector(".ijp-json")).toBeNull();
+    expect(container.querySelector(".jp-box")).toBeNull();
+    expect(container.querySelector(".ijp-form")).not.toBeNull();
     expect(container.querySelector(".ijp-kv dt")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "JSON" }));
     expect(container.querySelector(".ijp-form")).toBeNull();
-    expect(container.querySelector(".ijp-json").textContent).toContain('"grant_type"');
+    expect(container.querySelector(".jp-box .jp-raw").textContent).toContain('"grant_type"');
+    expect(container.querySelector(".jp-toggle")).toBeNull(); // the toolbar's switch is the one switch
     expect(localStorage.getItem("idjag.playground.view")).toBe("json");
   });
 
