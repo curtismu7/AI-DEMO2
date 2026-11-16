@@ -41,6 +41,8 @@ import {
   toModernRequest,
   modernRoutingHeaders,
   stripModernDecorationFromBody,
+  finalizeModernBody,
+  MODERN_VERSION,
 } from '../upstreamModern';
 import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
@@ -479,6 +481,14 @@ export class GatewayServer {
     }
 
     if (url === '/mcp') {
+      // MCP spec 2026-07-28 Streamable HTTP: the endpoint is POST-only — the
+      // GET stream and protocol-level sessions (so DELETE) are gone. A caller
+      // that says it speaks 2026-07-28 gets 405; Legacy callers keep GET/DELETE.
+      if ((method === 'GET' || method === 'DELETE') && req.headers[MCP_PROTO_HEADER] === MODERN_VERSION) {
+        res.writeHead(405, { Allow: 'POST' });
+        res.end();
+        return;
+      }
       switch (method) {
         case 'POST':
           await this.handleMcpPost(req, res);
@@ -1326,6 +1336,12 @@ export class GatewayServer {
         const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
         const governed = await this.governHttpToolsList(responseBody, responseHeaders['Content-Type'], decoded, activeVertical);
         if (governed) responseBody = governed;
+      }
+      // A Modern caller is owed resultType (and, on tools/list, per-caller cache
+      // hints) whatever era the backend answered in — after governance, which
+      // is what makes the list per-caller.
+      if (isModernCaller(jsonRpc.params) && upstream.status >= 200 && upstream.status < 300) {
+        responseBody = finalizeModernBody(responseBody, responseHeaders['Content-Type'], jsonRpc.method);
       }
 
       res.writeHead(upstream.status, responseHeaders);

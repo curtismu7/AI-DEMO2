@@ -180,6 +180,31 @@ export function stripModernDecoration<T>(response: T): T {
   return { ...(response as object), result: { ...rest, ...(keptMeta ? { _meta: keptMeta } : {}) } } as T;
 }
 
+/**
+ * What a Modern caller is owed on a successful result, whatever era the
+ * backend is: resultType (a Legacy backend omits it). On tools/list the
+ * gateway's own answer is per-caller — it filters the catalogue by the
+ * caller's token — so it is cacheScope 'private' even if a backend said
+ * 'public', and carries ttlMs (0 = not reusable) when the backend sent none.
+ * An input_required result is interim and carries no caching hints.
+ */
+export function finalizeModernBody(body: Buffer, contentType: string, method: string | undefined): Buffer {
+  if (!/application\/json/i.test(contentType)) return body;
+  try {
+    const parsed = JSON.parse(body.toString('utf-8')) as { result?: Record<string, unknown> };
+    const r = parsed?.result;
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return body;
+    const next: Record<string, unknown> = { resultType: 'complete', ...r };
+    if (method === 'tools/list' && next.resultType === 'complete') {
+      next.cacheScope = 'private';
+      if (typeof next.ttlMs !== 'number') next.ttlMs = 0;
+    }
+    return Buffer.from(JSON.stringify({ ...parsed, result: next }));
+  } catch {
+    return body;
+  }
+}
+
 /** stripModernDecoration for a raw HTTP body; non-JSON bodies pass through untouched. */
 export function stripModernDecorationFromBody(body: Buffer, contentType: string): Buffer {
   if (!/application\/json/i.test(contentType)) return body;

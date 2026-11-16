@@ -10666,3 +10666,13 @@ after a switch (matching Cursor), so the user loads them with Load tools, a deli
 change from the skins' earlier behaviour; Cursor's door preflight is Inspect-only while
 the skins' Check doors is always visible; the skins' load-time silent handshake from an
 earlier PR is unchanged.
+
+### [ ] 2026-11-16 — MCP gateway: signed MRTR `requestState` is single-use per replica, not per deployment
+
+**Where:** `demo_mcp_gateway/src/requestState.ts` (`consumeRequestState`, the in-process `redeemed` map).
+
+**What's wrong:** A Modern caller's elicitation `requestState` is an HMAC-signed token, so any replica holding `GW_REQUEST_STATE_SECRET` can verify it. Single-use, which MCP 2026-07-28 requires the server to enforce, is not provided by the signature: it comes from remembering redeemed ids until they expire, and that memory is in-process. Behind more than one gateway replica a token can therefore be redeemed once per replica inside its 120 s TTL; after a restart the memory is empty, though the token still expires on its own clock. With `GW_REQUEST_STATE_SECRET` unset the secret is random per process, so a token minted by one replica fails on every other (safe, but then it only works single-replica).
+
+**Why left:** The demo runs one gateway replica, and a second redemption still needs a valid signed token bound to the same tool, principal and arguments, so the exposure is one extra approved call inside two minutes. Nothing here is wrong on a single replica.
+
+**Proper fix:** Put the redeemed-id set in a store shared by the replicas (Redis or the BFF's LMDB), keyed by `jti` with the token's expiry as its TTL, and set `GW_REQUEST_STATE_SECRET` in the k8s secret.

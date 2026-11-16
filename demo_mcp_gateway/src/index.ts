@@ -37,6 +37,7 @@ import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest, getRateLimiter } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
 import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
+import { mintRequestState, consumeRequestState, digestToolArgs } from './requestState';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
@@ -668,11 +669,14 @@ async function handleMessage(
     }
     // MCP spec 2026-07-28 MRTR: a Modern retry carries top-level
     // params.inputResponses + params.requestState instead. requestState IS
-    // the elicitation_id — reuses the same crypto-random, one-time-use,
-    // session+tool-bound record from elicitationStore.ts. Only 'accept'
-    // counts as confirmed.
+    // a signed, self-contained token (requestState.ts) bound to tool +
+    // principal + arguments, expiring and single-use; it is never looked up in
+    // the Legacy elicitationStore, and a Legacy marker is never checked as a
+    // signed token. Only 'accept' counts as confirmed.
+    let elicitationViaRequestState = false;
     if (msgParams?.inputResponses?.elicitation?.action === 'accept' && msgParams.requestState) {
       elicitationConfirmed = true;
+      elicitationViaRequestState = true;
       elicitationId = msgParams.requestState;
       delete msgParams.inputResponses;
       delete msgParams.requestState;
@@ -732,9 +736,14 @@ async function handleMessage(
     // The pending record is consumed here (one-time use); ElicitationConfirmed:'true'
     // is added to the P1AZ call via toolArgsForAuthz so the policy can permit the retry.
     if (elicitationConfirmed) {
-      const sessionId = mcpSessionId ?? '';
-      const rec = elicitationId ? consumePendingElicitation(elicitationId, toolName, sessionId) : null;
-      if (!rec) {
+      const elicitationValid = elicitationViaRequestState
+        ? !!elicitationId && consumeRequestState(elicitationId, {
+            tool: toolName,
+            sub: decoded.sub ?? '',
+            argsDigest: digestToolArgs(toolArgs),
+          })
+        : (elicitationId ? consumePendingElicitation(elicitationId, toolName, mcpSessionId ?? '') : null) !== null;
+      if (!elicitationValid) {
         send(jsonRpcError(id, -32003, 'elicitation_required', {
           reason: 'invalid_or_expired',
         }));
@@ -789,12 +798,17 @@ async function handleMessage(
         const prompt = authz.advice?.find(
           (a: { id: string }) => a.id === 'elicitation-prompt',
         )?.value ?? `Confirm ${toolName}?`;
-        const rec = createPendingElicitation(toolName, sessionId, prompt);
         // MCP spec 2026-07-28 MRTR: a Modern caller gets the server-initiated
         // input request embedded in an InputRequiredResult (HTTP-transport
         // counterpart in authorizeMcpRequest.ts) instead of the Legacy
-        // elicitation_required error.
+        // elicitation_required error. Its requestState is a signed token, so
+        // no per-session record is stored.
         if (extractRequestedProtocolVersion(msg.params) !== undefined) {
+          const requestState = mintRequestState({
+            tool: toolName,
+            sub: decoded.sub ?? '',
+            argsDigest: digestToolArgs(toolArgs),
+          });
           send(JSON.stringify({
             jsonrpc: '2.0',
             id,
@@ -806,12 +820,13 @@ async function handleMessage(
                   params: { mode: 'form', message: prompt, requestedSchema: { type: 'object', properties: {} } },
                 },
               },
-              requestState: rec.elicitation_id,
+              requestState,
             },
           }));
           return;
         }
         // Legacy (2025-11-25 and earlier): unchanged.
+        const rec = createPendingElicitation(toolName, sessionId, prompt);
         send(jsonRpcError(id, -32003, 'elicitation_required', {
           elicitation_id: rec.elicitation_id,
           prompt,
