@@ -176,6 +176,7 @@ describe('run evidence panes', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/HostileMcpCatalogTab.css'), 'utf8');
     expect(css).not.toMatch(/max-height/);
     expect(css).not.toMatch(/overflow\s*:\s*(auto|scroll)/);
+    expect(css).not.toMatch(/\.hmc-evidence\s+pre\b/); // would land on the pane's pre.jp-raw
     const src = readFileSync(resolve(process.cwd(), 'src/pages/HostileMcpCatalogTab.jsx'), 'utf8');
     expect(src).not.toMatch(/JSON\.stringify\([^;]*null,\s*2/);
   });

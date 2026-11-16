@@ -624,7 +624,10 @@ describe('P1ThirdPartyExchangePage: JSON panes', () => {
   });
   it('a decoded header and a wire call body are panes, and an HTTP transcript keeps its head as text', () => {
     mountView('#walk=4');
-    expect(screen.getAllByRole('group', { name: /^Decoded token \d+ header$/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('group', { name: /^Decoded token \d+ header, / }).length).toBeGreaterThan(0);
+    // every pane name is unique on the page, so a screen reader can tell the calls apart
+    const names = screen.getAllByRole('group').map((g) => g.getAttribute('aria-label')).filter(Boolean);
+    expect(new Set(names).size).toBe(names.length);
     const res = screen.getByTestId('p1x-feat-10-res');
     expect(res.querySelector('.jp-wire')).toBeTruthy();
     expect(within(res).getByRole('group', { name: 'Featured call 10 response body' })).toBeTruthy();

@@ -228,7 +228,7 @@
   font-size: var(--font-size-sm);
 }
 
-.hmc-tool__desc pre {
+.hmc-tool__desc > pre {
   margin: 0.35rem 0 0;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--th-border);

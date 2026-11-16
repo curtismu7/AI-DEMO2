@@ -161,5 +161,7 @@ describe('HostileMcpTab JSON panes', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/HostileMcpTab.css'), 'utf8');
     expect(css).not.toMatch(/max-height/);
     expect(css).not.toMatch(/overflow\s*:\s*(auto|scroll)/);
+    // the leftover box styling must not reach the pane's own pre.jp-raw (the pane paints its own ground)
+    expect(css).not.toMatch(/\.hmc-tool__desc\s+pre\b/);
   });
 });

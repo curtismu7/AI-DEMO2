@@ -228,7 +228,7 @@ function RawToken({ title, token, testId }) {
 }
 
 /** Decoded view of every JWT found in a body: header, payload, claims with readable times, expiry badge. */
-function DecodedTokens({ text, where, now }) {
+function DecodedTokens({ text, where, now, scope = '' }) {
   const found = findJwts(text);
   if (!found.length) return null;
   return (
@@ -245,7 +245,7 @@ function DecodedTokens({ text, where, now }) {
               <CopyBtn text={JSON.stringify(t.payload, null, 2)} label="Copy decoded payload" />
             </div>
             <div className="p1x-cols">
-              <div><h5>Header</h5><div className="p1x-pane"><JsonPane value={t.header} label={`Decoded token ${i + 1} header`} hot={HEADER_HOT} /></div></div>
+              <div><h5>Header</h5><div className="p1x-pane"><JsonPane value={t.header} label={`Decoded token ${i + 1} header, ${scope ? `${scope} ` : ''}${where}`} hot={HEADER_HOT} /></div></div>
               <div><h5>Signature</h5><pre className="p1x-pre p1x-wrap">{t.signature || '(none)'}</pre></div>
             </div>
             <table className="p1x-table" aria-label="Decoded claims"><thead><tr><th>Claim</th><th>Value</th><th>In plain English</th></tr></thead>
@@ -270,6 +270,7 @@ function WireCall({ c, decode, now, idPrefix = 'p1x-call-', open }) {
   const [rawOn, setRawOn] = useState(false);
   const reqFull = `${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`;
   const resFull = `HTTP ${c.status} ${c.statusText}\n${c.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${c.responseBody}`;
+  const callScope = `${open ? 'Featured call' : 'Call'} ${c.n}`;
   const hasTokens = findJwts(c.requestBody).length + findJwts(c.responseBody).length > 0;
   const shrink = decode && hasTokens && !rawOn;
   return (
@@ -282,15 +283,15 @@ function WireCall({ c, decode, now, idPrefix = 'p1x-call-', open }) {
       <div className="p1x-cols">
         <div>
           <h4>Request <CopyBtn text={reqFull} /></h4>
-          <div className="p1x-pane" data-testid={`${idPrefix}${c.n}-req`}><JsonPane value={shrink ? collapseJwts(reqFull) : reqFull} label={`${open ? 'Featured call' : 'Call'} ${c.n} request`} hot={WIRE_HOT} /></div>
-          {decode ? <DecodedTokens text={c.requestBody} where="request body" now={now} /> : null}
+          <div className="p1x-pane" data-testid={`${idPrefix}${c.n}-req`}><JsonPane value={shrink ? collapseJwts(reqFull) : reqFull} label={`${callScope} request`} hot={WIRE_HOT} /></div>
+          {decode ? <DecodedTokens text={c.requestBody} where="request body" now={now} scope={callScope} /> : null}
           <h4>curl <CopyBtn text={c.curl} /></h4>
           <pre className="p1x-pre p1x-wrap">{c.curl}</pre>
         </div>
         <div>
           <h4>Response <CopyBtn text={resFull} /> <CopyBtn text={c.responseBody} label="Copy body" /></h4>
-          <div className="p1x-pane" data-testid={`${idPrefix}${c.n}-res`}><JsonPane value={shrink ? collapseJwts(resFull) : resFull} label={`${open ? 'Featured call' : 'Call'} ${c.n} response`} hot={WIRE_HOT} /></div>
-          {decode ? <DecodedTokens text={c.responseBody} where="response body" now={now} /> : null}
+          <div className="p1x-pane" data-testid={`${idPrefix}${c.n}-res`}><JsonPane value={shrink ? collapseJwts(resFull) : resFull} label={`${callScope} response`} hot={WIRE_HOT} /></div>
+          {decode ? <DecodedTokens text={c.responseBody} where="response body" now={now} scope={callScope} /> : null}
         </div>
       </div>
     </details>
