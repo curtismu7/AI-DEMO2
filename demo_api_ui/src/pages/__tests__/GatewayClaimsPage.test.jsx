@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import GatewayClaimsPage from '../GatewayClaimsPage';
@@ -17,6 +17,9 @@ import { DIAGRAMS_INDEX } from '../../config/diagramsIndex';
 import { NAV_PAGE_PATHS } from '../../config/navPagePaths';
 import { NAV_SEARCH_ALIASES } from '../../config/navSearchAliases';
 import measured from './gatewayV1261102.measured.json';
+
+// The pane's Form | JSON choice is page-wide and persisted; a test that clicks JSON must not leak it.
+beforeEach(() => localStorage.clear());
 
 const sourceOf = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 

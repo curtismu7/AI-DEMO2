@@ -17,6 +17,8 @@ const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
 beforeEach(() => {
   global.fetch = vi.fn();
+  // The pane's Form | JSON choice is page-wide and persisted; a test that clicks JSON must not leak it.
+  localStorage.clear();
 });
 
 function renderPage() {
