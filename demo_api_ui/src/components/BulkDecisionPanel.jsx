@@ -11,7 +11,8 @@
 // EvaluatePanel, so it owns no console-tab state and fetches its own endpoint list.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import bffAxios from '../services/bffAxios';
-import JsonHighlight from './shared/JsonHighlight';
+import JsonPane from './shared/JsonPane';
+import { LEGACY_ALERT, LEGACY_HOT } from './shared/jsonEmphasis';
 import InspectorShell from './shared/InspectorShell';
 import InspectorListItem from './shared/InspectorListItem';
 import InspectorTabs from './shared/InspectorTabs';
@@ -283,13 +284,13 @@ export default function BulkDecisionPanel() {
 
         {outputTab === 'response' && (
           result?.pingoneResponse
-            ? <pre className="inspector-shell-output-code jh-dark"><JsonHighlight value={result.pingoneResponse} deep /></pre>
+            ? <JsonPane value={result.pingoneResponse} label="PingOne bulk response" hot={LEGACY_HOT} alert={LEGACY_ALERT} deep />
             : <div className="inspector-shell-output-empty">No response yet — run a batch first.</div>
         )}
 
         {outputTab === 'request' && (
           result?.pingoneRequest
-            ? <pre className="inspector-shell-output-code jh-dark"><JsonHighlight value={result.pingoneRequest} deep /></pre>
+            ? <JsonPane value={result.pingoneRequest} label="PingOne bulk request" hot={LEGACY_HOT} alert={LEGACY_ALERT} deep />
             : <div className="inspector-shell-output-empty">No request yet — run a batch first.</div>
         )}
 

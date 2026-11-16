@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import './OASDemoPage.css';
 import InlineSpinner from './shared/InlineSpinner';
+import JsonPane from './shared/JsonPane';
 import { openSignIn } from '../utils/signInService';
 import { HeroSection } from './HeroSection';
 import { HERO_VARIANTS } from '../config/heroVariants';
@@ -138,7 +139,9 @@ function TryItOut({ operationId, user, pingoneTools }) {
       </button>
       {callError && <div className="oas-tryitout-error">{callError}</div>}
       {result && (
-        <pre className="oas-tryitout-result">{JSON.stringify(result, null, 2)}</pre>
+        <div className="oas-tryitout-result">
+          <JsonPane value={result} label={`${operationId} result`} hot={['id', 'username']} />
+        </div>
       )}
     </div>
   );
@@ -465,7 +468,7 @@ export default function OASDemoPage({ user }) {
             {showRawSpec ? '▲ Hide' : '▼ View'} Raw OAS Spec
           </button>
           {showRawSpec && (
-            <pre className="oas-raw-spec">{JSON.stringify(spec, null, 2)}</pre>
+            <JsonPane value={spec} label="Raw OAS spec" hot={['operationId', 'x-permission']} />
           )}
         </div>
       )}

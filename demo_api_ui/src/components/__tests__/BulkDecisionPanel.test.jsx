@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/__tests__/BulkDecisionPanel.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
 import BulkDecisionPanel from '../BulkDecisionPanel';
 
@@ -45,6 +45,8 @@ async function renderPanel() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGet();
+  // The pane's JSON button saves a page-wide choice; keep one test from leaking it into the next.
+  localStorage.clear();
 });
 
 test('loads the endpoint list and defaults to the MCP endpoint', async () => {
@@ -95,6 +97,43 @@ test('Run bulk decision posts the parsed items and renders the Results tab', asy
   expect(await screen.findByText('corr-abc')).toBeInTheDocument();
   expect(screen.getByText('PERMIT')).toBeInTheDocument();
   expect(screen.getByText('DENY')).toBeInTheDocument();
+});
+
+test('the Response and Request tabs show the PingOne payloads as shared panes: Form by default, the exact JSON on request', async () => {
+  const pingoneRequest = { method: 'POST', contentType: 'application/vnd.pingidentity.decisionengine.authorize.bulk+json', decisionRequests: [{ label: '$100' }] };
+  const pingoneResponse = { correlationId: 'corr-abc', decision: 'PERMIT', results: [{ decision: 'DENY' }] };
+  bffAxios.post.mockResolvedValue({
+    data: { ok: true, correlationId: 'corr-abc', summary: { requested: 1, successful: 1, errors: 0 }, results: [{ index: 0, label: '$100', decision: 'PERMIT' }], endpointId: 'ep-mcp', pingoneRequest, pingoneResponse },
+  });
+  await renderPanel();
+  fireEvent.click(screen.getByText('Amount ladder'));
+  fireEvent.click(screen.getByRole('button', { name: 'Run bulk decision' }));
+  await screen.findByText('corr-abc');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Response' }));
+  const response = await screen.findByRole('group', { name: 'PingOne bulk response' });
+  expect(response).toHaveTextContent('corr-abc');
+  // A permit verdict is not painted as a failure; a deny nested in the results is.
+  const rows = [...response.querySelectorAll('.jp-row[data-alert="true"]')];
+  expect(rows.map((r) => r.textContent).join(' ')).toContain('DENY');
+  expect(rows.map((r) => r.textContent).join(' ')).not.toContain('PERMIT');
+
+  fireEvent.click(within(screen.getByRole('group', { name: 'PingOne bulk response view' })).getByRole('button', { name: 'JSON' }));
+  const raw = await waitFor(() => {
+    const el = document.querySelector('pre.jp-raw[aria-label="PingOne bulk response"]');
+    expect(el).not.toBeNull();
+    return el;
+  });
+  expect(raw.textContent).toBe(JSON.stringify(pingoneResponse, null, 2));
+
+  // The choice is page-wide: the Request tab opens straight in the JSON view.
+  fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+  const request = await waitFor(() => {
+    const el = document.querySelector('pre.jp-raw[aria-label="PingOne bulk request"]');
+    expect(el).not.toBeNull();
+    return el;
+  });
+  expect(request.textContent).toBe(JSON.stringify(pingoneRequest, null, 2));
 });
 
 test('Load MCP tools fetches live tools and populates the JSON tab', async () => {
