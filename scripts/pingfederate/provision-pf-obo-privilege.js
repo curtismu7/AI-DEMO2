@@ -12,7 +12,7 @@
  *
  * Creates (idempotently, dry run by default):
  *   1. vault secret PF_TOKEN_DEMO_CLIENT_SECRET (the BFF reads it for /privilege-pf-token)
- *   2. the scopes mcp, opensearch:read, whoami:read (additive, only if missing) — the
+ *   2. the scopes mcp, opensearch:read, opensearch:search, whoami:read (additive, only if missing) — the
  *      opensearch/whoami scopes are what the Privilege grant's scope tiers and the
  *      pftoken-rs backend require
  *   3. ATM routeCTestAtm - clone of aiDemoPfJwtAtm with
@@ -100,7 +100,10 @@ const VAULT_SECRET = 'PF_TOKEN_DEMO_CLIENT_SECRET';
 // backend (whoami:read) require; the client allowlist caps what can be requested. The
 // /privilege-pf-token page's tiers request exactly these (SCOPE_TIERS in
 // routes/pfTokenPrivilegeDemo.js) — keep in step with them.
-const SCOPES = ['mcp', 'opensearch:read', 'opensearch:admin', 'whoami:read'];
+// opensearch:search is the scope the demo's Cedar check asks for (routes/pfTokenPrivilegeDemo.js CEDAR_CASES). clientOk() below
+// accepts the client only if every allowed scope is listed here, so leaving it out would let a rerun PUT it back to four scopes
+// and the Cedar 'with' case would be refused (invalid_scope) again. openid is deliberately absent: PF refuses it for client_credentials.
+const SCOPES = ['mcp', 'opensearch:read', 'opensearch:admin', 'opensearch:search', 'whoami:read'];
 // The user sign-in client whose id_token is the OBO subject token.
 const USER_CLIENT_ID = 'ai-demo-pf-user';
 const PF_ISSUER = 'https://cmuir-pf.ping-devops.com';
