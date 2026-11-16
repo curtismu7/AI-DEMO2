@@ -703,17 +703,6 @@ select.cur-input { cursor: pointer; }
 
 .cur-msg-meta {
   margin-top: 8px;
-  padding: 8px;
-  background: #1e1e1e;
-  border: 1px solid #3c3c3c;
-  border-radius: 4px;
-  font-size: var(--font-size-sm);
-  font-family: var(--font-mono);
-  color: #888;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow: auto;
-  max-height: 200px;
 }
 .cur-policy-decision { display: grid; grid-template-columns: auto auto; gap: 4px 8px; margin-top: 8px; padding: 8px; border: 1px solid #5c646b; border-radius: 6px; font-size: var(--font-size-sm); }
 .cur-policy-decision span { grid-column: 1 / -1; color: #ffffff; }
@@ -835,11 +824,6 @@ select.cur-input { cursor: pointer; }
   font-size: var(--font-size-body);
   line-height: 1.5;
 }
-.cur-code-output--schema {
-  max-height: 200px;
-  overflow-y: auto;
-  color: #ce9178;
-}
 .cur-tool-search {
   padding: 5px 8px;
   height: 30px;
@@ -856,21 +840,6 @@ select.cur-input { cursor: pointer; }
   margin-bottom: 6px;
 }
 
-.cur-code-output {
-  background: #1a1a1a;
-  border: 1px solid #2b2b2b;
-  border-radius: 4px;
-  padding: 12px;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-lg);
-  line-height: 1.6;
-  color: #9cdcfe;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow: auto;
-  max-height: 400px;
-  margin: 0;
-}
 
 /* Terminal panel */
 /* Logs deserve the room: the chat pane above is flex:1, so growing this
@@ -1435,7 +1404,6 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-msg--assistant { background: #f0f0f0; }
 .cur-ide[data-cur-theme="light"] .cur-msg--system { background: #e3f2fd; color: #12538d; }
 .cur-ide[data-cur-theme="light"] .cur-msg--thinking { background: #fee2e2; color: #aa0005; }
-.cur-ide[data-cur-theme="light"] .cur-msg-meta { background: #f0f0f0; color: #666; }
 
 /* Tool list + detail + code output */
 .cur-ide[data-cur-theme="light"] .cur-tool-item { background: #f7f7f7; border-color: #e0e0e0; border-left-color: #0a7d6b; }
@@ -1447,8 +1415,6 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-tool-desc,
 .cur-ide[data-cur-theme="light"] .cur-tool-detail-desc { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-tool-detail { background: #f5f5f5; }
-.cur-ide[data-cur-theme="light"] .cur-code-output { background: #f5f5f5; color: #0451a5; border-color: #e0e0e0; }
-.cur-ide[data-cur-theme="light"] .cur-code-output--schema { color: #a31515; }
 
 /* Terminal event badges — lighter fills, darker text */
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--relay { background: #cffafe; color: #12538d; }
@@ -1495,7 +1461,6 @@ select.cur-input { cursor: pointer; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab,
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab:hover,
 .cur-ide:not([data-cur-theme="light"]) .cur-msg-role,
-.cur-ide:not([data-cur-theme="light"]) .cur-msg-meta,
 .cur-ide:not([data-cur-theme="light"]) .cur-msg-body,
 .cur-ide:not([data-cur-theme="light"]) .cur-empty-state,
 .cur-ide:not([data-cur-theme="light"]) .cur-chat-empty p,
@@ -1526,8 +1491,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log span,
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-line,
 .cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-large,
-.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table td,
-.cur-ide:not([data-cur-theme="light"]) .cur-code-output { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table td { color: #ffffff; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-badge,
 .cur-ide:not([data-cur-theme="light"]) .cur-scope-pill,
 .cur-ide:not([data-cur-theme="light"]) .cur-scope-count { color: #ffffff; font-weight: 600; }
@@ -1554,7 +1518,7 @@ select.cur-input { cursor: pointer; }
 .cur-trace-label--mcp { color: #fecaca; }
 .cur-trace-label--config { color: #ffffff; }
 .cur-trace-error { color: #ff6b6b; }
-.cur-trace-json { margin: 4px 0 4px 80px; color: #ffffff; white-space: pre-wrap; word-break: break-all; font-weight: 700; }
+.cur-trace-json { margin: 4px 0 4px 80px; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-outbound { color: #7ec8e3; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-success { color: #a8e6cf; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-error,
@@ -1570,8 +1534,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-trace-summary,
 .cur-ide[data-cur-theme="light"] .cur-trace-ts,
 .cur-ide[data-cur-theme="light"] .cur-trace-label,
-.cur-ide[data-cur-theme="light"] .cur-trace-error,
-.cur-ide[data-cur-theme="light"] .cur-trace-json {
+.cur-ide[data-cur-theme="light"] .cur-trace-error {
   color: inherit;
   font-weight: 700;
 }
@@ -1643,11 +1606,10 @@ select.cur-input { cursor: pointer; }
   max-height: 260px;
   overflow: auto;
 }
-/* The Results dock is short (~110px). Let the one result fill it and scroll inside its own box, rather than a 400px box
-   that the dock clips with no way to reach the bottom. */
-.cur-terminal-results .cur-result-item { flex: 1 1 0; min-height: 90px; display: flex; flex-direction: column; }
-.cur-terminal-results .cur-result-item > .cur-formview,
-.cur-terminal-results .cur-result-item > .cur-code-output { flex: 1 1 0; min-height: 0; max-height: none; overflow: auto; }
+/* The Results dock is short (~110px). Each result shows in full (the shared JSON pane never scrolls); the dock
+   scrolls as a whole (.cur-terminal-results), so nothing is clipped out of reach. */
+.cur-terminal-results .cur-result-item { flex: 0 0 auto; }
+.cur-result-item > .jp-box { margin: 8px; }
 .cur-ide[data-cur-theme="light"] .cur-result-item { border-color: #e0e0e0; background: #ffffff; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #12538d; }
@@ -2075,38 +2037,19 @@ select.cur-input { cursor: pointer; }
 .cur-rail__probe--ok { color: #86efac; }
 .cur-rail__probe--bad { color: #fca5a5; }
 
-/* Form / JSON toggle — same idiom as /llm-gateway's lgw-viewtoggle, in this
-   page's own chrome. */
-.cur-viewtoggle {
-  display: inline-flex;
-  gap: 0;
-  margin: 0 0 6px;
-  border: 1px solid #3c3c3c;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.cur-viewtoggle button {
+/* Copy of the raw JSON, beside the shared Form | JSON switch (the switch itself is JsonPane's). */
+.cur-jsoncopy {
   background: #2a2a2a;
   color: #c8c8c8;
-  border: 0;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
   padding: 3px 10px;
   font: inherit;
   font-size: var(--font-size-2xs);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.cur-viewtoggle button:hover { background: #333; color: #ffffff; }
-.cur-viewtoggle button.is-active { background: #37373d; color: #fff; }
-/* JsonFormView ships its own light-ground styling, so it needs a light
-   surface under it even while the rest of this page is dark. */
-.cur-formview {
-  background: #f7f7f7;
-  border: 1px solid #3c3c3c;
-  border-radius: 4px;
-  padding: 8px;
-  max-height: 420px;
-  overflow: auto;
-}
+.cur-jsoncopy:hover { background: #333; color: #ffffff; }
 
 .cur-ide[data-cur-theme="light"] .cur-rail__row:hover { background: #ececec; }
 .cur-ide[data-cur-theme="light"] .cur-rail__n { color: #4a4a4a; }
@@ -2127,11 +2070,8 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-rail__ok-text,
 .cur-ide[data-cur-theme="light"] .cur-rail__probe--ok { color: #15803d; }
 .cur-ide[data-cur-theme="light"] .cur-rail__probe-door { color: #333; }
-.cur-ide[data-cur-theme="light"] .cur-viewtoggle { border-color: #d0d0d0; }
-.cur-ide[data-cur-theme="light"] .cur-viewtoggle button { background: #f0f0f0; color: #666; }
-.cur-ide[data-cur-theme="light"] .cur-viewtoggle button:hover { background: #e4e4e4; color: #222; }
-.cur-ide[data-cur-theme="light"] .cur-viewtoggle button.is-active { background: #fff; color: #000; }
-.cur-ide[data-cur-theme="light"] .cur-formview { background: #fff; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-jsoncopy { background: #f0f0f0; color: #666; border-color: #d0d0d0; }
+.cur-ide[data-cur-theme="light"] .cur-jsoncopy:hover { background: #e4e4e4; color: #222; }
 
 /* Demo / Inspect. Sits at the far end of the tab strip because it governs
    which tabs are there — same segmented idiom as the Form/JSON toggle. */
@@ -2199,9 +2139,7 @@ select.cur-input { cursor: pointer; }
 .cur-user-api__vault dd { margin: 0; overflow-wrap: anywhere; }
 .cur-user-api__commands { padding-left: 24px; }
 .cur-user-api__commands li { margin-bottom: 16px; }
-.cur-user-api__commands pre,
-.cur-user-api__users {
-  overflow: auto;
+.cur-user-api__commands pre {
   padding: 12px;
   background: var(--th-bg-inset);
   color: var(--th-text);
@@ -2559,7 +2497,7 @@ select.cur-input { cursor: pointer; }
 /* Simulated approver popup: left-aligned request details, not the sign-in modal's centred note. */
 .cur-ide .cur-approver { text-align: left; }
 .cur-ide .cur-approver .cur-denial-note { text-align: left; }
-.cur-ide .cur-approver__args { margin: 8px 0; padding: 8px; border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); white-space: pre-wrap; word-break: break-all; text-align: left; font-weight: 400; }
+.cur-ide .cur-approver__args { margin: 8px 0; text-align: left; }
 
 .cur-ide .cur-hitl-raw > summary { cursor: pointer; margin: 4px 0; font-size: var(--font-size-xs, 11px); opacity: 0.7; }
 .cur-ide .cur-hitl-hold__steps { margin: 4px 0 8px; padding-left: 20px; font-size: var(--font-size-sm, 12px); line-height: 1.5; }

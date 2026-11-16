@@ -13,8 +13,8 @@
 // being usable.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
-import JsonHighlight from '../components/shared/JsonHighlight';
-import { JsonViewOnly } from '../components/shared/JsonPane';
+import JsonPane from '../components/shared/JsonPane';
+import { LEGACY_ALERT, LEGACY_HOT } from '../components/shared/jsonEmphasis';
 import './LlmTestPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -81,19 +81,9 @@ function bodyFor(path, model) {
   return { model, prompt: DEMO_PROMPT, max_tokens: 64 };
 }
 
-// Form view of an arbitrary JSON body: every leaf as a `path: value` row, paths in
-// JS notation (choices[0].message.content). A rendering, not an interpretation —
-// nothing is summarised or dropped, which is the contract this page keeps.
-function flatten(value, prefix = '') {
-  if (value === null || typeof value !== 'object') {
-    return [[prefix || '(value)', value === null ? 'null' : String(value)]];
-  }
-  const entries = Array.isArray(value)
-    ? value.map((v, i) => [`${prefix}[${i}]`, v])
-    : Object.entries(value).map(([k, v]) => [prefix ? `${prefix}.${k}` : k, v]);
-  if (!entries.length) return [[prefix || '(value)', Array.isArray(value) ? '[]' : '{}']];
-  return entries.flatMap(([p, v]) => flatten(v, p));
-}
+// What a reader of a chat-completion body or the request looks for first, on top of the pane's default important keys.
+const RESPONSE_HOT = ['model', 'finish_reason', 'stop_reason', 'usage', ...LEGACY_HOT];
+const REQUEST_HOT = ['url', 'method', ...LEGACY_HOT];
 
 export default function LlmTestPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
@@ -106,10 +96,6 @@ export default function LlmTestPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
-  // Response pane view. JSON stays the default: the raw body is this page's
-  // contract (the tests pin it), so Form is the opt-in reading aid, not the
-  // form-first default the Chat console uses for its Last Decision pane.
-  const [resView, setResView] = useState('json');
   // The direct key lives only in this component's state for as long as the tab is
   // open. It is sent with the comparison request and never persisted anywhere —
   // not localStorage, not the server. Closing the page forgets it.
@@ -398,48 +384,16 @@ export default function LlmTestPage() {
               </div>
 
               <div className="lt-pane">
-                <div className="lt-pane__head">
-                  <span className="lt-k">Response</span>
-                  {/* Only a parsed body has fields to lay out; raw text gets no toggle. */}
-                  {result.response?.json ? (
-                    <div className="lt-viewtoggle" role="group" aria-label="Response view">
-                      <button
-                        type="button"
-                        className={resView === 'form' ? 'is-active' : ''}
-                        aria-pressed={resView === 'form'}
-                        onClick={() => setResView('form')}
-                      >
-                        Form
-                      </button>
-                      <button
-                        type="button"
-                        className={resView === 'json' ? 'is-active' : ''}
-                        aria-pressed={resView === 'json'}
-                        onClick={() => setResView('json')}
-                      >
-                        JSON
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                {result.response?.json && resView === 'form' ? (
-                  <dl className="lt-form" data-testid="lt-response-form">
-                    {flatten(result.response.json).map(([k, v]) => (
-                      <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
-                    ))}
-                  </dl>
-                ) : (
-                  <pre data-testid="lt-response" className={darkMode ? 'jh-dark' : ''}>
-                    {result.response?.json
-                      ? <JsonViewOnly><JsonHighlight value={result.response.json} /></JsonViewOnly>
-                      : result.response?.raw || '(empty body)'}
-                  </pre>
-                )}
+                <span className="lt-k">Response</span>
+                {/* Only a parsed body has fields to lay out; raw text stays text and gets no Form | JSON switch. */}
+                {result.response?.json
+                  ? <JsonPane value={result.response.json} label="Response" testId="lt-response" hot={RESPONSE_HOT} alert={LEGACY_ALERT} />
+                  : <pre data-testid="lt-response">{result.response?.raw || '(empty body)'}</pre>}
               </div>
 
               <div className="lt-pane">
                 <span className="lt-k">Request as sent</span>
-                <pre className={darkMode ? 'jh-dark' : ''}><JsonViewOnly><JsonHighlight value={result.request} /></JsonViewOnly></pre>
+                <JsonPane value={result.request} label="Request as sent" hot={REQUEST_HOT} alert={LEGACY_ALERT} />
               </div>
             </>
           )}
@@ -508,26 +462,22 @@ export default function LlmTestPage() {
             {cmp.models.onlyDirect.length ? (
               <div className="lt-pane">
                 <span className="lt-k">Visible only without the gateway</span>
-                <pre className={darkMode ? 'jh-dark' : ''}><JsonHighlight value={cmp.models.onlyDirect} /></pre>
+                <JsonPane value={cmp.models.onlyDirect} label="Visible only without the gateway" />
               </div>
             ) : null}
 
             <div className="lt-cmp__pair">
               <div className="lt-pane">
                 <span className="lt-k">Direct response</span>
-                <pre className={darkMode ? 'jh-dark' : ''}>
-                  {cmp.completion.direct.json
-                    ? <JsonHighlight value={cmp.completion.direct.json} />
-                    : (cmp.completion.direct.error ?? cmp.completion.direct.raw)}
-                </pre>
+                {cmp.completion.direct.json
+                  ? <JsonPane value={cmp.completion.direct.json} label="Direct response" hot={RESPONSE_HOT} alert={LEGACY_ALERT} />
+                  : <pre>{cmp.completion.direct.error ?? cmp.completion.direct.raw}</pre>}
               </div>
               <div className="lt-pane">
                 <span className="lt-k">Gateway response</span>
-                <pre className={darkMode ? 'jh-dark' : ''}>
-                  {cmp.completion.gateway.json
-                    ? <JsonHighlight value={cmp.completion.gateway.json} />
-                    : (cmp.completion.gateway.error ?? cmp.completion.gateway.raw)}
-                </pre>
+                {cmp.completion.gateway.json
+                  ? <JsonPane value={cmp.completion.gateway.json} label="Gateway response" hot={RESPONSE_HOT} alert={LEGACY_ALERT} />
+                  : <pre>{cmp.completion.gateway.error ?? cmp.completion.gateway.raw}</pre>}
               </div>
             </div>
           </div>

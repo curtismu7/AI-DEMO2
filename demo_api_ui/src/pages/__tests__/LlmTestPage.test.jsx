@@ -85,7 +85,8 @@ describe("LLM Gateway Test page", () => {
 
     expect(await screen.findByTestId("lt-status")).toHaveTextContent("HTTP 200");
     expect(screen.getByText(/872 ms/)).toBeInTheDocument();
-    // The raw JSON, not a summary of it.
+    // The raw JSON, not a summary of it: Form is the shared pane's default, so switch to JSON.
+    fireEvent.click(screen.getAllByRole("button", { name: /^json$/i })[0]);
     expect(screen.getByTestId("lt-response")).toHaveTextContent(/"content": "Paris"/);
   });
 
@@ -95,35 +96,40 @@ describe("LLM Gateway Test page", () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /send request/i }));
 
-    const pane = await screen.findByTestId("lt-response");
+    await screen.findByTestId("lt-response");
+    fireEvent.click(screen.getAllByRole("button", { name: /^json$/i })[0]);
+    const pane = screen.getByTestId("lt-response");
     // A plain <pre>{JSON.stringify(...)}</pre> has no descendant elements at
     // all — these classes only exist if the shared JSON pane actually rendered.
     expect(pane.querySelector(".jp-tok--key")).toBeInTheDocument();
     expect(pane.querySelector(".jp-tok--string")).toBeInTheDocument();
   });
 
-  // The toggle mirrors the Chat console's Last Decision view. JSON stays the
-  // default here — the raw body is this page's contract, pinned by the tests
-  // above — and Form is the opt-in: every leaf as a path-labelled row.
-  it("offers a Form view of the response, and JSON stays the default", async () => {
+  // The response uses the shared Form | JSON pane: ONE switch (no page-specific one), Form is
+  // the default like everywhere else, and JSON is the exact body. Form lays out every leaf
+  // as a labelled row — a rendering, not a summary.
+  it("offers the shared Form | JSON switch on the response, Form by default", async () => {
     mockFetch(() => OK_RAW);
     render(<LlmTestPage />);
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /send request/i }));
-    await screen.findByTestId("lt-response");
+    const pane = await screen.findByTestId("lt-response");
 
-    expect(screen.getByRole("button", { name: /^json$/i })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByTestId("lt-response-form")).not.toBeInTheDocument();
+    // One switch for the response (the request pane has its own, shared and identical).
+    expect(screen.getAllByRole("group", { name: /response view/i })).toHaveLength(1);
+    expect(pane).toHaveClass("jp-form");
+    expect(screen.getAllByRole("button", { name: /^form$/i })[0]).toHaveAttribute("aria-pressed", "true");
+    // A labelled leaf with its verbatim value.
+    expect(pane).toHaveTextContent("content");
+    expect(pane).toHaveTextContent("Paris");
 
-    fireEvent.click(screen.getByRole("button", { name: /^form$/i }));
-    const dl = screen.getByTestId("lt-response-form");
-    // A path-labelled leaf with its verbatim value — a rendering, not a summary.
-    expect(dl).toHaveTextContent("choices[0].message.content");
-    expect(dl).toHaveTextContent("Paris");
-    expect(screen.queryByTestId("lt-response")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /^json$/i })[0]);
+    const raw = screen.getByTestId("lt-response");
+    expect(raw).toHaveClass("jp-raw");
+    expect(raw).toHaveTextContent(/"content": "Paris"/);
 
-    fireEvent.click(screen.getByRole("button", { name: /^json$/i }));
-    expect(screen.getByTestId("lt-response")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /^form$/i })[0]);
+    expect(screen.getByTestId("lt-response")).toHaveClass("jp-form");
   });
 
   // A body that did not parse has no fields to lay out; a toggle would be a lie.
@@ -142,7 +148,8 @@ describe("LLM Gateway Test page", () => {
     fireEvent.click(screen.getByRole("button", { name: /send request/i }));
 
     expect(await screen.findByTestId("lt-response")).toHaveTextContent("plain text, not json");
-    expect(screen.queryByRole("button", { name: /^form$/i })).not.toBeInTheDocument();
+    // The request pane (JSON) still has the shared switch; the raw-text response does not.
+    expect(screen.queryByRole("group", { name: /response view/i })).not.toBeInTheDocument();
   });
 
   // 429 is the headline proof-point this whole page exists to surface — a real

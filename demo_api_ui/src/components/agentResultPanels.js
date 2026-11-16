@@ -5,6 +5,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import { InlineMd, MarkdownContent } from "./shared/MarkdownText";
 import FormJsonToggle from "./shared/FormJsonToggle";
+import JsonPane from "./shared/JsonPane";
 import VerticalResult from "./VerticalResult";
 
 // ─── Results Panel (side panel showing rich formatted data next to the agent) ──
@@ -620,6 +621,10 @@ export function MessageContent({
   );
 }
 
+// The wire shape behind the Form view: keys a demo audience looks for first (on top of the pane's defaults).
+const RESULT_HOT = ["transaction_id", "account_id", "amount", "balance", "authorization_details"];
+const RESULT_ALERT = ["status"];
+
 export function ResultsPanel({ panel, onClose, style }) {
   const [size, setSize] = useState({ width: 340, height: 420 });
   const resizingRef = useRef(null);
@@ -667,6 +672,9 @@ export function ResultsPanel({ panel, onClose, style }) {
   );
 
   if (!panel) return null;
+  const payload = panel.type === "vertical"
+    ? { descriptor: panel.descriptor, data: panel.data }
+    : panel.data;
   return (
     <aside
       className="banking-agent-results-panel"
@@ -692,12 +700,9 @@ export function ResultsPanel({ panel, onClose, style }) {
           <ResultsPanelBody panel={panel} />
         ) : (
           <FormJsonToggle
-            value={
-              panel.type === "vertical"
-                ? { descriptor: panel.descriptor, data: panel.data }
-                : panel.data
-            }
+            value={payload}
             ariaLabel="Results view"
+            jsonView={<JsonPane value={payload} label="Results" deep toggle={false} hot={RESULT_HOT} alert={RESULT_ALERT} />}
           >
             <ResultsPanelBody panel={panel} />
           </FormJsonToggle>

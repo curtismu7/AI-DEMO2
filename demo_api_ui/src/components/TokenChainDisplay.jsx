@@ -8,6 +8,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { isMockIdJagTrace, isNativeIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
+import { LEGACY_ALERT, LEGACY_HOT } from "./shared/jsonEmphasis";
 import JsonView, { JSON_VIEW_TABS } from "./shared/JsonView";
 import InspectorTabs from "./shared/InspectorTabs";
 import "./TokenChainDisplay.css";
@@ -23,7 +24,7 @@ import TokenCard from "./TokenCard";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import DraggableModal from "./DraggableModal";
 import JsonField from "./shared/JsonField";
-import FormJsonToggle from "./shared/FormJsonToggle";
+import JsonPane from "./shared/JsonPane";
 import { isEducationalPath } from "../utils/educationalPages";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 import InlineSpinner from "./shared/InlineSpinner";
@@ -195,6 +196,9 @@ function StatusBadge({ status }) {
 
 // ─── Claims viewer ────────────────────────────────────────────────────────────
 
+// Keys a reader of an AAM sideband request or reply looks for first, on top of the JSON pane's defaults.
+const SIDEBAND_HOT = ["method", "path", "url", "status", "authorization_details", ...LEGACY_HOT];
+
 function ClaimsPanel({ claims, alg, hiddenClaims = [], jsonMode = "json" }) {
   if (!claims) {
     return <p className="tcd-no-claims">No decoded claims available.</p>;
@@ -299,9 +303,11 @@ function ClaimsPanel({ claims, alg, hiddenClaims = [], jsonMode = "json" }) {
             {k === "act" && v && typeof v === "object" && v.sub && (
               <span className="tcd-claim-agent-id"> Agent ID: {v.sub}</span>
             )}
-            <pre className="tcd-claim-val">
-              {typeof v === "object" && v !== null ? <JsonView mode={jsonMode} value={v} /> : fmtVal(k, v)}
-            </pre>
+            {typeof v === "object" && v !== null ? (
+              <div className="tcd-claim-json"><JsonView mode={jsonMode} value={v} /></div>
+            ) : (
+              <pre className="tcd-claim-val">{fmtVal(k, v)}</pre>
+            )}
           </div>
         ))}
       {/* The server allowlists claims on purpose (agentMcpTokenService
@@ -409,7 +415,7 @@ function ActEduBox({ event }) {
           <RfcRef rfc="RFC 8693 §4.4" />
         </div>
         {actValue && (
-          <pre className="tcd-edu-code"><JsonHighlight value={{ act: actValue }} /></pre>
+          <div className="tcd-edu-code"><JsonPane value={{ act: actValue }} label="act claim" /></div>
         )}
         <div className="tcd-edu-body">
           <p>
@@ -485,7 +491,7 @@ function AudienceEduBox({ event }) {
           </strong>
           <RfcRef rfc="RFC 7519 §4.1.3" />
         </div>
-        <pre className="tcd-edu-code"><JsonHighlight value={{ aud: audValue }} /></pre>
+        <div className="tcd-edu-code"><JsonPane value={{ aud: audValue }} label="aud claim" /></div>
         <div className="tcd-edu-body">
           <p>
             <code>aud</code> identifies the intended recipient(s) of the token.
@@ -525,7 +531,7 @@ function AudienceEduBox({ event }) {
           <RfcRef rfc="RFC 8707" />
         </div>
         {requestedAud && (
-          <pre className="tcd-edu-code"><JsonHighlight value={{ audience: requestedAud }} /></pre>
+          <div className="tcd-edu-code"><JsonPane value={{ audience: requestedAud }} label="Requested audience" hot={["audience"]} /></div>
         )}
         <div className="tcd-edu-body">
           <p>
@@ -587,7 +593,7 @@ function AudienceEduBox({ event }) {
             <strong>aud — audience narrowed correctly to MCP server</strong>
             <RfcRef rfc="RFC 8707 · RFC 7519 §4.1.3" />
           </div>
-          <pre className="tcd-edu-code"><JsonHighlight value={{ aud: audValue }} /></pre>
+          <div className="tcd-edu-code"><JsonPane value={{ aud: audValue }} label="aud claim" /></div>
           <div className="tcd-edu-body">
             <p>
               The MCP token's <code>aud</code> matches the expected MCP Resource
@@ -624,7 +630,7 @@ function AudienceEduBox({ event }) {
           <RfcRef rfc="RFC 8707 · RFC 7519 §4.1.3" />
         </div>
         {audValue && (
-          <pre className="tcd-edu-code"><JsonHighlight value={{ aud: audValue }} /></pre>
+          <div className="tcd-edu-code"><JsonPane value={{ aud: audValue }} label="aud claim" /></div>
         )}
         <div className="tcd-edu-body">
           <p>
@@ -1238,9 +1244,9 @@ function TratContextEduBox({ event }) {
             {expanded && (
               <>
                 <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
-                <pre className="tcd-trat-claims-detail">
+                <div className="tcd-trat-claims-detail">
                   <JsonView mode={jsonMode} value={ctx} crackHeight={220} />
-                </pre>
+                </div>
               </>
             )}
           </>
@@ -2188,29 +2194,17 @@ export function AamDecisionEduBox({ event }) {
         {event.request ? (
           <>
             <div className="tcd-edu-detail">Sideband request</div>
-            <FormJsonToggle
-              value={event.request}
-              ariaLabel="Sideband request view"
-              jsonView={(
-                <pre className="tcd-edu-code">
-                  <JsonHighlight value={event.request} />
-                </pre>
-              )}
-            />
+            <div className="tcd-edu-code">
+              <JsonPane value={event.request} label="Sideband request" hot={SIDEBAND_HOT} alert={LEGACY_ALERT} />
+            </div>
           </>
         ) : null}
         {event.response ? (
           <>
             <div className="tcd-edu-detail">Sideband response</div>
-            <FormJsonToggle
-              value={event.response}
-              ariaLabel="Sideband response view"
-              jsonView={(
-                <pre className="tcd-edu-code">
-                  <JsonHighlight value={event.response} />
-                </pre>
-              )}
-            />
+            <div className="tcd-edu-code">
+              <JsonPane value={event.response} label="Sideband response" hot={SIDEBAND_HOT} alert={LEGACY_ALERT} />
+            </div>
           </>
         ) : null}
         <p>
@@ -2366,13 +2360,13 @@ function EventDetail({ event, chainEvents }) {
             🔐 Full Decoded Token (JSON)
           </summary>
           <div className="tcd-collapsible-body">
-            <pre className="tcd-jwt-dump jh-dark">
-              {jsonMode === "json" ? (
-                <JsonHighlight value={event.jwtFullDecode} copyable />
-              ) : (
+            {jsonMode === "json" ? (
+              <JsonHighlight value={event.jwtFullDecode} copyable />
+            ) : (
+              <pre className="tcd-jwt-dump jh-dark">
                 <JsonView mode={jsonMode} value={event.jwtFullDecode} crackHeight={300} />
-              )}
-            </pre>
+              </pre>
+            )}
           </div>
         </details>
       )}

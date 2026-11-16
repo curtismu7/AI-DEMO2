@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import JsonPane, { deepParse, parseJsonText } from "./JsonPane";
 import "./JsonHighlight.css";
+import { LEGACY_ALERT, LEGACY_HOT } from "./jsonEmphasis";
 
 // Shared JSON viewer: a thin wrapper around the one JSON pane (JsonPane.jsx, the Form | JSON / full-view standard).
 //
@@ -11,11 +12,6 @@ import "./JsonHighlight.css";
 // The pane paints its own ground and takes its colours from --th-* tokens, so the old `jh-dark` wrapper class no
 // longer changes the palette. The jh-* token classes below survive only for tokenize() (TraceStepCard's
 // HighlightedText colours plain text with them); this component no longer renders them.
-
-// Same colour emphasis as before the pane: the old focus fields stand out as important keys, the old critical
-// fields in the alert colour. (aud and scope are already in the pane's default important keys.)
-const HOT = ["payload", "RarAuthorizationDetails", "rarauthorizationdetails", "authorization_details"];
-const ALERT = ["status", "errorCode", "error_code", "result"];
 
 export { deepParse };
 
@@ -91,7 +87,7 @@ export default function JsonHighlight({ value, deep = false, copyable = false })
   if (text === null) return <span className="jh-empty">—</span>;
   return (
     <span className="jh-root">
-      <JsonPane value={value} deep={deep} hot={HOT} alert={ALERT} actions={copyable ? <CopyButton text={text} /> : undefined} />
+      <JsonPane value={value} deep={deep} hot={LEGACY_HOT} alert={LEGACY_ALERT} actions={copyable ? <CopyButton text={text} /> : undefined} />
     </span>
   );
 }
