@@ -56,7 +56,9 @@ function LaneCard({ event, lane, events }) {
 function FrameDetails({ event, compact = false }) {
   const detail = event.detail || {};
   const request = {
-    ...(detail.method ? { method: detail.method, host: detail.host, path: detail.path } : {}),
+    ...(detail.method ? { method: detail.method } : {}),
+    ...(detail.method && detail.host ? { host: detail.host } : {}),
+    ...(detail.method && detail.path ? { path: detail.path } : {}),
     ...(detail.paramNames ? { parameterNames: detail.paramNames } : {}),
     ...(detail.responseMode ? { responseMode: detail.responseMode } : {}),
     ...(detail.body ? { body: detail.body } : {}),

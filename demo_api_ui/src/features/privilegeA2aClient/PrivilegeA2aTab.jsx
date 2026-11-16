@@ -70,7 +70,9 @@ const CALL_GROUPS = [
 const WIRE_HOT = ['method', 'state'];
 
 // What one step sent and got back, as labelled blocks. A step with no wire payload shows its detail text instead.
-function WireBlocks({ entry, open = false }) {
+// `scope` names where the blocks sit ("Trace step 2", "Exchange <row>") so the same step shown in the trace column and in
+// the exchange has differently named panes and toggles.
+function WireBlocks({ entry, scope, open = false }) {
   const blocks = [['Request', entry?.request], ['Response', entry?.response]].filter(([, body]) => body);
   if (!blocks.length && entry?.detail) blocks.push(['Detail', entry.detail]);
   if (!blocks.length) return null;
@@ -80,7 +82,7 @@ function WireBlocks({ entry, open = false }) {
       {blocks.map(([label, body]) => (
         <div key={label}>
           {blocks.length > 1 && <h4>{label}</h4>}
-          <JsonPane value={body} label={`${label}${entry?.text ? `: ${entry.text}` : ''}`} hot={WIRE_HOT} />
+          <JsonPane value={body} label={`${scope} ${label}${entry?.text ? `: ${entry.text}` : ''}`} hot={WIRE_HOT} />
         </div>
       ))}
     </details>
@@ -591,7 +593,7 @@ export default function PrivilegeA2aTab() {
                     {entry.from && entry.to && (
                       <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
                     )}
-                    <WireBlocks entry={entry} />
+                    <WireBlocks entry={entry} scope={`Trace step ${index + 1}`} />
                   </li>
                 ))}
               </ol>
@@ -616,7 +618,7 @@ export default function PrivilegeA2aTab() {
                     <span>{row.who}</span>
                     <StatusChip tone={EXCHANGE_TONE[row.state]}>{EXCHANGE_WORD[row.state]}</StatusChip>
                   </button>
-                  {row.step >= 0 && <WireBlocks entry={row.wire || trace[row.step]} open />}
+                  {row.step >= 0 && <WireBlocks entry={row.wire || trace[row.step]} scope={`Exchange ${row.label}`} open />}
                 </li>
               ))}
             </ol>

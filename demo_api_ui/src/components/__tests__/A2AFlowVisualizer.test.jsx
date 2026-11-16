@@ -8,6 +8,8 @@
 // contract) is exercised separately by a2aChainDetail.test.js.
 
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { A2A_RECORDED_RUN } from '../../data/a2aRecordedRun';
@@ -86,6 +88,19 @@ describe('A2AFlowVisualizer — timeline mode', () => {
     const json = detail.querySelector('.jp-raw');
     expect(json.textContent).toContain('"membership:read"');
     expect(json.textContent).toContain('"act"');
+  });
+
+  it('keeps the open evidence card in the canvas flow so the canvas grows to hold all of it', async () => {
+    const user = await renderTimeline();
+    await user.click(screen.getByText(/exchange #2 · nested act/i).closest('button'));
+    const detail = document.querySelector('.a2fv-detail');
+    // the offset is a custom property (a top margin in CSS), not an inline absolute `top`
+    expect(detail.style.top).toBe('');
+    expect(detail.style.getPropertyValue('--detail-top')).toMatch(/^\d+px$/);
+    const css = readFileSync(path.resolve(__dirname, '../A2AFlowVisualizer.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const rule = css.match(/\.a2fv-detail\s*\{([^}]*)\}/)[1];
+    expect(rule).toMatch(/position:\s*relative/);
+    expect(rule).not.toMatch(/position:\s*absolute/);
   });
 
   it('renders nothing when the run has no events', () => {

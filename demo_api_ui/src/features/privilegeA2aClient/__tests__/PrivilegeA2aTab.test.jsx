@@ -115,15 +115,21 @@ describe('PrivilegeA2aTab', () => {
     expect(trace.getByText('Request · Response')).toBeTruthy();
     // The wire headers stay text; each JSON body is the shared pane (Form by default), named for its step.
     expect(trace.getByText('POST http://w/jsonrpc')).toBeTruthy();
-    expect(trace.getByRole('group', { name: 'Request: concierge → analyst_agent body' })).toHaveTextContent('message/send');
-    expect(trace.getByRole('group', { name: 'Response: concierge → analyst_agent body' })).toHaveTextContent('message');
+    expect(trace.getByRole('group', { name: 'Trace step 1 Request: concierge → analyst_agent body' })).toHaveTextContent('message/send');
+    expect(trace.getByRole('group', { name: 'Trace step 1 Response: concierge → analyst_agent body' })).toHaveTextContent('message');
     expect(trace.queryByText(/80 ms/)).toBeNull();
 
     // The JSON view shows the exact text the agent sent.
     await user.click(trace.getAllByRole('button', { name: 'JSON' })[0]);
-    await waitFor(() => expect(trace.getByLabelText('Request: concierge → analyst_agent body').classList.contains('jp-raw')).toBe(true));
-    expect(trace.getByLabelText('Request: concierge → analyst_agent body').textContent).toBe('{"method":"message/send"}');
-    expect(trace.getByLabelText('Response: concierge → analyst_agent body').textContent).toBe('{"result":{"kind":"message"}}');
+    await waitFor(() => expect(trace.getByLabelText('Trace step 1 Request: concierge → analyst_agent body').classList.contains('jp-raw')).toBe(true));
+    expect(trace.getByLabelText('Trace step 1 Request: concierge → analyst_agent body').textContent).toBe('{"method":"message/send"}');
+    expect(trace.getByLabelText('Trace step 1 Response: concierge → analyst_agent body').textContent).toBe('{"result":{"kind":"message"}}');
+
+    // The same step in the exchange has its own names, so no two panes or toggles on the page share one.
+    const names = screen.getAllByRole('group').map((g) => g.getAttribute('aria-label')).filter((n) => /Request:|Response:/.test(n || ''));
+    expect(names.length).toBeGreaterThan(2);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.some((n) => n.startsWith('Exchange '))).toBe(true);
 
     const panel = within(screen.getByRole('complementary', { name: 'Step details' }));
     await user.click(trace.getByText('concierge → analyst_agent'));

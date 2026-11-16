@@ -153,6 +153,16 @@ describe("DiagramReel details: JSON panes, text, and font size", () => {
     expect(container.querySelector("pre.jp-raw").textContent).toBe(json);
   });
 
+  it("names each pane of a line with several JSON blocks apart, and keeps toggling a pane out of the live region", () => {
+    const two = { title: "T", lines: [{ who: "Token", code: `A\n{"a":1}\nB\n{"b":2}` }] };
+    const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={two} />);
+    expect(screen.getByRole("group", { name: "Token JSON 1" })).toHaveTextContent("a");
+    expect(screen.getByRole("group", { name: "Token JSON 2" })).toHaveTextContent("b");
+    expect(screen.queryByRole("group", { name: "Token JSON" })).toBeNull();
+    // the pane (and its toggle) sits in aria-live="off" inside the polite details row
+    expect(container.querySelector('.dreel-detail[aria-live="polite"] [aria-live="off"] .jp-form')).not.toBeNull();
+  });
+
   it("keeps a code line with no JSON block as one coloured code box, text unchanged", () => {
     const text = 'GET /x\n  "iss": "https://x"\n  "exp": 3600, "ok": true';
     const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={{ title: "T", lines: [{ who: "Request", code: text }] }} />);

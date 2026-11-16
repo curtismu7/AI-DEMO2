@@ -130,6 +130,17 @@ describe("SdkExecutionReel", () => {
     expect(detail).toHaveTextContent("acr_values: flowPolicyId");
   });
 
+  it("leaves host and path out of the request when the frame has a method but no host or path", () => {
+    const events = [{ ...LIVE_EVENTS[1], detail: { method: "GET", responseMode: "pi.flow" } }];
+    renderReel({ events });
+
+    fireEvent.click(screen.getByRole("button", { name: /frame 2: davinci authorize request/i }));
+    const request = within(screen.getByRole("region", { name: /selected frame/i })).getByRole("group", { name: "Frame 2 request" });
+    expect(request).toHaveTextContent("method");
+    expect(request).toHaveTextContent("GET");
+    expect(request).not.toHaveTextContent(/host|path|none/);
+  });
+
   it("selects a real focusable frame button and exposes the four detail disclosures", () => {
     renderReel({ events: LIVE_EVENTS });
 

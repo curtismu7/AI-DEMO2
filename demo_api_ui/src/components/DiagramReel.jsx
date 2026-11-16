@@ -58,9 +58,15 @@ export function splitCode(code) {
 function ReelCode({ code, label }) {
   const parts = splitCode(code);
   if (!parts.some((p) => p.json !== undefined)) return <pre className="dreel-code"><JsonCode text={code} /></pre>;
-  return parts.map((p, i) => (p.json !== undefined
-    ? <JsonPane key={i} value={p.json} label={label} />
-    : <pre key={i} className="dreel-code"><JsonCode text={p.text} /></pre>));
+  // Number the labels when one line holds several blocks, so each pane has its own name. aria-live="off" keeps the
+  // details row's polite region from re-reading the whole row when a pane's Form | JSON toggle is pressed.
+  const blocks = parts.filter((p) => p.json !== undefined).length;
+  let block = 0;
+  return parts.map((p, i) => {
+    if (p.json === undefined) return <pre key={i} className="dreel-code"><JsonCode text={p.text} /></pre>;
+    block += 1;
+    return <div key={i} aria-live="off"><JsonPane value={p.json} label={blocks > 1 ? `${label} ${block}` : label} /></div>;
+  });
 }
 
 const SIZES = [["small", "A−", "Decrease details font size"], ["medium", "A", "Default details font size"], ["large", "A+", "Increase details font size"]];

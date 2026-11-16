@@ -177,8 +177,8 @@ export default function A2AFlowVisualizer({ tokenEvents, labels, pingStyle = fal
         <A2ATokenFlowDiagram tokenEvents={events} labels={labels} />
       ) : (
       <div className="a2fv-canvas" style={{ '--a2fv-lanes': lanes.length }}>
-        {lanes.map((lane) => (
-          <div key={lane.id} className="a2fv-lane" data-lane={lane.id}>
+        {lanes.map((lane, laneIndex) => (
+          <div key={lane.id} className="a2fv-lane" data-lane={lane.id} style={{ gridColumn: laneIndex + 1, gridRow: 1 }}>
             <div className="a2fv-lane-head">{lane.label}</div>
           </div>
         ))}
@@ -228,7 +228,7 @@ export default function A2AFlowVisualizer({ tokenEvents, labels, pingStyle = fal
               {open && evidence != null && (
                 <div
                   className="a2fv-detail"
-                  style={{ '--step': index, top: `${(index + 1) * 64 + 56}px` }}
+                  style={{ '--step': index, '--detail-top': `${(index + 1) * 64 + 56}px` }}
                 >
                   <div className="a2fv-detail-head">
                     <span className="a2fv-detail-title">{ev.label || key}</span>
