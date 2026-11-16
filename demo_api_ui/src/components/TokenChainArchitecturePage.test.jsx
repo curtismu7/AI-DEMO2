@@ -3,7 +3,7 @@
 // layout measurement, and so does React Flow's renderer — but the graph
 // nodes/edges are static data, so the tests assert on DOM structure instead.
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 
 class ResizeObserverStub {
   observe() {}
@@ -17,6 +17,11 @@ import TokenChainArchitecturePage from "./TokenChainArchitecturePage";
 import TokenChainFlowDiagram, { NODES, EDGES, GROUPS } from "./TokenChainFlowDiagram";
 
 describe("TokenChainArchitecturePage", () => {
+  // The Form | JSON choice is one for the whole page and lives in localStorage: a test that clicks JSON must not leak it.
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("renders the React Flow canvas with every chain node present", () => {
     render(<TokenChainArchitecturePage />);
     const canvas = screen.getByTestId("tcf-token-chain-canvas");
@@ -44,19 +49,33 @@ describe("TokenChainArchitecturePage", () => {
     });
   });
 
-  it("shows node detail with a mock token when a token node is clicked", () => {
+  it("shows node detail with a mock token when a token node is clicked", async () => {
     render(<TokenChainArchitecturePage />);
     expect(screen.queryByRole("status")).toBeNull();
     fireEvent.click(screen.getByText("Exchange Service"));
     const detail = screen.getByRole("status");
     expect(detail.textContent).toContain("Exchange Service");
     expect(detail.textContent).toContain("exchange");
-    // Token nodes show a MOCK decoded-claims JSON block.
+    // Token nodes show a MOCK decoded-claims pane: the Form view by default, with the claims as fields.
     fireEvent.click(screen.getByText("TX Token"));
     const txDetail = screen.getByRole("status");
     expect(txDetail.textContent).toContain("RFC 8693 exchange result");
+    const form = within(txDetail).getByRole("group", { name: "Decoded claims of TX Token" });
+    expect(form.textContent).toContain("agent1");
+    expect(within(form).getAllByRole("button", { name: "Copy sub" }).length).toBeGreaterThan(0);
+    // The JSON view shows the claims exactly as JSON.
+    fireEvent.click(within(txDetail).getByRole("button", { name: "JSON" }));
+    await waitFor(() => expect(txDetail.querySelector(".jp-raw")).not.toBeNull());
     expect(txDetail.textContent).toContain('"act"');
     expect(txDetail.textContent).toContain('"sub": "user1"');
+  });
+
+  it("shows the token carried at the selected step as a pane, not a scrolling box", () => {
+    render(<TokenChainArchitecturePage />);
+    fireEvent.click(screen.getByText("TX Token"));
+    const box = screen.getByTestId("tca-step-token");
+    expect(within(box).getByRole("group", { name: /^Claims carried at step \d+$/ })).toBeTruthy();
+    expect(box.querySelector("pre")).toBeNull();
   });
 
   it("explains token-less nodes instead of showing a fake token", () => {

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { unusedSuggestions } from '../config/dotSuggestions';
+import JsonPane from './shared/JsonPane';
 import './AgentClientSkin.css';
 
 function ToolUseBlock({ toolName, toolInput, colors }) {
@@ -9,40 +10,18 @@ function ToolUseBlock({ toolName, toolInput, colors }) {
         <span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>
         <span style={{ fontWeight: 700 }}>{toolName}</span>
       </div>
-      {toolInput && Object.keys(toolInput).length > 0 && (
-        <div style={{ color: colors.toolResultColor, opacity: 0.9 }}>
-          {Object.entries(toolInput).map(([k, v]) => (
-            <div key={k} style={{ lineHeight: 1.6 }}>
-              <span style={{ opacity: 0.65 }}>{k}: </span>
-              {JSON.stringify(v)}
-            </div>
-          ))}
-        </div>
-      )}
+      {toolInput && Object.keys(toolInput).length > 0 && <JsonPane value={toolInput} label={`Input of ${toolName}`} />}
     </div>
   );
 }
 
 function ToolResultBlock({ toolName, data, colors }) {
-  const [expanded, setExpanded] = useState(false);
-  const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-  const isLong = text && text.length > 220;
   return (
     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: colors.toolResultBg, border: `1px solid ${colors.toolBorder}`, borderRadius: 6, padding: '8px 12px', maxWidth: '100%', marginTop: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+      <div style={{ marginBottom: 4 }}>
         <span style={{ color: colors.toolColor, opacity: 0.65, fontSize: 10 }}>result: {toolName}</span>
-        {isLong && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{ fontSize: 10, color: colors.toolColor, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', opacity: 0.8 }}
-          >
-            {expanded ? 'collapse' : 'expand'}
-          </button>
-        )}
       </div>
-      <pre style={{ color: colors.toolResultColor, margin: 0, whiteSpace: 'pre-wrap', maxHeight: isLong && !expanded ? 80 : undefined, overflow: 'hidden', fontSize: 11, lineHeight: 1.5 }}>
-        {text}
-      </pre>
+      <JsonPane value={data} label={`Result of ${toolName}`} />
     </div>
   );
 }
@@ -340,16 +319,15 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       return (
         <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <div style={{ color: colors.toolColor }}><span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>{msg.toolName}</div>
-          {msg.toolInput && <pre style={{ color: colors.toolResultColor, margin: '4px 0 0 16px', whiteSpace: 'pre-wrap', fontSize: 11 }}>{JSON.stringify(msg.toolInput, null, 2)}</pre>}
+          {msg.toolInput && <div style={{ margin: '4px 0 0 16px' }}><JsonPane value={msg.toolInput} label={`Input of ${msg.toolName}`} /></div>}
         </div>
       );
     }
     if (type === 'tool_result') {
-      const text = typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data, null, 2);
       return (
         <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <div style={{ color: colors.toolColor, opacity: 0.65, marginBottom: 2 }}>result: {msg.toolName}</div>
-          <pre style={{ color: colors.toolResultColor, margin: '0 0 0 16px', whiteSpace: 'pre-wrap' }}>{text}</pre>
+          <div style={{ margin: '0 0 0 16px' }}><JsonPane value={msg.data} label={`Result of ${msg.toolName}`} /></div>
         </div>
       );
     }

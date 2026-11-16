@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AgentClientSkin from '../AgentClientSkin';
 
 const baseProps = {
@@ -157,3 +157,39 @@ describe('AgentClientSkin', () => {
     }
   });
 });
+
+describe('AgentClientSkin tool JSON panes', () => {
+  // The JSON panes keep one Form | JSON choice for the whole page in localStorage: a test that picks JSON must not leak it.
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  const longResult = { accounts: Array.from({ length: 12 }, (_, i) => ({ id: `acct-${i}`, label: `Account number ${i}` })), last: 'END-OF-RESULT' };
+  const toolMessages = [
+    { role: 'agent', type: 'tool_use', toolName: 'get_accounts', toolInput: { customerId: 'cust-1', limit: 12 } },
+    { role: 'agent', type: 'tool_result', toolName: 'get_accounts', data: longResult },
+  ];
+
+  it.each(['privilege', 'claude-terminal'])('%s skin: tool input and result are panes in the Form view, in full', (skin) => {
+    render(<AgentClientSkin {...baseProps} skin={skin} messages={toolMessages} />);
+    expect(screen.getByRole('group', { name: 'Input of get_accounts' }).textContent).toContain('cust-1');
+    const result = screen.getByRole('group', { name: 'Result of get_accounts' });
+    // The whole result is there: no collapsed 80px box, no expand button.
+    expect(result.textContent).toContain('END-OF-RESULT');
+    expect(screen.queryByRole('button', { name: 'expand' })).toBeNull();
+    expect(document.querySelector('pre')).toBeNull();
+  });
+
+  it('shows a result that is plain text as text, and the JSON view as exact JSON', async () => {
+    const messages = [
+      { role: 'agent', type: 'tool_result', toolName: 'echo', data: 'plain output' },
+      { role: 'agent', type: 'tool_result', toolName: 'get_accounts', data: longResult },
+    ];
+    render(<AgentClientSkin {...baseProps} skin="privilege" messages={messages} />);
+    expect(screen.getByLabelText('Result of echo').textContent).toBe('plain output');
+    fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[0]);
+    await waitFor(() => expect(document.querySelector('.jp-raw[aria-label="Result of get_accounts"]')).not.toBeNull());
+    expect(document.querySelector('.jp-raw[aria-label="Result of get_accounts"]').textContent).toContain('"last": "END-OF-RESULT"');
+  });
+});
+

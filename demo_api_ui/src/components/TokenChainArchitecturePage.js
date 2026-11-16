@@ -14,8 +14,12 @@ import DiagramReel from './DiagramReel';
 import { buildReelSteps } from '../utils/diagramReel';
 import { refsFor, formFor } from '../config/tokenChainStandards';
 import DiagramStepBar from './DiagramStepBar';
+import JsonPane from './shared/JsonPane';
 import { useDiagramStepper, edgeCaptions } from '../hooks/useDiagramStepper';
 import './TokenChainArchitecturePage.css';
+
+// Claims worth a second look on a mock token, on top of the pane's own important keys.
+const CLAIM_HOT = ['acr', 'spiffe_id'];
 
 const EDGE_CAPTIONS = edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label])));
 // The reel's details row reuses each node's role text (the same text the node click panel opens with).
@@ -134,7 +138,7 @@ export default function TokenChainArchitecturePage({ user }) {
                   <p className="tca-node-detail-note">
                     Carried at step {stepper.step + 1}{from !== stepper.step + 1 ? ` (issued at step ${from})` : ''}: {token.note} (MOCK, teaching values only)
                   </p>
-                  <pre className="tca-node-detail-json">{JSON.stringify(token.claims, null, 2)}</pre>
+                  <JsonPane value={token.claims} label={`Claims carried at step ${stepper.step + 1}`} hot={CLAIM_HOT} />
                 </>
               ) : (
                 <p className="tca-node-detail-note">Step {stepper.step + 1}: no token has been issued yet.</p>
@@ -166,9 +170,7 @@ export default function TokenChainArchitecturePage({ user }) {
               <p className="tca-node-detail-note">
                 {info.mockToken.note} — decoded claims (MOCK, teaching values only):
               </p>
-              <pre className="tca-node-detail-json">
-                {JSON.stringify(info.mockToken.claims, null, 2)}
-              </pre>
+              <JsonPane value={info.mockToken.claims} label={`Decoded claims of ${selected.label}`} hot={CLAIM_HOT} />
             </>
           ) : (
             <p className="tca-node-detail-note">{info.tokenNote}</p>
