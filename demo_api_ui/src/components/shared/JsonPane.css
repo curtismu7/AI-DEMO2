@@ -134,6 +134,15 @@
   background: var(--jp-ground);
 }
 
+/* The panes are tabIndex 0 regions: a keyboard visitor sees where focus is. --th-focus-ring is measured against --th-code-bg
+ * and --th-bg-card (3:1 or better, both themes) in jsonPaneContrast.test.js; the outline is drawn outside the border, on the
+ * surface around the pane, and the offset keeps it off the pane's own border. */
+.jp-form:focus-visible,
+.jp-raw:focus-visible {
+  outline: 3px solid var(--th-focus-ring);
+  outline-offset: 2px;
+}
+
 /* ---- JSON view tokens, by role ---- */
 .jp-tok--key { color: var(--jp-key); font-weight: 700; }
 .jp-tok--string { color: var(--jp-string); }

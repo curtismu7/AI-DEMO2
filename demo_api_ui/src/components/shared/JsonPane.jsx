@@ -2,7 +2,9 @@
 // the JsonHighlight / FormJsonToggle wrappers. Four properties:
 //   1. one colour standard   JSON view tokens by role; colours are --th-* tokens only (JsonPane.css, README table in UI-DESIGN-SYSTEM.md)
 //   2. a Form | JSON toggle  one choice for the whole page, kept in localStorage; Form is the default, a saved choice always wins
-//   3. important keys stand out  HOT (who, for whom, what) + the caller's `hot`, and error / decision keys (ALERT) + the caller's `alert`
+//   3. important keys stand out  HOT (who, for whom, what) + the caller's `hot`, and error / decision keys (ALERT) + the caller's `alert`.
+//      Alert is VALUE-AWARE: a key in the alert set is painted alert only when its value is a failure or unknown signal
+//      (isBenignAlertValue below). "decision": "allow", "error": null, "outcome": "success" read as normal rows, never red.
 //   4. FULL VIEW             the pane never scrolls: no max-height, no overflow auto|scroll, long lines wrap (JsonPane.css)
 // Everything is React text, never markup, and passes visible(): control and bidi characters show as escapes.
 // Ported from the standalone labs' JsonPane (shared/json/JsonPane.jsx); the colour tokens are AI-DEMO2's --th-* family.
@@ -81,6 +83,33 @@ export const HOT_KEYS = ['sub', 'act', 'may_act', 'aud', 'scope', 'client_id', '
 export const ALERT_KEYS = ['error', 'error_description', 'detail_code', 'outcome', 'decision', 'verdict', 'reason', 'note'];
 const HOT = new Set(HOT_KEYS);
 const ALERT = new Set(ALERT_KEYS);
+
+// A key in the alert set is NOT alert when its value says "nothing wrong", and what that means depends on the key:
+//   any key          null / undefined, text that is empty after trim, an empty array or object
+//   error-type key   (a key containing "error", or detail_code) also false, 0 and the word "none". Success words and `true` do NOT
+//                    clear it: `error: "ok"`, `error: "true"` and `error: true` are failure signals and stay alert.
+//   any other key    also `true`, a 2xx number, and one of the success words below (case-insensitive, trimmed, exact match).
+//                    "none" clears only note and reason (no note, no reason), never decision / outcome / verdict ("no decision").
+// Everything else (deny, blocked, error text, free text, unknown words, non-empty objects, any other number) stays alert.
+export const BENIGN_ALERT_WORDS = ['allow', 'allowed', 'permit', 'permitted', 'approve', 'approved', 'grant', 'granted', 'ok', 'success', 'succeeded', 'successful', 'pass', 'passed', 'valid', 'active', 'true'];
+const BENIGN = new Set(BENIGN_ALERT_WORDS);
+const ERRORISH = /error|^detail_code$/i;
+const NONE_CLEARS = /error|^(detail_code|note|reason)$/i;
+const isEmptyContainer = (v) => (Array.isArray(v) ? v.length === 0 : v !== null && typeof v === 'object' && Object.keys(v).length === 0);
+export function isBenignAlertValue(key, value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string' && value.trim() === '') return true;
+  if (isEmptyContainer(value)) return true;
+  if (ERRORISH.test(key)) {
+    if (value === false || value === 0) return true;
+    return typeof value === 'string' && value.trim().toLowerCase() === 'none';
+  }
+  if (value === true) return true;
+  if (typeof value === 'number') return value >= 200 && value < 300;
+  if (typeof value !== 'string') return false;
+  const word = value.trim().toLowerCase();
+  return BENIGN.has(word) || (word === 'none' && NONE_CLEARS.test(key));
+}
 const SPLIT = new Set(['scope', 'aud', 'scp']);
 
 export function kindOf(v, key = '') {
@@ -222,12 +251,38 @@ function scan(text) {
   return out;
 }
 
+// The value after the key at tokens[i], as a JS value (a non-empty object or array reads as a non-benign sentinel).
+function valueAfter(tokens, i) {
+  let j = i + 1;
+  while (j < tokens.length && (tokens[j].kind === 'plain' || tokens[j].text === ':')) j += 1;
+  const t = tokens[j];
+  if (!t) return undefined;
+  if (t.kind === 'string') {
+    try {
+      return JSON.parse(t.text);
+    } catch {
+      return t.text.slice(1, -1);
+    }
+  }
+  if (t.kind === 'number') return Number(t.text);
+  if (t.kind === 'bool') return t.text === 'true';
+  if (t.kind === 'null') return null;
+  // { or [: an empty one ("{}", "[ ]") reads as empty, a non-empty one as a non-benign sentinel
+  let k = j + 1;
+  while (k < tokens.length && tokens[k].kind === 'plain' && tokens[k].text.trim() === '') k += 1;
+  const close = tokens[k];
+  return close && close.kind === 'punct' && (close.text === '}' || close.text === ']') ? [] : { nonEmpty: true };
+}
+
 function RawJson({ text, hot, alert }) {
   let key = '';
-  return scan(text).map((t, i) => {
+  const tokens = scan(text);
+  let alertKey = false; // the current key is alert AND its value is not benign
+  return tokens.map((t, i) => {
     if (t.kind === 'key') {
       key = t.text.slice(1, -1);
-      return <span key={i} className={`jp-tok jp-tok--${hot.has(key) ? 'hot' : alert.has(key) ? 'alert' : 'key'}`}>{visible(t.text)}</span>;
+      alertKey = alert.has(key) && !isBenignAlertValue(key, valueAfter(tokens, i));
+      return <span key={i} className={`jp-tok jp-tok--${hot.has(key) ? 'hot' : alertKey ? 'alert' : 'key'}`}>{visible(t.text)}</span>;
     }
     if (t.kind === 'string') {
       let inner = t.text.slice(1, -1);
@@ -238,7 +293,7 @@ function RawJson({ text, hot, alert }) {
       }
       const k = kindOf(inner, key);
       if (k === 'token') return <span key={i} className="jp-tok jp-tok--plain">&quot;<Jwt text={inner} />&quot;</span>;
-      const cls = k === 'string' && alert.has(key) ? 'alert' : k === 'string' && hot.has(key) ? 'hot' : k;
+      const cls = k === 'string' && alertKey ? 'alert' : k === 'string' && hot.has(key) ? 'hot' : k;
       return <span key={i} className={`jp-tok jp-tok--${cls}`}>{visible(t.text)}</span>;
     }
     if (t.kind === 'number') return <span key={i} className={`jp-tok jp-tok--${TIME_KEYS.has(key) ? 'time' : 'number'}`}>{t.text}</span>;
@@ -369,7 +424,7 @@ function Form({ value, hot, alert, k = '', depth = 0 }) {
     return (
       <dl className="jp-fields" data-depth={Math.min(depth, 3)}>
         {entries.map(([key, v]) => (
-          <div key={key} className="jp-row" data-hot={hot.has(key) ? 'true' : undefined} data-alert={alert.has(key) ? 'true' : undefined} data-nested={nestedValue(v) ? 'true' : undefined}>
+          <div key={key} className="jp-row" data-hot={hot.has(key) ? 'true' : undefined} data-alert={alert.has(key) && !isBenignAlertValue(key, v) ? 'true' : undefined} data-nested={nestedValue(v) ? 'true' : undefined}>
             <dt className="jp-k">{visible(key)}</dt>
             <dd className="jp-d">{prim(v) ? <Value v={v} k={key} hot={hot} /> : <Form value={v} hot={hot} alert={alert} k={key} depth={depth + 1} />}</dd>
           </div>
@@ -386,7 +441,7 @@ function Form({ value, hot, alert, k = '', depth = 0 }) {
  * @param {unknown} props.value     An object or array (or a string holding one) gets the Form | JSON choice; any other string is text
  *   (a token in its three colours); an undefined value is an empty pane.
  * @param {string[]} [props.hot]    Extra important keys, on top of HOT_KEYS, stood out in both views.
- * @param {string[]} [props.alert]  Extra error / decision keys, on top of ALERT_KEYS.
+ * @param {string[]} [props.alert]  Extra error / decision keys, on top of ALERT_KEYS. Painted alert only for a failure-or-unknown value (isBenignAlertValue).
  * @param {boolean} [props.deep]    Unwrap nested stringified JSON before rendering.
  * @param {boolean} [props.toggle]  false hides the Form | JSON switch (the view still follows the page choice).
  * @param {'form'|'json'} [props.view]  Force one view and hide the switch (FormJsonToggle's JSON view).

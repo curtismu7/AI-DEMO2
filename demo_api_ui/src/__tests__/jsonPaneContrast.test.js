@@ -76,6 +76,12 @@ describe.each(['light', 'dark'])('JsonPane colours, %s theme', (theme) => {
     expect(ratio(ink('alert', theme), code)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('the focus ring of a focused pane (3px outline, --th-focus-ring) is 3:1 or better on the pane ground and on the card around it', () => {
+    const ring = hexRgb(themeToken('--th-focus-ring', theme));
+    expect(ratio(ring, code), 'ring on --th-code-bg').toBeGreaterThanOrEqual(3);
+    expect(ratio(ring, card), 'ring on --th-bg-card').toBeGreaterThanOrEqual(3);
+  });
+
   it('the Form chips read: true on its success wash, false on its warning wash', () => {
     const t = (n) => hexRgb(themeToken(n, theme));
     expect(ratio(t('--th-status-success-text'), t('--th-status-success-bg'))).toBeGreaterThanOrEqual(4.5);
