@@ -163,7 +163,7 @@ export const NODE_DETAILS = {
         aud: ['mcp-olb.bxf.com'],
         scope: 'mcp:balance:read',
         act: { sub: 'agent1' },
-        note: 'scope narrowed from transfer:read to mcp:balance:read',
+        scope_narrowing: 'scope narrowed from transfer:read to mcp:balance:read',
       },
     },
   },

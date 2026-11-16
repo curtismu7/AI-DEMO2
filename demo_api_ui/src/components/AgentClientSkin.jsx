@@ -48,7 +48,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#d20e0f', userBubbleColor: '#ffffff',
       inputAreaBg: '#14101f', inputBorder: '#331415', inputColor: '#d8caff',
       toolBg: '#1a0708', toolBorder: '#331415', toolColor: '#fca5a5',
-      toolResultBg: '#0b0714', toolResultColor: '#8b6fd8',
+      toolResultBg: '#0b0714',
     },
     light: {
       bg: '#faf8ff', headerBg: '#ffffff', headerBorder: '#e4dcf5',
@@ -57,7 +57,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#d20e0f', userBubbleColor: '#ffffff',
       inputAreaBg: '#f2eefc', inputBorder: '#e4dcf5', inputColor: '#3b2185',
       toolBg: '#ece5fb', toolBorder: '#d0c2f0', toolColor: '#5b34b8',
-      toolResultBg: '#e2d8f8', toolResultColor: '#452a90',
+      toolResultBg: '#e2d8f8',
     },
   },
 
@@ -82,7 +82,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
       toolBg: '#07121e', toolBorder: '#1a3560', toolColor: '#4a90d0',
-      toolResultBg: '#051020', toolResultColor: '#6ba3dd',
+      toolResultBg: '#051020',
     },
     light: {
       bg: '#f5f8ff', headerBg: '#ffffff', headerBorder: '#dde8f7',
@@ -91,7 +91,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#f0f4fa', inputBorder: '#dde8f7', inputColor: '#0d2a52',
       toolBg: '#eaf0ff', toolBorder: '#c0d4f0', toolColor: '#2a60a8',
-      toolResultBg: '#e0ecff', toolResultColor: '#1a4880',
+      toolResultBg: '#e0ecff',
     },
   },
 
@@ -125,7 +125,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#2e1e0e', userBubbleColor: '#ead6bc',
       inputAreaBg: '#1e1410', inputBorder: '#352010', inputColor: '#ead6bc',
       toolBg: '#2a1c0c', toolBorder: '#4a2e18', toolColor: '#c07848',
-      toolResultBg: '#1c1408', toolResultColor: '#c98050',
+      toolResultBg: '#1c1408',
     },
     light: {
       bg: '#fffdf8', headerBg: '#fffdf8', headerBorder: '#f0e6d0',
@@ -134,7 +134,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#f5ece0', userBubbleColor: '#2c1a08',
       inputAreaBg: '#fffdf8', inputBorder: '#f0e6d0', inputColor: '#2c1a08',
       toolBg: '#faf0e0', toolBorder: '#e0c8a0', toolColor: '#804830',
-      toolResultBg: '#f5e8d0', toolResultColor: '#603820',
+      toolResultBg: '#f5e8d0',
     },
   },
 
@@ -157,7 +157,7 @@ const SKIN_CONFIG = {
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
       toolBg: '#161b22', toolBorder: '#30363d', toolColor: '#56d364',
-      toolResultBg: '#0d1117', toolResultColor: '#79c0ff',
+      toolResultBg: '#0d1117',
     },
     light: {
       bg: '#0d1117', headerBg: '#0d1117', headerBorder: '#21262d',
@@ -166,7 +166,7 @@ const SKIN_CONFIG = {
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
       toolBg: '#161b22', toolBorder: '#30363d', toolColor: '#56d364',
-      toolResultBg: '#0d1117', toolResultColor: '#79c0ff',
+      toolResultBg: '#0d1117',
     },
   },
 
@@ -190,7 +190,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#2f2f2f', userBubbleColor: '#ececec',
       inputAreaBg: '#2f2f2f', inputBorder: '#3d3d3d', inputColor: '#ececec',
       toolBg: '#2a2a2a', toolBorder: '#3a3a3a', toolColor: '#10a37f',
-      toolResultBg: '#1e1e1e', toolResultColor: '#ababab',
+      toolResultBg: '#1e1e1e',
     },
     light: {
       bg: '#ffffff', headerBg: '#ffffff', headerBorder: '#e5e5e5',
@@ -199,7 +199,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#f4f4f4', userBubbleColor: '#0d0d0d',
       inputAreaBg: '#ffffff', inputBorder: '#e5e5e5', inputColor: '#0d0d0d',
       toolBg: '#f4f4f4', toolBorder: '#dcdcdc', toolColor: '#10a37f',
-      toolResultBg: '#eeeeee', toolResultColor: '#444444',
+      toolResultBg: '#eeeeee',
     },
   },
 
@@ -230,7 +230,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#252545', userBubbleColor: '#e0e0ff',
       inputAreaBg: '#252545', inputBorder: '#3a3a60', inputColor: '#e0e0ff',
       toolBg: '#1e1e38', toolBorder: '#3a3a60', toolColor: '#9e9ee8',
-      toolResultBg: '#181830', toolResultColor: '#9898d8',
+      toolResultBg: '#181830',
     },
     light: {
       bg: '#ffffff', headerBg: '#ffffff', headerBorder: '#e8e8f0',
@@ -239,7 +239,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#f0f4ff', userBubbleColor: '#1a1a3a',
       inputAreaBg: '#f8f9fa', inputBorder: '#e8e8f0', inputColor: '#1a1a3a',
       toolBg: '#fee2e2', toolBorder: '#c8d0f0', toolColor: '#1a73e8',
-      toolResultBg: '#e8f0ff', toolResultColor: '#3c4043',
+      toolResultBg: '#e8f0ff',
     },
   },
 
@@ -261,7 +261,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#252a2c', userBubbleColor: '#ecefef',
       inputAreaBg: '#252a2c', inputBorder: '#343c3e', inputColor: '#ecefef',
       toolBg: '#20282a', toolBorder: '#343c3e', toolColor: '#5fd3c5',
-      toolResultBg: '#181c1e', toolResultColor: '#9bb0b2',
+      toolResultBg: '#181c1e',
     },
     light: {
       bg: '#f6f9f9', headerBg: '#f6f9f9', headerBorder: '#d9e3e3',
@@ -270,7 +270,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#e4eeee', userBubbleColor: '#1c2123',
       inputAreaBg: '#edf3f3', inputBorder: '#d9e3e3', inputColor: '#1c2123',
       toolBg: '#e8f2f1', toolBorder: '#c6dcda', toolColor: '#0e6f64',
-      toolResultBg: '#dcebea', toolResultColor: '#2c5450',
+      toolResultBg: '#dcebea',
     },
   },
 };

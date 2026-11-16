@@ -63,6 +63,9 @@ describe("TokenChainArchitecturePage", () => {
     const form = within(txDetail).getByRole("group", { name: "Decoded claims of TX Token" });
     expect(form.textContent).toContain("agent1");
     expect(within(form).getAllByRole("button", { name: "Copy sub" }).length).toBeGreaterThan(0);
+    // The scope-narrowing claim is teaching information, not a failure: no row is painted in the alert colour.
+    expect(form.textContent).toContain("scope narrowed from transfer:read to mcp:balance:read");
+    expect(form.querySelector('.jp-row[data-alert="true"]')).toBeNull();
     // The JSON view shows the claims exactly as JSON.
     fireEvent.click(within(txDetail).getByRole("button", { name: "JSON" }));
     await waitFor(() => expect(txDetail.querySelector(".jp-raw")).not.toBeNull());
