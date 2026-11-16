@@ -144,6 +144,21 @@ describe('Poppy API records into the inspector', () => {
     expect(scoped.inspection.feed()[0].sent.status).toBe(403);
     expect(scoped.inspection.feed()[0].reasoning[0]).toMatch(/insufficient_scope|missing the accounts:read scope/);
   });
+
+  it('each refusal names the error code the Company actually sent, not always invalid_session', async () => {
+    const said = (inspection) => inspection.feed()[0].reasoning[1];
+    const base = setup();
+    await request(base.app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`);
+    expect(said(base.inspection)).toMatch(/the response is invalid_session \(spec 4\.1\)/);
+    await request(base.app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '2.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', base.session());
+    expect(said(base.inspection)).toMatch(/the response is version_unsupported \(spec 3\.4\)/);
+    const failing = setup({ tokenFails: true });
+    await request(failing.app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', failing.session());
+    expect(said(failing.inspection)).toMatch(/the response is invalid_token \(RFC 6750\)/);
+    const scoped = setup({ tokenPayload: { client_id: CLIENT_ID, scope: 'openid' } });
+    await request(scoped.app).get('/poppy/api/v1/me').set('Host', HOST).set('Poppy-Version', '1.0').set('Authorization', `Bearer ${TOKEN}`).set('Poppy-Session', scoped.session());
+    expect(said(scoped.inspection)).toMatch(/the response is insufficient_scope \(RFC 6750\)/);
+  });
 });
 
 describe('Poppy inspector admin routes', () => {
