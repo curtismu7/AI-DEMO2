@@ -246,6 +246,94 @@ describe('JsonPane: alert emphasis follows the value', () => {
   });
 });
 
+describe('JsonPane: alert={false} turns alert emphasis off', () => {
+  const NEUTRAL = { error: 'boom', decision: 'deny', reason: 'free text', note: 'x' };
+  const alertKeys = (c) => [...c.querySelectorAll('.jp-row[data-alert="true"] > .jp-k')].map((n) => n.textContent);
+  const headWire = 'POST /x HTTP/1.1\nHost: a\n\n{"error":"boom","decision":"deny","reason":"free text","note":"x"}';
+
+  it('control: the same value without the prop still alerts, in both views', async () => {
+    const c = pane(<JsonPane value={NEUTRAL} />);
+    expect(alertKeys(c)).toEqual(['error', 'decision', 'reason', 'note']);
+    await asJson();
+    expect(tok(c, 'alert')).toEqual(expect.arrayContaining(['"error"', '"boom"', '"decision"', '"deny"', '"reason"', '"free text"', '"note"', '"x"']));
+  });
+
+  it('control: alert undefined and alert={[]} keep today\'s behaviour', () => {
+    expect(alertKeys(pane(<JsonPane value={NEUTRAL} alert={undefined} />))).toEqual(['error', 'decision', 'reason', 'note']);
+    expect(alertKeys(pane(<JsonPane value={NEUTRAL} alert={[]} />))).toEqual(['error', 'decision', 'reason', 'note']);
+  });
+
+  it('Form view: no row carries data-alert, and the rows still render', () => {
+    const c = pane(<JsonPane value={NEUTRAL} alert={false} />);
+    expect(c.querySelector('[data-alert]')).toBeNull();
+    expect([...c.querySelectorAll('.jp-row > .jp-k')].map((n) => n.textContent)).toEqual(['error', 'decision', 'reason', 'note']);
+    expect(c.textContent).toContain('free text');
+  });
+
+  it('JSON view: no jp-tok--alert token, the keys read as normal keys, the text is unchanged', async () => {
+    const c = pane(<JsonPane value={NEUTRAL} alert={false} />);
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(c.querySelector('.jp-tok--alert')).toBeNull();
+    expect(tok(c, 'key')).toEqual(['"error"', '"decision"', '"reason"', '"note"']);
+    expect(c.querySelector('.jp-raw').textContent).toBe(JSON.stringify(NEUTRAL, null, 2));
+  });
+
+  it('a key that is also in the hot list keeps its hot style, in both views', async () => {
+    const c = pane(<JsonPane value={NEUTRAL} alert={false} hot={['decision']} />);
+    expect([...c.querySelectorAll('.jp-row[data-hot="true"] > .jp-k')].map((n) => n.textContent)).toEqual(['decision']);
+    expect(c.querySelector('[data-alert]')).toBeNull();
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(tok(c, 'hot')).toEqual(expect.arrayContaining(['"decision"', '"deny"']));
+    expect(tok(c, 'alert')).toEqual([]);
+  });
+
+  it('an array alert still adds keys (and the built-in keys still alert)', async () => {
+    const c = pane(<JsonPane value={{ status: 'bad', error: 'boom', other: 'x' }} alert={['status']} />);
+    expect(alertKeys(c)).toEqual(['status', 'error']);
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(tok(c, 'alert')).toEqual(expect.arrayContaining(['"status"', '"error"']));
+    expect(tok(c, 'alert')).not.toContain('"other"');
+  });
+
+  it('alert={false} also switches off a caller key that an array would have added', () => {
+    const on = pane(<JsonPane value={{ status: 'bad' }} alert={['status']} />);
+    expect(alertKeys(on)).toEqual(['status']);
+    const off = pane(<JsonPane value={{ status: 'bad' }} alert={false} />);
+    expect(off.querySelector('[data-alert]')).toBeNull();
+  });
+
+  it('nested objects and arrays under an alert key are not alert', async () => {
+    const value = { error: { code: 1, detail: { reason: 'inner free text' } }, decision: ['deny', 'x'], list: [{ note: 'n', error: 'e' }] };
+    const c = pane(<JsonPane value={value} alert={false} />);
+    expect(c.querySelector('[data-alert]')).toBeNull();
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
+    expect(c.querySelector('.jp-tok--alert')).toBeNull();
+    // control: without the prop the same payload alerts, at the top level and nested
+    setJsonView('form');
+    const d = pane(<JsonPane value={value} />);
+    expect(alertKeys(d)).toEqual(expect.arrayContaining(['error', 'decision', 'reason']));
+  });
+
+  it('the wire-split path passes it to the body pane (head stays text, body has no alert)', async () => {
+    const c = pane(<JsonPane value={headWire} label="Request" alert={false} />);
+    expect(c.querySelector('.jp-raw--head').textContent).toContain('POST /x HTTP/1.1');
+    expect(c.querySelector('.jp-form')).toBeTruthy();
+    expect(c.querySelector('[data-alert]')).toBeNull();
+    await asJson();
+    await waitFor(() => expect(c.querySelector('.jp-box .jp-raw')).not.toBeNull());
+    expect(c.querySelector('.jp-tok--alert')).toBeNull();
+    expect(tok(c, 'key')).toEqual(['"error"', '"decision"', '"reason"', '"note"']);
+    // control: the same transcript without the prop alerts in the body pane
+    setJsonView('form');
+    const d = pane(<JsonPane value={headWire} label="Request" />);
+    expect(alertKeys(d)).toEqual(['error', 'decision', 'reason', 'note']);
+  });
+});
+
 describe('JsonPane: JSON in strings and HTTP transcripts', () => {
   it('a string holding JSON gets the panes; the JSON view shows it EXACTLY as given', async () => {
     const raw = '{"b":2,   "a":1}';
