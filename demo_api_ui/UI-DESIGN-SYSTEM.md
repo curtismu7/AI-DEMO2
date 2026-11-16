@@ -410,11 +410,16 @@ reports them (advisory for now). The pane has five properties:
    access_token authorization`, plus the `hot={[...]}` keys a caller adds; error / decision keys
    (`error error_description detail_code outcome decision verdict reason note`, plus `alert={[...]}`) in the alert colour.
    The alert colour is **value-aware** (`isBenignAlertValue(key, value)` in `JsonPane.jsx`, used by the Form row and the
-   JSON view alike): an alert key reads as a normal row, not red, when its value is `null`, `undefined` or empty text; `false`
-   or `0` on an error-type key (a key containing "error"); or one of these words, case-insensitive and trimmed: `allow
-   allowed permit permitted approve approved grant granted ok success succeeded successful pass passed none valid active
-   true`. Anything else (`deny`, `blocked`, error text, free text, unknown words, objects, other numbers) keeps the alert
-   colour, so nothing real is hidden. A benign key that is also important keeps its important style.
+   JSON view alike): an alert key reads as a normal row, not red, when its value says "nothing wrong", and what that
+   means depends on the key. Any key: `null`, `undefined`, text that is empty after trim, an empty array or object.
+   An error-type key (one containing "error", or `detail_code`) also clears on `false`, `0` and the word `none`; success
+   words and `true` never clear it, so `error: "ok"`, `error: "true"` and `error: true` stay red. Any other key also
+   clears on `true`, a 2xx number, or one of these words, case-insensitive, trimmed and matched exactly: `allow
+   allowed permit permitted approve approved grant granted ok success succeeded successful pass passed valid active
+   true`; `none` clears only `note` and `reason`, never `decision`, `outcome` or `verdict` ("no decision" is not good
+   news). Anything else (`deny`, `blocked`, `allow_with_conditions`, `passed with warnings`, error text, free text,
+   unknown words, non-empty objects, other numbers) keeps the alert colour, so nothing real is hidden. Free-text `note`
+   and `reason` values are still red (owner decision pending). A benign key that is also important keeps its important style.
 4. **Full view**: the pane never scrolls. No `max-height`, no `overflow: auto|scroll` on the pane or its wrapper; long
    lines wrap. Above 150000 characters it shows plain text; the Form view stops nesting at depth 60.
 5. **Per-field Copy**: in the Form view every primitive value (string, number, boolean, token, url, id, time) and every

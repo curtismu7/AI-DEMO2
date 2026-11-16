@@ -170,8 +170,20 @@ describe('JsonPane: important and error keys', () => {
 });
 
 describe('JsonPane: alert emphasis follows the value', () => {
-  const BENIGN = [['decision', 'allow'], ['decision', 'ALLOWED'], ['outcome', ' success '], ['verdict', 'pass'], ['reason', 'ok'], ['note', 'none'], ['decision', 'permit'], ['decision', 'approved'], ['decision', 'granted'], ['outcome', 'succeeded'], ['verdict', 'valid'], ['reason', 'active'], ['note', 'true'], ['error', null], ['error', false], ['error', 0], ['error_description', ''], ['decision', undefined], ['detail_code', '']];
-  const FAILING = [['decision', 'deny'], ['decision', 'denied'], ['decision', 'blocked'], ['error', 'invalid_grant'], ['error', true], ['error', 'access denied by policy'], ['note', 'scope narrowed from transfer:read'], ['reason', 'unknown_word'], ['outcome', 'partial'], ['verdict', false], ['reason', 0], ['error', { code: 1 }], ['decision', ['allow']], ['error', 500]];
+  const BENIGN = [['decision', 'allow'], ['decision', 'ALLOWED'], ['outcome', ' success '], ['verdict', 'pass'], ['reason', 'ok'], ['note', 'none'], ['decision', 'permit'], ['decision', 'approved'], ['decision', 'granted'], ['outcome', 'succeeded'], ['verdict', 'valid'], ['reason', 'active'], ['note', 'true'], ['error', null], ['error', false], ['error', 0], ['error_description', ''], ['decision', undefined], ['detail_code', ''],
+    // booleans and 2xx numbers on a non-error key
+    ['decision', true], ['verdict', true], ['outcome', true], ['reason', true], ['outcome', 200], ['verdict', 201], ['decision', 204],
+    // "none" clears the error-type keys and note / reason
+    ['error', 'none'], ['error_description', ' None '], ['detail_code', 'none'], ['reason', 'none'],
+    // empty text, array or object on any alert key
+    ['error', []], ['error', {}], ['reason', '   '], ['note', '\t\n'], ['decision', []], ['error_description', '  ']];
+  const FAILING = [['decision', 'deny'], ['decision', 'denied'], ['decision', 'blocked'], ['error', 'invalid_grant'], ['error', true], ['error', 'access denied by policy'], ['note', 'scope narrowed from transfer:read'], ['reason', 'unknown_word'], ['outcome', 'partial'], ['verdict', false], ['reason', 0], ['error', { code: 1 }], ['decision', ['allow']], ['error', 500],
+    // prefix, suffix and near-miss values must not match the word list
+    ['decision', 'allow_with_conditions'], ['decision', 'not allowed'], ['outcome', 'unsuccessful'], ['outcome', 'passed with warnings'], ['outcome', 'passed_with_warnings'], ['verdict', 'inactive'], ['verdict', 'invalid'], ['decision', 'none of the above'], ['reason', 'ok but'], ['decision', '  deny  '],
+    // the word list is keyed: success words do not clear an error-type key, "none" does not clear a decision
+    ['error', 'true'], ['error', 'ok'], ['error', 'success'], ['error', 'valid'], ['error_description', 'allow'], ['detail_code', true], ['decision', 'none'], ['outcome', 'none'], ['verdict', 'none'],
+    // non-2xx numbers and a non-empty container
+    ['outcome', 400], ['verdict', 302], ['outcome', 1], ['decision', 199], ['decision', 300], ['error', [1]], ['reason', { a: 1 }]];
 
   it('the helper: a failure-or-unknown value is not benign, a clearly good or empty one is', () => {
     for (const [k, v] of BENIGN) expect(isBenignAlertValue(k, v), `${k}=${JSON.stringify(v)}`).toBe(true);
@@ -221,6 +233,11 @@ describe('JsonPane: alert emphasis follows the value', () => {
     await waitFor(() => expect(c.querySelector('.jp-raw')).not.toBeNull());
     expect(tok(c, 'hot')).toEqual(expect.arrayContaining(['"decision"', '"allow"']));
     expect(tok(c, 'alert')).toEqual([]);
+  });
+
+  it('caller alert keys follow the same rules: true and 2xx are normal rows, 4xx and false stay alert', () => {
+    const c = pane(<JsonPane value={{ status: 200, result: true, outcome: false, code: 404 }} alert={['status', 'result', 'code']} />);
+    expect([...c.querySelectorAll('.jp-row[data-alert="true"] > .jp-k')].map((n) => n.textContent)).toEqual(['outcome', 'code']);
   });
 
   it('the alert prop is value-aware too', () => {

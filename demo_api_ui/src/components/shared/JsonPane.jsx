@@ -84,15 +84,31 @@ export const ALERT_KEYS = ['error', 'error_description', 'detail_code', 'outcome
 const HOT = new Set(HOT_KEYS);
 const ALERT = new Set(ALERT_KEYS);
 
-// A key in the alert set is NOT alert when its value says "nothing wrong": null / undefined / empty text for any key, false or 0 for an
-// error-type key (a key containing "error"), or one of these words (case-insensitive, trimmed). Everything else (deny, blocked, error
-// text, free text, unknown words, objects, any other number) stays alert, so nothing real is hidden.
-export const BENIGN_ALERT_WORDS = ['allow', 'allowed', 'permit', 'permitted', 'approve', 'approved', 'grant', 'granted', 'ok', 'success', 'succeeded', 'successful', 'pass', 'passed', 'none', 'valid', 'active', 'true'];
+// A key in the alert set is NOT alert when its value says "nothing wrong", and what that means depends on the key:
+//   any key          null / undefined, text that is empty after trim, an empty array or object
+//   error-type key   (a key containing "error", or detail_code) also false, 0 and the word "none". Success words and `true` do NOT
+//                    clear it: `error: "ok"`, `error: "true"` and `error: true` are failure signals and stay alert.
+//   any other key    also `true`, a 2xx number, and one of the success words below (case-insensitive, trimmed, exact match).
+//                    "none" clears only note and reason (no note, no reason), never decision / outcome / verdict ("no decision").
+// Everything else (deny, blocked, error text, free text, unknown words, non-empty objects, any other number) stays alert.
+export const BENIGN_ALERT_WORDS = ['allow', 'allowed', 'permit', 'permitted', 'approve', 'approved', 'grant', 'granted', 'ok', 'success', 'succeeded', 'successful', 'pass', 'passed', 'valid', 'active', 'true'];
 const BENIGN = new Set(BENIGN_ALERT_WORDS);
+const ERRORISH = /error|^detail_code$/i;
+const NONE_CLEARS = /error|^(detail_code|note|reason)$/i;
+const isEmptyContainer = (v) => (Array.isArray(v) ? v.length === 0 : v !== null && typeof v === 'object' && Object.keys(v).length === 0);
 export function isBenignAlertValue(key, value) {
-  if (value === null || value === undefined || value === '') return true;
-  if ((value === false || value === 0) && /error/i.test(key)) return true;
-  return typeof value === 'string' && BENIGN.has(value.trim().toLowerCase());
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string' && value.trim() === '') return true;
+  if (isEmptyContainer(value)) return true;
+  if (ERRORISH.test(key)) {
+    if (value === false || value === 0) return true;
+    return typeof value === 'string' && value.trim().toLowerCase() === 'none';
+  }
+  if (value === true) return true;
+  if (typeof value === 'number') return value >= 200 && value < 300;
+  if (typeof value !== 'string') return false;
+  const word = value.trim().toLowerCase();
+  return BENIGN.has(word) || (word === 'none' && NONE_CLEARS.test(key));
 }
 const SPLIT = new Set(['scope', 'aud', 'scp']);
 
@@ -235,7 +251,7 @@ function scan(text) {
   return out;
 }
 
-// The value after the key at tokens[i], as a JS value (an object or array reads as a non-benign sentinel).
+// The value after the key at tokens[i], as a JS value (a non-empty object or array reads as a non-benign sentinel).
 function valueAfter(tokens, i) {
   let j = i + 1;
   while (j < tokens.length && (tokens[j].kind === 'plain' || tokens[j].text === ':')) j += 1;
@@ -251,7 +267,11 @@ function valueAfter(tokens, i) {
   if (t.kind === 'number') return Number(t.text);
   if (t.kind === 'bool') return t.text === 'true';
   if (t.kind === 'null') return null;
-  return {}; // { or [
+  // { or [: an empty one ("{}", "[ ]") reads as empty, a non-empty one as a non-benign sentinel
+  let k = j + 1;
+  while (k < tokens.length && tokens[k].kind === 'plain' && tokens[k].text.trim() === '') k += 1;
+  const close = tokens[k];
+  return close && close.kind === 'punct' && (close.text === '}' || close.text === ']') ? [] : { nonEmpty: true };
 }
 
 function RawJson({ text, hot, alert }) {
