@@ -10,6 +10,7 @@ import { hitlToolsFor } from '../config/privilegeAiPoliciesDemo';
 import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
 import CimdClientIdentity from '../components/privilege/CimdClientIdentity';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import { JsonViewOnly } from '../components/shared/JsonPane';
 import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
@@ -285,7 +286,7 @@ function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) 
       </div>
       {view === 'form'
         ? <div className="cur-formview"><JsonFormView value={value} emptyMessage={emptyMessage} /></div>
-        : <pre className="cur-code-output jh-dark"><JsonHighlight value={value} deep={deep} /></pre>}
+        : <pre className="cur-code-output jh-dark"><JsonViewOnly><JsonHighlight value={value} deep={deep} /></JsonViewOnly></pre>}
     </>
   );
 }

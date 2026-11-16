@@ -97,9 +97,9 @@ describe("LLM Gateway Test page", () => {
 
     const pane = await screen.findByTestId("lt-response");
     // A plain <pre>{JSON.stringify(...)}</pre> has no descendant elements at
-    // all — these classes only exist if JsonHighlight actually rendered.
-    expect(pane.querySelector(".jh-key")).toBeInTheDocument();
-    expect(pane.querySelector(".jh-string")).toBeInTheDocument();
+    // all — these classes only exist if the shared JSON pane actually rendered.
+    expect(pane.querySelector(".jp-tok--key")).toBeInTheDocument();
+    expect(pane.querySelector(".jp-tok--string")).toBeInTheDocument();
   });
 
   // The toggle mirrors the Chat console's Last Decision view. JSON stays the

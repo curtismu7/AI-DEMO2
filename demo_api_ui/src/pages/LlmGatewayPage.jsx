@@ -24,6 +24,7 @@ import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
 import PromptGuardControlPanel from './PromptGuardControlPanel';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import { JsonViewOnly } from '../components/shared/JsonPane';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import GatewayVerdicts from '../components/GatewayVerdicts';
 import './LlmGatewayPage.css';
@@ -1106,7 +1107,7 @@ export default function LlmGatewayPage() {
             <p className="lgw-rail__note">Send a prompt and the gateway&rsquo;s verdict lands here.</p>
           ) : decisionView === 'json' ? (
             <pre className={`lgw-decision-json${darkMode ? ' jh-dark' : ''}`} data-testid="lgw-decision-json">
-              <JsonHighlight value={decision} />
+              <JsonViewOnly><JsonHighlight value={decision} /></JsonViewOnly>
             </pre>
           ) : (
             <dl className="lgw-dec" data-testid="lgw-decision">

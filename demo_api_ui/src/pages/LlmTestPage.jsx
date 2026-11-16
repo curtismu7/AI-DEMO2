@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import { JsonViewOnly } from '../components/shared/JsonPane';
 import './LlmTestPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -430,7 +431,7 @@ export default function LlmTestPage() {
                 ) : (
                   <pre data-testid="lt-response" className={darkMode ? 'jh-dark' : ''}>
                     {result.response?.json
-                      ? <JsonHighlight value={result.response.json} />
+                      ? <JsonViewOnly><JsonHighlight value={result.response.json} /></JsonViewOnly>
                       : result.response?.raw || '(empty body)'}
                   </pre>
                 )}
@@ -438,7 +439,7 @@ export default function LlmTestPage() {
 
               <div className="lt-pane">
                 <span className="lt-k">Request as sent</span>
-                <pre className={darkMode ? 'jh-dark' : ''}><JsonHighlight value={result.request} /></pre>
+                <pre className={darkMode ? 'jh-dark' : ''}><JsonViewOnly><JsonHighlight value={result.request} /></JsonViewOnly></pre>
               </div>
             </>
           )}
