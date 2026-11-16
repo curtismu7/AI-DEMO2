@@ -18,7 +18,8 @@
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
-  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.5;
 }
 

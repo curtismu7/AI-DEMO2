@@ -17,6 +17,8 @@ const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
 beforeEach(() => {
   global.fetch = vi.fn();
+  // The pane's Form | JSON choice is page-wide and persisted; a test that clicks JSON must not leak it.
+  localStorage.clear();
 });
 
 function renderPage() {
@@ -137,6 +139,8 @@ describe("results (P7)", () => {
     fireEvent.click(screen.getByTestId("ib-live-toggle")); // off: simulated
     fireEvent.click(runButton("permit"));
     const reel = await screen.findByTestId("ib-reel-permit");
+    // The reel's body is the shared pane (Form by default); read it as JSON, where the sent text is exact.
+    fireEvent.click(within(reel).getByRole("button", { name: "JSON" }));
     expect(reel.textContent).toContain('"live": false');
     fireEvent.click(screen.getByTestId("ib-live-toggle")); // back on, after the run
     fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: "5" } });

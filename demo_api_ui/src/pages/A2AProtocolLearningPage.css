@@ -81,19 +81,6 @@
 .a2l-pane-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .pu-page .a2l-pane-note { border-left: 3px solid var(--th-border-strong); padding-left: 10px; }
 
-.a2l-json {
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  overflow-x: auto;
-  max-width: 100%;
-  font-size: var(--font-size-2xs);
-  line-height: 1.45;
-  margin: 8px 0 0;
-}
-
 /* The PingOne end-user-nano skin sets word-wrap: break-word on code and lists and beats single-class rules,
    so wrapping is scoped under the page's own class. A long unbroken id or URL breaks inside its column. */
 .pu-page.a2l-page code,

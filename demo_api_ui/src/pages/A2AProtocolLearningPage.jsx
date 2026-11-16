@@ -37,6 +37,8 @@ import {
   readFoldedSections,
 } from '../utils/a2aSectionFold';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
+import JsonPane from '../components/shared/JsonPane';
+import { LEGACY_HOT } from '../components/shared/jsonEmphasis';
 import './A2AProtocolLearningPage.css';
 
 /**
@@ -127,8 +129,11 @@ const A2A_EXTERNAL_LINKS = [
   },
 ];
 
-function Json({ value }) {
-  return <pre className="a2l-json">{JSON.stringify(value, null, 2)}</pre>;
+// Who, for whom and what (sub, act, aud, scope ...) are the pane's defaults; these are the A2A extras.
+const A2A_HOT = [...LEGACY_HOT, 'method', 'skills', 'securitySchemes'];
+
+function Json({ value, label }) {
+  return <JsonPane value={value} label={label} hot={A2A_HOT} />;
 }
 
 // What a pane IS, in words. A pane built from a recorded run says so: "Recorded" is never green, and a
@@ -551,7 +556,7 @@ export default function A2AProtocolLearningPage() {
                 />
               )}
               {card
-                ? <Json value={card} />
+                ? <Json value={card} label="Agent Card" />
                 : (!cardPending && <p className="pu-note pu-empty">No Agent Card is available for this vertical.</p>)}
             </Card>
           </FoldSection>
@@ -588,7 +593,7 @@ export default function A2AProtocolLearningPage() {
                     <code>POST /a2a/specialists/{probe.vertical}</code> — no Authorization header. A real HTTP request,
                     made from your browser just now. HTTP {probe.status}.
                   </p>
-                  <Json value={probe.body} />
+                  <Json value={probe.body} label="No-bearer probe response" />
                 </>
               )}
               {!probe && <p className="pu-note pu-empty">Nothing sent yet.</p>}
@@ -810,7 +815,7 @@ function Pane({ pane, recorded }) {
       <p className="pu-note">{paneCaption(pane, recorded)}</p>
       {pane.note && <p className="pu-note a2l-pane-note">{pane.note}</p>}
       {pane.cardUrl && <p className="pu-note"><code>{pane.cardUrl}</code></p>}
-      <Json value={pane.body} />
+      <Json value={pane.body} label={pane.title} />
     </Card>
   );
 }

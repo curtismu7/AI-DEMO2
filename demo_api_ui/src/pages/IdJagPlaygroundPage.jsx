@@ -8,6 +8,8 @@ import { openSignIn } from "../utils/signInService";
 import { PI_FLOW_SIGNIN_EVENT } from "../utils/authUi";
 import { MOCK_CONFIG, mockApi } from "../utils/idJagPlaygroundMock";
 import { codeSnippet } from "../utils/codeSnippet";
+import JsonPane, { JsonViewOnly, useJsonView } from "../components/shared/JsonPane";
+import { LEGACY_HOT } from "../components/shared/jsonEmphasis";
 import { buildReport, downloadFile } from "../utils/runReport";
 import { mcpcCommand, vscodeMcpJson, vscodeSettings } from "../utils/realClients";
 import "./IdJagPlaygroundPage.css";
@@ -104,6 +106,11 @@ const VENDORS = [
 ];
 
 const ViewContext = createContext("form");
+// The playground's own View switch (Form | JSON | Code) is the page's one Form | JSON switch: Form and JSON are the shared pane's
+// page-wide choice, Code is the page's third view. Who, for whom and what come out of the pane's defaults; these are the extras.
+const PANE_HOT = [...LEGACY_HOT, "resource", "requested_token_type", "token_type"];
+// Only the page's own failure keys: status and result were plain text here before, and a success must not read as an error.
+const PANE_ALERT = ["gatewayStatus", "gatewayErrorCode", "gatewayMessage"];
 const TIME_CLAIMS = new Set(["exp", "iat", "nbf", "auth_time"]);
 
 // A long URN/URL may only break after ":" "/" "." so it wraps at natural points, never mid-word.
@@ -149,11 +156,11 @@ function Fields({ value, name }) {
 // A request the page shows (endpoint + body, or method + url): the Code view turns it into fetch().
 const isRequest = (v) => !!v && typeof v === "object" && (typeof v.endpoint === "string" || (typeof v.url === "string" && typeof v.method === "string"));
 
-function Data({ value }) {
+function Data({ value, label }) {
   const view = useContext(ViewContext);
   if (value === undefined || value === null) return null;
   if (view === "code" && isRequest(value)) return <pre className="ijp-json ijp-code" data-testid="ijp-code">{codeSnippet(value)}</pre>;
-  if (view === "json") return <pre className="ijp-json">{JSON.stringify(value, null, 2)}</pre>;
+  if (view === "json") return <JsonViewOnly><JsonPane value={value} label={label} hot={PANE_HOT} alert={PANE_ALERT} /></JsonViewOnly>;
   return <div className="ijp-form"><Fields value={value} /></div>;
 }
 
@@ -522,7 +529,10 @@ function TrustedIdpsPanel({ api, endpoints }) {
 
 export default function IdJagPlaygroundPage() {
   const [mode, setMode] = useState(() => modeFromUrl() || stored(MODE_KEY, MODES, "oauth-mcp"));
-  const [view, setView] = useState(() => stored(VIEW_KEY, VIEWS, "form"));
+  const storedView = stored(VIEW_KEY, VIEWS, "form");
+  const [codeOn, setCodeOn] = useState(() => storedView === "code");
+  const [paneView, setPaneView] = useJsonView(storedView === "json" ? "json" : "form"); // a saved choice on the old key still opens as JSON
+  const view = codeOn ? "code" : paneView;
   const [protocol, setProtocol] = useState(() => stored(PROTOCOL_KEY, PROTOCOLS, "oidc"));
   const [realModes, setRealModes] = useState(null);
   const [config, setConfig] = useState(null);
@@ -688,7 +698,7 @@ export default function IdJagPlaygroundPage() {
     }, { step: "mode", params: { mode: m } });
   };
 
-  const pickView = (v) => { store(VIEW_KEY, v); setView(v); };
+  const pickView = (v) => { store(VIEW_KEY, v); setCodeOn(v === "code"); if (v !== "code") setPaneView(v); };
   const pickProtocol = (p) => {
     if (p === protocol) return;
     store(PROTOCOL_KEY, p); clearResults(); setError(null); setProtocol(p);
@@ -1008,8 +1018,8 @@ export default function IdJagPlaygroundPage() {
           {gateAt("issue")}
           {isByo && inspection && (
             <div className="ijp-io">
-              {inspection.request && <div><h4>Request to IdenX</h4><Data value={inspection.request} /></div>}
-              <div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div>
+              {inspection.request && <div><h4>Request to IdenX</h4><Data label="Request to IdenX" value={inspection.request} /></div>}
+              <div><h4>Decoded ID-JAG</h4><Data label="Decoded ID-JAG" value={{ header: inspection.header, claims: inspection.claims }} /></div>
             </div>
           )}
           {issued?.assertion && (
@@ -1017,16 +1027,16 @@ export default function IdJagPlaygroundPage() {
               <h3>SAML assertion sent as the subject token</h3>
               <p className="ijp-note">Signed by the BFF for the signed-in user. Digest, signature value and certificate are masked: the raw assertion never reaches the browser.</p>
               <div className="ijp-io">
-                <div><h4>Assertion</h4><Data value={{ ...issued.assertion, xml: undefined }} /></div>
+                <div><h4>Assertion</h4><Data label="Assertion" value={{ ...issued.assertion, xml: undefined }} /></div>
                 <div><h4>Assertion XML (masked)</h4><pre className="ijp-json ijp-code" data-testid="ijp-assertion-xml">{issued.assertion.xml}</pre></div>
               </div>
             </div>
           )}
           {issued && (
             <div className="ijp-io">
-              <div><h4>Request</h4><Data value={issued.request} /></div>
-              <div><h4>Response</h4><Data value={issued.response} /></div>
-              <div><h4>Decoded ID-JAG</h4><Data value={issued.token} /></div>
+              <div><h4>Request</h4><Data label="Request" value={issued.request} /></div>
+              <div><h4>Response</h4><Data label="Response" value={issued.response} /></div>
+              <div><h4>Decoded ID-JAG</h4><Data label="Decoded ID-JAG" value={issued.token} /></div>
             </div>
           )}
           {inspection && (
@@ -1068,9 +1078,9 @@ export default function IdJagPlaygroundPage() {
           {gateAt("redeem")}
           {redeemed && (
             <div className="ijp-io">
-              <div><h4>Request</h4><Data value={redeemed.request} /></div>
-              <div><h4>Response (HTTP {redeemed.status})</h4><Data value={redeemed.response} /></div>
-              {redeemed.token && <div><h4>Decoded access token</h4><Data value={redeemed.token} /></div>}
+              <div><h4>Request</h4><Data label="Request" value={redeemed.request} /></div>
+              <div><h4>Response (HTTP {redeemed.status})</h4><Data label={`Response (HTTP ${redeemed.status})`} value={redeemed.response} /></div>
+              {redeemed.token && <div><h4>Decoded access token</h4><Data label="Decoded access token" value={redeemed.token} /></div>}
             </div>
           )}
           {redeemed && redeemed.status !== 200 && explain(redeemed.response, config?.request?.resource) && (
@@ -1092,7 +1102,7 @@ export default function IdJagPlaygroundPage() {
                     <>
                       <strong className="ijp-status ijp-status--ok">✓ Refused, as expected</strong>
                       <p className="ijp-note">The gateway answered HTTP {gatewayNeg.status}{gatewayNeg.code ? ` ${gatewayNeg.code}` : ""}{gatewayNeg.message ? `: ${gatewayNeg.message}` : ""}. It validates tokens with PingOne only, so it cannot accept this one. The ID-JAG exchange (steps 1-3) is not affected.</p>
-                      {gatewayNeg.request && <Data value={gatewayNeg.request} />}
+                      {gatewayNeg.request && <Data label="Request the gateway refused" value={gatewayNeg.request} />}
                     </>
                   ) : (
                     <strong>✗ The gateway accepted this token. It was expected to refuse it.</strong>
@@ -1154,14 +1164,14 @@ export default function IdJagPlaygroundPage() {
                   <div>
                     <h4 data-testid="ijp-tool-count">tools/list: {toolList.length} tools</h4>
                     {toolList.length > 0
-                      ? <Data value={toolList.map(({ name, description }) => ({ name, description }))} />
+                      ? <Data label="tools/list" value={toolList.map(({ name, description }) => ({ name, description }))} />
                       : <p className="ijp-note">0 tools: the token's scope allows none of this server's tools. Check its scope in step 3.</p>}
                     {tools.deniedTools?.length > 0 && <p className="ijp-note">{`Hidden by the gateway's policy: ${tools.deniedTools.join(", ")}`}</p>}
                   </div>
-                  <div><h4>Request</h4><Data value={tools.request} /></div>
+                  <div><h4>Request</h4><Data label="Request" value={tools.request} /></div>
                 </div>
               )}
-              {callResult && <div className="ijp-io"><div><h4>tools/call request</h4><Data value={callResult.request} /></div><div><h4>Result</h4><Data value={callResult.result} /></div></div>}
+              {callResult && <div className="ijp-io"><div><h4>tools/call request</h4><Data label="tools/call request" value={callResult.request} /></div><div><h4>Result</h4><Data label="Result" value={callResult.result} /></div></div>}
             </div>
           )}
         </Step>
@@ -1180,7 +1190,7 @@ export default function IdJagPlaygroundPage() {
           <button type="button" className="ijp-btn" onClick={() => openResource("id-jag")} disabled={!hasIdJag || !!busy}>Try with the raw ID-JAG</button>
           {gateAt("resource")}
           {errorAt("resource")}
-          {resource && (view === "json" ? <Data value={resource} /> : <ResourcePage r={resource} />)}
+          {resource && (view === "json" ? <Data label="Resource" value={resource} /> : <ResourcePage r={resource} />)}
         </section>
 
         <Step n={5} mode={mode} title="Negative tests against the authorization server" note={isByo ? SPEC_NOTES.negativeByo : SPEC_NOTES.negative}>
@@ -1211,9 +1221,9 @@ export default function IdJagPlaygroundPage() {
               <>
                 <p className={`ijp-pill ${revoked.proved ? "is-ok" : "is-bad"}`} data-testid="ijp-revoke-verdict">{revokeVerdict(revoked)}</p>
                 <div className="ijp-io">
-                  <div><h4>1. Control: ask for an ID-JAG (HTTP {revoked.control.status})</h4><Data value={revoked.control.request} /></div>
-                  {revoked.revoke && <div><h4>2. Revoke the refresh token (HTTP {revoked.revoke.status})</h4><Data value={revoked.revoke.request} /></div>}
-                  {revoked.retry && <div><h4>3. Ask again (HTTP {revoked.retry.status})</h4><Data value={revoked.retry.request} /></div>}
+                  <div><h4>1. Control: ask for an ID-JAG (HTTP {revoked.control.status})</h4><Data label={`1. Control: ask for an ID-JAG (HTTP ${revoked.control.status})`} value={revoked.control.request} /></div>
+                  {revoked.revoke && <div><h4>2. Revoke the refresh token (HTTP {revoked.revoke.status})</h4><Data label={`2. Revoke the refresh token (HTTP ${revoked.revoke.status})`} value={revoked.revoke.request} /></div>}
+                  {revoked.retry && <div><h4>3. Ask again (HTTP {revoked.retry.status})</h4><Data label={`3. Ask again (HTTP ${revoked.retry.status})`} value={revoked.retry.request} /></div>}
                 </div>
               </>
             )}

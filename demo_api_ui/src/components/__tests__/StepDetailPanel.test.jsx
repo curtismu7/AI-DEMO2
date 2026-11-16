@@ -91,7 +91,10 @@ describe("StepDetailPanel", () => {
   it("still reaches the whole raw payload through JSON", async () => {
     render(<StepDetailPanel step={STEP} />);
     await userEvent.click(screen.getByRole("button", { name: "JSON" }));
-    expect(screen.getByText(/"scope": "write"/)).toBeVisible();
+    // The JSON view is the shared pane, showing the body exactly as given, with the transport line above it.
+    expect(document.querySelector(".jp-raw").textContent).toBe('{ "scope": "write" }');
+    expect(screen.getByText("200 OK")).toBeVisible();
+    expect(document.querySelectorAll(".jp-toggle")).toHaveLength(1); // one switch: the panel's own
     expect(document.querySelector(".fjt-form__row")).toBeNull();
   });
 

@@ -4,6 +4,8 @@
 // view of it and is deliberately a separate component so that card is untouched.
 import React, { useEffect, useState } from "react";
 import FormJsonToggle, { PayloadFormView } from "./shared/FormJsonToggle";
+import JsonPane from "./shared/JsonPane";
+import { LEGACY_HOT } from "./shared/jsonEmphasis";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./StepDetailPanel.css";
 
@@ -115,7 +117,7 @@ function splitPayload(text) {
   try {
     const json = JSON.parse(s.slice(i));
     if (!json || typeof json !== "object") return null;
-    return { head: s.slice(0, i).trimEnd(), json };
+    return { head: s.slice(0, i).trimEnd(), json, body: s.slice(i) };
   } catch {
     return null;
   }
@@ -135,7 +137,13 @@ function Payload({ label, title, text }) {
           value={split.json}
           ariaLabel={`${label} view`}
           defaultView="form"
-          jsonView={<pre className="sdp-pre">{text}</pre>}
+          jsonView={(
+            <>
+              {split.head ? <div className="sdp-payload-head">{split.head}</div> : null}
+              {/* The body as given (a string is shown exactly, never re-serialized). */}
+              <JsonPane value={split.body} label={label} hot={LEGACY_HOT} />
+            </>
+          )}
         >
           {/* The transport line above the body is not a JSON leaf, so the
               flattened view would silently drop which endpoint was called. */}
@@ -230,7 +238,7 @@ export default function StepDetailPanel({ step, onInspect, fontSize = "large" })
               {kv.map(([k, v]) => (
                 <div className="sdp-kv-row" key={k}>
                   <dt>{k}</dt>
-                  <dd>{v && typeof v === "object" ? JSON.stringify(v, null, 2) : String(v)}</dd>
+                  <dd>{v && typeof v === "object" ? <JsonPane value={v} label={k} hot={LEGACY_HOT} /> : String(v)}</dd>
                 </div>
               ))}
             </dl>

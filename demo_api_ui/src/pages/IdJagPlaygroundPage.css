@@ -57,7 +57,7 @@
 .ijp .ijp-btn:disabled { opacity: 0.45; cursor: default; }
 .ijp-io { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-top: 0.75rem; }
 .ijp-io h4, .ijp-checks h4 { margin: 0 0 0.3rem; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--th-text-muted); }
-.ijp-json, .ijp-form { margin: 0; padding: 0.6rem; max-height: 320px; overflow: auto; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); font-family: inherit; font-size: var(--font-size-2xs); }
+.ijp-json, .ijp-form { margin: 0; padding: 0.6rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); font-family: inherit; font-size: var(--font-size-2xs); }
 .ijp-json { white-space: pre-wrap; word-break: break-word; }
 .ijp-kv { margin: 0; display: grid; grid-template-columns: minmax(6rem, max-content) 1fr; gap: 0.2rem 0.75rem; }
 .ijp-kv dt { color: var(--th-text-muted); font-weight: 600; }
@@ -151,7 +151,7 @@
 /* Real-client panel and the Code view. */
 .ijp-real { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .ijp-real summary { cursor: pointer; font-weight: 600; color: var(--ijp-strong); }
-.ijp-code { white-space: pre; overflow-x: auto; font-size: var(--font-size-2xs); line-height: 1.5; }
+.ijp-code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--font-size-2xs); line-height: 1.5; }
 
 .ijp-modal { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(5, 23, 39, 0.55); }
 .ijp-modal__box { width: min(28rem, 100%); padding: 1.25rem 1.5rem; border: 1px solid var(--th-border); border-top: 3px solid var(--ijp-red); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); }
