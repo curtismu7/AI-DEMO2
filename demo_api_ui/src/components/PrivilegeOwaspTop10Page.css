@@ -81,15 +81,15 @@
 }
 
 .powasp-table-by .pu-chip--full {
-  border-color: transparent;
-  background: var(--th-status-success);
-  color: var(--th-text-invert);
+  border-color: var(--th-status-success);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .powasp-table-by .pu-chip--gap {
-  border-color: transparent;
-  background: var(--th-status-warning);
-  color: var(--th-text-invert);
+  border-color: var(--th-status-warning);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
 .powasp-table-how {

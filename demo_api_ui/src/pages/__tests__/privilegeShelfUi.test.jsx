@@ -52,7 +52,7 @@ describe("PrivilegeShelfPage on the Ping UI Standard", () => {
     expect(chips.length).toBeGreaterThan(0);
     for (const c of chips) expect(c.textContent.trim().length).toBeGreaterThan(0);
     expect(container.querySelector(".pshelf-body")).toBeNull();
-    expect(screen.getAllByText("New in the Platform Update").length).toBe(6);
+    expect(screen.getAllByText("New in the Platform Update").length).toBe(7);
     expect(screen.getAllByText("Opens in a new tab").length).toBe(2);
   });
 
@@ -61,7 +61,7 @@ describe("PrivilegeShelfPage on the Ping UI Standard", () => {
     const kickers = [...container.querySelectorAll(".pu-kicker")].map((k) => k.textContent);
     expect(kickers).toEqual([
       `1 of 5 \u00b7 ${PRIVILEGE_MAP_PAGES.length} links`,
-      "2 of 5 \u00b7 4 links",
+      "2 of 5 \u00b7 5 links",
       "3 of 5 \u00b7 1 link",
       "4 of 5 \u00b7 9 links",
       "5 of 5 \u00b7 1 link",
