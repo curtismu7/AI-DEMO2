@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
 // The JSON button saves a page-wide choice; keep one test from leaking it into the next.
 beforeEach(() => { localStorage.clear(); });
 
-function stubFetch({ rpcStatus }) {
+function stubFetch({ rpcStatus, rpcBody }) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url) => {
@@ -20,9 +20,10 @@ function stubFetch({ rpcStatus }) {
       return Promise.resolve({
         status: rpcStatus,
         json: () => Promise.resolve(
-          rpcStatus === 401
-            ? { error: 'unauthorized', message: 'A2A bearer failed PingOne signature verification' }
-            : { ok: true },
+          rpcBody
+            || (rpcStatus === 401
+              ? { error: 'unauthorized', message: 'A2A bearer failed PingOne signature verification' }
+              : { ok: true }),
         ),
       });
     }),
@@ -71,24 +72,33 @@ describe('InterAgentAbuseTester', () => {
     });
   });
 
-  it('flags only a passed probe details as expected, so the pane red does not contradict the green check', async () => {
+  it('paints no alert on a passed probe (the expected 401), in both views', async () => {
     stubFetch({ rpcStatus: 401 });
     render(<InterAgentAbuseTester />);
     fireEvent.click(screen.getByRole('button', { name: /fire inter-agent abuse/i }));
     await waitFor(() => expect(screen.getAllByText(/✅/).length).toBe(3));
-    const passed = screen.getByText('Inter-agent call, FORGED bearer').closest('li').querySelector('.iaa-details');
-    expect(passed).toHaveClass('iaa-details--expected');
-    // The pane still marks the error row; the stylesheet re-inks it (jsonPaneBatch7.css.test.js).
-    expect(passed.querySelector('.jp-row[data-alert="true"]')).not.toBeNull();
+    const row = screen.getByText('Inter-agent call, FORGED bearer').closest('li');
+    // The response body carries error: 'unauthorized', which is the pass here: it must not read red beside the green check.
+    const response = within(row).getByRole('group', { name: 'Inter-agent call, FORGED bearer response', hidden: true });
+    expect(response).toHaveTextContent('unauthorized');
+    expect(row.querySelector('[data-alert]')).toBeNull();
+    fireEvent.click(within(row).getAllByRole('button', { name: 'JSON', hidden: true })[0]);
+    await waitFor(() => expect(row.querySelectorAll('pre.jp-raw')).toHaveLength(2));
+    expect(row.querySelector('.jp-tok--alert')).toBeNull();
+    // No call-site override is left behind.
+    expect(row.querySelector('.iaa-details--expected')).toBeNull();
   });
 
-  it('keeps the default pane red when a probe fails (the wire hop allowed it)', async () => {
-    stubFetch({ rpcStatus: 200 });
+  it('keeps the default pane red when a probe fails (the wire hop errored instead of denying), in both views', async () => {
+    stubFetch({ rpcStatus: 500, rpcBody: { error: 'server_error', message: 'specialist crashed' } });
     render(<InterAgentAbuseTester />);
     fireEvent.click(screen.getByRole('button', { name: /fire inter-agent abuse/i }));
     await waitFor(() => expect(screen.getAllByText(/❌/).length).toBe(2));
-    const failed = screen.getByText('Inter-agent call, FORGED bearer').closest('li').querySelector('.iaa-details');
-    expect(failed).not.toHaveClass('iaa-details--expected');
+    const row = screen.getByText('Inter-agent call, FORGED bearer').closest('li');
+    expect(row.querySelector('.jp-row[data-alert="true"]')).not.toBeNull();
+    fireEvent.click(within(row).getAllByRole('button', { name: 'JSON', hidden: true })[0]);
+    await waitFor(() => expect(row.querySelectorAll('pre.jp-raw')).toHaveLength(2));
+    expect(row.querySelector('.jp-tok--alert')).not.toBeNull();
   });
 
   it('marks the unauthorized call ❌ if the wire hop wrongly allows it (200)', async () => {

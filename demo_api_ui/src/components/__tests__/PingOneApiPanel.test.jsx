@@ -42,6 +42,21 @@ describe('PingOneApiPanel', () => {
     expect(raw.textContent).toBe(JSON.stringify(RESPONSE, null, 2));
   });
 
+  it('paints no alert on the request body, and keeps it on a response that carries an error (both views)', async () => {
+    const request = { ...REQUEST, body: { username: 'curt', reason: 'new hire', note: 'free text', decision: 'review later' } };
+    const response = { error: 'invalid_request', error_description: 'Missing population' };
+    render(<PingOneApiPanel request={request} response={response} />);
+    fireEvent.click(screen.getByRole('button', { name: /Show PingOne Request/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Show PingOne Response/ }));
+    expect(screen.getByRole('group', { name: 'PingOne request body' }).querySelector('[data-alert]')).toBeNull();
+    expect(screen.getByRole('group', { name: 'PingOne response' }).querySelector('[data-alert="true"]')).not.toBeNull();
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'PingOne request body view' })).getByRole('button', { name: 'JSON' }));
+    await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="PingOne request body"]')).not.toBeNull());
+    expect(document.querySelector('pre.jp-raw[aria-label="PingOne request body"] .jp-tok--alert')).toBeNull();
+    expect(document.querySelector('pre.jp-raw[aria-label="PingOne response"] .jp-tok--alert')).not.toBeNull();
+  });
+
   it('hides the panes again when the toggles are closed', () => {
     render(<PingOneApiPanel request={REQUEST} response={RESPONSE} />);
     fireEvent.click(screen.getByRole('button', { name: /Show PingOne Response/ }));

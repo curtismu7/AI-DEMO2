@@ -213,6 +213,44 @@ describe('OASDemoPage — Try it out', () => {
     expect(document.querySelector('pre.jp-raw[aria-label="Raw OAS spec"]')).toBeNull();
   });
 
+  it('paints no alert on schema text in the raw spec (a property named reason or error), in both views', async () => {
+    const spec = {
+      ...SPEC,
+      components: { schemas: { Refusal: { type: 'object', properties: { error: { type: 'string', description: 'Why' }, reason: 'free text', decision: 'deny' } } } },
+    };
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(spec) }));
+    render(<MemoryRouter><OASDemoPage user={null} /></MemoryRouter>);
+    await screen.findByText('List users in an environment');
+    fireEvent.click(screen.getByRole('button', { name: /View Raw OAS Spec/ }));
+    const form = screen.getByRole('group', { name: 'Raw OAS spec' });
+    expect(form).toHaveTextContent('Refusal');
+    expect(form.querySelector('[data-alert]')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+    const raw = await waitFor(() => {
+      const el = document.querySelector('pre.jp-raw[aria-label="Raw OAS spec"]');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(raw.querySelector('.jp-tok--alert')).toBeNull();
+  });
+
+  it('keeps the alert default on a live tool result that carries an error (both views)', async () => {
+    apiClient.get.mockResolvedValue({
+      data: { enabled: true, tools: [{ name: 'listUsers', inputSchema: { type: 'object', properties: { environmentId: { type: 'string' } }, required: ['environmentId'] } }], paramDefaults: { environmentId: 'env-123' } },
+    });
+    apiClient.post.mockResolvedValue({ data: { response: { result: { error: 'forbidden', error_description: 'Missing scope' } } } });
+    renderPage({ id: 'u1' });
+    await expandListUsersRow();
+    await screen.findByDisplayValue('env-123');
+    fireEvent.click(screen.getByRole('button', { name: 'Try it out' }));
+    const result = await screen.findByRole('group', { name: 'listUsers result' });
+    expect(result.querySelector('[data-alert="true"]')).not.toBeNull();
+    fireEvent.click(within(result.closest('.oas-tryitout-result')).getByRole('button', { name: 'JSON' }));
+    await waitFor(() => expect(document.querySelector('.oas-tryitout-result pre.jp-raw')).not.toBeNull());
+    expect(document.querySelector('.oas-tryitout-result pre.jp-raw .jp-tok--alert')).not.toBeNull();
+  });
+
   it('shows an unavailable message when the hosted tool list has no matching operation', async () => {
     apiClient.get.mockResolvedValue({ data: { enabled: true, tools: [], paramDefaults: {} } });
 

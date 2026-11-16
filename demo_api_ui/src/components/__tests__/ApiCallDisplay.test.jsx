@@ -16,9 +16,11 @@ const CALL = {
   response: { status: 200, headers: { 'x-trace': 'tr-1' }, body: 'plain text, not json' },
 };
 
+let mockCall = CALL;
+
 vi.mock('../../services/apiClient', () => ({
   default: {
-    get: vi.fn(() => Promise.resolve({ data: { success: true, calls: [CALL], stats: { total: 1, successful: 1, failed: 0, categories: { token: 1 } } } })),
+    get: vi.fn(() => Promise.resolve({ data: { success: true, calls: [mockCall], stats: { total: 1, successful: 1, failed: 0, categories: { token: 1 } } } })),
     delete: vi.fn(() => Promise.resolve({ data: {} })),
   },
 }));
@@ -34,6 +36,7 @@ describe('ApiCallDisplay JSON panes', () => {
   beforeEach(() => {
     // One Form | JSON choice per page, kept in localStorage: a test that picks JSON must not leak it.
     localStorage.clear();
+    mockCall = CALL;
   });
 
   it('shows headers and a JSON body as Form panes, and a non-JSON body as plain text', async () => {
@@ -54,6 +57,22 @@ describe('ApiCallDisplay JSON panes', () => {
     await waitFor(() => expect(details.querySelector('.jp-raw[aria-label="Request headers"]')).not.toBeNull());
     expect(details.querySelector('.jp-raw[aria-label="Request headers"]').textContent).toContain('"content-type": "application/json"');
     expect(document.querySelector('.api-call-details')).not.toBeNull();
+  });
+
+  it('paints no alert on a request body, and keeps it on a response body with an error (both views)', async () => {
+    mockCall = {
+      ...CALL,
+      request: { ...CALL.request, body: { reason: 'rent for November', note: 'free text' } },
+      response: { status: 400, headers: {}, body: { error: 'invalid_request', error_description: 'Missing audience' } },
+    };
+    const details = await openCall();
+    expect(within(details).getByRole('group', { name: 'Request body' }).querySelector('[data-alert]')).toBeNull();
+    expect(within(details).getByRole('group', { name: 'Response body' }).querySelector('[data-alert="true"]')).not.toBeNull();
+
+    fireEvent.click(within(within(details).getByRole('group', { name: 'Request body' }).closest('.jp-box')).getByRole('button', { name: 'JSON' }));
+    await waitFor(() => expect(details.querySelector('pre.jp-raw[aria-label="Request body"]')).not.toBeNull());
+    expect(details.querySelector('pre.jp-raw[aria-label="Request body"] .jp-tok--alert')).toBeNull();
+    expect(details.querySelector('pre.jp-raw[aria-label="Response body"] .jp-tok--alert')).not.toBeNull();
   });
 
   it('collapses the row when its summary is clicked again', async () => {

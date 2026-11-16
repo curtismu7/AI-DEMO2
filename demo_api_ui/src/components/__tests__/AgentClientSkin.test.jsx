@@ -193,3 +193,30 @@ describe('AgentClientSkin tool JSON panes', () => {
   });
 });
 
+
+describe('AgentClientSkin tool input is neutral data, the result keeps the alert default', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  // The same free-text reason / note sits in the tool's input (what was asked for) and in its result (what came back).
+  const FREE = { reason: 'customer asked for a statement', note: 'free text', decision: 'review later' };
+  const messages = [
+    { role: 'agent', type: 'tool_use', toolName: 'get_statement', toolInput: FREE },
+    { role: 'agent', type: 'tool_result', toolName: 'get_statement', data: FREE },
+  ];
+
+  it.each(['privilege', 'claude-terminal'])('%s skin, Form view: the input has no data-alert, the result does', (skin) => {
+    render(<AgentClientSkin {...baseProps} skin={skin} messages={messages} />);
+    expect(screen.getByRole('group', { name: 'Input of get_statement' }).querySelector('[data-alert]')).toBeNull();
+    expect(screen.getByRole('group', { name: 'Result of get_statement' }).querySelector('[data-alert="true"]')).not.toBeNull();
+  });
+
+  it.each(['privilege', 'claude-terminal'])('%s skin, JSON view: the input has no alert token, the result does', async (skin) => {
+    render(<AgentClientSkin {...baseProps} skin={skin} messages={messages} />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[0]);
+    await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Result of get_statement"]')).not.toBeNull());
+    expect(document.querySelector('pre.jp-raw[aria-label="Input of get_statement"]').querySelector('.jp-tok--alert')).toBeNull();
+    expect(document.querySelector('pre.jp-raw[aria-label="Result of get_statement"]').querySelector('.jp-tok--alert')).not.toBeNull();
+  });
+});

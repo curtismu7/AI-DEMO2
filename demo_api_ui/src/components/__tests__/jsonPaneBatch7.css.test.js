@@ -40,11 +40,10 @@ describe('JSON pane batch 7 stylesheets', () => {
     expect(singles.filter((x) => /^\.logs-detail(?:-json)?(?:$|::|:|\s)/.test(x) && /::-webkit-scrollbar|-json/.test(x))).toEqual([]);
   });
 
-  test('InterAgentAbuseTester.css turns the pane alert ink to the success ink only inside a passed probe', () => {
-    const found = rules(read('InterAgentAbuseTester.css')).filter((r) => r.selector.includes('.iaa-details--expected'));
-    expect(found.length).toBe(1);
-    expect(found[0].selector.split(',').map((x) => x.trim())).toEqual(['.iaa-details--expected .jp-box', '.iaa-details--expected .jp-wire']);
-    expect(found[0].body).toMatch(/--jp-alert:\s*var\(--th-status-success-text\)/);
+  test('InterAgentAbuseTester.css keeps no call-site override of the pane alert ink (a passed probe uses alert={false} instead)', () => {
+    const css = read('InterAgentAbuseTester.css');
+    expect(css).not.toMatch(/iaa-details--expected/);
+    expect(css).not.toMatch(/--jp-alert/);
   });
 
   test('the Log Details field rules reach only the field label and value, not the pane inside it', () => {

@@ -10,7 +10,7 @@ function ToolUseBlock({ toolName, toolInput, colors }) {
         <span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>
         <span style={{ fontWeight: 700 }}>{toolName}</span>
       </div>
-      {toolInput && Object.keys(toolInput).length > 0 && <JsonPane value={toolInput} label={`Input of ${toolName}`} />}
+      {toolInput && Object.keys(toolInput).length > 0 && <JsonPane value={toolInput} label={`Input of ${toolName}`} alert={false} />}
     </div>
   );
 }
@@ -319,7 +319,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       return (
         <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <div style={{ color: colors.toolColor }}><span style={{ opacity: 0.65, marginRight: 4 }}>tool</span>{msg.toolName}</div>
-          {msg.toolInput && <div style={{ margin: '4px 0 0 16px' }}><JsonPane value={msg.toolInput} label={`Input of ${msg.toolName}`} /></div>}
+          {msg.toolInput && <div style={{ margin: '4px 0 0 16px' }}><JsonPane value={msg.toolInput} label={`Input of ${msg.toolName}`} alert={false} /></div>}
         </div>
       );
     }

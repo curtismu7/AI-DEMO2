@@ -143,7 +143,7 @@ export default function ApiCallDisplay({ sessionId = 'default' }) {
                     {call.request.body && (
                       <div className="api-call-body">
                         <h5>Body</h5>
-                        <JsonPane value={call.request.body} label="Request body" />
+                        <JsonPane value={call.request.body} label="Request body" alert={false} />
                       </div>
                     )}
                   </div>

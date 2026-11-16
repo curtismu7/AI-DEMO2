@@ -468,7 +468,7 @@ export default function OASDemoPage({ user }) {
             {showRawSpec ? '▲ Hide' : '▼ View'} Raw OAS Spec
           </button>
           {showRawSpec && (
-            <JsonPane value={spec} label="Raw OAS spec" hot={['operationId', 'x-permission']} />
+            <JsonPane value={spec} label="Raw OAS spec" hot={['operationId', 'x-permission']} alert={false} />
           )}
         </div>
       )}

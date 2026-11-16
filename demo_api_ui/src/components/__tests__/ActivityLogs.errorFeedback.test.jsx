@@ -93,3 +93,34 @@ test('the record modal shows headers, request body and response body as shared J
   await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Request body"]')).not.toBeNull());
   expect(JSON.parse(document.querySelector('pre.jp-raw[aria-label="Request body"]').textContent)).toEqual({ filter: 'open' });
 });
+
+test('the record modal paints no alert on a request body, and keeps it on a response body with an error', async () => {
+  const log = {
+    id: 'log-2',
+    timestamp: '2026-11-16T10:00:00Z',
+    username: 'alice',
+    action: 'POST_TRANSFER',
+    endpoint: '/transfers',
+    ipAddress: '10.0.0.1',
+    responseStatus: 400,
+    duration: 12,
+    userAgent: 'vitest-agent',
+    requestBody: { reason: 'rent for November', note: 'free text' },
+    responseBody: { error: 'insufficient_funds', error_description: 'Balance too low' },
+  };
+  apiClient.get.mockResolvedValue({ data: { logs: [log], pagination: {} } });
+
+  renderLogs();
+  fireEvent.click(await screen.findByText('/transfers'));
+
+  // Form view
+  const request = await screen.findByRole('group', { name: 'Request body' });
+  expect(request.querySelector('[data-alert]')).toBeNull();
+  expect(screen.getByRole('group', { name: 'Response body' }).querySelector('[data-alert="true"]')).not.toBeNull();
+
+  // JSON view
+  fireEvent.click(within(request.closest('.jp-box')).getByRole('button', { name: 'JSON' }));
+  await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Request body"]')).not.toBeNull());
+  expect(document.querySelector('pre.jp-raw[aria-label="Request body"]').querySelector('.jp-tok--alert')).toBeNull();
+  expect(document.querySelector('pre.jp-raw[aria-label="Response body"]').querySelector('.jp-tok--alert')).not.toBeNull();
+});

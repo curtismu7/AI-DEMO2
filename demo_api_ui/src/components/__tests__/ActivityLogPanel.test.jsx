@@ -156,6 +156,34 @@ describe('ActivityLogPanel — event details pane', () => {
     expect(raw.textContent).toBe(JSON.stringify(metadata, null, 2));
   });
 
+  describe('alert emphasis follows the event severity', () => {
+    const FREE_TEXT = { reason: 'agent chose the read-only tool', note: 'free text', decision: 'review later' };
+    const open = async (severity) => {
+      withEvent({ severity, metadata: FREE_TEXT });
+      await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
+    };
+    const rawPane = async () => {
+      await userEvent.click(within(screen.getByRole('group', { name: PANE_VIEW })).getByRole('button', { name: 'JSON' }));
+      return waitFor(() => {
+        const el = document.querySelector('pre.jp-raw[aria-label^="Event details: Token exchanged at "]');
+        expect(el).not.toBeNull();
+        return el;
+      });
+    };
+
+    it('an info event paints no alert on its free-text note or reason, in both views', async () => {
+      await open('info');
+      expect(screen.getByRole('group', { name: PANE }).querySelector('[data-alert]')).toBeNull();
+      expect((await rawPane()).querySelector('.jp-tok--alert')).toBeNull();
+    });
+
+    it.each(['error', 'warning', 'warn'])('a %s event keeps the alert default, in both views', async (severity) => {
+      await open(severity);
+      expect(screen.getByRole('group', { name: PANE }).querySelector('[data-alert="true"]')).not.toBeNull();
+      expect((await rawPane()).querySelector('.jp-tok--alert')).not.toBeNull();
+    });
+  });
+
   it('falls back to the tag when there is no metadata, and is not expandable with neither', async () => {
     const { unmount } = withEvent({ tag: 'agent/route' });
     await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
