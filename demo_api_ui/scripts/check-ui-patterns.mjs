@@ -2245,7 +2245,9 @@ function main() {
       `${advisoryPages} page(s) with J1 advisory findings (JSON panes; advisory, not a failure)`,
   );
   if (exit) console.error('FAIL: an enforced page or the shared Ping UI set drifted from the Ping UI Standard (see DRIFT lines above).');
-  process.exit(exit);
+  // Not process.exit(): on Linux a pipe drains asynchronously, so exiting here cuts a large report off before its
+  // summary line (the run prints ~100 KB). Setting the code lets stdout finish.
+  process.exitCode = exit;
 }
 
 // Compare real paths: a symlinked cwd (macOS /var -> /private/var) must not turn the run into a silent no-op.
