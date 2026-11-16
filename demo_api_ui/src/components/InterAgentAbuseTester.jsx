@@ -164,7 +164,7 @@ export default function InterAgentAbuseTester() {
                   </span>
                 ) : null}
                 {r ? (
-                  <details className="iaa-details">
+                  <details className={`iaa-details${r.ok ? ' iaa-details--expected' : ''}`}>
                     <summary>Request and response details</summary>
                     <h4>Request sent</h4>
                     <JsonPane value={r.request} label={`${p.label} request`} hot={['method', 'path']} />

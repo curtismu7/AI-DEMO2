@@ -71,6 +71,26 @@ describe('InterAgentAbuseTester', () => {
     });
   });
 
+  it('flags only a passed probe details as expected, so the pane red does not contradict the green check', async () => {
+    stubFetch({ rpcStatus: 401 });
+    render(<InterAgentAbuseTester />);
+    fireEvent.click(screen.getByRole('button', { name: /fire inter-agent abuse/i }));
+    await waitFor(() => expect(screen.getAllByText(/✅/).length).toBe(3));
+    const passed = screen.getByText('Inter-agent call, FORGED bearer').closest('li').querySelector('.iaa-details');
+    expect(passed).toHaveClass('iaa-details--expected');
+    // The pane still marks the error row; the stylesheet re-inks it (jsonPaneBatch7.css.test.js).
+    expect(passed.querySelector('.jp-row[data-alert="true"]')).not.toBeNull();
+  });
+
+  it('keeps the default pane red when a probe fails (the wire hop allowed it)', async () => {
+    stubFetch({ rpcStatus: 200 });
+    render(<InterAgentAbuseTester />);
+    fireEvent.click(screen.getByRole('button', { name: /fire inter-agent abuse/i }));
+    await waitFor(() => expect(screen.getAllByText(/❌/).length).toBe(2));
+    const failed = screen.getByText('Inter-agent call, FORGED bearer').closest('li').querySelector('.iaa-details');
+    expect(failed).not.toHaveClass('iaa-details--expected');
+  });
+
   it('marks the unauthorized call ❌ if the wire hop wrongly allows it (200)', async () => {
     stubFetch({ rpcStatus: 200 });
     render(<InterAgentAbuseTester />);

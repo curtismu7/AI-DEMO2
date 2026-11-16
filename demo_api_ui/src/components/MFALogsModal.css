@@ -319,30 +319,22 @@
 
 /* Scrollbar styling */
 .logs-list::-webkit-scrollbar,
-.logs-detail::-webkit-scrollbar,
-.logs-detail-json::-webkit-scrollbar,
 .logs-modal-detail::-webkit-scrollbar {
   width: 8px;
 }
 
 .logs-list::-webkit-scrollbar-track,
-.logs-detail::-webkit-scrollbar-track,
-.logs-detail-json::-webkit-scrollbar-track,
 .logs-modal-detail::-webkit-scrollbar-track {
   background: var(--th-bg-inset);
 }
 
 .logs-list::-webkit-scrollbar-thumb,
-.logs-detail::-webkit-scrollbar-thumb,
-.logs-detail-json::-webkit-scrollbar-thumb,
 .logs-modal-detail::-webkit-scrollbar-thumb {
   background: #cdd1d4;
   border-radius: var(--radius-sm);
 }
 
 .logs-list::-webkit-scrollbar-thumb:hover,
-.logs-detail::-webkit-scrollbar-thumb:hover,
-.logs-detail-json::-webkit-scrollbar-thumb:hover,
 .logs-modal-detail::-webkit-scrollbar-thumb:hover {
   background: #909ea4;
 }

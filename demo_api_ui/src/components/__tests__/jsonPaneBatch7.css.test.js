@@ -30,7 +30,21 @@ describe('JSON pane batch 7 stylesheets', () => {
   });
 
   test.each(REMOVED)('%s no longer has the hand-rolled rule %s', (file, selector) => {
-    expect(rules(read(file)).map((r) => r.selector)).not.toContain(selector);
+    // A rule can hide in a comma-grouped selector list, so test every single selector.
+    const singles = rules(read(file)).flatMap((r) => r.selector.split(',').map((x) => x.trim()));
+    expect(singles).not.toContain(selector);
+  });
+
+  test('MFALogsModal.css keeps no scrollbar rule for the removed .logs-detail-json or the now non-scrolling .logs-detail', () => {
+    const singles = rules(read('MFALogsModal.css')).flatMap((r) => r.selector.split(',').map((x) => x.trim()));
+    expect(singles.filter((x) => /^\.logs-detail(?:-json)?(?:$|::|:|\s)/.test(x) && /::-webkit-scrollbar|-json/.test(x))).toEqual([]);
+  });
+
+  test('InterAgentAbuseTester.css turns the pane alert ink to the success ink only inside a passed probe', () => {
+    const found = rules(read('InterAgentAbuseTester.css')).filter((r) => r.selector.includes('.iaa-details--expected'));
+    expect(found.length).toBe(1);
+    expect(found[0].selector.split(',').map((x) => x.trim())).toEqual(['.iaa-details--expected .jp-box', '.iaa-details--expected .jp-wire']);
+    expect(found[0].body).toMatch(/--jp-alert:\s*var\(--th-status-success-text\)/);
   });
 
   test('the Log Details field rules reach only the field label and value, not the pane inside it', () => {
