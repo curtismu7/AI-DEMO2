@@ -1,0 +1,10 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC27",
+  "triggerType": "chip",
+  "mode": "unit-gate",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_bill",
+  "checkedAt": "2026-11-06"
+}
