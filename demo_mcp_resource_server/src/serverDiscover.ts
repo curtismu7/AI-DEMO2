@@ -3,12 +3,17 @@
 /**
  * MCP spec 2026-07-28: server/discover. Mirrors demo_mcp_gateway/src/serverDiscover.ts.
  *
- * supportedVersions is deliberately narrow: this server is still Legacy-era
- * end-to-end (2025-11-25 handshake). Only add '2026-07-28' once stateless
- * _meta negotiation, MRTR, and list caching are actually implemented.
+ * supportedVersions lists 2026-07-28 because Modern requests are genuinely
+ * served end to end: per-request _meta (no initialize, no Mcp-Session-Id),
+ * Mcp-Method/Mcp-Name header checks, resultType on every result, ttlMs /
+ * cacheScope on the cacheable methods, per-request logLevel, and the removed
+ * methods (ping, logging/setLevel) rejected — see modernRequest.ts. Legacy
+ * 2025-11-25 callers keep the initialize handshake unchanged.
  */
 
-export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25'] as const;
+import { CACHE_HINTS, CacheScope } from './modernRequest';
+
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2026-07-28'] as const;
 
 export interface DiscoverServerInfo {
   name: string;
@@ -19,6 +24,8 @@ export interface DiscoverResult {
   resultType: 'complete';
   supportedVersions: readonly string[];
   capabilities: Record<string, unknown>;
+  ttlMs: number;
+  cacheScope: CacheScope;
   _meta: { 'io.modelcontextprotocol/serverInfo': DiscoverServerInfo };
   instructions?: string;
 }
@@ -32,6 +39,7 @@ export function buildDiscoverResult(
     resultType: 'complete',
     supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
     capabilities,
+    ...CACHE_HINTS['server/discover'],
     _meta: { 'io.modelcontextprotocol/serverInfo': serverInfo },
     ...(instructions !== undefined ? { instructions } : {}),
   };

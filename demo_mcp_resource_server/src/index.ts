@@ -71,6 +71,14 @@ import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { DEMO_BANKING_SUBJECT } from './tools/bankingToolHandler';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
+import {
+  MODERN_PROTOCOL_VERSION,
+  ERR_HEADER_MISMATCH,
+  validateModernMeta,
+  requestedLogLevel,
+  checkModernHeaders,
+  decorateModernSend,
+} from './modernRequest';
 import fs from 'fs';
 import path from 'path';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
@@ -292,6 +300,23 @@ function handleMcpPost(req: IncomingMessage, res: ServerResponse): void {
       if (JSON.parse(body).method === 'initialize') sessionIdForInitialize = crypto.randomUUID();
     } catch { /* malformed body — handleMessage below reports the parse error */ }
 
+    // MCP spec 2026-07-28 Streamable HTTP: a Modern request (params._meta
+    // declares 2026-07-28) is checked before dispatch — malformed _meta is
+    // 400 + -32602, and Mcp-Method / Mcp-Name / MCP-Protocol-Version must
+    // mirror the body (400 + -32020). Legacy requests never enter this branch.
+    try {
+      const rpc = JSON.parse(body);
+      if (extractRequestedProtocolVersion(rpc?.params) === MODERN_PROTOCOL_VERSION && rpc.method !== 'server/discover') {
+        const metaErr = validateModernMeta(rpc.params);
+        const headerErr = metaErr ? null : checkModernHeaders(req.headers, rpc);
+        if (metaErr || headerErr) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(rpcError(rpc.id ?? null, metaErr ? metaErr.code : ERR_HEADER_MISMATCH, metaErr ? metaErr.message : (headerErr as string)));
+          return;
+        }
+      }
+    } catch { /* malformed body — handleMessage below reports the parse error */ }
+
     let replied = false;
     const send = (s: string): void => {
       if (replied) return;
@@ -345,7 +370,9 @@ function handleMcpPost(req: IncomingMessage, res: ServerResponse): void {
       }
       res.end(s);
     };
-    handleMessage(body, token, send)
+    // canNotify=false: this transport answers with one JSON body, so a
+    // notifications/message frame would consume the reply slot above.
+    handleMessage(body, token, send, {}, false)
       .then(() => {
         // A notification (e.g. notifications/initialized) produces no response.
         if (!replied) { res.writeHead(202); res.end(); }
@@ -696,6 +723,7 @@ async function handleMessage(
   token: string,
   send: (s: string) => void,
   loggingState: LoggingState = {},
+  canNotify = true,
 ): Promise<void> {
   let method = 'unknown';
   try {
@@ -704,7 +732,7 @@ async function handleMessage(
   } catch { /* labeled 'unknown'; the real parse below reports the real error */ }
   const endTimer = mcpMessageDuration.startTimer({ method });
   try {
-    await handleMessageImpl(rawMsg, token, send, loggingState);
+    await handleMessageImpl(rawMsg, token, send, loggingState, canNotify);
   } finally {
     endTimer();
   }
@@ -719,6 +747,8 @@ async function handleMessageImpl(
   // is passed each time, so logging/setLevel has no effect beyond that
   // single call — an honest limitation of a one-shot transport, not a bug.
   loggingState: LoggingState = {},
+  // False on one-shot HTTP, where a notification frame can't ride alongside the reply.
+  canNotify = true,
 ): Promise<void> {
   let msg: any;
   try { msg = JSON.parse(rawMsg); } catch { send(rpcError(null, -32700, 'Parse error')); return; }
@@ -744,10 +774,11 @@ async function handleMessageImpl(
 
   // MCP spec 2026-07-28: per-request version negotiation. A Modern request
   // declares its version in params._meta instead of an initialize
-  // handshake. This server doesn't implement Modern behavior yet — reject
-  // cleanly rather than silently running Legacy semantics a Modern caller
-  // never agreed to. server/discover is exempt — its whole purpose is
-  // answering regardless of what version the caller claims.
+  // handshake. A version this server doesn't speak is rejected cleanly
+  // rather than silently run under Legacy semantics the caller never agreed
+  // to; the Modern block further down serves the one it does.
+  // server/discover is exempt — its whole purpose is answering regardless
+  // of what version the caller claims.
   if (method !== 'server/discover') {
     const requestedVersion = extractRequestedProtocolVersion(msg.params);
     if (requestedVersion !== undefined && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)) {
@@ -770,6 +801,25 @@ async function handleMessageImpl(
       { name: 'banking-mcp-resource-server', version: '1.0.0' },
     )));
     return;
+  }
+
+  // MCP spec 2026-07-28 Modern request: stateless, everything in params._meta.
+  // Handlers below are shared with Legacy; only the envelope differs — every
+  // result gains resultType + cache hints, the log level is per-request
+  // (io.modelcontextprotocol/logLevel) instead of logging/setLevel, and the
+  // removed methods (ping, logging/setLevel) are not found.
+  if (extractRequestedProtocolVersion(msg.params) === MODERN_PROTOCOL_VERSION) {
+    const metaErr = validateModernMeta(msg.params);
+    if (metaErr) {
+      send(rpcError(id, metaErr.code, metaErr.message));
+      return;
+    }
+    if (method === 'ping' || method === 'logging/setLevel') {
+      send(rpcError(id, -32601, `Method not found: ${method}`));
+      return;
+    }
+    send = decorateModernSend(method, { name: 'banking-mcp-resource-server', version: '1.0.0' }, send);
+    loggingState = canNotify ? { level: requestedLogLevel(msg.params) } : {};
   }
 
   if (method === 'prompts/list') {

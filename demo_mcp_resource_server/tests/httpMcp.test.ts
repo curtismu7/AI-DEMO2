@@ -293,16 +293,14 @@ describe('Completion capability', () => {
   });
 });
 
-// MCP spec 2026-07-28: server/discover — servers MUST implement it. This
-// server is still Legacy-era (2025-11-25 handshake) end-to-end, so
-// supportedVersions stays honestly scoped to that — claiming 2026-07-28
-// before the rest of Modern (stateless _meta negotiation, MRTR, list
-// caching) lands would make this RPC lie to a caller relying on it.
+// MCP spec 2026-07-28: server/discover — servers MUST implement it.
+// supportedVersions lists both eras: Legacy 2025-11-25 and the stateless
+// 2026-07-28 path (see httpMcpModern.test.ts for that path's behavior).
 describe('server/discover', () => {
   it('answers with resultType complete, supportedVersions, capabilities, and serverInfo', async () => {
     const r = await post({ jsonrpc: '2.0', id: 1, method: 'server/discover', params: {} }, token('airlines:read'));
     expect(r.json.result.resultType).toBe('complete');
-    expect(r.json.result.supportedVersions).toEqual(['2025-11-25']);
+    expect(r.json.result.supportedVersions).toEqual(['2025-11-25', '2026-07-28']);
     expect(r.json.result.capabilities).toMatchObject({ tools: {} });
     expect(r.json.result._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: 'banking-mcp-resource-server' });
   });
@@ -316,16 +314,15 @@ describe('server/discover', () => {
   });
 });
 
-// MCP spec 2026-07-28: per-request version negotiation. This server doesn't
-// implement any Modern-era behavior yet — a Modern-shaped request (carrying
-// params._meta.protocolVersion) should be rejected cleanly with
-// UnsupportedProtocolVersionError rather than silently run under Legacy
-// semantics it never declared support for.
+// MCP spec 2026-07-28: per-request version negotiation. A request carrying
+// params._meta.protocolVersion for a version this server doesn't speak is
+// rejected cleanly with UnsupportedProtocolVersionError rather than silently
+// run under semantics the caller never agreed to.
 describe('Modern per-request version negotiation (_meta)', () => {
   it('rejects a request carrying an unsupported Modern _meta.protocolVersion with -32022 and HTTP 400', async () => {
     const r = await post({
       jsonrpc: '2.0', id: 9, method: 'tools/list',
-      params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+      params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2099-01-01' } },
     }, token('airlines:read'));
     // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: this
     // case MUST be 400 Bad Request, not 200 with a JSON-RPC-level error.
@@ -333,7 +330,7 @@ describe('Modern per-request version negotiation (_meta)', () => {
     expect(r.json.error).toMatchObject({
       code: -32022,
       message: 'Unsupported protocol version',
-      data: { supported: ['2025-11-25'], requested: '2026-07-28' },
+      data: { supported: ['2025-11-25', '2026-07-28'], requested: '2099-01-01' },
     });
   });
 
