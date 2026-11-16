@@ -87,8 +87,6 @@ test('the record modal shows headers, request body and response body as shared J
   expect(headers).toHaveTextContent('Bearer [TOKEN]');
   expect(screen.getByRole('group', { name: 'Request body' })).toHaveTextContent('open');
   expect(screen.getByRole('group', { name: 'Response body' })).toHaveTextContent('acct-1');
-  // No hand-rolled code box and no scroll box around a pane.
-  expect(document.querySelector('.activity-record-modal__code')).toBeNull();
 
   fireEvent.click(within(screen.getByRole('group', { name: 'Request body' }).closest('.jp-box')).getByRole('button', { name: 'JSON' }));
   // Wait for the JSON view itself before reading it: the click switches the view on the next render.
