@@ -55,6 +55,10 @@ services:
       # CN mismatch on demo-api-server.
       REACT_APP_API_HOST: demo-api-server
       REACT_APP_KIBANA_URL: ${REACT_APP_KIBANA_URL:-http://localhost:4180}
+      # Sign-in only works on local.ping-devops.com:4000 (the OAuth redirect URIs and the session
+      # cookie live on that host). src/index.jsx sends localhost:4000 there when this is set;
+      # unset, it did nothing and a login started on localhost failed with invalid_state.
+      REACT_APP_CLIENT_URL: ${PUBLIC_APP_URL:-https://local.ping-devops.com:4000}
       # Exit at boot if mkcert files are missing — never serve HTTP-only on :4000 silently.
       REQUIRE_DEV_TLS: "1"
     volumes:
