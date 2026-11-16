@@ -383,3 +383,54 @@ describe('Ping UI Standard: banner, chips, one primary per view state', () => {
     expect(within(lab).queryByTestId('apd-verdict')).toBeNull();
   });
 });
+
+describe('PrivilegeAiPoliciesDemoPage: Set up Cedar in Privilege', () => {
+  it.each([[true], [false]])('shows the console path, is/isn\'t and four use cases (live=%s)', async (live) => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    page({ live });
+    await flushEffects();
+    const setup = screen.getByTestId('apd-setup');
+    const steps = within(setup).getByTestId('apd-setup-steps');
+    expect(within(steps).getAllByRole('listitem')).toHaveLength(8);
+    expect(steps).toHaveTextContent(/Access Management, then AI Policies/);
+    expect(steps).toHaveTextContent(/Candidate/);
+    expect(within(setup).getByTestId('apd-is').querySelectorAll('li').length).toBeGreaterThanOrEqual(4);
+    expect(within(setup).getByTestId('apd-isnt')).toHaveTextContent(/Not authentication/);
+    expect(within(setup).getByTestId('apd-isnt')).toHaveTextContent(/Not the claim gate/);
+    for (const id of ['hold', 'scope', 'cap', 'pii']) expect(within(setup).getByTestId(`apd-case-${id}`)).toBeInTheDocument();
+  });
+
+  it('labels each use case with the state of the policy it mirrors, and says a Candidate does not run', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    page({ live: false });
+    await flushEffects();
+    expect(within(screen.getByTestId('apd-case-hold')).getByText('Active')).toHaveClass('pu-chip');
+    expect(within(screen.getByTestId('apd-case-scope')).getByText('Active')).toHaveClass('pu-chip');
+    for (const id of ['cap', 'pii']) {
+      const c = screen.getByTestId(`apd-case-${id}`);
+      expect(within(c).getByText('Candidate')).toHaveClass('pu-chip');
+      expect(c).toHaveTextContent(/never enforced/);
+    }
+    expect(screen.getByTestId('apd-case-cap')).toHaveTextContent(/never reads approval_count/);
+  });
+
+  it('shows real Cedar for each use case', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    page({ live: false });
+    await flushEffects();
+    expect(screen.getByTestId('apd-case-hold')).toHaveTextContent('Action::"mcp:InvokeUnattended"');
+    expect(screen.getByTestId('apd-case-scope')).toHaveTextContent('context.token.scopes.contains("opensearch:search")');
+    expect(screen.getByTestId('apd-case-cap')).toHaveTextContent('context.args.amount > 10000');
+    expect(screen.getByTestId('apd-case-pii')).toHaveTextContent('Action::"llm:Receive"');
+  });
+
+  it('no longer says Cedar cannot read token claims, and lists the act.sub claim read as unrun', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    page({ live: false });
+    await flushEffects();
+    const vocab = screen.getByTestId('apd-vocab');
+    expect(vocab).not.toHaveTextContent(/No raw token claims, no act/);
+    expect(vocab).toHaveTextContent('context.token.claims["act.sub"]');
+    expect(vocab).toHaveTextContent(/not yet run on a real token/);
+  });
+});

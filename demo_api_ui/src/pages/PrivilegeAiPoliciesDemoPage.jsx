@@ -21,8 +21,8 @@ import {
 } from '../components/pingUi';
 import { AI_POLICIES_DIAGRAM } from '../config/privilegeAiPoliciesDiagram';
 import {
-  BASELINE_RULES, CEDAR_VOCABULARY, DOOR_NAME, EVIDENCE, LAB_TOOLS, OPTION_NOTES, OUTCOMES, OUTCOME_CHOICES, PF_AGENT, POLICIES, SCENARIOS,
-  applyEdit, buildCedar, predictImpact,
+  BASELINE_RULES, CEDAR_IS, CEDAR_ISNT, CEDAR_VOCABULARY, DOOR_NAME, EVIDENCE, LAB_TOOLS, OPTION_NOTES, OUTCOMES, OUTCOME_CHOICES, PF_AGENT, POLICIES, SCENARIOS,
+  SETUP_STEPS, USE_CASES, applyEdit, buildCedar, predictImpact,
 } from '../config/privilegeAiPoliciesDemo';
 import { connectDoor, runTool } from '../services/privilegeAiPoliciesDemoService';
 import './PrivilegeAiPoliciesDemoPage.css';
@@ -41,6 +41,56 @@ const CONN_META = {
   nodoor: { tone: 'warn', word: 'No door' },
   error: { tone: 'danger', word: 'Error' },
 };
+
+// Start here: where Cedar lives in the console, what it is and is not, and four use cases from the policies already on the tenant.
+function SetupGuide() {
+  return (
+    <div data-testid="apd-setup">
+      <Section
+        id="apd-setup-h"
+        kicker="Start here"
+        title="Set up Cedar in Privilege"
+        lede="Cedar policies are written and enforced in the Privilege console. This page does not create or change any."
+      >
+        <CardGrid>
+          <Card title="How to get to it" tone="neutral">
+            <ol className="pu-note apd-list" data-testid="apd-setup-steps">
+              {SETUP_STEPS.map((x) => <li key={x.step}><strong>{x.step}.</strong> {x.detail}</li>)}
+            </ol>
+            <p className="pu-note">Walked on the local console on 2026-11-16, stopping before saving. The console text is the source for the descriptions.</p>
+          </Card>
+          <Card title="What Cedar is, and is not" tone="neutral" data-testid="apd-is-isnt">
+            <p className="pu-status-line"><StatusChip tone="ok">Is</StatusChip></p>
+            <ul className="pu-note apd-list" data-testid="apd-is">{CEDAR_IS.map((t) => <li key={t}>{t}</li>)}</ul>
+            <p className="pu-status-line"><StatusChip tone="warn">Is not</StatusChip></p>
+            <ul className="pu-note apd-list" data-testid="apd-isnt">{CEDAR_ISNT.map((t) => <li key={t}>{t}</li>)}</ul>
+          </Card>
+        </CardGrid>
+      </Section>
+      <Section
+        id="apd-cases-h"
+        kicker="Start here"
+        title="Four use cases, from the policies already on the tenant"
+        lede="The Cedar is the console copy, read on 2026-11-16. Only an Active policy is enforced; a Candidate is stored and validated and does not run."
+      >
+        <CardGrid>
+          {USE_CASES.map((u) => (
+            <Card key={u.id} title={u.title} tone="neutral" data-testid={`apd-case-${u.id}`}>
+              <p className="pu-status-line">
+                <StatusChip tone={u.state === 'Active' ? 'ok' : 'warn'}>{u.state}</StatusChip>
+                <span>policy <code>{u.policy}</code></span>
+              </p>
+              <p className="pu-note">{u.what}</p>
+              <pre className="apd-cedar" role="region" tabIndex={0} aria-label={`Cedar for ${u.policy}`}>{u.cedar}</pre>
+              <p className="pu-note">{u.link ? <Link to={u.link}>{u.run}</Link> : u.run}</p>
+              {u.note && <p className="pu-note">{u.note}</p>}
+            </Card>
+          ))}
+        </CardGrid>
+      </Section>
+    </div>
+  );
+}
 
 export default function PrivilegeAiPoliciesDemoPage({ live = true }) {
   const [conn, setConn] = useState({ status: live ? 'connecting' : 'off' });
@@ -109,6 +159,7 @@ export default function PrivilegeAiPoliciesDemoPage({ live = true }) {
         summary="Privilege decides every tool call an AI agent makes with Cedar policies, inside the gateway. Run a call through a real door and see what the gateway answers: allowed, refused, or held for a human, next to the real policy that decided it."
       />
       <PageFrame>
+        <SetupGuide />
         {live && (
           <Section id="apd-conn-h" kicker="1 · Connect" title="Connect to the door">
             <Card tone={ready ? "ok" : connMeta.tone} data-testid="apd-conn" data-status={conn.status}>
@@ -143,7 +194,7 @@ export default function PrivilegeAiPoliciesDemoPage({ live = true }) {
             id="apd-vocab-h"
             kicker="4 · Reference"
             title="What a Privilege AI policy can read"
-            lede="A fixed set of attributes. No raw token claims, no act, and no ID-JAG hook."
+            lede="A fixed set of attributes. Token claims, including act.sub, are readable (validated, not yet run on a real token). Principal attributes, a raw groups claim and an ID-JAG hook were not found."
           >
             <Card tone="neutral">
               <div className="apd-table-wrap">
