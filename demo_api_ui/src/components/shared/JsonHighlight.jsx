@@ -1,62 +1,28 @@
 import React, { useCallback, useState } from "react";
+import JsonPane, { deepParse, parseJsonText } from "./JsonPane";
 import "./JsonHighlight.css";
 
-// Shared colour-coded JSON viewer.
+// Shared JSON viewer: a thin wrapper around the one JSON pane (JsonPane.jsx, the Form | JSON / full-view standard).
 //
-// Renders pretty-printed JSON as semantic <span>s (no dangerouslySetInnerHTML),
-// so it is safe and lint-clean. Colours come from CSS classes in
-// JsonHighlight.css: the default palette is tuned for light backgrounds; wrap
-// the surrounding <pre> in the `jh-dark` class for dark code blocks.
-//
-// Usage:
-//   <pre className="my-json"><JsonHighlight value={obj} /></pre>          // light
-//   <pre className="my-json jh-dark"><JsonHighlight value={obj} /></pre>  // dark
-//   <JsonHighlight value={obj} deep />  // also unwrap nested stringified JSON
+// Call sites keep working unchanged:
+//   <pre className="my-json"><JsonHighlight value={obj} /></pre>
+//   <JsonHighlight value={obj} deep />       // also unwrap nested stringified JSON
+//   <JsonHighlight value={obj} copyable />   // copy button beside the Form | JSON switch
+// The pane paints its own ground and takes its colours from --th-* tokens, so the old `jh-dark` wrapper class no
+// longer changes the palette. The jh-* token classes below survive only for tokenize() (TraceStepCard's
+// HighlightedText colours plain text with them); this component no longer renders them.
 
-// If `value` is a string that is itself a stringified JSON object/array, parse
-// it once and return the object; otherwise return `value` unchanged. Only
-// objects/arrays are unwrapped — primitive-looking strings ("123", "true") are
-// left as-is.
-function parseJsonString(value) {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  ) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object") return parsed;
-    } catch {
-      /* not JSON — keep the original string */
-    }
-  }
-  return value;
-}
+// Same colour emphasis as before the pane: the old focus fields stand out as important keys, the old critical
+// fields in the alert colour. (aud and scope are already in the pane's default important keys.)
+const HOT = ["payload", "RarAuthorizationDetails", "rarauthorizationdetails", "authorization_details"];
+const ALERT = ["status", "errorCode", "error_code", "result"];
 
-// Recursively unwrap nested stringified JSON. MCP tool results are commonly
-// shaped { text: "<escaped JSON string>" }, which renders as one long unwrapped
-// line; this expands them. Opt-in via the `deep` prop — most viewers want to
-// show the payload as-is, so the default leaves nested strings untouched.
-export function deepParse(value, depth = 0) {
-  if (depth > 6) return value;
-  if (typeof value === "string") {
-    const parsed = parseJsonString(value);
-    return parsed === value ? value : deepParse(parsed, depth + 1);
-  }
-  if (Array.isArray(value)) return value.map((v) => deepParse(v, depth + 1));
-  if (value && typeof value === "object") {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) out[k] = deepParse(v, depth + 1);
-    return out;
-  }
-  return value;
-}
+export { deepParse };
 
 export function formatJson(value, deep) {
   if (value === null || value === undefined) return null;
   try {
-    const normalized = deep ? deepParse(value) : parseJsonString(value);
+    const normalized = deep ? deepParse(value) : (parseJsonText(value) ?? value);
     return JSON.stringify(normalized, null, 2);
   } catch {
     return String(value);
@@ -120,38 +86,12 @@ function CopyButton({ text }) {
   );
 }
 
-// One JSON.stringify(..., null, 2) line, rendered with a vertical guide span
-// per indent level (2 spaces each) so deep nesting stays scannable.
-function Line({ line }) {
-  const spaces = line.match(/^ */)[0].length;
-  const depth = Math.floor(spaces / 2);
-  const rest = line.slice(spaces);
-  return (
-    <span className="jh-line">
-      {Array.from({ length: depth }, (_, d) => (
-        <span key={d} className="jh-guide" />
-      ))}
-      {tokenize(rest).map((t, i) => {
-        const className = [
-          `jh-${t.type}`,
-          t.critical ? 'jh-critical' : null,
-          t.focused ? 'jh-focus' : null,
-        ].filter(Boolean).join(' ');
-        return <span key={i} className={className}>{t.text}</span>;
-      })}
-    </span>
-  );
-}
-
 export default function JsonHighlight({ value, deep = false, copyable = false }) {
   const text = formatJson(value, deep);
   if (text === null) return <span className="jh-empty">—</span>;
   return (
     <span className="jh-root">
-      {copyable && <CopyButton text={text} />}
-      {text.split("\n").map((line, i) => (
-        <Line key={i} line={line} />
-      ))}
+      <JsonPane value={value} deep={deep} hot={HOT} alert={ALERT} actions={copyable ? <CopyButton text={text} /> : undefined} />
     </span>
   );
 }

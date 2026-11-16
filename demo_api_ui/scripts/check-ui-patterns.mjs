@@ -62,6 +62,11 @@
  * colour that resolves to violet or a vertical token, or a size that resolves under 10px. Every escape is listed in
  * the report (a "ui-pattern escapes" INFO row, printed under its page); one without a reason is itself drift.
  *
+ *   J1   (ADVISORY, see J1_ENFORCED) a JSON pane is the shared components/shared/JsonPane, never hand-rolled: a
+ *        <pre>{JSON.stringify(x, null, N)}</pre> in the page JSX, or a JSON/pre/code-named selector in its CSS with
+ *        max-height or overflow auto|scroll (a JSON pane never scrolls). Reported as ADVISORY on every page and
+ *        never fails the run while J1_ENFORCED is false; phase 3 of the JSON-pane plan flips it.
+ *
  * Advisory by default: it reports every routed page and exits 0 for them. It ENFORCES (exit 1) for the
  * routes listed in scripts/ui-pattern-converted.txt, for a listed route that no longer resolves, and
  * ALWAYS for the shared set. Convert a page, then add its route to that file in the same PR.
@@ -1796,6 +1801,57 @@ function checkCss(cssFiles, tokens, ctx, { allTokens = false } = {}) {
   return results;
 }
 
+// ---------- J1: JSON panes (advisory) ----------
+
+/**
+ * J1 is ADVISORY until the converted pages have caught up (phase 3 of the JSON-pane plan). While this is false a J1
+ * finding is reported as status ADVISORY, which never counts as a failure, on an enforced page or any other. Flip it
+ * to true and every finding becomes DRIFT (exit 1 on an enforced page).
+ */
+export const J1_ENFORCED = false;
+const J1_RULE = 'J1 JSON panes use the shared JsonPane';
+const advisory = (rule, detail) => ({ rule, status: 'ADVISORY', detail });
+
+const JSON_SELECTOR = /json|(?<![a-z])(?:pre|code)(?![a-z])/i;
+const NO_CAP = /^(?:none|initial|unset|revert|revert-layer)$/i;
+
+/** `<pre ...>{JSON.stringify(x, null, N)}` openings in JSX source: a short text of each hand-rolled pane. */
+function handRolledPanes(src) {
+  const found = [];
+  for (const m of src.matchAll(/<pre\b[^>]*>\s*\{\s*JSON\.stringify\s*\(/g)) {
+    const open = m.index + m[0].length - 1;
+    const end = closeParen(src, open);
+    if (end === -1) continue;
+    const args = splitTop(src.slice(open + 1, end - 1), ',').map((a) => a.trim());
+    if (args.length >= 3 && args[1] === 'null' && /^(?:\d+|(["'`])[^"'`]*\1)$/.test(args[2])) found.push(m[0].replace(/\s+/g, ' ').slice(0, 40));
+  }
+  return found;
+}
+
+/** JSON/pre/code-named selectors that cap their height or scroll, as `file:line selector { decl }` strings. */
+function cappedJsonSelectors(cssFiles) {
+  const found = [];
+  for (const { file, css } of cssFiles) {
+    for (const rule of parseCss(css)) {
+      if (rule.keyframes || rule.selector.startsWith('@') || !JSON_SELECTOR.test(rule.selector)) continue;
+      for (const [prop, value, meta] of rule.decls) {
+        const cap = prop === 'max-height' && !NO_CAP.test(value);
+        const scroll = /^overflow(?:-[xy])?$/.test(prop) && /\b(?:auto|scroll)\b/i.test(value);
+        if (cap || scroll) found.push(`${file}:${meta.line} ${rule.selector} { ${prop}: ${short(value)} }`);
+      }
+    }
+  }
+  return found;
+}
+
+/** J1 row for a page: ADVISORY while J1_ENFORCED is false, DRIFT after. */
+function checkJsonPanes(jsx, cssFiles) {
+  const findings = [...handRolledPanes(jsx).map((t) => `hand-rolled ${t}`), ...cappedJsonSelectors(cssFiles)];
+  if (!findings.length) return ok(J1_RULE);
+  const detail = `${findings.length} finding(s): ${uniqJoin(findings)} (use components/shared/JsonPane or JsonHighlight; a JSON pane never caps its height or scrolls)`;
+  return J1_ENFORCED ? drift(J1_RULE, detail) : advisory(J1_RULE, detail);
+}
+
 /**
  * Check one page. `jsx` is its source; `css` is [{ file, css }] for the stylesheets it imports; `tokens`
  * is the global custom-property Map (loadGlobalTokens); `buttonClasses` adds classes known to sit on buttons;
@@ -1821,6 +1877,7 @@ export function checkPage({ jsx, css = [], tokens = new Map(), buttonClasses: ex
     checkChips(src, page.scope),
     checkInlineColour(src, page.scope, page.comps),
     ...checkCss(sheets, tokens, ctx),
+    checkJsonPanes(src, sheets),
     unreadable.length ? drift('stylesheets readable', `${unreadable.join(', ')} cannot be read by this check (use plain CSS)`) : ok('stylesheets readable'),
   ];
   const utility = violetButtonClasses(page.classes);
@@ -2153,6 +2210,7 @@ function main() {
   const { pages, missing, shared } = runAll({ strict });
   let exit = 0;
   let escapes = 0;
+  let advisoryPages = 0;
   for (const m of missing) {
     console.error(`ALLOWLIST ${m}: no <Route> with this path in src/App.js (rename or remove it in scripts/ui-pattern-converted.txt)`);
     exit = 1;
@@ -2174,15 +2232,17 @@ function main() {
     if (detail) {
       for (const r of p.results) printRow(r);
       if (p.unscanned.length) console.log(`    INFO  child components not scanned: ${p.unscanned.join(', ')}`);
-    } else for (const r of p.results.filter((x) => x.rule === ESC_RULE)) printRow(r);
+    } else for (const r of p.results.filter((x) => x.rule === ESC_RULE || x.status === 'ADVISORY')) printRow(r);
     escapes += p.results.filter((r) => r.rule === ESC_RULE).length;
+    if (p.results.some((r) => r.status === 'ADVISORY')) advisoryPages += 1;
     if (p.enforced && p.failed.length) exit = 1;
   }
   const enforcedPages = pages.filter((p) => p.enforced);
   console.log(
     `${pages.length} routed pages: ${clean} clean, ${pages.length - clean} with drift; ` +
       `${enforcedPages.length} enforced (${enforcedPages.filter((p) => p.failed.length).length} failing); ` +
-      `shared set ${shared.failed.length ? 'FAILING' : 'clean'}; ${escapes} file(s) with ui-pattern escapes`,
+      `shared set ${shared.failed.length ? 'FAILING' : 'clean'}; ${escapes} file(s) with ui-pattern escapes; ` +
+      `${advisoryPages} page(s) with J1 advisory findings (JSON panes; advisory, not a failure)`,
   );
   if (exit) console.error('FAIL: an enforced page or the shared Ping UI set drifted from the Ping UI Standard (see DRIFT lines above).');
   process.exit(exit);

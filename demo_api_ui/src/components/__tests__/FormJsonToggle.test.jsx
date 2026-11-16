@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import FormJsonToggle, { flattenPayload } from "../shared/FormJsonToggle";
+import JsonHighlight from "../shared/JsonHighlight";
 
 describe("flattenPayload", () => {
   it("names every leaf by its JS path and drops nothing", () => {
@@ -27,6 +28,10 @@ describe("flattenPayload", () => {
 });
 
 describe("FormJsonToggle", () => {
+  // The Form | JSON choice is now the page-wide one, kept in localStorage: a click in one test must not
+  // become the saved choice that wins in the next.
+  beforeEach(() => window.localStorage.clear());
+
   const VALUE = { scope: "write", act: { sub: "agent-001" } };
 
   it("opens on the requested view and switches to the other", async () => {
@@ -37,6 +42,33 @@ describe("FormJsonToggle", () => {
     await userEvent.click(screen.getByRole("button", { name: "Form" }));
     expect(screen.getByText("act.sub")).toBeVisible();
     expect(screen.getByText("agent-001")).toBeVisible();
+  });
+
+  it("shares the page-wide Form | JSON choice with the JSON panes, and its JSON view adds no second switch", async () => {
+    const { container } = render(
+      <>
+        <FormJsonToggle value={VALUE} ariaLabel="Response view" />
+        <JsonHighlight value={{ other: 1 }} />
+      </>,
+    );
+    // Form is the default for both.
+    expect(container.querySelector(".fjt-form")).toBeTruthy();
+    expect(container.querySelector(".jp-form")).toBeTruthy();
+    await userEvent.click(screen.getAllByRole("button", { name: "JSON" })[0]);
+    // One click switched both, and the pane inside the toggle's JSON view has no switch of its own.
+    expect(container.querySelector(".fjt .jp-raw")).toBeTruthy();
+    expect(container.querySelector(".fjt .jp-box .jp-toggle")).toBeNull();
+    expect(container.querySelector(".jp-form")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "JSON" })).toHaveLength(2);
+  });
+
+  it("a JsonHighlight inside a caller-supplied jsonView follows the toggle, with no second switch", async () => {
+    window.localStorage.setItem("ai-demo.json.view", "json");
+    const { container } = render(
+      <FormJsonToggle value={VALUE} ariaLabel="Response view" jsonView={<pre><JsonHighlight value={VALUE} /></pre>} />,
+    );
+    expect(container.querySelector(".fjt .jp-raw")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "JSON" })).toHaveLength(1);
   });
 
   // The callers that already render the payload pass their own JSON node so the

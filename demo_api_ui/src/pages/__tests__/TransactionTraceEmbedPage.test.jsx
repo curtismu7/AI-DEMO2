@@ -88,7 +88,7 @@ describe("TransactionTraceEmbedPage", () => {
     const requestSection = screen.getByRole("heading", { name: "Request" }).closest("section");
     expect(within(requestSection).getByRole("button", { name: "Form" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(within(requestSection).getByRole("button", { name: "JSON" }));
-    expect(within(requestSection).getByText('"tool":')).toBeInTheDocument();
+    expect(within(requestSection).getByText('"tool"')).toBeInTheDocument();
     expect(within(requestSection).getByText('"get_my_accounts"')).toBeInTheDocument();
     // first render is one fetch; the 2 s re-poll has not fired yet
     expect(apiClient.get.mock.calls.length).toBeGreaterThanOrEqual(1);

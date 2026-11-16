@@ -52,13 +52,16 @@ describe('ToolsTable', () => {
   });
 
   test('renders JSON results with syntax highlighting', async () => {
+    // The shared JsonPane opens on Form; a saved choice of JSON wins (and is cleared again below).
+    window.localStorage.setItem('ai-demo.json.view', 'json');
     render(<ToolsTable tools={[tool]} onExecute={vi.fn().mockResolvedValue('{"ok":true}')} />);
 
     fireEvent.click(screen.getByText('search_records'));
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }));
 
-    expect(await screen.findByText('"ok":')).toHaveClass('jh-key');
-    expect(screen.getByText('true')).toHaveClass('jh-keyword');
+    expect(await screen.findByText('"ok"')).toHaveClass('jp-tok--key');
+    expect(screen.getByText('true')).toHaveClass('jp-tok--bool');
+    window.localStorage.removeItem('ai-demo.json.view');
   });
 
   test('with resultInline off it points to the Results tab instead of repeating the output', async () => {
