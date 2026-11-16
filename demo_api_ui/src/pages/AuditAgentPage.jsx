@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import ToolsTable from "../components/privilege/ToolsTable";
+import JsonPane from "../components/shared/JsonPane";
 import "./AuditAgentPage.css";
 import PageHeader from '../components/common/PageHeader';
 
@@ -183,7 +184,7 @@ export default function AuditAgentPage() {
               PingOne keeps roughly 7 days of audit history — older ranges come back empty.
             </p>
             {answer && (
-              <pre className="aap-answer">{JSON.stringify(answer, null, 2)}</pre>
+              <div className="aap-answer"><JsonPane value={answer} label="Audit agent answer" testId="aap-answer" /></div>
             )}
           </section>
 

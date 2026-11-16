@@ -11,6 +11,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useActivityLog, ALL_CATEGORIES } from '../hooks/useActivityLog';
 import './ActivityLogPanel.css';
 import PingOneEventPanel from './PingOneEventPanel';
+import JsonPane from './shared/JsonPane';
 
 function severityIcon(severity) {
   if (severity === 'error') return '❌';
@@ -75,19 +76,16 @@ const EventRow = React.memo(function EventRow({ event }) {
     ? '--:--:--'
     : ts.toTimeString().slice(0, 8);
 
-  const detail =
-    event.metadata != null
-      ? JSON.stringify(event.metadata, null, 2)
-      : event.tag
-      ? JSON.stringify({ tag: event.tag }, null, 2)
-      : null;
+  // What the row expands to show; hasDetail is false when the event has neither metadata nor a tag.
+  const hasDetail = event.metadata != null || Boolean(event.tag);
+  const detail = event.metadata != null ? event.metadata : { tag: event.tag };
 
   return (
     <div className={`alp-card alp-cat-border--${event.category || 'unknown'}`}>
       <button
         type="button"
-        className={`alp-card-header${detail ? ' alp-card-header--expandable' : ''}`}
-        onClick={() => detail && setExpanded((v) => !v)}
+        className={`alp-card-header${hasDetail ? ' alp-card-header--expandable' : ''}`}
+        onClick={() => hasDetail && setExpanded((v) => !v)}
       >
         <span className={`alp-pill alp-cat--${event.category || 'unknown'}`}>
           {event.category || 'unknown'}
@@ -97,13 +95,13 @@ const EventRow = React.memo(function EventRow({ event }) {
           {event.message}
         </span>
         <span className="alp-row-time">{timeStr}</span>
-        {detail && (
+        {hasDetail && (
           <span className={`alp-row-expand-icon${expanded ? ' alp-row-expand-icon--open' : ''}`}>▶</span>
         )}
       </button>
-      {expanded && detail && (
+      {expanded && hasDetail && (
         <div className="alp-row-detail">
-          <pre>{detail}</pre>
+          <JsonPane value={detail} label={`Event details: ${event.message || event.tag || 'event'}`} />
         </div>
       )}
     </div>

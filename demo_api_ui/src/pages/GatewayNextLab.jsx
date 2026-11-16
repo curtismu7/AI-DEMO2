@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import { Section, CardGrid, Card } from '../components/pingUi';
+import JsonPane from '../components/shared/JsonPane';
 import { ChoiceGroup, EvidenceTag as Tag, SimVerdict } from '../components/gatewayClaims/parts';
 import {
   GATEWAY_VERSION_NEXT, NEXT_DETAILS, NEXT_GROUPS, NEXT_LANES, NEXT_SCENARIOS, nextScenarioDiagram, nextWire,
@@ -61,8 +62,8 @@ export default function GatewayNextLab() {
         </CardGrid>
         <CardGrid>
           <Card tone="neutral" title="Request and decoded token (placeholder values)">
-            <pre className="gwc-pre" data-testid="gwc-next-request">{wire.request}</pre>
-            <pre className="gwc-pre" data-testid="gwc-next-token">{JSON.stringify(wire.token, null, 2)}</pre>
+            <div data-testid="gwc-next-request"><JsonPane value={wire.request} label="Request" testId="gwc-next-request-pane" hot={['method', 'params', 'name']} /></div>
+            <JsonPane value={wire.token} label="Decoded token" testId="gwc-next-token" />
           </Card>
           <Card tone="neutral" title="Response and gateway log">
             <pre className="gwc-pre" data-testid="gwc-next-response">{wire.response}</pre>

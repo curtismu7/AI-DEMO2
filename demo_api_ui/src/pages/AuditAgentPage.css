@@ -105,14 +105,7 @@
   cursor: default;
 }
 
+/* Wrapper that only spaces the shared JSON pane below the hint */
 .aap-answer {
   margin-top: 0.85rem;
-  padding: 0.75rem;
-  background: var(--th-code-bg);
-  color: var(--th-code-text);
-  border-radius: var(--radius-md);
-  /* Agent output is arbitrarily wide; scroll it, never the body. */
-  overflow-x: auto;
-  max-height: 24rem;
-  overflow-y: auto;
 }
