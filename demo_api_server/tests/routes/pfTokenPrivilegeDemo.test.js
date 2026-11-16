@@ -135,6 +135,120 @@ describe('POST /run', () => {
     expect(JSON.stringify(res.body)).not.toContain('PRIVATE_ROW');
   });
 
+  describe('actSub: the act.sub Cedar gate, one token, two tools', () => {
+    const DENY = { jsonrpc: '2.0', id: 1, error: { code: -32600, message: 'action denied by policy: ListIndexTool requires act.sub to be some-other-agent' } };
+    const ok = (text = 'ran') => ({ jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text }] } });
+    const sse = (rpc) => `event: message\ndata: ${JSON.stringify(rpc)}\n`;
+    // answers maps a tool name to { status, rpc, as } where as is 'json' or 'sse' (default sse)
+    const mockDoor = (answers) => {
+      global.fetch.mockImplementation(async (url, opts) => {
+        if (String(url).endsWith('/as/token.oauth2')) return reply(200, { access_token: JWT });
+        const body = JSON.parse(String(opts.body));
+        if (body.method === 'tools/call' && answers[body.params.name]) {
+          const a = answers[body.params.name];
+          if (a.text !== undefined) return reply(a.status, a.text, false);
+          return a.as === 'json' ? reply(a.status, a.rpc) : reply(a.status, sse(a.rpc), false);
+        }
+        if (String(url).endsWith('/pftoken-rs/mcp')) return reply(200, WHOAMI_SSE, false);
+        if (opts.headers.authorization === `Bearer ${JWT}`) return reply(200, TOOLS_SSE, false);
+        return reply(401, 'Unauthorized ', false);
+      });
+    };
+    const run = async () => (await request(app).post('/api/pf-token-demo/run')).body;
+
+    it('is enforcing only when CountTool is allowed and ListIndexTool is blocked by Cedar (SSE and JSON shapes)', async () => {
+      mockDoor({ CountTool: { status: 200, rpc: ok('count: 12') }, ListIndexTool: { status: 400, rpc: DENY, as: 'json' } });
+      const { actSub } = await run();
+      expect(actSub.enforcing).toBe(true);
+      expect(actSub.tools).toEqual([
+        { tool: 'CountTool', status: 200, verdict: 'allowed', message: '' },
+        { tool: 'ListIndexTool', status: 400, verdict: 'blocked-by-cedar', message: 'action denied by policy: ListIndexTool requires act.sub to be some-other-agent' },
+      ]);
+      expect(actSub.claim).toEqual({ act: { sub: 'pf-route-c-test' }, actKind: 'object', sub: 'pf-route-c-test' });
+    });
+
+    it('calls the door with the same arguments the lab probe uses, and the one token of the main answer', async () => {
+      mockDoor({ CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 200, rpc: ok() } });
+      await run();
+      const calls = global.fetch.mock.calls.filter(([u, o]) => !String(u).endsWith('/as/token.oauth2') && JSON.parse(String(o.body)).method === 'tools/call' && String(o.headers.authorization) === `Bearer ${JWT}`);
+      const byName = Object.fromEntries(calls.map(([, o]) => { const b = JSON.parse(String(o.body)); return [b.params.name, b.params.arguments]; }));
+      expect(byName.CountTool).toEqual({ index: 'gateway-events' });
+      expect(byName.ListIndexTool).toEqual({});
+      const mints = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2'));
+      expect(mints).toHaveLength(5); // still three tiers + two Cedar cases: the act.sub case mints nothing of its own
+    });
+
+    it.each([
+      ['both allowed (no act.sub policy enforcing)', { CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 200, rpc: ok() } }, ['allowed', 'allowed']],
+      ['both blocked', { CountTool: { status: 400, rpc: DENY }, ListIndexTool: { status: 400, rpc: DENY } }, ['blocked-by-cedar', 'blocked-by-cedar']],
+      ['reversed', { CountTool: { status: 400, rpc: DENY }, ListIndexTool: { status: 200, rpc: ok() } }, ['blocked-by-cedar', 'allowed']],
+      ['token rejected on both', { CountTool: { status: 401, text: 'Unauthorized ' }, ListIndexTool: { status: 401, text: 'Unauthorized ' } }, ['token-rejected', 'token-rejected']],
+      ['an error on the blocked tool', { CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 500, text: 'Internal Server Error' } }, ['allowed', 'error']],
+      ['a JSON-RPC error that is not a policy denial', { CountTool: { status: 200, rpc: ok() }, ListIndexTool: { status: 200, rpc: { jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'index not found' } } } }, ['allowed', 'error']],
+    ])('is not enforcing for %s', async (_name, answers, verdicts) => {
+      mockDoor(answers);
+      const { actSub } = await run();
+      expect(actSub.tools.map((t) => t.verdict)).toEqual(verdicts);
+      expect(actSub.enforcing).toBe(false);
+    });
+
+    it('maps a 401 to token-rejected and a thrown fetch to error without failing the run', async () => {
+      global.fetch.mockImplementation(async (url, opts) => {
+        if (String(url).endsWith('/as/token.oauth2')) return reply(200, { access_token: JWT });
+        const body = JSON.parse(String(opts.body));
+        if (body.method === 'tools/call' && body.params.name === 'CountTool') return reply(401, 'Unauthorized ', false);
+        if (body.method === 'tools/call' && body.params.name === 'ListIndexTool') throw new Error('socket hang up');
+        return reply(200, String(url).endsWith('/pftoken-rs/mcp') ? WHOAMI_SSE : TOOLS_SSE, false);
+      });
+      const res = await request(app).post('/api/pf-token-demo/run');
+      expect(res.status).toBe(200);
+      expect(res.body.actSub.tools).toEqual([
+        expect.objectContaining({ tool: 'CountTool', status: 401, verdict: 'token-rejected' }),
+        expect.objectContaining({ tool: 'ListIndexTool', status: 0, verdict: 'error', message: 'socket hang up' }),
+      ]);
+      expect(res.body.actSub.enforcing).toBe(false);
+      expect(res.body.pfToken.verdict).toBe('allowed'); // the other scenarios are untouched
+    });
+
+    it('reports act as text or absent as such, with no sub to show', async () => {
+      const mintWith = (claims) => `${b64u({ alg: 'RS256' })}.${b64u(claims)}.sig`;
+      for (const [claims, expected] of [
+        [{ ...CLAIMS, act: '{}' }, { act: '{}', actKind: 'text', sub: null }],
+        [{ ...CLAIMS, act: undefined }, { act: null, actKind: 'absent', sub: null }],
+      ]) {
+        const jwt = mintWith(claims);
+        global.fetch.mockImplementation(async (url, opts) => {
+          if (String(url).endsWith('/as/token.oauth2')) return reply(200, { access_token: jwt });
+          return reply(200, sse(ok()), false);
+        });
+        const res = await request(app).post('/api/pf-token-demo/run');
+        expect(res.body.actSub.claim).toEqual(expected);
+      }
+    });
+
+    it('never returns the token, the secret or a token-looking string, even if the door echoes one', async () => {
+      mockDoor({
+        CountTool: { status: 200, rpc: ok(`SECRET_ROW ${JWT}`) },
+        ListIndexTool: { status: 400, rpc: { jsonrpc: '2.0', id: 1, error: { code: -32600, message: `action denied by policy: bearer ${JWT} refused ${'x'.repeat(500)}` } } },
+      });
+      const res = await request(app).post('/api/pf-token-demo/run');
+      const text = JSON.stringify(res.body);
+      expect(text).not.toContain(JWT);
+      expect(text).not.toContain('.sig');
+      expect(text).not.toContain('test-secret');
+      expect(text).not.toContain('SECRET_ROW'); // tool output is never returned
+      const blocked = res.body.actSub.tools[1];
+      expect(blocked.verdict).toBe('blocked-by-cedar');
+      expect(blocked.message.length).toBeLessThanOrEqual(200);
+    });
+
+    it('leaves the mint failure path alone: no actSub when PingFederate did not issue a token', async () => {
+      global.fetch.mockImplementation(async () => reply(401, { error: 'invalid_client', error_description: 'Invalid client' }));
+      const res = await request(app).post('/api/pf-token-demo/run');
+      expect(res.body.actSub).toBeUndefined();
+    });
+  });
+
   it('sends whoami to the pftoken-rs door with the same PingFederate token', async () => {
     await request(app).post('/api/pf-token-demo/run');
     const call = global.fetch.mock.calls.find(([url]) => String(url).endsWith('/pftoken-rs/mcp'));

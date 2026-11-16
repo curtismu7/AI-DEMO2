@@ -11,6 +11,9 @@
 //          the key's grant has one rule per tier, each with RequiredClaims on scope (doc section 16)
 //   BFF -> SearchIndexTool on the same app with and without opensearch:search: the AI policy
 //          pftoken-scope-search (Cedar) blocks the call unless the token's scopes contain it
+//   BFF -> CountTool and ListIndexTool with the first tier's one token: when AI policies on act.sub are Active
+//          on the door (created by the owner, never by this route), the one naming another agent refuses
+//          its tool. The answer says whether that exact pattern occurred (actSub.enforcing).
 //
 // The gateway matches the token to its non-human identity (NHI PFtoken) and agent key
 // (pftoken-agent), then applies the key's grant. Setup and every failure seen on the way:
@@ -162,6 +165,49 @@ async function cedarCase(cfg, c) {
   }
 }
 
+// act.sub check: ONE token, two tools. The owner creates two Active Cedar policies on the door (CountTool needs
+// act.sub to contain this client's id, ListIndexTool needs it to contain another value). This route only calls.
+const ACT_SUB_CALLS = [
+  { name: 'CountTool', arguments: { index: 'gateway-events' } },
+  { name: 'ListIndexTool', arguments: {} },
+];
+const MESSAGE_MAX = 200;
+
+// A message returned to the page: no token-looking string, no more than MESSAGE_MAX characters.
+function safeMessage(text) {
+  return String(text || '').replace(/eyJ[\w-]+\.[\w-]+\.?[\w-]*/g, '[token]').replace(/\s+/g, ' ').trim().slice(0, MESSAGE_MAX);
+}
+
+// The act claim the policy reads: an object {"sub": ...} is what the policy matches; text or nothing is reported as such.
+function actClaim(claims) {
+  const act = claims && claims.act !== undefined ? claims.act : null;
+  const actKind = act === null ? 'absent' : typeof act === 'object' ? 'object' : 'text';
+  const sub = actKind === 'object' && typeof act.sub === 'string' ? act.sub : null;
+  return { act, actKind, sub: sub ?? null };
+}
+
+async function actSubCall(cfg, token, call) {
+  try {
+    const { status, rpc, detail } = await postRpc(cfg.doorUrl, token, 'tools/call', call);
+    const error = rpc?.error?.message || '';
+    const denied = /denied by policy/i.test(error);
+    const ran = status === 200 && !rpc?.error && !rpc?.result?.isError;
+    const verdict = denied ? 'blocked-by-cedar' : ran ? 'allowed' : status === 401 ? 'token-rejected' : 'error';
+    // Tool output is never returned: only the refusal or error wording.
+    const message = verdict === 'allowed' ? '' : safeMessage(error || detail);
+    return { tool: call.name, status, verdict, message };
+  } catch (err) {
+    return { tool: call.name, status: 0, verdict: 'error', message: safeMessage(err.message) };
+  }
+}
+
+// enforcing is true only for the exact pattern the two policies produce: CountTool allowed, ListIndexTool refused by Cedar.
+async function actSubCase(cfg, token, claims) {
+  const tools = await Promise.all(ACT_SUB_CALLS.map((c) => actSubCall(cfg, token, c)));
+  const [count, list] = tools;
+  return { claim: actClaim(claims), tools, enforcing: count.verdict === 'allowed' && list.verdict === 'blocked-by-cedar' };
+}
+
 // One tier: mint for this scope, then ask the app for its tools. `scope` is what the token carried.
 async function tierAnswer(cfg, tier) {
   try {
@@ -193,16 +239,17 @@ router.post('/run', authenticateToken, async (req, res) => {
   if (!mint.token) {
     return res.json({ at, doorUrl: cfg.doorUrl, mint: { status: mint.status, error: mint.error } });
   }
-  const [pfToken, garbage, backend, cedar, ...others] = await Promise.all([
+  const [pfToken, garbage, backend, cedar, actSub, ...others] = await Promise.all([
     listTools(cfg.doorUrl, mint.token),
     listTools(cfg.doorUrl, 'not-a-valid-token'),
     askBackend(cfg.whoamiUrl, mint.token),
     Promise.all(CEDAR_CASES.map((c) => cedarCase(cfg, c))),
+    actSubCase(cfg, mint.token, mint.claims),
     ...SCOPE_TIERS.slice(1).map((t) => tierAnswer(cfg, t)),
   ]);
   const tiers = [{ key: SCOPE_TIERS[0].key, scope: mint.claims?.scope ?? SCOPE_TIERS[0].scope, ...pfToken }, ...others];
   return res.json({
-    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend, tiers, cedar,
+    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend, tiers, cedar, actSub,
   });
 });
 
