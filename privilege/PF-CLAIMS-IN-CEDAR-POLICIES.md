@@ -15,8 +15,11 @@ claim drive a Cedar rule?" is narrower than the question assumes.
   `pacpolicys` can require claim values on the **presented token** (`PolicyRule.RequiredClaims`). Found in the
   console swagger and walked in the console screens on 2026-10-20; **no PF identity exists and nothing has been
   exercised or saved**.
-- **Cedar then decides per tool.** It reads a fixed attribute set the gateway builds (below): no
-  `context.claims`, no raw `groups` claim, no hook for `act` or ID-JAG that we could find in the editor.
+- **Cedar then decides per tool.** It reads a fixed attribute set the gateway builds (below). **Update
+  2026-11-16:** that set now includes `context.token.claims`, so Cedar can match a signed token claim,
+  including a nested one such as `act.sub`. The 2026-10-20 reading below ("no hook for `act`") was true
+  then and is superseded; see "Token claims in Cedar (measured 2026-11-16)". Still absent: `context.claims`,
+  `principal.<attribute>`, a raw `groups` claim, ID-JAG.
 - **This path is for agent callers** presenting a PF-issued JWT. A person signing in through the door still gets a
   token from the Privilege-owned PingOne environment, and PF is not in that path.
 - **PF scopes reaching `context.token.scopes` is untested.** Do not promise it.
@@ -85,6 +88,7 @@ token never reaches the door; at best PF is a sign-in source behind `01d89b06`.
 |---|---|---|
 | Token scope | `context.token.scopes.contains("x")` | template "Restrict a tool to tokens carrying a scope"; fails closed with no token |
 | Agent-key scope | `context.agent.scopes.contains("x")` | editor condition `agent_scope` |
+| A claim the issuer signed, including a nested one | `context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("x")` | template "Restrict a tool to tokens carrying a claim" (2026-11-16) |
 | Group of the caller | `principal in Group::"x"` | template "…for one team"; groups come from Privilege's directory |
 | One named agent | `principal == Agent::"x"` | template "A named agent may never call a tool" |
 | Door / app | `context.app == "x"` | every live policy |
@@ -95,8 +99,47 @@ token never reaches the door; at best PF is a sign-in source behind `01d89b06`.
 
 Actions: `mcp:Invoke` (refuse) and `mcp:InvokeUnattended` (hold for a human); `llm:Receive` for LLM replies.
 
-**Not found:** `context.claims`, `principal.<attribute>`, a raw `groups` claim, `act`, ID-JAG. Absence from
-the editor is not proof the engine rejects them; it is proof there is no supported way to write them.
+**Not found (2026-10-20):** `context.claims`, `principal.<attribute>`, a raw `groups` claim, `act`, ID-JAG. Absence from
+the editor is not proof the engine rejects them; it is proof there was no supported way to write them.
+**`act` is now writable**: see the next section. `context.claims`, `principal.<attribute>`, a raw `groups`
+claim and ID-JAG were not re-checked on 2026-11-16 and should be treated as still absent.
+
+## Token claims in Cedar (measured 2026-11-16)
+
+The AI Policy editor (local console, `/ui/admin/ai-policys/create`) has a template, **"Restrict a tool to
+tokens carrying a claim"**. Its own text: it refuses unless the presented token carries the claim with that
+value, reads any claim the issuer signed including a nested one named with dots such as `act.sub`, and
+refuses when no token was presented at all. With server `opensearch`, tool `SearchIndexTool`, claim `act.sub`
+and value `claims-probe-agent` it generated:
+
+```cedar
+@reason("SearchIndexTool requires act.sub to be claims-probe-agent")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
+when   { context.app == "opensearch" }
+unless { context.token.claims has "act.sub"
+         && context.token.claims["act.sub"].contains("claims-probe-agent") };
+```
+
+Things to copy exactly:
+
+- The dotted name is a **literal key**: `context.token.claims["act.sub"]`, guarded by `has "act.sub"`. It is not a
+  nested lookup (`claims.act.sub`).
+- The value is read as a **set**: `.contains("x")`, the same shape as `context.token.scopes`.
+- It is a `forbid ... unless`, so a missing claim or a missing token is refused (fails closed).
+
+**What was measured:** the controller **validated** this policy saved as a Candidate (Validation: Valid, one
+statement, runs "MCP · Before inspection"). It was a throwaway probe, never enforced, and was deleted
+afterwards.
+
+**What was not measured:** the policy was never Active, so no real token has been through it. Not yet
+confirmed: a PingFederate token whose `act.sub` matches is allowed, a different `act.sub` is refused, and PF
+must emit `act` as an **object** (as for `RequiredClaims`; the text `"{}"` will not match). To run that
+test, save it Active against a scratch tool and mint a PF token with the exchange in
+`PF-OBO-WITH-PINGFEDERATE-SETUP.md`.
+
+`RequiredClaims` (identity or grant rule) still does the same job earlier in the chain, and is the one
+**verified end to end** for `act.sub`. Use Cedar when the claim decision belongs with a specific tool
+policy; use `RequiredClaims` to gate the caller before any tool is chosen.
 
 ## How a PF user becomes a Cedar principal (inferred, one measured line)
 
@@ -172,7 +215,9 @@ under Access Request Approvals before the client retries. See `AGENT-APPROVALS-D
 | Claim-conditioned policy tiers with dotted claim paths | **From console UI text and code**, not exercised |
 | Door honours workload-identity tokens on the MCP path | **Untested** |
 | PF scopes in `context.token.scopes` | **Untested**; assume absent |
-| `act` / ID-JAG in Cedar | **No hook found** (a PF `act` claim could still be matched by `RequiredClaims`, untested) |
+| `act` in Cedar (`context.token.claims["act.sub"]`) | **Measured 2026-11-16: validates** (Candidate, never enforced). Not run against a real token. |
+| ID-JAG in Cedar | **No hook found** (2026-10-20; not re-checked) |
+| `act.sub` matched by `RequiredClaims` | **Verified** end to end (see `PF-OBO-WITH-PINGFEDERATE-SETUP.md`) |
 | Route B (PF as `IDProvider`) | **Untested** |
 
 ## Try it
