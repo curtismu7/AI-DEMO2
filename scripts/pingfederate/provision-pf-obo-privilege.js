@@ -502,12 +502,16 @@ async function main() {
 
     const GW_MAPPING_ID = `urn:ietf:params:oauth:grant-type:token-exchange|${GW_POLICY_ID}|${GW_ATM_ID}`;
     const gwMappingResource = `oauth/accessTokenMappings/${GW_MAPPING_ID.split('|').map(encodeURIComponent).join('%7C')}`;
+    const GW_ACT_EXPR = `#{"sub": "${GW_CLIENT_ID}", "act": #{"sub": #this.get("tepp.client_id").toString()}}`;
     const GW_MAPPING = {
         ...MAPPING,
-        // act names the gateway, the exchanging party; client_id stays the agent's.
+        // act names the gateway, the exchanging party, with the agent nested as the
+        // prior actor (RFC 8693 4.1 chain); client_id stays the agent's. The agent is
+        // the subject token's client_id, which expressions see as tepp.client_id (tepp. = this
+        // processor policy's contract; a bare name or #client_id resolves to nothing).
         attributeContractFulfillment: {
             ...MAPPING.attributeContractFulfillment,
-            act: { source: { type: 'EXPRESSION' }, value: `#{"sub": "${GW_CLIENT_ID}"}` },
+            act: { source: { type: 'EXPRESSION' }, value: GW_ACT_EXPR },
         },
         id: GW_MAPPING_ID,
         context: {
@@ -517,7 +521,10 @@ async function main() {
         accessTokenManagerRef: { id: GW_ATM_ID, location: `${PF_BASE}/oauth/accessTokenManagers/${GW_ATM_ID}` },
     };
     await step(`mapping ${GW_MAPPING_ID}`,
-        async () => !mappingOk(await find(gwMappingResource)),
+        async () => {
+            const mapping = await find(gwMappingResource);
+            return !(mappingOk(mapping) && mapping.attributeContractFulfillment.act.value === GW_ACT_EXPR);
+        },
         async () => (await find(gwMappingResource)
             ? api('PUT', gwMappingResource, GW_MAPPING)
             : api('POST', 'oauth/accessTokenMappings', GW_MAPPING)));
