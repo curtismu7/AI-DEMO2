@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from "react";
 import FormJsonToggle, { PayloadFormView } from "./shared/FormJsonToggle";
 import JsonPane from "./shared/JsonPane";
-import { LEGACY_ALERT, LEGACY_HOT } from "./shared/jsonEmphasis";
+import { LEGACY_HOT } from "./shared/jsonEmphasis";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./StepDetailPanel.css";
 
@@ -141,7 +141,7 @@ function Payload({ label, title, text }) {
             <>
               {split.head ? <div className="sdp-payload-head">{split.head}</div> : null}
               {/* The body as given (a string is shown exactly, never re-serialized). */}
-              <JsonPane value={split.body} label={label} hot={LEGACY_HOT} alert={LEGACY_ALERT} />
+              <JsonPane value={split.body} label={label} hot={LEGACY_HOT} />
             </>
           )}
         >
@@ -238,7 +238,7 @@ export default function StepDetailPanel({ step, onInspect, fontSize = "large" })
               {kv.map(([k, v]) => (
                 <div className="sdp-kv-row" key={k}>
                   <dt>{k}</dt>
-                  <dd>{v && typeof v === "object" ? <JsonPane value={v} label={k} hot={LEGACY_HOT} alert={LEGACY_ALERT} /> : String(v)}</dd>
+                  <dd>{v && typeof v === "object" ? <JsonPane value={v} label={k} hot={LEGACY_HOT} /> : String(v)}</dd>
                 </div>
               ))}
             </dl>

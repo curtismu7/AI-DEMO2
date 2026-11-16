@@ -156,7 +156,7 @@
   margin: 2px 0 3px 11px;
 }
 
-/* Form view only: the transport line that sits above the JSON body. */
+/* The transport line that sits above the JSON body (shown in both the Form and the JSON view). */
 .sdp-payload-head {
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);

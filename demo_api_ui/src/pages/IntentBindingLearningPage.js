@@ -7,7 +7,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import "./IntentBindingLearningPage.css";
 import PageHeader from '../components/common/PageHeader';
 import JsonPane from "../components/shared/JsonPane";
-import { LEGACY_ALERT, LEGACY_HOT } from "../components/shared/jsonEmphasis";
+import { LEGACY_HOT } from "../components/shared/jsonEmphasis";
 import { PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList } from '../components/pingUi';
 
 /**
@@ -268,7 +268,7 @@ export default function IntentBindingLearningPage() {
           </div>
           <div id="par">
             <Card tone="neutral" title="RAR authorization_details (RFC 9396), pushed via PAR (RFC 9126)" data-testid="ib-grant">
-              <JsonPane value={PAR_PAYLOAD} label="RAR authorization_details" hot={PANE_HOT} alert={LEGACY_ALERT} />
+              <JsonPane value={PAR_PAYLOAD} label="RAR authorization_details" hot={PANE_HOT} />
             </Card>
           </div>
         </Section>
@@ -453,7 +453,7 @@ function RunReel({ kind, result, action, amount, live }) {
       >
         <div className="ib-reel-title">{frame.title}</div>
         {frame.caption ? <p className="ib-reel-caption">{frame.caption}</p> : null}
-        <JsonPane value={frame.body} label={frame.title} hot={PANE_HOT} alert={LEGACY_ALERT} />
+        <JsonPane value={frame.body} label={frame.title} hot={PANE_HOT} />
       </div>
     </div>
   );

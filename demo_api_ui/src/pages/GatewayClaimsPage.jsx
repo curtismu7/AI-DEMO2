@@ -89,7 +89,7 @@ export default function GatewayClaimsPage() {
         >
           <CardGrid>
             <Card tone="neutral" title="The rule">
-              <JsonPane value={{ requiredClaims: REQUIRED_CLAIMS }} label="The rule" testId="gwc-rule" hot={['requiredClaims', 'act.sub']} />
+              <JsonPane value={{ requiredClaims: REQUIRED_CLAIMS }} label="The rule" testId="gwc-rule" hot={['requiredClaims']} />
               <KvList items={MAPPING_ROWS.map((r) => ({ label: r.where, value: <code>{r.value}</code> }))} />
             </Card>
             <div className="gwc-stack">

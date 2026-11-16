@@ -63,8 +63,16 @@ describe("ib-split track sizing", () => {
     expect(css).toMatch(/\.ib-split \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   });
 
-  // The reel's JSON is the shared pane: it wraps (JsonPane.css) and the page no longer styles, caps or scrolls its own.
-  it("wraps long JSON instead of widening the column", () => {
+  // The reel's JSON is the shared pane, which wraps it (JsonPane.css). What stays the page's to keep: nothing in the
+  // reel's frame may stop the wrapping or let the frame grow past its track.
+  it("keeps the reel frame from widening the column", () => {
+    const frame = css.match(/\.ib-reel-frame \{[^}]*\}/)?.[0] ?? "";
+    expect(frame).not.toBe("");
+    expect(frame).not.toMatch(/white-space:\s*(nowrap|pre)(?![-\w])|overflow(-x)?:\s*(auto|scroll)|min-width:\s*[^0;]|width:\s*max-content/);
+    expect(css).not.toMatch(/\.ib-reel[^{]*\{[^}]*white-space:\s*(nowrap|pre)(?![-\w])/);
+  });
+
+  it("leaves the reel's and grant's JSON to the shared pane", () => {
     const pane = fs.readFileSync(path.join(__dirname, "..", "..", "components", "shared", "JsonPane.css"), "utf8");
     expect(pane).toMatch(/\.jp-raw \{[^}]*white-space: pre-wrap/);
     expect(css).not.toMatch(/ib-reel-json|ib-grant-json/);

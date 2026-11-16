@@ -38,7 +38,7 @@ import {
 } from '../utils/a2aSectionFold';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import JsonPane from '../components/shared/JsonPane';
-import { LEGACY_ALERT, LEGACY_HOT } from '../components/shared/jsonEmphasis';
+import { LEGACY_HOT } from '../components/shared/jsonEmphasis';
 import './A2AProtocolLearningPage.css';
 
 /**
@@ -133,7 +133,7 @@ const A2A_EXTERNAL_LINKS = [
 const A2A_HOT = [...LEGACY_HOT, 'method', 'skills', 'securitySchemes'];
 
 function Json({ value, label }) {
-  return <JsonPane value={value} label={label} hot={A2A_HOT} alert={LEGACY_ALERT} />;
+  return <JsonPane value={value} label={label} hot={A2A_HOT} />;
 }
 
 // What a pane IS, in words. A pane built from a recorded run says so: "Recorded" is never green, and a
