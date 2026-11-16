@@ -167,7 +167,7 @@ export default function InterAgentAbuseTester() {
                   <details className="iaa-details">
                     <summary>Request and response details</summary>
                     <h4>Request sent</h4>
-                    <JsonPane value={r.request} label={`${p.label} request`} hot={['method', 'path']} alert={r.ok ? false : undefined} />
+                    <JsonPane value={r.request} label={`${p.label} request`} hot={['method', 'path']} />
                     <h4>Observed response</h4>
                     <JsonPane value={{ httpStatus: r.httpStatus, body: r.responseBody }} label={`${p.label} response`} hot={['httpStatus']} alert={r.ok ? false : undefined} />
                   </details>
