@@ -77,10 +77,12 @@ describe("AamDecisionEduBox", () => {
   test("renders the captured Sideband request and response", () => {
     const { container } = render(<AamDecisionEduBox event={aamEvent()} />);
     expect(screen.getAllByRole("group", { name: /Sideband .* view/ })).toHaveLength(2);
-    expect(container.querySelectorAll("pre.tcd-edu-code")).toHaveLength(0);
+    // Each sideband payload is a shared JsonPane: Form by default, the JSON text only after the switch.
+    expect(container.querySelectorAll(".tcd-edu-code .jp-form")).toHaveLength(2);
+    expect(container.querySelectorAll(".tcd-edu-code pre.jp-raw")).toHaveLength(0);
     // Form | JSON is one choice for the whole page now, so one click opens both panes.
     fireEvent.click(screen.getAllByRole("button", { name: "JSON" })[0]);
-    expect(container.querySelectorAll("pre.tcd-edu-code")).toHaveLength(2);
+    expect(container.querySelectorAll(".tcd-edu-code pre.jp-raw")).toHaveLength(2);
     window.localStorage.removeItem("ai-demo.json.view");
   });
 

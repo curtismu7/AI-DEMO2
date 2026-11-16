@@ -9,9 +9,7 @@ import ToolWorkbench from '../components/privilege/ToolWorkbench';
 import { hitlToolsFor } from '../config/privilegeAiPoliciesDemo';
 import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
 import CimdClientIdentity from '../components/privilege/CimdClientIdentity';
-import JsonHighlight from '../components/shared/JsonHighlight';
-import { JsonViewOnly } from '../components/shared/JsonPane';
-import JsonFormView from '../components/shared/JsonFormView';
+import JsonPane, { deepParse } from '../components/shared/JsonPane';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
@@ -239,16 +237,17 @@ function gatewayModeDetails(mode, mcpUrl) {
 }
 
 /**
- * Every JSON output on this page — MCP responses, raw JSON-RPC, tool results,
- * trace frames — through one Form/JSON toggle, matching /llm-gateway's idiom.
- * Form wins by default: an MCP tools/call response is nested enough that the
- * raw text is the harder read, and the raw text is one click away.
- * Each pane owns its own toggle state so switching the Explorer to JSON does
- * not silently reformat the trace log someone is mid-read of.
+ * Every JSON output on this page — MCP responses, raw JSON-RPC, tool results, policy specs —
+ * goes through the shared JsonPane: Form | JSON, one choice for the whole page, full view.
+ * This only adds what the page needs on top: an empty message, and a Copy of the raw JSON
+ * (the shared Form view has no per-field Copy), shown beside the switch in either view.
  */
-function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) {
-  const [view, setView] = useState('form');
+function JsonOutput({ value, deep = false, emptyMessage = 'No data.', label = 'Output' }) {
   const [copied, setCopied] = useState(false);
+  const shown = deep ? deepParse(value) : value;
+  const isEmpty = shown === null || shown === undefined
+    || (typeof shown === 'object' && !Array.isArray(shown) && Object.keys(shown).length === 0);
+  if (isEmpty) return <p className="cur-denial-note">{emptyMessage}</p>;
   // Copies the raw JSON whichever view is showing, so a result can be pasted into a ticket or chat as-is.
   const copy = async () => {
     const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -259,37 +258,23 @@ function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) 
     } catch { /* clipboard blocked: the JSON view still lets the user select the text */ }
   };
   return (
-    <>
-      <div className="cur-viewtoggle" role="group" aria-label={label}>
-        <button
-          type="button"
-          className={view === 'form' ? 'is-active' : ''}
-          aria-pressed={view === 'form'}
-          onClick={() => setView('form')}
-        >
-          Form
+    <JsonPane
+      value={value}
+      deep={deep}
+      label={label}
+      hot={OUTPUT_HOT}
+      actions={(
+        <button type="button" className="cur-jsoncopy" onClick={copy} aria-label={`Copy ${label} view as JSON`}>
+          {copied ? 'Copied' : 'Copy'}
         </button>
-        <button
-          type="button"
-          className={view === 'json' ? 'is-active' : ''}
-          aria-pressed={view === 'json'}
-          onClick={() => setView('json')}
-        >
-          JSON
-        </button>
-        {/* The Form view already has its own per-field Copy; this one is for the JSON view, which had none. */}
-        {view === 'json' && (
-          <button type="button" onClick={copy} aria-label={`Copy ${label} as JSON`}>
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        )}
-      </div>
-      {view === 'form'
-        ? <div className="cur-formview"><JsonFormView value={value} emptyMessage={emptyMessage} /></div>
-        : <pre className="cur-code-output jh-dark"><JsonViewOnly><JsonHighlight value={value} deep={deep} /></JsonViewOnly></pre>}
-    </>
+      )}
+    />
   );
 }
+
+// What a reader of an MCP result looks for first, on top of the pane's default important keys.
+const TRACE_HOT = ['method', 'url', 'phase', 'direction'];
+const OUTPUT_HOT = ['tool', 'name', 'method', 'uri', 'authorization_details'];
 
 export default function PrivilegeMcpClientPage() {
   // The setter matters as much as the getter here: `auth` used to be left in the
@@ -1615,7 +1600,7 @@ export default function PrivilegeMcpClientPage() {
               This stands in for the approver in Privilege. Nothing is approved for real and the gateway is not called again:
               you get a sample result, marked as simulated.
             </p>
-            <pre className="cur-trace-json cur-approver__args">{hold?.args}</pre>
+            <div className="cur-approver__args"><JsonPane value={hold?.args} label="Tool arguments" /></div>
             <div className="cur-btn-row">
               <button className="cur-btn cur-btn--primary" onClick={mockApprove}>Approve (mock)</button>
               <button className="cur-btn" onClick={() => setShowApprover(false)}>Cancel</button>
@@ -2391,7 +2376,7 @@ export default function PrivilegeMcpClientPage() {
                         </div>
                       )}
                       {msg.extra && (
-                        <pre className="cur-msg-meta">{typeof msg.extra === 'string' ? msg.extra : JSON.stringify(msg.extra, null, 2)}</pre>
+                        <div className="cur-msg-meta"><JsonPane value={msg.extra} label="Message detail" /></div>
                       )}
                     </div>
                   ))}
@@ -2463,7 +2448,7 @@ export default function PrivilegeMcpClientPage() {
                             <span className="cur-result-item-tool">{r.tool}</span>
                             <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
                           </div>
-                          <JsonPane value={r.result} deep label={`${r.tool} result view`} />
+                          <JsonOutput value={r.result} deep label={`${r.tool} result`} />
                         </div>
                       );
                       // The card above already says the call is held; the raw hold JSON stays one click away.
@@ -2497,7 +2482,7 @@ export default function PrivilegeMcpClientPage() {
                 <div className="cur-terminal-log cur-trace-log">
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
-                    const rest = { ...e, ts: undefined, type: undefined };
+                    const rest = Object.fromEntries(Object.entries(e).filter(([k]) => k !== 'ts' && k !== 'type'));
                     let label = e.type;
                     let tone = e.type;
                     if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
@@ -2517,9 +2502,7 @@ export default function PrivilegeMcpClientPage() {
                           <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
                           {e.type === 'error' && e.note !== 'policy_denied' && <span className="cur-trace-error">{e.message}</span>}
                         </summary>
-                        <pre className="cur-trace-json">
-                          {JSON.stringify(rest, null, 2)}
-                        </pre>
+                        <div className="cur-trace-json"><JsonPane value={rest} label="Trace frame" hot={TRACE_HOT} /></div>
                       </details>
                     );
                   })}
@@ -2620,7 +2603,7 @@ export default function PrivilegeMcpClientPage() {
                 {mcpResult && (
                   <div className="cur-result-block">
                     <span className="cur-result-label">Response</span>
-                    <JsonPane value={mcpResult} deep label="MCP response view" />
+                    <JsonOutput value={mcpResult} deep label="MCP response" />
                   </div>
                 )}
               </div>
@@ -2637,7 +2620,7 @@ export default function PrivilegeMcpClientPage() {
                 {rawRpcResult && (
                   <div className="cur-result-block">
                     <span className="cur-result-label">Response</span>
-                    <JsonPane value={rawRpcResult} deep label="Raw RPC response view" />
+                    <JsonOutput value={rawRpcResult} deep label="Raw RPC response" />
                   </div>
                 )}
               </div>
@@ -2880,7 +2863,7 @@ export default function PrivilegeMcpClientPage() {
                               This policy names no registered app, so there is no door to jump to.
                             </p>
                           )}
-                          <JsonPane value={picked.spec} deep label="Policy spec view" />
+                          <JsonOutput value={picked.spec} deep label="Policy spec" />
                         </div>
                       );
                     })()}

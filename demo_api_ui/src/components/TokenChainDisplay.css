@@ -858,8 +858,6 @@
   word-break: break-word;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  max-height: 100px;
-  overflow-y: auto;
 }
 
 .tcd-edu-detail {
@@ -1046,10 +1044,6 @@
   font-size: var(--font-size-2xs);
 }
 
-/* Inspector body: allow taller code blocks */
-.tci-body .tcd-edu-code {
-  max-height: none;
-}
 .tci-body .tcd-edu-box {
   font-size: var(--font-size-sm);
 }
@@ -1261,6 +1255,13 @@ pre.tcd-jwt-dump.jh-dark {
   font-size: var(--font-size-body);
   color: var(--th-text);
   flex-shrink: 0;
+}
+
+/* An object-valued claim: the shared JSON pane in full, beside its key. */
+.tcd-claim-json {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
 }
 
 .tcd-claim-val {

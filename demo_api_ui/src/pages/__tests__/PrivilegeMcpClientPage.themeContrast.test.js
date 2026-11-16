@@ -43,7 +43,8 @@ describe('Privilege MCP trace light theme contrast', () => {
       '.cur-ide[data-cur-theme="light"] .cur-trace-ts',
       '.cur-ide[data-cur-theme="light"] .cur-trace-label',
       '.cur-ide[data-cur-theme="light"] .cur-trace-error',
-      '.cur-ide[data-cur-theme="light"] .cur-trace-json',
+      // .cur-trace-json is no longer here: the trace frame's JSON is the shared JsonPane, which paints its own
+      // ground and ink, so there is nothing for this rule to pair.
     ]);
     expect(lightTraceTextRule?.nodes).toEqual(
       expect.arrayContaining([

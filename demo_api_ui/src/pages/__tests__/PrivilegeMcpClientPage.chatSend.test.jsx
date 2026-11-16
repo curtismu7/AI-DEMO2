@@ -1,7 +1,7 @@
 // Characterization of the Cursor page's sendChat output (LLM reply / denial /
 // error, and the /chat reply). Pins what is rendered today so the message shapes
 // can move to a shared module without changing a byte.
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
@@ -58,8 +58,17 @@ async function send(text, { llm } = {}) {
 
 const assistant = () => document.querySelector(".cur-msg--assistant");
 const body = () => assistant().querySelector(".cur-msg-body").textContent;
-// steps are rendered as JSON in the message's meta <pre>
-const meta = () => assistant().querySelector(".cur-msg-meta").textContent;
+// steps are rendered in the message's meta pane: the shared Form | JSON pane, Form by default,
+// so ask for the JSON view to read the exact JSON text.
+const meta = async () => {
+  fireEvent.click(within(assistant().querySelector(".cur-msg-meta")).getByRole("button", { name: /^json$/i }));
+  const raw = await waitFor(() => {
+    const el = assistant().querySelector(".cur-msg-meta .jp-raw");
+    expect(el).toBeTruthy();
+    return el;
+  });
+  return raw.textContent;
+};
 
 beforeEach(() => localStorage.clear());
 
@@ -69,7 +78,7 @@ describe("PrivilegeMcpClientPage sendChat — LLM path", () => {
     await send("hello", { llm: "anthropic" });
     await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("hi from claude");
-    expect(JSON.parse(meta())).toEqual({ steps: ["anthropic · /v1/x · 12 ms"] });
+    expect(JSON.parse(await meta())).toEqual({ steps: ["anthropic · /v1/x · 12 ms"] });
     const [, llmOpts] = callsTo("/api/privilege-mcp/llm/call")[0];
     expect(callsTo("/api/privilege-mcp/llm/call")).toHaveLength(1);
     expect(JSON.parse(llmOpts.body)).toEqual({ provider: "anthropic", prompt: "hello" });
@@ -84,7 +93,7 @@ describe("PrivilegeMcpClientPage sendChat — LLM path", () => {
     await send("hello", { llm: "anthropic" });
     await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("⚠️ Privilege denied this call. blocked by policy");
-    expect(JSON.parse(meta())).toEqual({ steps: ["anthropic · /v1/x · denied by policy"] });
+    expect(JSON.parse(await meta())).toEqual({ steps: ["anthropic · /v1/x · denied by policy"] });
   });
 
   test("any other error reads ❌ <message> with a call failed step", async () => {
@@ -92,7 +101,7 @@ describe("PrivilegeMcpClientPage sendChat — LLM path", () => {
     await send("hello", { llm: "anthropic" });
     await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("❌ bad gateway");
-    expect(JSON.parse(meta())).toEqual({ steps: ["anthropic · call failed"] });
+    expect(JSON.parse(await meta())).toEqual({ steps: ["anthropic · call failed"] });
   });
 });
 
@@ -116,7 +125,7 @@ describe("PrivilegeMcpClientPage sendChat — /chat path", () => {
     expect(body()).toBe("Found 2 tools");
     const [, opts] = callsTo("/api/privilege-mcp/chat")[0];
     expect(JSON.parse(opts.body)).toEqual({ prompt: "hello" });
-    expect(JSON.parse(meta())).toEqual({
+    expect(JSON.parse(await meta())).toEqual({
       available_tools: ["a", "b"],
       suggested_tools: [],
       policy: null,

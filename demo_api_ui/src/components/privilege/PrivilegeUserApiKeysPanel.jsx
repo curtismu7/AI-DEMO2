@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/apiClient';
 import InlineSpinner from '../shared/InlineSpinner';
+import JsonPane from '../shared/JsonPane';
 
 const BASE = '/api/privilege-user-api-keys';
 const READ_CONFIG = { _skipTrafficCapture: true };
@@ -178,7 +179,7 @@ export default function PrivilegeUserApiKeysPanel() {
       {result?.ok && Object.hasOwn(result, 'users') && (
         <section aria-label="Users response" className="cur-user-api__section">
           <h4>Users response</h4>
-          <pre className="cur-user-api__users">{JSON.stringify(result.users, null, 2)}</pre>
+          <JsonPane value={result.users} label="Users" />
         </section>
       )}
     </section>

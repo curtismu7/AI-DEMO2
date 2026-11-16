@@ -23,8 +23,8 @@ import { diagramLinkProps } from '../utils/diagramLinks';
 import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
 import PromptGuardControlPanel from './PromptGuardControlPanel';
-import JsonHighlight from '../components/shared/JsonHighlight';
-import { JsonViewOnly } from '../components/shared/JsonPane';
+import JsonPane from '../components/shared/JsonPane';
+import FormJsonToggle from '../components/shared/FormJsonToggle';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import GatewayVerdicts from '../components/GatewayVerdicts';
 import './LlmGatewayPage.css';
@@ -305,6 +305,9 @@ function Meter({ label, remaining, limit, reset }) {
 
 const LANES_WIDTH_STORAGE_ID = 'lgw-lanes-width-v2';
 
+// Beyond the pane's defaults: where the call went and what it ran on.
+const DECISION_HOT = ['layer', 'provider', 'model', 'route', 'reachedProvider'];
+
 export default function LlmGatewayPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const initialAttack = attackFromUrl() || window.localStorage.getItem('lgw-attack-choice') || '';
@@ -340,7 +343,6 @@ export default function LlmGatewayPage() {
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
   const [runStatus, setRunStatus] = useState(null);
-  const [decisionView, setDecisionView] = useState('form');
   const [showBlockAgreement, setShowBlockAgreement] = useState(false);
   const [limitsByLane, setLimitsByLane] = useState({});
   // Each virtual key's caps as Privilege stores them (console API). Empty when
@@ -1076,26 +1078,6 @@ export default function LlmGatewayPage() {
         <section className="lgw-rail lgw-decision-panel" aria-label="Last decision">
           <div className="lgw-rail__head">
             <h2 className="lgw-rail__k">Last decision</h2>
-            {decision ? (
-              <div className="lgw-viewtoggle" role="group" aria-label="Decision view">
-                <button
-                  type="button"
-                  className={decisionView === 'form' ? 'is-active' : ''}
-                  aria-pressed={decisionView === 'form'}
-                  onClick={() => setDecisionView('form')}
-                >
-                  Form
-                </button>
-                <button
-                  type="button"
-                  className={decisionView === 'json' ? 'is-active' : ''}
-                  aria-pressed={decisionView === 'json'}
-                  onClick={() => setDecisionView('json')}
-                >
-                  JSON
-                </button>
-              </div>
-            ) : null}
           </div>
           {decision ? (
             <div className={`lgw-who is-${decision.tone}`} data-testid="lgw-who">
@@ -1105,42 +1087,44 @@ export default function LlmGatewayPage() {
           ) : null}
           {!decision ? (
             <p className="lgw-rail__note">Send a prompt and the gateway&rsquo;s verdict lands here.</p>
-          ) : decisionView === 'json' ? (
-            <pre className={`lgw-decision-json${darkMode ? ' jh-dark' : ''}`} data-testid="lgw-decision-json">
-              <JsonViewOnly><JsonHighlight value={decision} /></JsonViewOnly>
-            </pre>
           ) : (
-            <dl className="lgw-dec" data-testid="lgw-decision">
-              <div>
-                <dt>Verdict</dt>
-                <dd><span className={`lgw-pill is-${decision.tone}`}>{decision.verdict}</span></dd>
-              </div>
-              {/* Only a refusal has a refuser, and the headline banner above already
-                  names it — this row stays as the machine-readable restatement, so
-                  it must never appear under a verdict of "Answered". */}
-              {decision.tone === 'ok' || decision.layer === 'transport' ? null : (
-                <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
-              )}
-              {/* The pair "which lanes are governed" answers in the abstract; this
-                  answers it for the call that just happened. Local lanes never had
-                  a Privilege chip to begin with — the chain just skips it. A
-                  Privilege denial gets a chip chain too (You -> Privilege X, chain
-                  stops there, the provider never saw it) rather than only the plain
-                  "Refused by" row above — the chips are the thing a demo audience
-                  actually reads. */}
-              <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
-              {/* A model-allowlist denial refuses one specific model, so the row
-                  that names it is the evidence for the verdict above. */}
-              {decision.model ? <div><dt>Model</dt><dd>{decision.model}</dd></div> : null}
-              <div><dt>Route</dt><dd>{decision.route}</dd></div>
-              <div>
-                <dt>Reached the model</dt>
-                <dd>{decision.reachedProvider ? 'yes' : 'no'}</dd>
-              </div>
-              {decision.reason ? <div><dt>Reason</dt><dd>{decision.reason}</dd></div> : null}
-              {decision.latencyMs !== undefined && decision.latencyMs !== null
-                ? <div><dt>Latency</dt><dd>{decision.latencyMs} ms</dd></div> : null}
-            </dl>
+            <FormJsonToggle
+              value={decision}
+              ariaLabel="Decision view"
+              jsonView={<JsonPane value={decision} label="Last decision" testId="lgw-decision-json" hot={DECISION_HOT} toggle={false} />}
+            >
+              <dl className="lgw-dec" data-testid="lgw-decision">
+                <div>
+                  <dt>Verdict</dt>
+                  <dd><span className={`lgw-pill is-${decision.tone}`}>{decision.verdict}</span></dd>
+                </div>
+                {/* Only a refusal has a refuser, and the headline banner above already
+                    names it — this row stays as the machine-readable restatement, so
+                    it must never appear under a verdict of "Answered". */}
+                {decision.tone === 'ok' || decision.layer === 'transport' ? null : (
+                  <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
+                )}
+                {/* The pair "which lanes are governed" answers in the abstract; this
+                    answers it for the call that just happened. Local lanes never had
+                    a Privilege chip to begin with — the chain just skips it. A
+                    Privilege denial gets a chip chain too (You -> Privilege X, chain
+                    stops there, the provider never saw it) rather than only the plain
+                    "Refused by" row above — the chips are the thing a demo audience
+                    actually reads. */}
+                <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
+                {/* A model-allowlist denial refuses one specific model, so the row
+                    that names it is the evidence for the verdict above. */}
+                {decision.model ? <div><dt>Model</dt><dd>{decision.model}</dd></div> : null}
+                <div><dt>Route</dt><dd>{decision.route}</dd></div>
+                <div>
+                  <dt>Reached the model</dt>
+                  <dd>{decision.reachedProvider ? 'yes' : 'no'}</dd>
+                </div>
+                {decision.reason ? <div><dt>Reason</dt><dd>{decision.reason}</dd></div> : null}
+                {decision.latencyMs !== undefined && decision.latencyMs !== null
+                  ? <div><dt>Latency</dt><dd>{decision.latencyMs} ms</dd></div> : null}
+              </dl>
+            </FormJsonToggle>
           )}
           {/* Only a Privilege denial actually stopped at the gateway. A transport
               failure also never reached the model, but there was no gateway in the
