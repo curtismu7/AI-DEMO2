@@ -34,6 +34,7 @@
 /policy-decision-trace
 /privilege-a2a
 /privilege-ai-policies
+/privilege-cedar-live
 /privilege-coding-agents
 /privilege-demo
 /privilege-for-ai

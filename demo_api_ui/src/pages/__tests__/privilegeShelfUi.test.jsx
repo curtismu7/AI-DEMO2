@@ -63,7 +63,7 @@ describe("PrivilegeShelfPage on the Ping UI Standard", () => {
       `1 of 5 \u00b7 ${PRIVILEGE_MAP_PAGES.length} links`,
       "2 of 5 \u00b7 5 links",
       "3 of 5 \u00b7 1 link",
-      "4 of 5 \u00b7 9 links",
+      "4 of 5 \u00b7 10 links",
       "5 of 5 \u00b7 1 link",
     ]);
     for (const region of screen.getAllByRole("region")) {

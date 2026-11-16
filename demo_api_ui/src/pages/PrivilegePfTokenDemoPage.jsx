@@ -10,7 +10,8 @@
 // P9, one primary per view: the one primary is the Run button, in every state (signed out, not configured, idle, running,
 // result, error). When it cannot act it is disabled (off while signed out or not configured, aria-disabled while a run is
 // in flight so keyboard focus stays on it); it never moves or swaps for another control.
-// Nothing else on this page is a page-owned primary. Two shared controls are outside it: the sign-in strip's own CTA
+// Nothing else on this page is a page-owned primary (section 1b's "Run the checks again" is a plain, secondary button that
+// calls the same run). Two shared controls are outside it: the sign-in strip's own CTA
 // (SignInPrompt, shown only when signed out) and the diagram's own step controls.
 import { useCallback, useEffect, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
@@ -19,7 +20,9 @@ import SignInPrompt from '../components/SignInPrompt';
 import {
   PingPage, SimBanner, PageFrame, Section, CardGrid, Card, StatusChip, KvList,
 } from '../components/pingUi';
-import { CEDAR_POLICY, DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, PRIVILEGE_CAN, PRIVILEGE_CANNOT, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
+import {
+  ACT_SUB_IS, ACT_SUB_ISNT, ACT_SUB_NOT_MEASURED, ACT_SUB_POLICIES, ACT_SUB_POLICIES_LABEL, CEDAR_POLICY, DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, PRIVILEGE_CAN, PRIVILEGE_CANNOT, VERDICTS, WORKING_SETUP,
+} from '../config/privilegePfTokenDemo';
 import { getState, runDemo } from '../services/privilegePfTokenDemoService';
 import './PrivilegePfTokenDemoPage.css';
 
@@ -90,8 +93,8 @@ export default function PrivilegePfTokenDemoPage() {
         <strong>LIVE RUN, RECORDED NOTES</strong> — the Run button in section 1 is not simulated: through this machine&apos;s BFF it
         mints a real PingFederate token and calls the real Privilege gateway, and what comes back is the gateway&apos;s own answer. It
         needs a signed-in session and the PingFederate client secret on the api-server; without them the button is off and nothing
-        is called. Sections 2 to 4 are recorded notes (measured 2026-10-26 and 2026-10-27), not checked live, and the diagram&apos;s
-        Simulate control only animates the path.
+        is called. Section 1b shows the act.sub result of the same run, and its Cedar text is a recorded copy. Sections 2 to 4 are recorded
+        notes (measured 2026-10-26 and 2026-10-27), not checked live, and the diagram&apos;s Simulate control only animates the path.
       </SimBanner>
       <PageHeader
         eyebrow="Ping products · Privilege · Federated Identity"
@@ -167,6 +170,21 @@ export default function PrivilegePfTokenDemoPage() {
               <p className="pu-note">Run at <span className="pu-mono">{result.at}</span>.</p>
             </div>
           )}
+        </Section>
+
+        <Section
+          id="ppt-actsub-h"
+          kicker="1b · The agent gate"
+          title="The agent gate: act.sub"
+          lede="With two Active policies in place: one PingFederate token, two tools. A Cedar policy reads the agent's act.sub claim, lets one tool run and refuses the other."
+        >
+          <ActSubGate
+            actSub={result?.actSub}
+            ran={Boolean(result && !result.mint?.error)}
+            canRun={Boolean(state?.configured)}
+            running={running}
+            onRun={run}
+          />
         </Section>
 
         <Section id="ppt-scope-h" kicker="2 · Scope" title="What Privilege does here, and what it can't">
@@ -274,7 +292,7 @@ export default function PrivilegePfTokenDemoPage() {
 }
 
 // Result pieces. Declared after the page: the pattern check reads the file top to bottom and wants the banner first.
-function VerdictChip({ verdict, status }) {
+export function VerdictChip({ verdict, status }) {
   const v = verdictOf(verdict);
   return (
     <>
@@ -387,5 +405,95 @@ function CedarCheck({ cases }) {
         </table>
       </div>
     </Card>
+  );
+}
+
+// What the act.sub run shows. enforcing is the BFF's own test for the one expected pattern; anything else is never called the gate working.
+function ActSubGate({ actSub, ran, canRun, running, onRun }) {
+  return (
+    <Card tone="neutral" title="Does an act.sub policy gate this agent?" data-testid="ppt-section-actsub">
+      <p className="pu-note">
+        This needs two Active AI policies on the <code>pftoken</code> door, created in the Privilege console (this page creates none):
+        one for <code>CountTool</code> that names this agent and one for <code>ListIndexTool</code> that names another value. Without them
+        both tools answer allowed.
+      </p>
+      <div className="pu-actions">
+        <button type="button" className="pu-btn" onClick={onRun} disabled={!canRun} aria-disabled={running || undefined} data-testid="ppt-actsub-run">
+          {running ? 'Running…' : 'Run the checks again'}
+        </button>
+      </div>
+      {actSub ? <ActSubResult actSub={actSub} /> : (
+        <p className="pu-note" data-testid="ppt-actsub-empty">
+          {ran ? 'This run returned no act.sub result: the api-server may predate this check.' : 'No result yet. Run section 1 (or the button above) to call both tools with one token.'}
+        </p>
+      )}
+      <h4 className="ppt-subhead">The two policies <StatusChip tone="neutral">{ACT_SUB_POLICIES_LABEL}</StatusChip></h4>
+      <div data-testid="ppt-actsub-policies">
+        {ACT_SUB_POLICIES.map((p) => (
+          <div key={p.key}>
+            <p className="pu-note"><code>{p.key}</code>: {p.note}</p>
+            <pre className="ppt-code" tabIndex={0} aria-label={`The Cedar policy ${p.key}`}>{p.cedar}</pre>
+          </div>
+        ))}
+      </div>
+      <div className="ppt-two" data-testid="ppt-actsub-notes">
+        <div>
+          <h4 className="ppt-subhead">What this is</h4>
+          <ul className="ppt-list">{ACT_SUB_IS.map((t) => <li key={t}>{t}</li>)}</ul>
+        </div>
+        <div>
+          <h4 className="ppt-subhead">What this is not</h4>
+          <ul className="ppt-list">{ACT_SUB_ISNT.map((t) => <li key={t}>{t}</li>)}</ul>
+        </div>
+      </div>
+      <h4 className="ppt-subhead">Not measured</h4>
+      <ul className="ppt-list" data-testid="ppt-actsub-notmeasured">{ACT_SUB_NOT_MEASURED.map((t) => <li key={t}>{t}</li>)}</ul>
+    </Card>
+  );
+}
+
+export function ActSubResult({ actSub }) {
+  const { claim, tools = [], enforcing } = actSub;
+  const allowedBoth = tools.length > 0 && tools.every((t) => t.verdict === 'allowed');
+  const actText = claim?.act == null ? 'none' : show(claim.act);
+  const actKinds = { object: 'an object, which is the shape the policy reads', text: 'text, not an object', absent: 'not in the token' };
+  let tone = 'warn';
+  let chip = 'EXPECTED PATTERN NOT SEEN';
+  let message = 'This run did not produce the pattern the two policies make (CountTool allowed, ListIndexTool refused with a message naming act.sub), so it does not show the gate working. The verdicts below say what came back.';
+  if (enforcing) {
+    tone = 'ok';
+    chip = 'ENFORCING';
+    message = 'CountTool was allowed and ListIndexTool was refused with a message naming act.sub, with the same token: an act.sub policy was enforcing on this door.';
+  } else if (allowedBoth) {
+    chip = 'NOT ENFORCING';
+    message = 'No act.sub policy was enforcing on this door when this ran. Both tools answered allowed, which is what happens with no policy. This is not the gate working.';
+  }
+  return (
+    <div className="ppt-actsub-result" data-testid="ppt-actsub-result" data-enforcing={String(Boolean(enforcing))}>
+      <p className="pu-status-line" role="status" data-testid="ppt-actsub-summary"><StatusChip tone={tone}>{chip}</StatusChip>{message}</p>
+      <div data-testid="ppt-actsub-claim">
+        <KvList
+          items={[
+            { label: 'act in the token', value: actText, mono: true },
+            { label: 'act is', value: actKinds[claim?.actKind] || '—' },
+            { label: 'act.sub the policy reads', value: claim?.sub ?? '—', mono: true },
+          ]}
+        />
+      </div>
+      <div className="ppt-table-wrap">
+        <table className="ppt-table">
+          <thead><tr><th scope="col">Tool</th><th scope="col">Privilege answered</th><th scope="col">What came back</th></tr></thead>
+          <tbody>
+            {tools.map((t) => (
+              <tr key={t.tool} data-testid={`ppt-actsub-${t.tool}`} data-verdict={t.verdict}>
+                <td data-label="Tool"><code>{t.tool}</code></td>
+                <td data-label="Privilege answered"><VerdictChip verdict={t.verdict} status={t.status} /></td>
+                <td data-label="What came back">{t.message || (t.verdict === 'allowed' ? 'the call ran (its output is not shown)' : '—')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

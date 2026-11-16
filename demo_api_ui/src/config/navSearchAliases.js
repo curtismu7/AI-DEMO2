@@ -175,6 +175,7 @@ export const NAV_SEARCH_ALIASES = {
   "/postman": "postman collections api requests token exchange rfc 8693 mcp tools bff pingone mfa environment import json",
   "/privilege-a2a": "a2a agent to access review privilege card delegation uc46 agentic app policy gateway",
   "/privilege-ai-policies": "cedar ai policies policy permit forbid hold allow deny human approval pingfederate token claims scope group privilege hitl",
+  "/privilege-cedar-live": "cedar privilege live tour hold human approval token scope gate act.sub claim agent policy forbid unless active candidate pingfederate",
   "/privilege-demo": "pingone privilege se presenter hub personas agent mcp kibana observability end user admin",
   "/privilege-docs-index": "pingone privilege docs tag policies registering mcp server sidecar aggregate apps a2a aiguard guardrails thresholds llm routing virtual keys audit evidence gateway errors",
   "/privilege-first-gateway": "pingone agent privilege gateway pinggateway llm mcp tool-call tx-token introspection non-human identity",

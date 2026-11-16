@@ -33,7 +33,7 @@ What this covers:
 What it does not cover yet:
 
 - **On behalf of a user** (user in `sub`, agent in `act.sub`, via PingFederate token exchange): the identity settings below already fit this shape, but it has not been run end to end. Privilege's OBO support is in staging (Ping, 2026-10-23).
-- ~~**Token claims in Cedar policies**~~ **Superseded 2026-11-16:** Cedar can read token claims, including `act.sub`, through `context.token.claims["act.sub"]`. The console template "Restrict a tool to tokens carrying a claim" generates it and the controller validated it (Candidate, never enforced); no real token has been through an Active policy yet. See `PF-CLAIMS-IN-CEDAR-POLICIES.md`, "Token claims in Cedar". The identity's required claims and the grant rules' `RequiredClaims` still do the same job earlier and are verified.
+- ~~**Token claims in Cedar policies**~~ **Superseded 2026-11-16:** Cedar can read token claims, including `act.sub`, through `context.token.claims["act.sub"]`. The console template "Restrict a tool to tokens carrying a claim" generates it. A real PingFederate token has been through it: measured 2026-11-16 on the `pftoken` door: with two Active policies (CountTool needs `act.sub` to contain this client's id, ListIndexTool needs another value) one real PingFederate token was allowed on CountTool and refused on ListIndexTool with `action denied by policy: ... requires act.sub to be ...` (-32600); with no policy both were allowed, and after the policies were deleted both were allowed again. See `PF-CLAIMS-IN-CEDAR-POLICIES.md`, "Token claims in Cedar". The identity's required claims and the grant rules' `RequiredClaims` still do the same job earlier and are verified.
 - **Per-MCP audiences on a shared identity**: the audience must contain the gateway; an allow-list of audiences is possible on request.
 
 Example: a customer such as NYLife has agents registered in PingFederate and wants Privilege to govern which MCP tools those agents may call, without issuing each agent a Privilege key.
@@ -49,7 +49,7 @@ Example: a customer such as NYLife has agents registered in PingFederate and wan
 | Holds no secret for the agent | The PingFederate token is the only credential. |
 | Decides which tools, per agent app | The agent key's grant lists tools per agent app. No rule for the app is 403; unlisted tools are hidden. |
 | Blocks one tool by token scope (Cedar) | An AI policy reads `context.token.scopes`: `SearchIndexTool` is denied unless the scope has `opensearch:search`; other tools still work. The policy must be State Active (part I). Measured 2026-10-27. |
-| Blocks one tool by the agent's `act.sub` (Cedar) | An AI policy reads `context.token.claims["act.sub"]` (console template "Restrict a tool to tokens carrying a claim"). **Validated 2026-11-16** (Candidate, never enforced); not run on a real token yet. `act` must be an object in the PingFederate token. |
+| Blocks one tool by the agent's `act.sub` (Cedar) | An AI policy reads `context.token.claims["act.sub"]` (console template "Restrict a tool to tokens carrying a claim"). **Measured 2026-11-16:** with two Active policies on the door, one real PingFederate token was allowed on the tool whose policy names its agent and refused on the tool whose policy names another value (-32600; no policy: both allowed). Not measured: a second real agent, `act` as the text `{}`, the no-token wording. See `PF-CLAIMS-IN-CEDAR-POLICIES.md`. `act` must be an object in the PingFederate token. |
 | Gives different tools by scope (tiers) | Two grant rules for the same app, each with `RequiredClaims` on `scope`: the token's scope picks 3 tools, 9 tools, or 403. Measured 2026-10-27, section 16. |
 | Passes the agent's token through | Pass Agent Token forwards the PingFederate token unchanged; the MCP server verifies it too (section 15). |
 | Finds the tools without a person signing in | The first accepted agent call discovers the app's tools (gateway `v1.261024`). |
@@ -320,7 +320,7 @@ In the AI Policies list, a policy in **Candidate** (here `llm-response-pii-withh
 
 ![AI Policies list: Candidate with Enforce, and Active](images/pf-token-exchange/guide/i3-ai-policies-page2.png)
 
-Cedar reads the token's scopes (`context.token.scopes`) and, as of 2026-11-16, other signed claims through `context.token.claims`, including `act.sub` (validated, not run on a real token; see `PF-CLAIMS-IN-CEDAR-POLICIES.md`). The identity's required claims and the grant's `RequiredClaims` still work for those and are verified.
+Cedar reads the token's scopes (`context.token.scopes`) and, as of 2026-11-16, other signed claims through `context.token.claims`, including `act.sub` (measured 2026-11-16 with a real PingFederate token under two Active policies: one tool allowed, one refused; see `PF-CLAIMS-IN-CEDAR-POLICIES.md`). The identity's required claims and the grant's `RequiredClaims` still work for those and are verified.
 
 ## Working configuration (verified 2026-10-26, 18:12 UTC)
 
@@ -680,7 +680,7 @@ The client only ever sees a bare `403 Forbidden` for a policy denial, and `401 B
 ### Claims you can check today (Suman, 2026-10-23)
 
 - Claim conditions can be set today in the **Access Policy** step of the Agent Registry creation flow, on four fixed claims only: **scopes, `client_id`, subject, issuer**.
-- Cedar can read token claims, including `act.sub`, through `context.token.claims` (validated 2026-11-16, Candidate, never enforced; not yet run on a real token). On 2026-10-23 this was "coming in the next release"; see `PF-CLAIMS-IN-CEDAR-POLICIES.md`.
+- Cedar can read token claims, including `act.sub`, through `context.token.claims` (measured 2026-11-16: with two Active policies a real PingFederate token was allowed on one tool and refused on the other). On 2026-10-23 this was "coming in the next release"; see `PF-CLAIMS-IN-CEDAR-POLICIES.md`.
 - The audience must contain the gateway; a wildcard is not allowed (RFC 7519 §4.1.3). OBO, in staging and due at the end of next week, is the intended route for per-MCP audiences. An allow-list of audiences is possible on request.
 
 ## 15. Proving the passthrough: `whoami` behind agent app `pftoken-rs` (2026-10-27 UTC)

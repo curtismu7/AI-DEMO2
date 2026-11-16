@@ -1,0 +1,154 @@
+/* Cedar in Privilege (live): only what is specific to this page.
+   The banner, frame, cards, key-value lists, chips and buttons are the shared Ping UI primitives
+   (src/styles/ping-ui.css, docs/ping-ui-primitives.md). The act.sub result and the verdict chips are the ones from
+   PrivilegePfTokenDemoPage (its .ppt-* rules load with that module). Surfaces, lines and ink are --th-* only (H1),
+   type comes from the --font-size-* scale (H2), no inline styles (H3). */
+
+.pcl-page code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.pcl-page .pu-btn[aria-disabled='true'] {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.pcl-list {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.pcl-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.pcl-steps > .pu-card {
+  margin: 0;
+}
+
+/* The policy that decided a step: a native disclosure, so Enter and Space open it. */
+.pcl-policy {
+  margin: 10px 0;
+  padding: 6px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.pcl-policy summary {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.pcl-policy summary:focus-visible,
+.pcl-cedar:focus-visible,
+.pcl-verdict:focus-visible {
+  outline: 3px solid var(--th-status-info-text);
+  outline-offset: 2px;
+}
+
+.pcl-cedar {
+  max-height: 260px;
+  margin: 8px 0 4px;
+  padding: 10px;
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+/* The gateway's answer to a real run, inside the step card. */
+.pcl-verdict {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.pcl-verdict .pu-status-line {
+  margin-bottom: 0;
+}
+
+.pcl-hold {
+  margin: 10px 0;
+}
+
+.pcl-table-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.pcl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.pcl-table th,
+.pcl-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--th-border-strong);
+  vertical-align: top;
+  color: var(--th-text);
+  overflow-wrap: break-word;
+}
+
+.pcl-table th {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* The app shell takes a sidebar off the viewport, so the table stacks as labelled rows well above phone width. */
+@media (max-width: 900px) {
+  .pcl-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .pcl-table,
+  .pcl-table tbody,
+  .pcl-table tr,
+  .pcl-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .pcl-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--th-border-strong);
+  }
+
+  .pcl-table td {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .pcl-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--th-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}

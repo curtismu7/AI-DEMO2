@@ -91,3 +91,4 @@
 /privilege-for-ai
 /admin
 /privilege-ai-policies
+/privilege-cedar-live

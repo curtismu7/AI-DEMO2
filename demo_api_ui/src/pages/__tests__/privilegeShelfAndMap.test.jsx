@@ -29,7 +29,7 @@ describe("PrivilegeShelfPage", () => {
     expect(screen.getByRole("heading", { name: "Privilege shelf" })).toBeTruthy();
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
     for (const p of PRIVILEGE_MAP_PAGES) expect(hrefs).toContain(`/privilege-map?page=${p.id}`);
-    for (const h of ["/privilege-docs-index", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams", "/privilege-ai-policies", "/privilege-pf-token", "/privilege-demo"]) {
+    for (const h of ["/privilege-docs-index", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams", "/privilege-ai-policies", "/privilege-pf-token", "/privilege-cedar-live", "/privilege-demo"]) {
       expect(hrefs).toContain(h);
     }
   });

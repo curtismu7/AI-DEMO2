@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../services/privilegePfTokenDemoService', () => ({ getState: vi.fn(), runDemo: vi.fn() }));
 import { getState, runDemo } from '../../services/privilegePfTokenDemoService';
 import PrivilegePfTokenDemoPage from '../PrivilegePfTokenDemoPage';
+import { ACT_SUB_POLICIES, PRIVILEGE_CAN } from '../../config/privilegePfTokenDemo';
 
 // @xyflow/react observes its container's size; jsdom has no ResizeObserver.
 global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
@@ -284,5 +285,177 @@ describe('PrivilegePfTokenDemoPage (Ping UI standard)', () => {
     // setup and failures are kv cards, one per layer / failure
     expect(screen.getByTestId('ppt-setup').querySelectorAll('.pu-card dl.pu-kv').length).toBeGreaterThanOrEqual(5);
     expect(screen.getByTestId('ppt-failures').querySelectorAll('.pu-card').length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+// Section 1b, "The agent gate: act.sub": live verdicts from the same run plus the recorded Cedar copy.
+describe('PrivilegePfTokenDemoPage (The agent gate: act.sub)', () => {
+  const CLAIM = { act: { sub: 'pf-route-c-test' }, actKind: 'object', sub: 'pf-route-c-test' };
+  const COUNT_OK = { tool: 'CountTool', status: 200, verdict: 'allowed', message: '' };
+  const LIST_BLOCKED = { tool: 'ListIndexTool', status: 400, verdict: 'blocked-by-cedar', message: 'action denied by policy: ListIndexTool requires act.sub to be some-other-agent' };
+  const LIST_OK = { tool: 'ListIndexTool', status: 200, verdict: 'allowed', message: '' };
+  const withActSub = (actSub) => ({ ...PASS, actSub });
+  const runWith = async (data) => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status: 200, data });
+    const view = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await waitFor(() => expect(screen.getByTestId('ppt-result')).toBeInTheDocument());
+    return view;
+  };
+
+  it('shows the verdict per tool and the claim the policy read when the gate is enforcing', async () => {
+    await runWith(withActSub({ claim: CLAIM, tools: [COUNT_OK, LIST_BLOCKED], enforcing: true }));
+    expect(screen.getByTestId('ppt-actsub-result')).toHaveAttribute('data-enforcing', 'true');
+    expect(screen.getByTestId('ppt-actsub-summary')).toHaveTextContent('ENFORCING');
+    expect(screen.getByTestId('ppt-actsub-summary')).toHaveTextContent('an act.sub policy was enforcing on this door');
+    expect(within(screen.getByTestId('ppt-actsub-summary')).getByText('ENFORCING').className).toContain('pu-chip--ok');
+    expect(screen.getByTestId('ppt-actsub-summary')).toHaveTextContent('refused with a message naming act.sub');
+    const count = screen.getByTestId('ppt-actsub-CountTool');
+    expect(count).toHaveAttribute('data-verdict', 'allowed');
+    expect(within(count).getByText('ALLOWED').className).toContain('pu-chip--ok');
+    expect(count).toHaveTextContent('the call ran (its output is not shown)');
+    const list = screen.getByTestId('ppt-actsub-ListIndexTool');
+    expect(list).toHaveAttribute('data-verdict', 'blocked-by-cedar');
+    expect(list).toHaveTextContent('BLOCKED BY CEDAR');
+    expect(list).toHaveTextContent('action denied by policy: ListIndexTool requires act.sub to be some-other-agent');
+    const claim = screen.getByTestId('ppt-actsub-claim');
+    expect(claim).toHaveTextContent('{"sub":"pf-route-c-test"}');
+    expect(claim).toHaveTextContent('an object');
+    expect(claim).toHaveTextContent('act.sub the policy reads');
+    expect(claim).toHaveTextContent('pf-route-c-test');
+  });
+
+  it('says no act.sub policy was enforcing, and does not call it the gate working, when both tools are allowed', async () => {
+    await runWith(withActSub({ claim: CLAIM, tools: [COUNT_OK, LIST_OK], enforcing: false }));
+    const summary = screen.getByTestId('ppt-actsub-summary');
+    expect(screen.getByTestId('ppt-actsub-result')).toHaveAttribute('data-enforcing', 'false');
+    expect(summary).toHaveTextContent('No act.sub policy was enforcing on this door when this ran');
+    expect(summary).toHaveTextContent('This is not the gate working');
+    expect(summary).toHaveTextContent('NOT ENFORCING');
+    expect(within(summary).getByText('NOT ENFORCING').className).toContain('pu-chip--warn');
+    expect(summary).not.toHaveTextContent(/^ENFORCING/);
+  });
+
+  it.each([
+    ['reversed', [{ ...COUNT_OK, verdict: 'blocked-by-cedar', status: 400, message: 'action denied by policy: x' }, LIST_OK]],
+    ['both refused', [{ ...COUNT_OK, verdict: 'blocked-by-cedar', status: 400, message: 'action denied by policy: x' }, LIST_BLOCKED]],
+    ['token rejected', [{ ...COUNT_OK, verdict: 'token-rejected', status: 401, message: 'Unauthorized' }, { ...LIST_OK, verdict: 'token-rejected', status: 401, message: 'Unauthorized' }]],
+    ['an error', [COUNT_OK, { ...LIST_OK, verdict: 'error', status: 500, message: 'Internal Server Error' }]],
+    ['a refusal that does not name act.sub', [COUNT_OK, { ...LIST_BLOCKED, message: 'action denied by policy: ListIndexTool requires scope opensearch:search' }]],
+    ['a tool error result', [COUNT_OK, { ...LIST_OK, verdict: 'allowed-with-error-result', message: 'the tool returned an error result (its text is not shown)' }]],
+    ['no tools at all', []],
+  ])('does not call %s the gate working, and does not claim there was no policy either', async (_name, tools) => {
+    await runWith(withActSub({ claim: CLAIM, tools, enforcing: false }));
+    const summary = screen.getByTestId('ppt-actsub-summary');
+    expect(summary).toHaveTextContent('EXPECTED PATTERN NOT SEEN');
+    expect(summary).toHaveTextContent('does not show the gate working');
+    expect(summary).not.toHaveTextContent('No act.sub policy was enforcing');
+  });
+
+  it('shows act as text, or missing, as such', async () => {
+    await runWith(withActSub({ claim: { act: '{}', actKind: 'text', sub: null }, tools: [COUNT_OK, LIST_OK], enforcing: false }));
+    expect(screen.getByTestId('ppt-actsub-claim')).toHaveTextContent('text, not an object');
+    expect(screen.getByTestId('ppt-actsub-claim')).toHaveTextContent('—');
+  });
+
+  it('shows a tool error result as its own verdict, not as ALLOWED', async () => {
+    await runWith(withActSub({ claim: CLAIM, tools: [COUNT_OK, { tool: 'ListIndexTool', status: 200, verdict: 'allowed-with-error-result', message: 'the tool returned an error result (its text is not shown)' }], enforcing: false }));
+    const row = screen.getByTestId('ppt-actsub-ListIndexTool');
+    expect(row).toHaveAttribute('data-verdict', 'allowed-with-error-result');
+    expect(row).toHaveTextContent('ALLOWED, TOOL ERROR');
+    expect(row).not.toHaveTextContent('the call ran');
+    expect(row).toHaveTextContent('the tool returned an error result (its text is not shown)');
+    expect(screen.getByTestId('ppt-actsub-summary')).not.toHaveTextContent('No act.sub policy was enforcing');
+  });
+
+  it('pins the recorded Cedar copy to the text read from the console on 2026-11-16', () => {
+    expect(ACT_SUB_POLICIES.map((p) => p.cedar)).toEqual([
+      `@reason("CountTool requires act.sub to be <client id>")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"CountTool")
+when   { context.app == "pftoken" }
+unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("<client id>") };`,
+      `@reason("ListIndexTool requires act.sub to be some-other-agent")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"ListIndexTool")
+when   { context.app == "pftoken" }
+unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("some-other-agent") };`,
+    ]);
+  });
+
+  it('states the measured result with its date, and the 7 seconds as one observation only', () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    render(<PrivilegePfTokenDemoPage />);
+    const notes = screen.getByTestId('ppt-actsub-notes');
+    expect(notes).toHaveTextContent('The refusal showed on the first poll about 7 seconds after the policies were created. That is one observation, not a propagation time.');
+    expect(notes).toHaveTextContent('Not authentication.');
+    expect(notes).toHaveTextContent('Not a second agent.');
+    const row = PRIVILEGE_CAN.find((r) => r.what.startsWith('Cedar rules on other token claims'));
+    expect(row.status).toMatch(/^measured 2026-11-16/);
+  });
+
+  it('does not state the order of the gateway checks or that the tool never ran, which were not measured', () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    render(<PrivilegePfTokenDemoPage />);
+    const section = screen.getByTestId('ppt-section-actsub').closest('section');
+    expect(section).not.toHaveTextContent('before any policy runs');
+    expect(section).not.toHaveTextContent('never reaches Cedar');
+    expect(section).not.toHaveTextContent('the tool never runs');
+    expect(section).toHaveTextContent('With two Active policies in place');
+  });
+
+  it('shows the recorded Cedar copy with its date, the is / is not notes and the not-measured list, before any run', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    render(<PrivilegePfTokenDemoPage />);
+    const section = screen.getByTestId('ppt-section-actsub');
+    expect(section.closest('section')).toHaveAccessibleName('The agent gate: act.sub');
+    expect(section).toHaveTextContent('console copy read 2026-11-16');
+    const policies = screen.getByTestId('ppt-actsub-policies');
+    expect(policies).toHaveTextContent('resource == Tool::"CountTool"');
+    expect(policies).toHaveTextContent('resource == Tool::"ListIndexTool"');
+    expect(policies).toHaveTextContent('context.token.claims["act.sub"].contains("some-other-agent")');
+    expect(policies).toHaveTextContent('contains("<client id>")');
+    const notes = screen.getByTestId('ppt-actsub-notes');
+    expect(notes).toHaveTextContent('What this is');
+    expect(notes).toHaveTextContent('What this is not');
+    const nm = screen.getByTestId('ppt-actsub-notmeasured');
+    for (const phrase of ['second real agent', 'text "{}"', 'no token is sent', 'Candidate', 'substring']) expect(nm).toHaveTextContent(phrase);
+    expect(screen.getByTestId('ppt-actsub-empty')).toHaveTextContent('No result yet');
+    expect(screen.queryByTestId('ppt-actsub-result')).toBeNull();
+    expect(runDemo).not.toHaveBeenCalled();
+  });
+
+  it('says so when a run came back without an act.sub result', async () => {
+    await runWith(PASS);
+    expect(screen.getByTestId('ppt-actsub-empty')).toHaveTextContent('returned no act.sub result');
+    expect(screen.queryByTestId('ppt-actsub-result')).toBeNull();
+  });
+
+  it('has a secondary Run button that makes the same single run, and adds no second primary', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status: 200, data: withActSub({ claim: CLAIM, tools: [COUNT_OK, LIST_BLOCKED], enforcing: true }) });
+    const { container } = render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-actsub-run')).toBeEnabled());
+    const again = screen.getByTestId('ppt-actsub-run');
+    expect(again.className).not.toContain('pu-btn--primary');
+    expect([...container.querySelectorAll('button.pu-btn--primary')]).toEqual([screen.getByTestId('ppt-run')]);
+    fireEvent.click(again);
+    await screen.findByTestId('ppt-actsub-result');
+    expect(runDemo).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns the secondary Run button off when the BFF has no client secret', async () => {
+    getState.mockResolvedValue({ status: 200, data: { ...STATE, configured: false } });
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-not-configured')).toBeInTheDocument());
+    expect(screen.getByTestId('ppt-actsub-run')).toBeDisabled();
+  });
+
+  it('never puts a token or a bearer header on the page', async () => {
+    const { container } = await runWith(withActSub({ claim: CLAIM, tools: [COUNT_OK, LIST_BLOCKED], enforcing: true }));
+    const text = container.textContent;
+    expect(text).not.toMatch(/eyJ[\w-]+\./);
+    expect(text).not.toMatch(/Bearer\s+eyJ/);
+    expect(text).not.toMatch(/access_token|client_secret/);
   });
 });

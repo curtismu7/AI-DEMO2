@@ -9,6 +9,7 @@ export const VERDICTS = {
   'refused-by-policy': { label: 'REFUSED BY POLICY', tone: 'bad', note: 'The token was accepted, then a Privilege grant refused the call (403). The key has no grant on this agent app.' },
   'token-rejected': { label: 'TOKEN REJECTED', tone: 'bad', note: 'The gateway did not accept the token (401): issuer, audience, subject, a required claim or lifetime did not match the identity.' },
   'blocked-by-cedar': { label: 'BLOCKED BY CEDAR', tone: 'bad', note: 'The grant allowed the tool; an AI policy (Cedar) denied this call.' },
+  'allowed-with-error-result': { label: 'ALLOWED, TOOL ERROR', tone: 'warn', note: 'HTTP 200 and a result flagged as an error, with no policy refusal text. What the tool answered is not shown.' },
   error: { label: 'ERROR', tone: 'bad', note: 'The call did not complete.' },
 };
 
@@ -18,7 +19,7 @@ export const PRIVILEGE_CAN = [
   { what: 'Accept only this agent', how: 'Required claims on the identity (act.sub, client_id) must match exactly, or the token is rejected (401).', status: 'measured' },
   { what: 'Hold no secret for the agent', how: 'The PingFederate token is the only credential. Privilege issues no key value to the agent.', status: 'measured' },
   { what: 'Decide which tools, per agent app', how: 'The agent key\'s grant lists tools per agent app. No rule for the app is 403; tools not listed are hidden.', status: 'measured' },
-  { what: 'Cedar rules on other token claims (act.sub)', how: 'Cedar reads context.token.claims, including a nested claim such as act.sub: context.token.claims["act.sub"].contains("<agent id>"). The console template "Restrict a tool to tokens carrying a claim" writes it. The controller validated it (2026-11-16, Candidate, never enforced); no token has been through it yet. The identity\'s required claims and the grant rules\' RequiredClaims still do the same job earlier, and are measured.', status: 'validated, not run' },
+  { what: 'Cedar rules on other token claims (act.sub)', how: 'Cedar reads context.token.claims, including a nested claim such as act.sub: context.token.claims["act.sub"].contains("<agent id>"). The console template "Restrict a tool to tokens carrying a claim" writes it. With two Active policies on this door, a real PingFederate token was allowed on the tool whose policy names its agent and refused on the tool whose policy names another value (measured 2026-11-16; see The agent gate: act.sub, with what is not yet measured). The identity\'s required claims and the grant rules\' RequiredClaims still do the same job earlier.', status: 'measured 2026-11-16' },
   { what: 'Give different tools by scope (tiers)', how: 'Two grant rules for the same app, each with RequiredClaims on scope: the token\'s scope picks 3 tools, 9 tools, or 403. Each scope is matched on its own; a list means any of.', status: 'measured 2026-10-27' },
   { what: 'Pass the agent\'s token through', how: 'Pass Agent Token forwards the PingFederate token unchanged, so the MCP server can verify it too (see What the backend received).', status: 'measured' },
   { what: 'Find the tools without a person signing in', how: 'The first accepted agent call discovers the app\'s tools (gateway v1.261024).', status: 'measured' },
@@ -31,6 +32,50 @@ export const CEDAR_POLICY = `@reason("SearchIndexTool needs the opensearch:searc
 forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
 when   { context.app == "pftoken" }
 unless { context has token && context.token.scopes.contains("opensearch:search") };`;
+
+// "The agent gate: act.sub". The two Active AI policies this section's live check relies on are created and removed
+// in the Privilege console by the owner, never by this page. <client id> is this demo's PingFederate client id.
+export const ACT_SUB_POLICIES_LABEL = 'console copy read 2026-11-16';
+export const ACT_SUB_POLICIES = [
+  {
+    key: 'pftoken-actsub-allow',
+    note: 'CountTool: act.sub must contain the demo PingFederate client id (this agent). The token carries it, so the call runs.',
+    cedar: `@reason("CountTool requires act.sub to be <client id>")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"CountTool")
+when   { context.app == "pftoken" }
+unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("<client id>") };`,
+  },
+  {
+    key: 'pftoken-actsub-deny',
+    note: 'ListIndexTool: act.sub must contain some-other-agent. The token carries a different value, so the call is refused.',
+    cedar: `@reason("ListIndexTool requires act.sub to be some-other-agent")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"ListIndexTool")
+when   { context.app == "pftoken" }
+unless { context.token.claims has "act.sub" && context.token.claims["act.sub"].contains("some-other-agent") };`,
+  },
+];
+
+// What the live check can and cannot show. Measured 2026-11-16 on a real tenant with a real PingFederate token.
+export const ACT_SUB_IS = [
+  'One real PingFederate token, two tools on the same door: the policy that names this agent lets its tool run, the policy that names another value refuses its tool.',
+  'The refusal is a JSON-RPC error, "action denied by policy: ... requires act.sub to be ..." (-32600), returned instead of a tool result.',
+  'Measured: with no policy both tools were allowed; with the two Active policies one was allowed and one refused; after the policies were deleted both were allowed again.',
+  'The refusal showed on the first poll about 7 seconds after the policies were created. That is one observation, not a propagation time.',
+];
+
+export const ACT_SUB_ISNT = [
+  'Not a result without the policies. Created in the console by the owner, they are not created by this page; without them both tools answer allowed and the page says no act.sub policy was enforcing.',
+  'Not authentication. A token the gateway rejects comes back as 401 with no policy refusal text; that is a different answer from the refusal here.',
+  'Not a second agent. Every call here carries the same token and the same act.sub.',
+];
+
+export const ACT_SUB_NOT_MEASURED = [
+  'A second real agent with a different act.sub.',
+  'act emitted as the text "{}" instead of an object.',
+  'The wording of the refusal when no token is sent.',
+  'A Candidate policy not enforcing: that is console documentation, it was not re-run.',
+  'Exact versus substring matching of the claim: the policy uses contains.',
+];
 
 export const PRIVILEGE_CANNOT = [
   { what: 'Token exchange (on behalf of a user)', how: 'Privilege does not exchange tokens. A user in sub with the agent in act has to come from PingFederate. Privilege\'s OBO support is in staging (Ping, 2026-10-23).' },
