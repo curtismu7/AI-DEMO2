@@ -420,6 +420,13 @@ reports them (advisory for now). The pane has five properties:
    news). Anything else (`deny`, `blocked`, `allow_with_conditions`, `passed with warnings`, error text, free text,
    unknown words, non-empty objects, other numbers) keeps the alert colour, so nothing real is hidden. Free-text `note`
    and `reason` values are still red (owner decision pending). A benign key that is also important keeps its important style.
+   **Opt-out: `alert={false}`** turns alert emphasis off for the whole pane, in both views and in the body pane of an HTTP
+   transcript: no `data-alert` on rows, no `jp-tok--alert` tokens, keys render normal (a key that is also in `hot` keeps
+   its hot style). `alert` undefined or an array behaves as above (an array can only add keys). Use it for neutral data
+   whose `note` / `reason` / `decision` fields are free text or inert (a request body, a raw spec, free-text activity
+   metadata, an explanation that is present on the safe outcome too). Do NOT use it for an error response or a
+   deny / failure result: there the red is the point. `JsonHighlight` and `FormJsonToggle` do not forward `alert`, so
+   they are unchanged.
 4. **Full view**: the pane never scrolls. No `max-height`, no `overflow: auto|scroll` on the pane or its wrapper; long
    lines wrap. Above 150000 characters it shows plain text; the Form view stops nesting at depth 60.
 5. **Per-field Copy**: in the Form view every primitive value (string, number, boolean, token, url, id, time) and every

@@ -5,6 +5,7 @@
 //   3. important keys stand out  HOT (who, for whom, what) + the caller's `hot`, and error / decision keys (ALERT) + the caller's `alert`.
 //      Alert is VALUE-AWARE: a key in the alert set is painted alert only when its value is a failure or unknown signal
 //      (isBenignAlertValue below). "decision": "allow", "error": null, "outcome": "success" read as normal rows, never red.
+//      `alert={false}` turns alert emphasis off for the whole pane (neutral data whose note / reason is free text).
 //   4. FULL VIEW             the pane never scrolls: no max-height, no overflow auto|scroll, long lines wrap (JsonPane.css)
 // Everything is React text, never markup, and passes visible(): control and bidi characters show as escapes.
 // Ported from the standalone labs' JsonPane (shared/json/JsonPane.jsx); the colour tokens are AI-DEMO2's --th-* family.
@@ -83,6 +84,7 @@ export const HOT_KEYS = ['sub', 'act', 'may_act', 'aud', 'scope', 'client_id', '
 export const ALERT_KEYS = ['error', 'error_description', 'detail_code', 'outcome', 'decision', 'verdict', 'reason', 'note'];
 const HOT = new Set(HOT_KEYS);
 const ALERT = new Set(ALERT_KEYS);
+const NO_ALERT = new Set(); // alert={false}: no key is ever alert
 
 // A key in the alert set is NOT alert when its value says "nothing wrong", and what that means depends on the key:
 //   any key          null / undefined, text that is empty after trim, an empty array or object
@@ -441,7 +443,10 @@ function Form({ value, hot, alert, k = '', depth = 0 }) {
  * @param {unknown} props.value     An object or array (or a string holding one) gets the Form | JSON choice; any other string is text
  *   (a token in its three colours); an undefined value is an empty pane.
  * @param {string[]} [props.hot]    Extra important keys, on top of HOT_KEYS, stood out in both views.
- * @param {string[]} [props.alert]  Extra error / decision keys, on top of ALERT_KEYS. Painted alert only for a failure-or-unknown value (isBenignAlertValue).
+ * @param {string[]|false} [props.alert]  Extra error / decision keys, on top of ALERT_KEYS. Painted alert only for a failure-or-unknown value (isBenignAlertValue).
+ *   `false` turns alert emphasis OFF for the whole pane, in both views and in the body pane of an HTTP transcript: no key is painted
+ *   alert and the keys render normal (or hot, when also in `hot`). Use it for neutral data (a request body, a raw spec, free-text
+ *   metadata). Do NOT use it for an error response or a deny / failure result: there the red is the point.
  * @param {boolean} [props.deep]    Unwrap nested stringified JSON before rendering.
  * @param {boolean} [props.toggle]  false hides the Form | JSON switch (the view still follows the page choice).
  * @param {'form'|'json'} [props.view]  Force one view and hide the switch (FormJsonToggle's JSON view).
@@ -456,7 +461,7 @@ export function JsonPane({ value: given, label, testId, toggle = true, hot, aler
   const showToggle = toggle && !forced && !jsonOnly;
   const value = given === undefined ? '' : given; // a missing value is an empty pane, never the word "undefined"
   const hotSet = hot && hot.length ? new Set([...HOT_KEYS, ...hot]) : HOT;
-  const alertSet = alert && alert.length ? new Set([...ALERT_KEYS, ...alert]) : ALERT;
+  const alertSet = alert === false ? NO_ALERT : alert && alert.length ? new Set([...ALERT_KEYS, ...alert]) : ALERT;
   const base = deep ? deepParse(value) : value;
   const fromText = typeof base === 'string' ? parseJsonText(base) : undefined;
   const wire = fromText === undefined ? splitWire(base) : undefined;
