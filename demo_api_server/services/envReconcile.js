@@ -174,7 +174,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'skip_token_signature_validation', 'strict_scope_validation', 'scope_validation_timeout',
   'cache_token_validation', 'token_cache_ttl', 'jwks_requests_per_minute', 'jwks_cache_max_age',
   'use_agent_actor_for_mcp', 'token_exchange_auto_fallback', 'token_exchange_log_mode_switches',
-  'mcp_use_legacy_protocol', 'mcp_gw_passthrough_to_mcp_server', 'gateway_health_probe_insecure',
+  'mcp_use_legacy_protocol', 'mcp_gw_passthrough_to_mcp_server', 'mcp_modern_requests', 'gateway_health_probe_insecure',
   'mcp_gateway_reject_unauthorized', 'pingone_validate_on_startup', 'mcp_gw_p1az_enabled',
   // How hard the MCP OAuth brokers make PingOne re-authenticate ('once' | 'login' |
   // 'select_account' | 'off'). A behavioural preference, not env identity — the same
