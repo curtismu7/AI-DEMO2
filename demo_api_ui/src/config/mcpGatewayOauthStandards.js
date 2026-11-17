@@ -32,7 +32,7 @@ const DCR = RFC(7591, 'Dynamic Client Registration');
 const PASSTHROUGH = SPEC('MCP security best practices', 'Token passthrough is forbidden, so the gateway exchanges the token instead of forwarding it');
 const XACML = SPEC('XACML 3.0', 'The PEP / PDP split: the gateway enforces, PingOne Authorize decides');
 const ZERO_TRUST = SPEC('NIST SP 800-207', 'Zero Trust Architecture: a policy enforcement point in front of every resource (an analogy; PingOne Authorize applies its own policy)');
-const DISCOVER_NEXT = DRAFT('MCP 2026-07-28', 'The newer MCP protocol version (server/discover, per-request negotiation) the gateway partly supports; this page draws the initialize handshake');
+const DISCOVER_NEXT = DRAFT('MCP 2026-07-28', 'The newer, stateless MCP protocol version (server/discover, per-request _meta, no initialize handshake) the gateway serves to a Modern caller; this page draws the 2025-11-25 initialize handshake our own BFF still sends');
 
 const HEADER = { alg: 'RS256', typ: 'JWT', kid: 'mock-kid-1' };
 const ACCESS = {
