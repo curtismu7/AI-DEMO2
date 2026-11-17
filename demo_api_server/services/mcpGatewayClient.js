@@ -577,7 +577,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 // Normalize transport failures (timeout / connection refused) into stable
                 // GATEWAY_* codes + HTTP statuses so callers get a consistent shape instead
                 // of a raw axios ECONNABORTED/ECONNREFUSED.
-                throw _normalizeGatewayNetworkError(axErr, timeoutMs);
+                throw Object.assign(
+                    _normalizeGatewayNetworkError(axErr, timeoutMs),
+                    { mcpProtocol: { version: reqHeaders['MCP-Protocol-Version'], stateless: useModern, reason: modernSkip || 'stateless' } },
+                );
             }
             console.warn('[mcpGatewayClient] transient read call transport failure; retrying once: tool=%s code=%s', tool, axErr.code);
         }
@@ -601,6 +604,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     const status = response.status;
+    // Which MCP version this hop spoke — attached to thrown errors too, so the
+    // trace panel can show the version on denied/errored calls, not only on
+    // success (the pipeline's catch paths read err.mcpProtocol).
+    const mcpProtocol = { version: reqHeaders['MCP-Protocol-Version'], stateless: useModern, reason: modernSkip || 'stateless' };
+    const withMcpProtocol = (fields) => ({ mcpProtocol, ...fields });
     console.log('[GW→PingGateway] RESPONSE: status=%d', status);
     console.log('[GW→PingGateway] RESPONSE HEADERS: %j', response.headers);
     if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
@@ -778,6 +786,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 gatewayMessage: body429.message || '',
                 retryAfterMs,
                 rateLimitLayer: body429.rateLimitLayer || (isIgBase ? 'ig' : 'gateway'),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -878,6 +887,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     httpStatus: 403,
                     mcpErrorData: rpcErr403.data || {},
                     gwAuditTrail: _parseGwAuditTrail(response),
+                    ...withMcpProtocol({}),
                 },
             );
         }
@@ -912,6 +922,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     // without it the PERMIT-before-obligation decision is lost and
                     // ProofStrip renders "Run failed before authorize-decision".
                     gwAuditTrail: _parseGwAuditTrail(response),
+                    ...withMcpProtocol({}),
                 },
             );
         }
@@ -946,6 +957,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     denyMessage,
                     tool,
                 ),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -956,7 +968,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (status >= 300 && status < 400) {
         throw Object.assign(
             new Error(`Gateway returned unexpected redirect (HTTP ${status})`),
-            { code: 'gateway_redirect_error', httpStatus: status },
+            withMcpProtocol({ code: 'gateway_redirect_error', httpStatus: status }),
         );
     }
 
@@ -969,7 +981,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         if (body5xx.error === 'gateway_misconfigured') {
             throw Object.assign(
                 new Error(body5xx.message || 'The security gateway is misconfigured'),
-                { code: 'gateway_misconfigured', httpStatus: status, gatewayErrorCode: body5xx.error, gatewayMessage: body5xx.message || '' },
+                withMcpProtocol({ code: 'gateway_misconfigured', httpStatus: status, gatewayErrorCode: body5xx.error, gatewayMessage: body5xx.message || '' }),
             );
         }
         throw Object.assign(
@@ -982,6 +994,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 // chain can show the denial instead of dropping it as an opaque
                 // 502 — same pattern as the 401/403 branches above.
                 gwAuditTrail: _parseGwAuditTrail(response),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -999,7 +1012,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             || '';
         throw Object.assign(
             new Error(gatewayMessage || `Gateway returned HTTP ${status}`),
-            { code: 'gateway_client_error', httpStatus: status, gatewayMessage },
+            withMcpProtocol({ code: 'gateway_client_error', httpStatus: status, gatewayMessage }),
         );
     }
 
@@ -1041,6 +1054,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 gatewayMessage: msg,
                 gatewayErrorCode: isWeatherScope ? 'weather_scope_denied' : undefined,
                 gwAuditTrail: _trailWithWeatherFallback(gwAuditTrail, msg, tool),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -1068,7 +1082,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     // What this hop actually spoke, for the trace panel.
-    const mcpProtocol = { version: reqHeaders['MCP-Protocol-Version'], stateless: useModern, reason: modernSkip || 'stateless' };
     return { result, gwAuditTrail: trailOut, gwMcpHandshake, mcpProtocol };
 }
 
