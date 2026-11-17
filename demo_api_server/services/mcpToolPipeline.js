@@ -1609,6 +1609,20 @@ async function runMcpToolPipeline(ctx) {
         }
         return { kind: 'result', httpStatus: 200, tokenEvents, body: out };
     } catch (err) {
+        // Which MCP version the gateway hop spoke, on the error path. The success
+        // path emits this from the returned mcpProtocol (see above); thrown errors
+        // carry it as err.mcpProtocol (mcpGatewayClient attaches it to every
+        // throw) so the trace's gateway step shows the version on denied and
+        // errored calls too — not only on success.
+        if (err.mcpProtocol && err.mcpProtocol.version && !tokenEvents.some((e) => e && e.id === 'mcp-protocol')) {
+            tokenEvents.push(deps.buildTokenEvent(
+                'mcp-protocol',
+                `MCP protocol — ${err.mcpProtocol.version}${err.mcpProtocol.stateless ? ' (stateless)' : ''}`,
+                'active', null,
+                `The gateway hop used MCP ${err.mcpProtocol.version}${err.mcpProtocol.stateless ? ' as a stateless request' : ''} before this error.`,
+                { protocolVersion: err.mcpProtocol.version, stateless: !!err.mcpProtocol.stateless, reason: err.mcpProtocol.reason },
+            ));
+        }
         // HTTP 428 Precondition Required: the gateway's PDP asked for step-up
         // MFA. Relayed in the SAME envelope the BFF's own gate used to emit
         // (`mcp_step_up_required` + `step_up_method`) so the agent's existing

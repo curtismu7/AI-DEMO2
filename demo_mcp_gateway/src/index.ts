@@ -270,9 +270,14 @@ async function handleMessage(
   // either way). Look up the target request id and abort it if still in
   // flight; an unknown or already-settled id is a silent no-op, matching
   // spec guidance that a cancellation racing a response is not an error.
+  // A money-moving tool is refused even an explicit cancel: aborting a
+  // transfer after the backend may have committed it leaves the caller
+  // without an outcome while the money moved (same rule as the disconnect
+  // path, disconnectCancel.ts — read-only calls only).
   if (method === 'notifications/cancelled') {
     const requestId = (msg.params as { requestId?: string | number } | undefined)?.requestId;
-    if (requestId !== undefined) inFlightCalls?.get(requestId)?.controller.abort();
+    const target = requestId !== undefined ? inFlightCalls?.get(requestId) : undefined;
+    if (target && target.cancelOnDisconnect) target.controller.abort();
     return;
   }
 

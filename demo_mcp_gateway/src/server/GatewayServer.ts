@@ -199,7 +199,11 @@ export class GatewayServer {
   // notifications/cancelled {requestId:1} abort a DIFFERENT caller's in-flight
   // id 1 (cross-caller cancellation / DoS). The WS transport avoids this by
   // giving each connection its own inFlightCalls map (index.ts).
-  private readonly inFlightCalls = new Map<string, AbortController>();
+  // The entry carries whether the call is cancellable at all (read-only tool,
+  // disconnectCancel.ts) — an explicit notifications/cancelled for a
+  // money-moving tool is refused, same rule as the disconnect path: aborting
+  // a committed transfer leaves the caller without an outcome.
+  private readonly inFlightCalls = new Map<string, { controller: AbortController; cancellable: boolean }>();
   private oauthBroker: OAuthBrokerRouter;
 
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
@@ -1012,7 +1016,10 @@ export class GatewayServer {
       const targetId = cancelParams?.requestId;
       if (targetId !== undefined) {
         const key = this.callKey(callerScope, targetId);
-        this.inFlightCalls.get(key)?.abort();
+        const target = this.inFlightCalls.get(key);
+        // A money-moving tool refuses the cancel (runs to completion) — the
+        // same rule the disconnect path applies, see disconnectCancel.ts.
+        if (target?.cancellable) target.controller.abort();
         this.inFlightCalls.delete(key);
       }
       res.writeHead(202, { 'Content-Type': 'application/json' });
@@ -1105,10 +1112,11 @@ export class GatewayServer {
 
       const controller = new AbortController();
       const callKey = requestId !== undefined ? this.callKey(callerScope, requestId) : undefined;
-      if (callKey !== undefined) this.inFlightCalls.set(callKey, controller);
+      const cancellable = cancelOnDisconnect(jsonRpc.method, rpcToolName);
+      if (callKey !== undefined) this.inFlightCalls.set(callKey, { controller, cancellable });
       // MCP 2026-07-28: a closed connection cancels the call, unless it is a tool that must
       // not be cut off half-way (disconnectCancel.ts). 'close' also fires after a normal end.
-      if (cancelOnDisconnect(jsonRpc.method, rpcToolName)) {
+      if (cancellable) {
         res.on('close', () => { if (!res.writableEnded) controller.abort(); });
       }
 

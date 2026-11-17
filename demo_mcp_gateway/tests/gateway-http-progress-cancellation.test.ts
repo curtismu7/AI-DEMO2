@@ -205,6 +205,75 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
     expect(capturedSignal?.aborted).toBe(true);
   });
 
+  it('refuses an explicit notifications/cancelled for a money-moving tool (runs to completion, like the disconnect path)', async () => {
+    // The upstream parks the tools/call until released. An explicit
+    // notifications/cancelled must NOT abort a money-moving tool — aborting a
+    // transfer after the backend may have committed leaves the caller with no
+    // outcome while the money moved. The tool's own release completes it.
+    let upstream: http.Server | undefined;
+    let port = 0;
+    let release: (() => void) | undefined;
+    const parkedUpstream = new Promise<void>((parkedReady) => {
+      upstream = http.createServer((rq, rs) => {
+        let raw = '';
+        rq.on('data', (d) => { raw += d; });
+        rq.on('end', () => {
+          if (!raw) { rs.writeHead(200, { 'Content-Type': 'application/json' }); rs.end(); return; }
+          const msg = JSON.parse(raw);
+          if (msg.method !== 'tools/call') {
+            rs.writeHead(200, { 'Content-Type': 'application/json' });
+            rs.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: {} }));
+            return;
+          }
+          parkedReady();
+          release = () => {
+            rs.writeHead(200, { 'Content-Type': 'application/json' });
+            rs.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: 'committed' }] } }));
+          };
+        });
+      });
+      upstream.listen(0, '127.0.0.1', () => { port = (upstream!.address() as { port: number }).port; });
+    });
+    // The upstream server must be listening before the gateway is constructed
+    // (its URL embeds the port) and before anything dials it.
+    await new Promise<void>((r) => upstream!.on('listening', () => r()));
+    // devBypass: the money path under test is the HTTP notifications/cancelled
+    // interception + forwarding, not the auth pipeline (which needs JWKS /
+    // introspection configured to pass). devBypass forwards the bearer as-is.
+    const moneyGateway = new GatewayServer({ config: { ...stubConfig, devBypass: true }, upstreamMcpUrl: `http://127.0.0.1:${port}` });
+    const moneyRequest = supertest(moneyGateway.httpServer);
+
+    const scopedToken = (scope: string): string => {
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(JSON.stringify({
+        sub: 'user-123', aud: GATEWAY_AUDIENCE, scope, exp: Math.floor(Date.now() / 1000) + 3600, iss: 'https://auth.example.com',
+      })).toString('base64url');
+      return `${header}.${payload}.${Buffer.from('fakesig').toString('base64url')}`;
+    };
+
+    const callPromise = moneyRequest
+      .post('/mcp')
+      .set('Authorization', `Bearer ${scopedToken('read write transfer')}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name: 'create_transfer', arguments: { from_account_id: 'a1', to_account_id: 'a2', amount: 10 } } }));
+    callPromise.then(() => {}, () => {});
+    // The upstream acks the tools/call only after the gateway forwarded it.
+    await parkedUpstream;
+
+    const cancelRes = await moneyRequest
+      .post('/mcp')
+      .set('Authorization', `Bearer ${scopedToken('read write transfer')}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 71 } }));
+    expect(cancelRes.status).toBe(202);
+
+    // The call still completes — the cancel did not abort it.
+    release?.();
+    await callPromise;
+
+    upstream!.close();
+  });
+
   it('does not let a different caller abort an in-flight call that shares the same JSON-RPC id', async () => {
     let capturedSignal: AbortSignal | undefined;
     let resolveCall: ((value: unknown) => void) | undefined;
