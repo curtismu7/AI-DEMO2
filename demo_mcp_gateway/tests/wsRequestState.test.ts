@@ -280,3 +280,34 @@ describe('WebSocket MRTR elicitation (2026-07-28)', () => {
     });
   });
 });
+
+describe('WebSocket stateless discovery (2026-07-28)', () => {
+  // The BFF's gateway discovery sends tools/list with the version in _meta and no
+  // initialize / notifications/initialized. The connection in this file never handshakes.
+  function listTools(params: Record<string, unknown>): Promise<any> {
+    const id = ++reqId;
+    return new Promise((resolve) => {
+      const onMsg = (raw: WebSocket.RawData) => {
+        const m = JSON.parse(raw.toString());
+        if (m.id === id) {
+          ws.off('message', onMsg);
+          resolve(m);
+        }
+      };
+      ws.on('message', onMsg);
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/list', params }));
+    });
+  }
+
+  it('answers tools/list on a socket that never initialized', async () => {
+    const res = await listTools({ _meta: MODERN_META });
+    expect(res.error).toBeUndefined();
+    expect(Array.isArray(res.result.tools)).toBe(true);
+    expect(res.result.tools.some((t: { name: string }) => t.name === 'special_offers')).toBe(true);
+  });
+
+  it('refuses a version it does not speak with -32022, so the BFF falls back to the handshake', async () => {
+    const res = await listTools({ _meta: { 'io.modelcontextprotocol/protocolVersion': '2099-01-01' } });
+    expect(res.error.code).toBe(-32022);
+  });
+});
