@@ -55,6 +55,7 @@ import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
+import { cancelOnDisconnect } from '../disconnectCancel';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from '../serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from '../modernNegotiation';
 import { selfBaseUrl } from '../selfBaseUrl';
@@ -1105,6 +1106,11 @@ export class GatewayServer {
       const controller = new AbortController();
       const callKey = requestId !== undefined ? this.callKey(callerScope, requestId) : undefined;
       if (callKey !== undefined) this.inFlightCalls.set(callKey, controller);
+      // MCP 2026-07-28: a closed connection cancels the call, unless it is a tool that must
+      // not be cut off half-way (disconnectCancel.ts). 'close' also fires after a normal end.
+      if (cancelOnDisconnect(jsonRpc.method, rpcToolName)) {
+        res.on('close', () => { if (!res.writableEnded) controller.abort(); });
+      }
 
       if (useSse) {
         res.writeHead(200, {
@@ -1136,6 +1142,8 @@ export class GatewayServer {
           res.end(JSON.stringify(rpcResult));
         }
       } catch (err) {
+        // The client is gone: nobody is left to answer, and a cancel is not a backend failure.
+        if (controller.signal.aborted && res.destroyed) return;
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName ?? jsonRpc.method}:`, msg);
         const errBody = JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } });
@@ -1203,6 +1211,13 @@ export class GatewayServer {
     // left on the handshake path. A backend that refuses the Modern request
     // before running it is marked Legacy and falls through to the handshake.
     let sessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
+    // MCP 2026-07-28: a closed connection cancels the forwarded call, unless it is a tool that
+    // must not be cut off half-way (disconnectCancel.ts). Covers the two tool-forwarding
+    // POSTs below; the initialize handshake is left alone.
+    const disconnect = new AbortController();
+    if (cancelOnDisconnect(jsonRpc.method, rpcToolName)) {
+      res.on('close', () => { if (!res.writableEnded) disconnect.abort(); });
+    }
     let modernUpstream: AxiosResponse<ArrayBuffer> | undefined;
     if (upstreamModernEnabled() && !isInitialize && !isNotification && !sessionId
         && await upstreamSupportsModern(upstreamBase, upstreamToken)) {
@@ -1215,6 +1230,7 @@ export class GatewayServer {
           timeout: timeoutMs,
           validateStatus: () => true,
           httpsAgent: this.upstreamHttpsAgent,
+          signal: disconnect.signal,
         });
         let rejected = false;
         if (modernResp.status === 400) {
@@ -1225,6 +1241,7 @@ export class GatewayServer {
         if (rejected) markUpstreamLegacy(upstreamBase);
         else modernUpstream = modernResp;
       } catch (err) {
+        if (axios.isCancel(err)) return; // client disconnected; nobody to answer
         const axErr = err as AxiosError;
         if (axErr.code === 'ECONNREFUSED' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNRESET') {
           res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -1310,6 +1327,7 @@ export class GatewayServer {
         timeout: timeoutMs,
         validateStatus: () => true, // forward all status codes
         httpsAgent: this.upstreamHttpsAgent,
+        signal: disconnect.signal,
       });
 
       // Propagate upstream response headers clients care about
@@ -1347,6 +1365,7 @@ export class GatewayServer {
       res.writeHead(upstream.status, responseHeaders);
       res.end(responseBody);
     } catch (err) {
+      if (axios.isCancel(err)) return; // client disconnected; nobody to answer
       const axErr = err as AxiosError;
       if (axErr.code === 'ECONNREFUSED' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNRESET') {
         res.writeHead(502, { 'Content-Type': 'application/json' });

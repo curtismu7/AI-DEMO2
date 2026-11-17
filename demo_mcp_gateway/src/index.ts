@@ -40,6 +40,7 @@ import { createPendingElicitation, consumePendingElicitation } from './elicitati
 import { mintRequestState, consumeRequestState, digestToolArgs } from './requestState';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
+import { cancelOnDisconnect, abortOnDisconnect, type InFlightCall } from './disconnectCancel';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
 import { wsTransportBindingGuard, isDpopBound } from './wsBindingGuard';
@@ -228,7 +229,7 @@ async function handleMessage(
   mcpSessionId?: string,
   // MCP spec: notifications/cancelled. Connection-scoped registry (see
   // wss.on('connection')) of in-flight calls this connection can abort.
-  inFlightCalls?: Map<string | number, AbortController>,
+  inFlightCalls?: Map<string | number, InFlightCall>,
   // MCP spec: logging capability. Connection-scoped — the client sets its
   // desired minimum level once via logging/setLevel; every notifications/message
   // this connection emits after that is gated against it (see mcpLogging.ts).
@@ -271,7 +272,7 @@ async function handleMessage(
   // spec guidance that a cancellation racing a response is not an error.
   if (method === 'notifications/cancelled') {
     const requestId = (msg.params as { requestId?: string | number } | undefined)?.requestId;
-    if (requestId !== undefined) inFlightCalls?.get(requestId)?.abort();
+    if (requestId !== undefined) inFlightCalls?.get(requestId)?.controller.abort();
     return;
   }
 
@@ -1013,7 +1014,11 @@ async function handleMessage(
     // MCP spec: notifications/cancelled — register this call so a later
     // cancel notification on the same connection can find and abort it.
     const cancelController = new AbortController();
-    if (id !== undefined) inFlightCalls?.set(id, cancelController);
+    // cancelOnDisconnect: a dropped socket aborts this call only if the tool is read-only
+    // (disconnectCancel.ts); a money-moving tool runs to completion.
+    if (id !== undefined) {
+      inFlightCalls?.set(id, { controller: cancelController, cancelOnDisconnect: cancelOnDisconnect('tools/call', toolName) });
+    }
 
     let result: JsonRpcResponse;
     try {
@@ -1242,7 +1247,15 @@ wss.on('connection', (ws, req) => {
   // each proxyJsonRpc call below; notifications/cancelled looks a request id
   // up here and aborts it if still in flight (already-settled calls are a
   // no-op, per proxyJsonRpc's own settled guard).
-  const inFlightCalls = new Map<string | number, AbortController>();
+  const inFlightCalls = new Map<string | number, InFlightCall>();
+  // MCP 2026-07-28: a closed connection cancels the calls in flight on it, except the ones
+  // that must not be cut off half-way (see disconnectCancel.ts).
+  ws.on('close', () => {
+    const { cancelled, kept } = abortOnDisconnect(inFlightCalls.values());
+    if (cancelled + kept > 0) {
+      console.log(`[GW] client disconnected with ${cancelled + kept} call(s) in flight: cancelled ${cancelled}, left running ${kept}`);
+    }
+  });
 
   // MCP spec: logging capability. One state box per connection, mutated by
   // the logging/setLevel handler in handleMessage.
