@@ -7,20 +7,25 @@
  * backward-compat probe a dual-era-aware client uses to tell a legacy
  * server apart from a modern one.
  *
- * supportedVersions now includes 2026-07-28: tools/call genuinely supports
- * it end-to-end (Modern per-request negotiation + MRTR-shaped elicitation
- * on both transports, real and tested — see modernNegotiation.ts and the
- * elicitation-obligation branches in index.ts / authorizeMcpRequest.ts).
- * This is real but PARTIAL Modern support, not full spec compliance for
- * 2026-07-28 as a whole: no header-based routing (Mcp-Method/Mcp-Name), no
- * list-result caching (ttlMs/cacheScope), and methods proxied to
- * demo_mcp_resource_server (resources/*, prompts/*, completion/complete)
- * still hit that service's own Legacy-only negotiation gate, since it
- * hasn't been upgraded. The BFF client (mcpGatewayClient.js /
- * mcpWebSocketClient.js) also does not yet SEND Modern _meta on its own
- * calls, so this repo's own live traffic still runs Legacy end-to-end today
- * — this flip makes the gateway ready to serve a genuinely Modern caller
- * correctly, it does not itself change what our own BFF sends.
+ * supportedVersions includes 2026-07-28 because the gateway serves Modern
+ * (stateless) callers end to end, and each piece is real and tested:
+ *  - per-request version negotiation (modernNegotiation.ts), with the
+ *    Mcp-Method / Mcp-Name header checks (400 + -32020) in GatewayServer.ts;
+ *  - every Modern result carries resultType, and tools/list carries
+ *    ttlMs / cacheScope (upstreamModern.ts finalizeModernBody);
+ *  - MRTR elicitation over a signed, single-use requestState
+ *    (requestState.ts, authorizeMcpRequest.ts, and the WebSocket handler in
+ *    index.ts), non-interchangeable with the Legacy _elicitation_id flow;
+ *  - GET/DELETE on /mcp answer 405 for a Modern caller.
+ *
+ * Upstream hops are opt-in: with GW_UPSTREAM_MODERN=1 the gateway probes the
+ * backend's server/discover and sends self-contained requests with no
+ * initialize handshake (upstreamModern.ts); with it unset, or against a
+ * backend that does not answer discover, upstream stays on the Legacy
+ * handshake. The BFF client (mcpGatewayClient.js / mcpWebSocketClient.js)
+ * does not yet SEND Modern _meta on its own calls, so this repo's own live
+ * traffic is Legacy at the first hop; the gateway is ready for a Modern
+ * caller, it does not change what our BFF sends.
  */
 
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2026-07-28'] as const;
