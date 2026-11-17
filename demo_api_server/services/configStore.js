@@ -497,10 +497,11 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // registered here so the shared .env value is tracked in the config registry.
   mcp_gw_passthrough_to_mcp_server: { public: true, default: 'false' },
 
-  // BFF -> Node gateway sends MCP 2026-07-28 stateless requests (_meta, no initialize).
-  // Consumed by services/mcpModernRequest.js. Off by default; a Modern answer the BFF
-  // cannot use (input_required, version rejection) is resent in the 2025-11-25 shape.
-  mcp_modern_requests: { public: true, default: 'false' },
+  // BFF -> Node gateway negotiates MCP 2026-07-28 stateless requests (_meta, no
+  // initialize): tries them first and falls back per gateway. 'false' = never.
+  // Consumed by services/mcpModernRequest.js. A Modern answer the BFF cannot use
+  // (input_required, version rejection) is resent in the 2025-11-25 shape.
+  mcp_modern_requests: { public: true, default: 'true' },
 
   // Dev-only TLS bypass for the gateway health probe and MCP WebSocket client.
   // When true AND NODE_ENV != 'production', skips TLS verification on wss:// and

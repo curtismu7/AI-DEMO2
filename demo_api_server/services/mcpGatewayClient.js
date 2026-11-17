@@ -29,7 +29,9 @@ const { decodeJwt } = require('../utils/tokenUtils');
 const { getCorrelationId } = require('../utils/correlationContext');
 const nrSegments = require('./nrSegments');
 const { isNodeGatewayOnlyTool } = require('./mcpGatewayRoutingPolicy');
-const { modernRequestsEnabled, toModernRequest, needsLegacyRetry } = require('./mcpModernRequest');
+const {
+    modernRequestsEnabled, toModernRequest, legacyRetryReason, isModernKnownUnsupported, markModernUnsupported,
+} = require('./mcpModernRequest');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -507,12 +509,21 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     );
     const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : DEFAULT_TIMEOUT_MS;
 
-    // MCP 2026-07-28 stateless request (flag `mcp_modern_requests`, off by default):
-    // _meta + Mcp-Method/Mcp-Name, no initialize, no session. Node gateway only —
-    // PingGateway speaks 2025-06-18/2025-11-25 — and never for a caller that
-    // brought its own session. If the gateway answers input_required or rejects the
+    // MCP 2026-07-28 stateless request (flag `mcp_modern_requests`, on by default):
+    // _meta + Mcp-Method/Mcp-Name, no initialize, no session. Negotiated per
+    // gateway by trying it first: Node gateway only (PingGateway speaks
+    // 2025-06-18/2025-11-25, the Privilege door is not ours), never for a caller
+    // that brought its own session, and not toward a gateway that rejected it in
+    // the last few minutes. If the gateway answers input_required or rejects the
     // version, the call did not run and is resent once in the old shape below.
-    const useModern = !opts.forceLegacy && !isIgBase && !opts.sessionId && modernRequestsEnabled();
+    const modernSkip = opts.forceLegacy ? (opts.legacyReason === 'input_required' ? 'resent-input-required' : 'resent-rejected')
+        : isIgBase ? 'pinggateway'
+        : pinGatewayBase ? 'privilege-door'
+        : opts.sessionId ? 'caller-session'
+        : !modernRequestsEnabled() ? 'flag-off'
+        : isModernKnownUnsupported(base) ? 'gateway-rejected-recently'
+        : null;
+    const useModern = modernSkip === null;
     const wire = useModern ? toModernRequest(body, headers) : { body, headers };
     const reqBody = wire.body;
     const reqHeaders = wire.headers;
@@ -579,9 +590,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         await new Promise((resolve) => setTimeout(resolve, SAFE_READ_RETRY_DELAY_MS));
     }
 
-    if (useModern && needsLegacyRetry(response)) {
-        console.warn('[mcpGatewayClient] MCP 2026-07-28 not usable for this call (status=%d); resending in the 2025-11-25 shape: tool=%s', response.status, tool);
-        return callToolViaGateway(gatewayUrl, bearerToken, tool, params, { ...opts, forceLegacy: true });
+    const retryReason = useModern ? legacyRetryReason(response) : null;
+    if (retryReason) {
+        console.warn('[mcpGatewayClient] MCP 2026-07-28 not usable for this call (%s, status=%d); resending in the 2025-11-25 shape: tool=%s', retryReason, response.status, tool);
+        // A rejection means this gateway cannot take stateless requests; remember it so
+        // the next calls skip straight to the old shape. input_required is NOT a
+        // rejection: the gateway did speak Modern and wants a confirmation.
+        if (retryReason === 'rejected') markModernUnsupported(base);
+        return callToolViaGateway(gatewayUrl, bearerToken, tool, params, { ...opts, forceLegacy: true, legacyReason: retryReason });
     }
 
     const status = response.status;
@@ -1051,7 +1067,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             : permit;
     }
 
-    return { result, gwAuditTrail: trailOut, gwMcpHandshake };
+    // What this hop actually spoke, for the trace panel.
+    const mcpProtocol = { version: reqHeaders['MCP-Protocol-Version'], stateless: useModern, reason: modernSkip || 'stateless' };
+    return { result, gwAuditTrail: trailOut, gwMcpHandshake, mcpProtocol };
 }
 
 /**

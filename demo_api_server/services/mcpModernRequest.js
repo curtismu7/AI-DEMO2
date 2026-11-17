@@ -6,11 +6,20 @@
  * A Modern request is self-contained: the protocol version and client
  * capabilities ride in params._meta, the routing headers mirror the body, and
  * there is no initialize handshake and no Mcp-Session-Id. The demo gateway
- * serves it (demo_mcp_gateway, Phase 2). Opt-in via the `mcp_modern_requests`
- * flag, and only toward the Node gateway: PingGateway's MCP filter speaks
+ * serves it (demo_mcp_gateway, Phase 2). The `mcp_modern_requests` flag (ON by
+ * default) makes the BFF negotiate per gateway: it tries a stateless request
+ * first and falls back to the 2025-11-25 shape when the gateway cannot take it,
+ * so both kinds of gateway work side by side with nothing to flip. OFF means
+ * never Modern. Only toward the Node gateway: PingGateway's MCP filter speaks
  * 2025-06-18 / 2025-11-25 only.
  *
- * The retry rule is the reason this is safe to turn on. Two Modern answers are
+ * Why no server/discover probe: the gateway answers it only after the bearer
+ * check, so a probe needs a token, and trying the real request costs nothing
+ * extra when the gateway supports it. A rejection is remembered per gateway
+ * (NEGATIVE_TTL_MS) so an old gateway costs one extra request per window, not
+ * one per call.
+ *
+ * The retry rule is what makes trying first safe. Two Modern answers are
  * not usable by the BFF as they stand:
  *   - input_required: the gateway wants a confirmation. The BFF's elicitation
  *     and HITL flows speak the old shape (428 + elicitation_id), and a 200
@@ -34,6 +43,28 @@ function modernRequestsEnabled() {
   } catch (_) {
     return false;
   }
+}
+
+// Gateways (by base URL) that rejected a stateless request, and until when.
+const NEGATIVE_TTL_MS = 5 * 60 * 1000;
+const unsupportedUntil = new Map();
+
+function isModernKnownUnsupported(base) {
+  const until = unsupportedUntil.get(base);
+  if (!until) return false;
+  if (Date.now() >= until) {
+    unsupportedUntil.delete(base);
+    return false;
+  }
+  return true;
+}
+
+function markModernUnsupported(base) {
+  unsupportedUntil.set(base, Date.now() + NEGATIVE_TTL_MS);
+}
+
+function _resetModernNegotiationForTest() {
+  unsupportedUntil.clear();
 }
 
 /** Returns the Modern form of a built JSON-RPC body + headers. Inputs are not mutated. */
@@ -60,22 +91,30 @@ function toModernRequest(body, headers) {
 
 const REJECTION_CODES = new Set([-32022, -32020]);
 
-/** True when a response to a Modern request should be answered by resending it in the old shape. */
-function needsLegacyRetry(response) {
-  if (!response) return false;
+/**
+ * Why a response to a Modern request should be resent in the old shape, or null.
+ *  - 'input_required': the gateway DID speak Modern and wants a confirmation.
+ *  - 'rejected': the gateway cannot take the request (version / header / _meta).
+ */
+function legacyRetryReason(response) {
+  if (!response) return null;
   const data = response.data;
   if (response.status === 200 && data && data.result && data.result.resultType === 'input_required') {
-    return true;
+    return 'input_required';
   }
   const err = response.status === 400 && data && data.error;
-  if (!err || typeof err !== 'object') return false;
-  if (REJECTION_CODES.has(err.code)) return true;
-  return err.code === -32602 && /_meta|protocolVersion/i.test(String(err.message || ''));
+  if (!err || typeof err !== 'object') return null;
+  if (REJECTION_CODES.has(err.code)) return 'rejected';
+  if (err.code === -32602 && /_meta|protocolVersion/i.test(String(err.message || ''))) return 'rejected';
+  return null;
 }
 
 module.exports = {
   MODERN_PROTOCOL_VERSION,
   modernRequestsEnabled,
   toModernRequest,
-  needsLegacyRetry,
+  legacyRetryReason,
+  isModernKnownUnsupported,
+  markModernUnsupported,
+  _resetModernNegotiationForTest,
 };

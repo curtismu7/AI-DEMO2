@@ -1595,6 +1595,7 @@ export function buildTraceSteps(trace) {
   const gwMtls = findEvent(tokenEvents, "gw-mtls");
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
+  const gwMcpProtocol = findEvent(tokenEvents, "mcp-protocol");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
   // Attack sims emit "sim-gateway-deny" instead of a phase. RAR denies
   // (rar_amount_exceeded / rar_unexpected_deny) already feed the
@@ -1645,6 +1646,11 @@ export function buildTraceSteps(trace) {
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
         gwAz && gwAz.statements ? ["statements", gwAz.statements] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
+        // The MCP version this hop spoke. A stateless call has no initialize, so
+        // there is no handshake card for it; this row is where that shows.
+        gwMcpProtocol?.protocolVersion
+          ? ["MCP protocol", `${gwMcpProtocol.protocolVersion}${gwMcpProtocol.stateless ? " — stateless, no initialize" : ""}`]
+          : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
         // invalid_aud teaching: show both sides of the mismatch (token vs gateway).
         (() => {
