@@ -91,8 +91,9 @@ function buildPoppyJson() {
   const domain = poppyDomain();
   const doc = {
     protocol_version: '1.0',
-    // §3.1: organization.domain is a bare host (no port) even when the Company origin carries one.
-    organization: { name: process.env.POPPY_ORG_NAME || 'Super Banking', domain: domain.split(':')[0] },
+    // Spec 1.0 section 3.1: organization.domain is the host that served the document, WITH its port when the port is not 443
+    // (the 0.4 draft said bare host). It must also equal the https://{domain} in the protected-resource document.
+    organization: { name: process.env.POPPY_ORG_NAME || 'Super Banking', domain },
     auth: {
       issuer: issuer(),
       scopes: Object.fromEntries(Object.entries(POPPY_SCOPES).map(([k, v]) => [k, v.description])),
