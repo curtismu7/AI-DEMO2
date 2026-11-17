@@ -12,11 +12,10 @@ details. It covers the gateway, the resource server and the BFF.
 | WebSocket test for MRTR requestState | Merged (#3636) |
 | BFF HTTP client sends stateless requests, flag `mcp_modern_requests` | Merged (#3637) |
 | Negotiate per gateway, default on, protocol version in the trace panel | Merged and deployed (#3638, live at `36b212e`) |
-| BFF WebSocket client, stateless for gateway discovery | **PR #3639 open, CI green, not merged, not deployed** |
-| Gateway cancels read-only calls on disconnect | **PR #3640 open, CI was pending, not merged, not deployed** |
+| BFF WebSocket client, stateless for gateway discovery | Merged and deployed (#3639, live at `c1c5eb2`) |
+| Gateway cancels read-only calls on disconnect | Merged and deployed (#3640, live at `c1c5eb2`) |
 
-Merging needs the owner's explicit "merge N". Deploy only after merge, with
-`scripts/deploy-live.sh --services=...` from the merged main checkout.
+Deploy with `scripts/deploy-live.sh --services=...` from the merged main checkout.
 
 ## Decisions the owner made (do not re-ask)
 
@@ -67,12 +66,17 @@ Verified live on the stack (generation pinned around each run): flag on, the BFF
 `mcp-protocol` "MCP protocol — 2026-07-28 (stateless)". Flag off gave
 `MCP protocol — 2025-11-25`, reason `flag-off`.
 
-Not verified live:
+Also verified live after deploying #3639 and #3640 (2026-11-17, stack at `c1c5eb2`): the
+`/api/mcp/traffic` log shows `RPC → tools/list (MCP 2026-07-28, stateless)` from the
+WebSocket discovery path followed by a single `RPC ← tools/list OK` — no 2025-11-25
+resend.
 
-- #3639 and #3640 behaviour on the running stack (unit and integration tests only). After
-  deploy, the BFF traffic log marks stateless WebSocket calls "(MCP 2026-07-28, stateless)".
+Still not verified live:
+
 - The `input_required` resend and the old-gateway rejection resend (the live gateway never
   rejects; unit tests only).
+- #3640 disconnect cancellation against a real mid-call disconnect (unit and integration
+  tests only).
 - The "MCP protocol" row rendered in the browser (unit test only).
 
 ## Open follow-ups, none started
