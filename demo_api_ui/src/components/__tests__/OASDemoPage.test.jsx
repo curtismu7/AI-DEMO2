@@ -9,6 +9,7 @@ vi.mock('../../services/apiClient', () => ({
 }));
 
 import apiClient from '../../services/apiClient';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 const SPEC = {
   openapi: '3.1.0',
@@ -100,6 +101,7 @@ describe('OASDemoPage — Try it out', () => {
     expect(result).toHaveTextContent('username');
 
     // JSON view shows the exact pretty-printed result, and the pane does not scroll.
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(result.closest('.oas-tryitout-result')).getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
       const el = document.querySelector('.oas-tryitout-result pre.jp-raw');
@@ -201,6 +203,7 @@ describe('OASDemoPage — Try it out', () => {
     expect(form).toHaveTextContent('PingOne Platform API (Demo Fragment)');
     expect(form).toHaveTextContent('listUsers');
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
       const el = document.querySelector('pre.jp-raw[aria-label="Raw OAS spec"]');
@@ -226,6 +229,7 @@ describe('OASDemoPage — Try it out', () => {
     expect(form).toHaveTextContent('Refusal');
     expect(form.querySelector('[data-alert]')).toBeNull();
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
       const el = document.querySelector('pre.jp-raw[aria-label="Raw OAS spec"]');
@@ -246,6 +250,7 @@ describe('OASDemoPage — Try it out', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try it out' }));
     const result = await screen.findByRole('group', { name: 'listUsers result' });
     expect(result.querySelector('[data-alert="true"]')).not.toBeNull();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(result.closest('.oas-tryitout-result')).getByRole('button', { name: 'JSON' }));
     await waitFor(() => expect(document.querySelector('.oas-tryitout-result pre.jp-raw')).not.toBeNull());
     expect(document.querySelector('.oas-tryitout-result pre.jp-raw .jp-tok--alert')).not.toBeNull();

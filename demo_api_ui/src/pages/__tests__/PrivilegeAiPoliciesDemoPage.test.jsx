@@ -157,6 +157,7 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     const form = within(scn).getByRole('group', { name: 'Raw gateway response' });
     expect(form).toHaveTextContent('Forbidden');
     expect(form.querySelector('.jp-row[data-alert="true"]')).not.toBeNull();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(scn).getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
       const el = scn.querySelector('pre.jp-raw');

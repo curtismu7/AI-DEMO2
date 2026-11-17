@@ -18,6 +18,7 @@ vi.mock("../../lib/davinciSdkClient", () => ({
 
 import * as sdk from "../../lib/davinciSdkClient";
 import DavinciSdkLoginPage from "../DavinciSdkLoginPage";
+import { flushEffects } from "../../test-utils/flushEffects";
 
 const AUTHORIZE =
   "https://auth.pingone.com/env-1/as/authorize?client_id=client-1&state=STATEVALUE&code_challenge=CHALLENGEVALUE&response_mode=pi.flow&nonce=SECRETNONCE";
@@ -168,6 +169,7 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent("flowStatus");
     expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent("PasswordCollector");
     // JSON view: the exact pretty text, as before the pane
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(container.querySelector(".sdk-reel-detail")).getAllByRole("button", { name: "JSON" })[0]);
     await waitFor(() => expect(container.querySelector(".sdk-reel-detail pre.jp-raw[aria-label$='response']")).not.toBeNull());
     expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"formName": "Enter Passcode"');
@@ -262,6 +264,7 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     expect(detail).not.toHaveTextContent("BFF callback rejected with secret detail");
     expect(detail).not.toHaveTextContent("REJECTED-AUTHORIZATION-CODE");
     // JSON view: the same, in the exact text
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(detail).getAllByRole("button", { name: "JSON" })[0]);
     await waitFor(() => expect(detail.querySelector("pre.jp-raw[aria-label$='response']")).not.toBeNull());
     expect(detail).toHaveTextContent('"status": "failure"');

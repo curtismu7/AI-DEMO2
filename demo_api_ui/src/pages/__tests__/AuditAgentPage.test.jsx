@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AuditAgentPage from '../AuditAgentPage';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 const apiClientMock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('../../services/apiClient', () => ({ default: apiClientMock }));
@@ -53,6 +54,7 @@ describe('AuditAgentPage answer pane', () => {
     respond({ chat: async () => ({ data: ANSWER }) });
     await ask();
     await screen.findByRole('group', { name: 'Audit agent answer' });
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(screen.getByRole('group', { name: 'Audit agent answer view' })).getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
       const el = document.querySelector('pre.jp-raw[aria-label="Audit agent answer"]');

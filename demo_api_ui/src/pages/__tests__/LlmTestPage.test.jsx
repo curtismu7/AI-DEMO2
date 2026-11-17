@@ -3,6 +3,10 @@
 // as the tiebreaker when /llm-gateway's verdict looks wrong.
 import { fireEvent, render, screen } from "@testing-library/react";
 import LlmTestPage from "../LlmTestPage";
+import { flushEffects } from "../../test-utils/flushEffects";
+
+// The JSON panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+beforeEach(() => { try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } });
 
 const CONFIG = {
   gatewayUrl: "https://mcpgw.ai-demo.ping-devops.com",
@@ -86,6 +90,7 @@ describe("LLM Gateway Test page", () => {
     expect(await screen.findByTestId("lt-status")).toHaveTextContent("HTTP 200");
     expect(screen.getByText(/872 ms/)).toBeInTheDocument();
     // The raw JSON, not a summary of it: Form is the shared pane's default, so switch to JSON.
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getAllByRole("button", { name: /^json$/i })[0]);
     expect(screen.getByTestId("lt-response")).toHaveTextContent(/"content": "Paris"/);
   });
@@ -97,6 +102,7 @@ describe("LLM Gateway Test page", () => {
     fireEvent.click(screen.getByRole("button", { name: /send request/i }));
 
     await screen.findByTestId("lt-response");
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getAllByRole("button", { name: /^json$/i })[0]);
     const pane = screen.getByTestId("lt-response");
     // A plain <pre>{JSON.stringify(...)}</pre> has no descendant elements at
@@ -123,6 +129,7 @@ describe("LLM Gateway Test page", () => {
     expect(pane).toHaveTextContent("content");
     expect(pane).toHaveTextContent("Paris");
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getAllByRole("button", { name: /^json$/i })[0]);
     const raw = screen.getByTestId("lt-response");
     expect(raw).toHaveClass("jp-raw");

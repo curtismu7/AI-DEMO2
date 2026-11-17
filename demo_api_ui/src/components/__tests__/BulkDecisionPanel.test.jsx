@@ -3,6 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
 import BulkDecisionPanel from '../BulkDecisionPanel';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 vi.mock('../../services/bffAxios', () => ({
   __esModule: true,
@@ -118,6 +119,7 @@ test('the Response and Request tabs show the PingOne payloads as shared panes: F
   expect(rows.map((r) => r.textContent).join(' ')).toContain('DENY');
   expect(rows.map((r) => r.textContent).join(' ')).not.toContain('PERMIT');
 
+  await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
   fireEvent.click(within(screen.getByRole('group', { name: 'PingOne bulk response view' })).getByRole('button', { name: 'JSON' }));
   const raw = await waitFor(() => {
     const el = document.querySelector('pre.jp-raw[aria-label="PingOne bulk response"]');

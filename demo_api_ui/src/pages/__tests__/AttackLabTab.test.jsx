@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from '../../services/apiClient';
 import AttackLabTab from '../AttackLabTab';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 vi.mock('../../services/apiClient', () => ({ default: { post: vi.fn() } }));
 vi.mock('../HostileMcpTab', () => ({ default: () => <><aside>Manually confirm hostile-mcp denies create_transfer. If user not found in system, sync identity.</aside><h3>Hostile MCP runner</h3></> }));
@@ -209,7 +210,9 @@ describe('AttackLabTab', () => {
     render(<AttackLabTab />);
     fireEvent.click(screen.getByRole('button', { name: 'Schema Violation' }));
     fireEvent.click(screen.getByRole('button', { name: /run schema violation check/i }));
-    fireEvent.click(within((await screen.findByRole('group', { name: 'Request sent' })).closest('.jp-box')).getByRole('button', { name: 'JSON' }));
+    const sent = await screen.findByRole('group', { name: 'Request sent' });
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
+    fireEvent.click(within(sent.closest('.jp-box')).getByRole('button', { name: 'JSON' }));
 
     expect(JSON.parse(screen.getByLabelText('Request sent').textContent)).toMatchObject({ method: 'POST', path: '/api/mcp-gateway/test', body: { tool: 'create_transfer' } });
     expect(JSON.parse(screen.getByLabelText('Observed response').textContent)).toEqual({

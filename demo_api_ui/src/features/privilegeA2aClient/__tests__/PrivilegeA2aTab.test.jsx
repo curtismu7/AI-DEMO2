@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PrivilegeA2aTab from '../PrivilegeA2aTab';
 import apiClient from '../../../services/apiClient';
+import { flushEffects } from '../../../test-utils/flushEffects';
 
 vi.mock('../../../services/apiClient', () => ({ default: { get: vi.fn() } }));
 vi.mock('../../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: 'healthcare' }) }));
@@ -120,6 +121,7 @@ describe('PrivilegeA2aTab', () => {
     expect(trace.queryByText(/80 ms/)).toBeNull();
 
     // The JSON view shows the exact text the agent sent.
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     await user.click(trace.getAllByRole('button', { name: 'JSON' })[0]);
     await waitFor(() => expect(trace.getByLabelText('Trace step 1 Request: concierge → analyst_agent body').classList.contains('jp-raw')).toBe(true));
     expect(trace.getByLabelText('Trace step 1 Request: concierge → analyst_agent body').textContent).toBe('{"method":"message/send"}');

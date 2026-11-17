@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import StepDetailPanel from "../StepDetailPanel";
@@ -29,6 +29,9 @@ const DIFF_STEP = {
     },
   },
 };
+
+// The JSON panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+beforeEach(() => { try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } });
 
 describe("StepDetailPanel", () => {
   it("highlights the framework mappings Privilege returned, and nothing when it returned none", () => {

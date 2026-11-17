@@ -53,6 +53,7 @@ function runSearch() {
 afterEach(() => { state.config.mcpUrl = 'https://gateway.example/mcp'; });
 
 beforeEach(() => {
+  try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } // the JSON pane keeps the Form | JSON choice here
   vi.restoreAllMocks();
   global.EventSource = class { addEventListener() {} close() {} };
   global.fetch = vi.fn(async (url, options = {}) => {
