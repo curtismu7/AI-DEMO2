@@ -497,6 +497,11 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // registered here so the shared .env value is tracked in the config registry.
   mcp_gw_passthrough_to_mcp_server: { public: true, default: 'false' },
 
+  // BFF -> Node gateway sends MCP 2026-07-28 stateless requests (_meta, no initialize).
+  // Consumed by services/mcpModernRequest.js. Off by default; a Modern answer the BFF
+  // cannot use (input_required, version rejection) is resent in the 2025-11-25 shape.
+  mcp_modern_requests: { public: true, default: 'false' },
+
   // Dev-only TLS bypass for the gateway health probe and MCP WebSocket client.
   // When true AND NODE_ENV != 'production', skips TLS verification on wss:// and
   // the gateway /health probe. Production code hard-ignores this flag regardless
@@ -1281,6 +1286,7 @@ const ENV_FALLBACK_MAP = {
   mcp_gw_resource_uri:              ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI'],
   mcp_gw_token_endpoint_auth_method:      ['MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD'],
   mcp_gw_passthrough_to_mcp_server:       ['MCP_GW_PASSTHROUGH_TO_MCP_SERVER'],
+  mcp_modern_requests:                    ['MCP_BFF_MODERN_REQUESTS'],
   gateway_health_probe_insecure:           ['GATEWAY_HEALTH_PROBE_INSECURE'],
   mcp_gateway_reject_unauthorized:         ['MCP_GATEWAY_REJECT_UNAUTHORIZED'],
   pingone_validate_on_startup:             ['PINGONE_VALIDATE_ON_STARTUP'],

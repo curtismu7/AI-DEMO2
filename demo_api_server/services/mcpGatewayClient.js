@@ -29,6 +29,7 @@ const { decodeJwt } = require('../utils/tokenUtils');
 const { getCorrelationId } = require('../utils/correlationContext');
 const nrSegments = require('./nrSegments');
 const { isNodeGatewayOnlyTool } = require('./mcpGatewayRoutingPolicy');
+const { modernRequestsEnabled, toModernRequest, needsLegacyRetry } = require('./mcpModernRequest');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -506,12 +507,22 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     );
     const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : DEFAULT_TIMEOUT_MS;
 
-    console.log('[GW→PingGateway] REQUEST: url=%s method=POST', url);
-    console.log('[GW→PingGateway] HEADERS: %j', redactGatewayRequestHeaders(headers));
+    // MCP 2026-07-28 stateless request (flag `mcp_modern_requests`, off by default):
+    // _meta + Mcp-Method/Mcp-Name, no initialize, no session. Node gateway only —
+    // PingGateway speaks 2025-06-18/2025-11-25 — and never for a caller that
+    // brought its own session. If the gateway answers input_required or rejects the
+    // version, the call did not run and is resent once in the old shape below.
+    const useModern = !opts.forceLegacy && !isIgBase && !opts.sessionId && modernRequestsEnabled();
+    const wire = useModern ? toModernRequest(body, headers) : { body, headers };
+    const reqBody = wire.body;
+    const reqHeaders = wire.headers;
+
+    console.log('[GW→PingGateway] REQUEST: url=%s method=POST%s', url, useModern ? ' (MCP 2026-07-28)' : '');
+    console.log('[GW→PingGateway] HEADERS: %j', redactGatewayRequestHeaders(reqHeaders));
     // Tool-call/response payloads can contain banking records — log them only when
     // explicitly opted in (MCP_GATEWAY_LOG_BODIES=true), not by default.
     if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
-        console.log('[GW→PingGateway] BODY: %j', body);
+        console.log('[GW→PingGateway] BODY: %j', reqBody);
     }
 
     let response;
@@ -523,10 +534,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // retry after a transient 502/503/504 cannot replay the first proof.
         // Keep this best-effort, matching the original call behavior.
         if (opts.dpopKey && opts.dpopKey.privatePem) {
-            delete headers.DPoP;
+            delete reqHeaders.DPoP;
             try {
                 const { signDpopProof, accessTokenHash } = require('./dpopKeyService');
-                headers['DPoP'] = signDpopProof({
+                reqHeaders['DPoP'] = signDpopProof({
                     privatePem: opts.dpopKey.privatePem,
                     publicJwk: opts.dpopKey.publicJwk,
                     htu: url,
@@ -537,8 +548,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         }
         try {
             response = await nrSegments.mcpToolCall(() =>
-                axios.post(url, body, {
-                    headers,
+                axios.post(url, reqBody, {
+                    headers: reqHeaders,
                     timeout: timeoutMs,
                     // Handle error status codes ourselves so we can emit structured errors
                     validateStatus: () => true,
@@ -566,6 +577,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             console.warn('[mcpGatewayClient] transient read call gateway response; retrying once: tool=%s status=%d', tool, response?.status);
         }
         await new Promise((resolve) => setTimeout(resolve, SAFE_READ_RETRY_DELAY_MS));
+    }
+
+    if (useModern && needsLegacyRetry(response)) {
+        console.warn('[mcpGatewayClient] MCP 2026-07-28 not usable for this call (status=%d); resending in the 2025-11-25 shape: tool=%s', response.status, tool);
+        return callToolViaGateway(gatewayUrl, bearerToken, tool, params, { ...opts, forceLegacy: true });
     }
 
     const status = response.status;
