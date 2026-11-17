@@ -4,6 +4,15 @@
  * Shared by /api/mcp/tool and /api/mcp/inspector/*.
  *
  * Lifecycle: initialize → notifications/initialized → tools/list | tools/call (per MCP spec).
+ *
+ * Stateless variant (MCP 2026-07-28): a caller that passes opts.allowModern (today only
+ * gateway discovery) sends the follow-up request alone, with the protocol version in
+ * params._meta and no initialize. Same negotiation as the HTTP client
+ * (mcpModernRequest.js): try stateless first, and resend once with the handshake when the
+ * gateway rejects the version/_meta or answers input_required (the call never ran, so the
+ * resend is safe). Only a rejection is remembered per gateway URL. The MCP Inspector and the
+ * direct MCP-server path never opt in: the first teaches the handshake, the second does not
+ * speak stateless.
  */
 const WebSocket = require('ws');
 const fs = require('fs');
@@ -12,6 +21,14 @@ const configStore = require('./configStore');
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
 const { getCorrelationId } = require('../utils/correlationContext');
 const { callLlamaCpp } = require('./llamacppLlmService');
+const {
+  MODERN_PROTOCOL_VERSION,
+  modernRequestsEnabled,
+  withModernMeta,
+  legacyRetryReasonForFrame,
+  isModernKnownUnsupported,
+  markModernUnsupported,
+} = require('./mcpModernRequest');
 
 /** Protocol version sent on initialize — runtime-configurable via Feature Flag 'mcp_use_legacy_protocol'.
  *  OFF (default) = 2025-11-25 (current spec).  ON = 2024-11-05 (previous spec).
@@ -211,7 +228,7 @@ function rejectElicitation(requestId, error) {
  *   follow-up JSON-RPC frames as sent/received (teaching surface; token visibility is intentional
  *   in this demo). Mutated even when the promise rejects with a JSON-RPC error.
  */
-function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, frameSink, opts) {
+function mcpRpcAttempt(agentToken, followMethod, followParams, userSub, correlationId, frameSink, opts) {
   // Correlation: fall back to the ambient turn id when the caller didn't pass
   // one. Without this the WS path shipped NO params.correlationId, and the
   // gateway's extractCorrelationId — which sees no per-message HTTP headers on
@@ -229,6 +246,22 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
   // slot-exhaustion race). The slot is now released in a single .finally()
   // after the promise resolves OR rejects. Pool size/topology unchanged —
   // only the release TIMING moved.
+  // Stateless (2026-07-28) only when the caller opted in and negotiation allows it.
+  const targetUrl = (opts && opts.serverUrl) || getMcpServerUrl();
+  const modernSkip = !(opts && opts.allowModern) ? 'not-requested'
+    : opts.forceLegacy ? (opts.legacyReason === 'input_required' ? 'resent-input-required' : 'resent-rejected')
+    : !modernRequestsEnabled() ? 'flag-off'
+    : isModernKnownUnsupported(targetUrl) ? 'gateway-rejected-recently'
+    : null;
+  const useModern = modernSkip === null;
+  if (frameSink) {
+    frameSink.mcpProtocol = {
+      version: useModern ? MODERN_PROTOCOL_VERSION : getMcpProtocolVersion(),
+      stateless: useModern,
+      reason: modernSkip || 'stateless',
+    };
+  }
+
   let released = false;
   const safeRelease = () => {
     if (!released) {
@@ -335,7 +368,35 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         }
         const ws = new WebSocket(mcpUrl, [], wsTlsOpts);
         /** @type {'awaiting_init' | 'awaiting_follow'} */
-        let phase = 'awaiting_init';
+        let phase = useModern ? 'awaiting_follow' : 'awaiting_init';
+
+        // The follow-up request (tools/list | tools/call). Legacy sends it after the handshake;
+        // stateless sends it first and alone, with _meta carrying the version.
+        const sendFollowFrame = () => {
+          // Include agentToken in tool call params for MCP server authentication
+          const callParams = { ...followParams };
+          if (agentToken) callParams.agentToken = agentToken;
+          if (userSub) callParams.userSub = userSub;
+          if (correlationId) callParams.correlationId = correlationId;
+          writeMcpTrafficEntry({
+            dir: 'BFF→MCP',
+            type: 'rpc_request',
+            method: followMethod,
+            tool: followParams && followParams.name ? followParams.name : null,
+            ok: true,
+            summary: `RPC → ${followMethod}${followParams && followParams.name ? ' ' + followParams.name : ''}${useModern ? ` (MCP ${MODERN_PROTOCOL_VERSION}, stateless)` : ''}`,
+            correlationId: correlationId || null,
+            payload: { method: followMethod, params: followParams },
+          });
+          const followFrame = {
+            jsonrpc: '2.0',
+            id: FOLLOW_REQUEST_ID,
+            method: followMethod,
+            params: useModern ? withModernMeta(callParams) : callParams,
+          };
+          if (frameSink) frameSink.request = followFrame;
+          ws.send(JSON.stringify(followFrame));
+        };
 
         // A `let`, not `const`: the elicitation/sampling branches below clear and
         // re-arm this budget around a server-initiated request so the 15s window
@@ -365,6 +426,10 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         });
 
         ws.on('open', () => {
+          if (useModern) {
+            sendFollowFrame();
+            return;
+          }
           const initParams = {
             protocolVersion: getMcpProtocolVersion(),
             // Declares what this client actually handles below in the
@@ -429,29 +494,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
             const initializedFrame = { jsonrpc: '2.0', method: 'notifications/initialized' };
             if (frameSink) frameSink.initializedNotification = initializedFrame;
             ws.send(JSON.stringify(initializedFrame));
-            // Include agentToken in tool call params for MCP server authentication
-            const callParams = { ...followParams };
-            if (agentToken) callParams.agentToken = agentToken;
-            if (userSub) callParams.userSub = userSub;
-            if (correlationId) callParams.correlationId = correlationId;
-            writeMcpTrafficEntry({
-              dir: 'BFF→MCP',
-              type: 'rpc_request',
-              method: followMethod,
-              tool: followParams && followParams.name ? followParams.name : null,
-              ok: true,
-              summary: `RPC → ${followMethod}${followParams && followParams.name ? ' ' + followParams.name : ''}`,
-              correlationId: correlationId || null,
-              payload: { method: followMethod, params: followParams },
-            });
-            const followFrame = {
-              jsonrpc: '2.0',
-              id: FOLLOW_REQUEST_ID,
-              method: followMethod,
-              params: callParams,
-            };
-            if (frameSink) frameSink.request = followFrame;
-            ws.send(JSON.stringify(followFrame));
+            sendFollowFrame();
             return;
           }
 
@@ -605,6 +648,17 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
             }
             clearTimeout(timeout);
             ws.close();
+            if (useModern) {
+              // The call never ran in either case, so the caller resends it with the handshake.
+              const retryReason = legacyRetryReasonForFrame(msg);
+              if (retryReason) {
+                if (retryReason === 'rejected') markModernUnsupported(targetUrl);
+                const retryErr = new Error(`MCP stateless request answered ${retryReason}; resending with the handshake`);
+                retryErr.modernRetry = retryReason;
+                reject(retryErr);
+                return;
+              }
+            }
             if (frameSink) frameSink.response = msg;
             if (msg.error) {
               const mcpErr = new Error(msg.error.message || JSON.stringify(msg.error));
@@ -652,6 +706,21 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
   // WR-06: slot held until the promise fully settles, regardless of which
   // code path (success, MCP error, timeout, transport error) completed.
   return rpcPromise.finally(safeRelease);
+}
+
+/**
+ * Runs one follow-up RPC. A stateless attempt that the gateway cannot take is resent once
+ * with the handshake, after the first attempt has released its pool slot.
+ */
+async function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, frameSink, opts) {
+  try {
+    return await mcpRpcAttempt(agentToken, followMethod, followParams, userSub, correlationId, frameSink, opts);
+  } catch (err) {
+    if (!err || !err.modernRetry) throw err;
+    if (frameSink) for (const k of Object.keys(frameSink)) delete frameSink[k];
+    return mcpRpcAttempt(agentToken, followMethod, followParams, userSub, correlationId, frameSink,
+      { ...opts, forceLegacy: true, legacyReason: err.modernRetry });
+  }
 }
 
 function mcpListTools(agentToken, userSub, correlationId, opts) {

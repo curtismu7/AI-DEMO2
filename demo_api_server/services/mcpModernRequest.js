@@ -67,17 +67,22 @@ function _resetModernNegotiationForTest() {
   unsupportedUntil.clear();
 }
 
-/** Returns the Modern form of a built JSON-RPC body + headers. Inputs are not mutated. */
-function toModernRequest(body, headers) {
-  const params = {
-    ...(body.params || {}),
+/** params with the three stateless _meta keys added. Input is not mutated. */
+function withModernMeta(params) {
+  return {
+    ...(params || {}),
     _meta: {
-      ...((body.params && body.params._meta) || {}),
+      ...((params && params._meta) || {}),
       [META_VERSION]: MODERN_PROTOCOL_VERSION,
       [META_CAPABILITIES]: {},
       [META_CLIENT_INFO]: CLIENT_INFO,
     },
   };
+}
+
+/** Returns the Modern form of a built JSON-RPC body + headers. Inputs are not mutated. */
+function toModernRequest(body, headers) {
+  const params = withModernMeta(body.params);
   const modernHeaders = {
     ...headers,
     'MCP-Protocol-Version': MODERN_PROTOCOL_VERSION,
@@ -91,6 +96,13 @@ function toModernRequest(body, headers) {
 
 const REJECTION_CODES = new Set([-32022, -32020]);
 
+/** True when a JSON-RPC error object is a version / header / _meta rejection. */
+function isModernRejection(err) {
+  if (!err || typeof err !== 'object') return false;
+  if (REJECTION_CODES.has(err.code)) return true;
+  return err.code === -32602 && /_meta|protocolVersion/i.test(String(err.message || ''));
+}
+
 /**
  * Why a response to a Modern request should be resent in the old shape, or null.
  *  - 'input_required': the gateway DID speak Modern and wants a confirmation.
@@ -103,17 +115,23 @@ function legacyRetryReason(response) {
     return 'input_required';
   }
   const err = response.status === 400 && data && data.error;
-  if (!err || typeof err !== 'object') return null;
-  if (REJECTION_CODES.has(err.code)) return 'rejected';
-  if (err.code === -32602 && /_meta|protocolVersion/i.test(String(err.message || ''))) return 'rejected';
-  return null;
+  return isModernRejection(err) ? 'rejected' : null;
+}
+
+/** The same decision for a JSON-RPC frame read off a WebSocket (no HTTP status). */
+function legacyRetryReasonForFrame(msg) {
+  if (!msg) return null;
+  if (msg.result && msg.result.resultType === 'input_required') return 'input_required';
+  return isModernRejection(msg.error) ? 'rejected' : null;
 }
 
 module.exports = {
   MODERN_PROTOCOL_VERSION,
   modernRequestsEnabled,
   toModernRequest,
+  withModernMeta,
   legacyRetryReason,
+  legacyRetryReasonForFrame,
   isModernKnownUnsupported,
   markModernUnsupported,
   _resetModernNegotiationForTest,

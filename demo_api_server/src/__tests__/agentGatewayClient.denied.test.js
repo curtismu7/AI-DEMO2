@@ -45,7 +45,7 @@ describe('listAvailableTools', () => {
     });
     const out = await listAvailableTools({}, 'agent-token', { vertical: 'healthcare', userSub: 'u1' });
     // vertical threaded into mcpListTools opts (4th arg); correlationId undefined
-    expect(mcpListTools).toHaveBeenCalledWith('agent-token', 'u1', undefined, { vertical: 'healthcare', serverUrl: 'ws://mcp-gateway:3005' });
+    expect(mcpListTools).toHaveBeenCalledWith('agent-token', 'u1', undefined, { vertical: 'healthcare', serverUrl: 'ws://mcp-gateway:3005', allowModern: true });
     const names = out.tools.map(t => t.name);
     expect(names).toEqual(expect.arrayContaining(['view_records', 'book_appointment']));
     expect(out.tools.find(t => t.name === 'book_appointment').permitted).toBe(false);
