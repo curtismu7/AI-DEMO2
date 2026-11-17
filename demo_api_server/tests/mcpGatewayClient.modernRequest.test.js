@@ -3,13 +3,17 @@
 /**
  * MCP 2026-07-28 stateless requests from the BFF (flag `mcp_modern_requests`).
  *
- * The flag is OFF by default and the request must then be exactly what it was.
- * When ON, a call to the Node gateway carries _meta + Mcp-Method/Mcp-Name and
- * no session. PingGateway and callers with their own session are never sent
- * Modern. Two Modern answers the BFF cannot use — input_required and a version
- * rejection — mean the call did not run, so it is resent once in the old shape.
- * Without that, a confirmation prompt would come back as a 200 with a result
- * and be taken for a finished tool call.
+ * The flag is ON by default and negotiates per gateway: a call to the Node
+ * gateway is tried as a stateless request (_meta + Mcp-Method/Mcp-Name, no
+ * session). With the flag OFF the request is exactly what it always was.
+ * PingGateway, the Privilege door and callers with their own session are never
+ * sent Modern. Two Modern answers the BFF cannot use — input_required and a
+ * version rejection — mean the call did not run, so it is resent once in the
+ * old shape; without that, a confirmation prompt would come back as a 200 with
+ * a result and be taken for a finished tool call. A rejection is remembered
+ * per gateway for a few minutes so an old gateway costs one extra request, not
+ * one per call. Every call reports which version it spoke (`mcpProtocol`), which
+ * is what the trace panel shows.
  */
 
 const NODE_GW = 'https://node-gw.local';
@@ -23,8 +27,12 @@ const inputRequired = {
 };
 const rpcError = (code, message) => ({ jsonrpc: '2.0', id: 1, error: { code, message } });
 
-/** Load the client with axios stubbed to answer from `replies` in order; returns the calls it saw. */
-async function run({ flag, replies, opts = {}, base = NODE_GW, tool = 'get_account_balance' }) {
+/**
+ * Load the client once with axios stubbed to answer from a queue; `call()` makes one
+ * gateway call and returns what it saw. Keeping the module loaded between calls is
+ * what lets the per-gateway negotiation memory be tested.
+ */
+function load({ flag, base = NODE_GW } = {}) {
   jest.resetModules();
   delete process.env.MCP_BFF_MODERN_REQUESTS;
   delete process.env.MCP_PINGGATEWAY_URL;
@@ -32,7 +40,7 @@ async function run({ flag, replies, opts = {}, base = NODE_GW, tool = 'get_accou
   if (base === IG) process.env.MCP_PINGGATEWAY_URL = IG;
 
   const calls = [];
-  const queue = [...replies];
+  const queue = [];
   jest.doMock('axios', () => ({
     post: jest.fn(async (url, body, cfg) => {
       calls.push({ url, body, headers: { ...cfg.headers } });
@@ -44,14 +52,24 @@ async function run({ flag, replies, opts = {}, base = NODE_GW, tool = 'get_accou
   jest.doMock('../services/mcpToolAuthorizationService', () => ({ resolveResourceOwnerId: jest.fn() }));
   const { callToolViaGateway } = require('../services/mcpGatewayClient');
   const pin = base === IG ? { pinGatewayBase: true } : { pinNodeGateway: true };
-  let out;
-  let error;
-  try {
-    out = await callToolViaGateway(base, 'tok', tool, { account_id: 'a1' }, { ...pin, ...opts });
-  } catch (e) {
-    error = e;
+
+  async function call({ replies, opts = {}, tool = 'get_account_balance' }) {
+    const before = calls.length;
+    queue.push(...replies);
+    let out;
+    let error;
+    try {
+      out = await callToolViaGateway(base, 'tok', tool, { account_id: 'a1' }, { ...pin, ...opts });
+    } catch (e) {
+      error = e;
+    }
+    return { calls: calls.slice(before), out, error };
   }
-  return { calls, out, error };
+  return { call };
+}
+
+async function run({ flag, replies, opts, base, tool }) {
+  return load({ flag, base }).call({ replies, opts, tool });
 }
 
 afterAll(() => {
@@ -60,18 +78,21 @@ afterAll(() => {
 });
 
 describe('mcpGatewayClient — MCP 2026-07-28 stateless requests', () => {
-  test('flag unset: the request is unchanged (2025-11-25, no _meta, no routing headers)', async () => {
-    const { calls } = await run({ replies: [{ data: okResult }] });
+  test('flag unset: ON by default, the Node gateway is tried with a stateless request', async () => {
+    const { calls, out } = await run({ replies: [{ data: okResult }] });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].headers['MCP-Protocol-Version']).toBe('2026-07-28');
+    expect(calls[0].body.params._meta[META_VERSION]).toBe('2026-07-28');
+    expect(out.mcpProtocol).toEqual({ version: '2026-07-28', stateless: true, reason: 'stateless' });
+  });
+
+  test('flag false: the request is exactly the old one (2025-11-25, no _meta, no routing headers)', async () => {
+    const { calls, out } = await run({ flag: 'false', replies: [{ data: okResult }] });
     expect(calls).toHaveLength(1);
     expect(calls[0].headers['MCP-Protocol-Version']).toBe('2025-11-25');
     expect(calls[0].headers['Mcp-Method']).toBeUndefined();
     expect(calls[0].body.params._meta).toBeUndefined();
-  });
-
-  test('flag false: the request is unchanged', async () => {
-    const { calls } = await run({ flag: 'false', replies: [{ data: okResult }] });
-    expect(calls[0].headers['MCP-Protocol-Version']).toBe('2025-11-25');
-    expect(calls[0].body.params._meta).toBeUndefined();
+    expect(out.mcpProtocol).toEqual({ version: '2025-11-25', stateless: false, reason: 'flag-off' });
   });
 
   test('flag on, Node gateway: one POST with _meta and the routing headers', async () => {
@@ -109,6 +130,13 @@ describe('mcpGatewayClient — MCP 2026-07-28 stateless requests', () => {
     expect(calls[0].headers['MCP-Protocol-Version']).toBe('2025-06-18');
     expect(calls[0].headers['Mcp-Method']).toBeUndefined();
     expect(calls[0].body.params._meta).toBeUndefined();
+  });
+
+  test('the Privilege door (pinGatewayBase on a non-PingGateway base) is never sent Modern', async () => {
+    const { calls, out } = await run({ flag: 'true', opts: { pinGatewayBase: true }, replies: [{ data: okResult }] });
+    expect(calls[0].headers['MCP-Protocol-Version']).toBe('2025-11-25');
+    expect(calls[0].body.params._meta).toBeUndefined();
+    expect(out.mcpProtocol.reason).toBe('privilege-door');
   });
 
   test('flag on but the caller brought its own session: never Modern', async () => {
@@ -159,6 +187,55 @@ describe('mcpGatewayClient — MCP 2026-07-28 stateless requests', () => {
     test('it is resent only once: a legacy answer is never retried again', async () => {
       const { calls } = await run({ flag: 'true', replies: [{ data: inputRequired }, { data: inputRequired }] });
       expect(calls).toHaveLength(2);
+    });
+  });
+
+  describe('negotiation is per gateway and remembered', () => {
+    const rejection = { status: 400, data: rpcError(-32022, 'Unsupported protocol version') };
+
+    test('a rejection is remembered: the next call goes straight to the old shape, no wasted request', async () => {
+      const gw = load({ flag: 'true' });
+      const first = await gw.call({ replies: [rejection, { data: okResult }] });
+      expect(first.calls).toHaveLength(2);
+      expect(first.out.mcpProtocol).toEqual({ version: '2025-11-25', stateless: false, reason: 'resent-rejected' });
+
+      const second = await gw.call({ replies: [{ data: okResult }] });
+      expect(second.calls).toHaveLength(1);
+      expect(second.calls[0].body.params._meta).toBeUndefined();
+      expect(second.out.mcpProtocol.reason).toBe('gateway-rejected-recently');
+    });
+
+    test('the memory expires, and a gateway that has been upgraded is tried again', async () => {
+      const gw = load({ flag: 'true' });
+      await gw.call({ replies: [rejection, { data: okResult }] });
+
+      const realNow = Date.now;
+      Date.now = () => realNow() + 6 * 60 * 1000;
+      try {
+        const later = await gw.call({ replies: [{ data: okResult }] });
+        expect(later.calls).toHaveLength(1);
+        expect(later.calls[0].body.params._meta[META_VERSION]).toBe('2026-07-28');
+        expect(later.out.mcpProtocol.stateless).toBe(true);
+      } finally {
+        Date.now = realNow;
+      }
+    });
+
+    test('input_required is NOT a rejection: the gateway did speak Modern, so the next call is tried Modern again', async () => {
+      const gw = load({ flag: 'true' });
+      const first = await gw.call({ replies: [{ data: inputRequired }, { data: okResult }] });
+      expect(first.out.mcpProtocol).toEqual({ version: '2025-11-25', stateless: false, reason: 'resent-input-required' });
+
+      const second = await gw.call({ replies: [{ data: okResult }] });
+      expect(second.calls).toHaveLength(1);
+      expect(second.calls[0].body.params._meta[META_VERSION]).toBe('2026-07-28');
+    });
+
+    test('an unrelated failure (403) does not mark the gateway unsupported', async () => {
+      const gw = load({ flag: 'true' });
+      await gw.call({ replies: [{ status: 403, data: { error: 'insufficient_scope', message: 'nope' } }] });
+      const next = await gw.call({ replies: [{ data: okResult }] });
+      expect(next.calls[0].body.params._meta[META_VERSION]).toBe('2026-07-28');
     });
   });
 

@@ -22,10 +22,10 @@
  * backend's server/discover and sends self-contained requests with no
  * initialize handshake (upstreamModern.ts); with it unset, or against a
  * backend that does not answer discover, upstream stays on the Legacy
- * handshake. The BFF client (mcpGatewayClient.js / mcpWebSocketClient.js)
- * does not yet SEND Modern _meta on its own calls, so this repo's own live
- * traffic is Legacy at the first hop; the gateway is ready for a Modern
- * caller, it does not change what our BFF sends.
+ * handshake. The BFF's HTTP client (mcpGatewayClient.js, flag
+ * mcp_modern_requests, on by default) tries a stateless request on calls to
+ * this gateway and falls back to the 2025-11-25 shape if it is rejected; its
+ * WebSocket client (mcpWebSocketClient.js) still does the initialize handshake.
  */
 
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2026-07-28'] as const;
