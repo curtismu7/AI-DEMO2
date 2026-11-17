@@ -107,7 +107,7 @@ export default function PingOneApiPanel({ request, response, endpoint, docsUrl, 
 								</div>
 							)}
 							<div className="p1-api-panel-body">
-								<JsonPane value={request.body} label="PingOne request body" />
+								<JsonPane value={request.body} label="PingOne request body" alert={false} />
 							</div>
 						</>
 					)}

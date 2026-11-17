@@ -400,7 +400,7 @@ const ActivityLogs = ({ user, onLogout }) => {
                 {selectedLog.requestBody && (
                   <div className="activity-record-modal__section">
                     <h3>Request Body</h3>
-                  <JsonPane value={selectedLog.requestBody} label="Request body" />
+                  <JsonPane value={selectedLog.requestBody} label="Request body" alert={false} />
                   </div>
                 )}
                 <div className="activity-record-modal__section">

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import GatewayClaimsPage from '../GatewayClaimsPage';
 import { parseSequence } from '../../utils/parseSequence';
@@ -62,6 +62,8 @@ describe('data hygiene', () => {
 });
 
 describe('GatewayClaimsPage part 5', () => {
+  // The JSON button saves a page-wide choice; keep one test from leaking it into the next.
+  beforeEach(() => { localStorage.clear(); });
   const open = () => render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
   it('shows the open runtime as a bypass, then none once gateway-only is on', () => {
     open();
@@ -79,6 +81,25 @@ describe('GatewayClaimsPage part 5', () => {
     expect(within(sec).getByTestId('gwc-ag-verdict')).toHaveTextContent('1 of 2 target(s) without a caller allow-list');
     expect(within(sec).getByTestId('gwc-ag-verdict').getAttribute('data-bad')).toBe('true');
   });
+  it.each([
+    ['an open runtime (a bypass)', null, 'any principal with bedrock-agentcore:InvokeAgentRuntime'],
+    ['the gateway-only switch (no bypass)', 'gwc-ag-bypass-gateway-only', 'gateway-only: direct callers are refused'],
+  ])('the Result pane paints no alert on the free-text reason: %s', async (_name, caseId, reason) => {
+    open();
+    const sec = screen.getByTestId('gwc-agentcore');
+    if (caseId) fireEvent.click(within(sec).getByTestId(caseId));
+    // Form view
+    const form = within(sec).getByTestId('gwc-ag-result');
+    expect(form).toHaveTextContent(reason);
+    expect(form.querySelector('[data-alert]')).toBeNull();
+    // JSON view
+    fireEvent.click(within(within(sec).getByRole('group', { name: 'Result view' })).getByRole('button', { name: 'JSON' }));
+    await waitFor(() => expect(within(sec).getByTestId('gwc-ag-result').tagName).toBe('PRE'));
+    const raw = within(sec).getByTestId('gwc-ag-result');
+    expect(raw).toHaveTextContent(reason);
+    expect(raw.querySelector('.jp-tok--alert')).toBeNull();
+  });
+
   it('labels the section inferred and keeps the UNVERIFIED note visible', () => {
     open();
     const sec = screen.getByTestId('gwc-agentcore');

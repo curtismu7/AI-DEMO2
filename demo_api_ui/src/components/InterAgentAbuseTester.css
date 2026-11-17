@@ -89,11 +89,4 @@
   color: var(--th-text);
 }
 
-/* A passed probe expects the 401: the pane's error-key red would contradict the green check beside it, so the
- * pane's alert ink reads as the pane's own success ink here. A failed probe keeps the default red. */
-.iaa-details--expected .jp-box,
-.iaa-details--expected .jp-wire {
-  --jp-alert: var(--th-status-success-text);
-}
-
 .iaa-details h4 { margin: 0.5rem 0 0.2rem; color: var(--th-text); font-size: var(--font-size-sm); }

@@ -19,6 +19,11 @@ function severityIcon(severity) {
   return '✅';
 }
 
+// A failing event keeps the pane's default alert red on its error / reason keys; an info event's free-text note is just text.
+function isFailureSeverity(severity) {
+  return severity === 'error' || severity === 'warning' || severity === 'warn';
+}
+
 /**
  * Returns 'start' | 'end' | null for agent transaction bookend tags.
  * @param {object} event
@@ -101,7 +106,7 @@ const EventRow = React.memo(function EventRow({ event }) {
       </button>
       {expanded && hasDetail && (
         <div className="alp-row-detail">
-          <JsonPane value={detail} label={`Event details: ${event.message || event.tag || 'event'} at ${timeStr}`} />
+          <JsonPane value={detail} label={`Event details: ${event.message || event.tag || 'event'} at ${timeStr}`} alert={isFailureSeverity(event.severity) ? undefined : false} />
         </div>
       )}
     </div>
