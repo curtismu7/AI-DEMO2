@@ -305,6 +305,7 @@ import PublicRoutes, {
   IntentInspectorPageRoute,
   AuditAgentPageRoute,
   SpiffePingoneBridgePageRoute,
+  WorkloadStandardsPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
   StandaloneIndexRoute,
@@ -1145,6 +1146,10 @@ function AppWithAuth() {
                 <Route
                   path="/spiffe-pingone-bridge"
                   element={<SpiffePingoneBridgePageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/workload-standards"
+                  element={<WorkloadStandardsPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/academy/journey"

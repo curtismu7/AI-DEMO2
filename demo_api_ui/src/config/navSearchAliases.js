@@ -207,6 +207,7 @@ export const NAV_SEARCH_ALIASES = {
   "/settings": "step-up mfa threshold acr value email otp ciba push withdrawals agent limit authorize pdp",
   "/snapshot-import": "p1az authorize policy export import validate sync drift json deployment",
   "/spiffe-pingone-bridge": "spiffe svid workload identity private_key_jwt client assertion bridge id maps to todo preview",
+  "/workload-standards": "workload standards comparison spiffe oidc oauth 8693 wimse status badge cncf graduated shipping widely stable no rfc yet",
   "/telemetry": "d3 graph overview detailed trace dependencies aggregated recent traces generate traffic",
   "/token-compliance": "rfc 8693 validation report matrix mcp checks status detail admin",
   "/token-exchange-tester": "rfc 8693 obo on-behalf-of delegation act claim agent client credentials exchange",
