@@ -5,6 +5,14 @@ Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one
 `ping-devops-cmuir`. The table below describes gateway 1; see
 [GATEWAY-LOAD-BALANCER.md](GATEWAY-LOAD-BALANCER.md) section 00 for the current layout.**
 
+> **Update 2026-11-18: the LOCAL console tenant UUID changed.** The Privilege desktop app
+> was re-enrolled; the live tenant is now `4cb38c18-691a-4201-a99d-b4b8842ca786`
+> (`0428ba4f-…` below is dead and 401s everywhere). All 31 apps carried over unchanged.
+> Console API key/secret auth is also broken (valid keys 401 naming the cloud host) — use
+> the `x-auth-token` cookie route; see `.claude/skills/privilege-console-api/SKILL.md`
+> and [TAG-POLICIES.md](TAG-POLICIES.md) (4-key tag schema now applied tenant-wide by
+> `scripts/apply-tag-schema.mjs`).
+
 > **Update 2026-10-12: the `opensearch22` Agentic App described below was deleted from the
 > console.** The dated measurements that name it are kept as a record of what was verified on
 > 2026-09-08; the live OpenSearch doors are now `opensearch` and `opensearch-hitl`, and the
