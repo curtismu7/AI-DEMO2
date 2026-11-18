@@ -487,6 +487,13 @@ npm run snapshot:generate        # writes snapshots/AI_Demo_Transaction_Authoriz
 
 Then import it: PingOne Console → **Authorize → Trust Framework → Import** → select `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`. The snapshot carries the Trust Framework attributes, conditions, all policies and rules (including obligations like `HITL` and `step-up-required`) and the `AI Demo Policies` set. See `docs/LIVE-PINGONE-RUNBOOK.md` § 3 for the import caveats (unchanged versions import as silent no-ops).
 
+**Sharing the file without cloning the repo.** The repo is public, so anyone can download the committed snapshot directly (no GitHub account needed) and import it as above:
+
+- View: <https://github.com/curtismu7/AI-DEMO2/blob/main/snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json>
+- Raw download: <https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json> (or `curl -LO <that URL>`)
+
+The `main` links always give the newest committed snapshot. To hand someone an exact version, replace `main` with a commit SHA. The committed snapshot is built from this repo, not exported from a live tenant, so a tenant that was edited in the console can differ from it (for example in attribute defaults). To match a specific tenant exactly, export that tenant's Trust Framework from the console and share that file instead.
+
 What remains manual in this part is only what a snapshot cannot carry: enabling decision recording, and binding the imported policy set to a decision endpoint. The Part 3.3–3.8 walk-through below is kept for readers who want to build or inspect the objects by hand.
 
 ### Step 3.1 — Find the Authorize section
