@@ -38,7 +38,7 @@
 // The Agent Privilege's own tenant, from its enrollment JWT (`tenantName`). This is
 // Privilege's PingOne environment, NOT AI-Demo's 01d89b06 — conflating the two
 // has cost sessions before.
-const DEFAULT_TENANT = '0428ba4f-169c-436b-aff9-b230496e0e3b';
+const DEFAULT_TENANT = '4cb38c18-691a-4201-a99d-b4b8842ca786';
 
 // Several hosts under privilege.pingone.com answer /session-token with a 200,
 // so that probe cannot tell you which one serves the API. Requesting a real API

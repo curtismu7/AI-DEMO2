@@ -106,10 +106,55 @@ only for reading (and only for Remote Agent apps — see the display bug above).
 
 ## Our live policy set
 
-10 `demo-map-*` policies, one per app family, all created via the API
-(2026-10-11). The regexes below are the *authoritative* patterns; the full
-per-resource tag assignments live in
-[CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md) ("Tag map").
+**2026-11-18: the schema moved to the 4-key set (`env` / `source` /
+`capability` / `protection`), applied by
+`scripts/apply-tag-schema.mjs`.** 17 `tag-map-*` policies now cover every
+application, agent access key, and PAC policy in the tenant (69 resources,
+0 orphans, verified idempotent by re-running with `--dry-run`). The 4 keys
+answer: which environment it belongs to, where it is managed from, what it
+can do, and what its policy posture is. The legacy `demo` / `purpose` tags
+below are preserved alongside (merged, never replaced). Re-run the script
+after adding or renaming any resource:
+
+```bash
+node privilege/scripts/apply-tag-schema.mjs --tenant <uuid> \
+  --token '<x-auth-token cookie JSON>' --dry-run   # drop --dry-run to apply
+```
+
+Key families (`tag-map-key-*`, `tag-map-pol-*`) cover agent keys and PAC
+policies that don't share the app's name; the script reports any resource
+matching no family (exit 2) so drift surfaces instead of hiding.
+
+### The 4-key schema
+
+| Key | Values | Answers |
+|---|---|---|
+| `env` | `demo` \| `redteam` \| `sandbox` | Which environment / blast radius |
+| `source` | `ai-demo2` \| `manual` | What manages it (sync target) |
+| `capability` | `banking-transfers`, `a2a-agent-chain`, `hostile-redteam`, … | What it can do |
+| `protection` | `governed` \| `hostile` | Policy posture at a glance |
+
+### `tag-map-*` policy families (2026-11-18)
+
+App families: `tag-map-banking` (`^(banking-mcp|banking-openapi|banking-aggregate)$`),
+`tag-map-aggregate` (`^aggregate(-limited|-none)?$`), `tag-map-opensearch`
+(`^opensearch(-hitl2?)?$`), `tag-map-hostile`
+(`^(hostile-mcp|hostile-mcp-governed|hostile-a2a|libre)`), `tag-map-a2a`,
+`tag-map-catalog`, `tag-map-infra`, `tag-map-idjag`, `tag-map-meridian`,
+`tag-map-muse`, `tag-map-scratch` (`^agg222$`). Key families:
+`tag-map-key-aggregate`, `tag-map-key-a2a`, `tag-map-key-idjag`,
+`tag-map-key-obs`, `tag-map-meridian`, `tag-map-muse`, `tag-map-a2a`.
+Policy families: `tag-map-pol-river` (console-generated `*River-*` /
+`*Fork-*` / `*Mersey-*` principal policies, `source=manual`),
+`tag-map-pol-opensearch`, `tag-map-pol-aggregate`, `tag-map-pol-a2a`.
+The authoritative machine-readable list is the `FAMILIES` array in
+`scripts/apply-tag-schema.mjs` — edit there, not here.
+
+## Legacy `demo-map-*` set (2026-10-11, superseded but still live)
+
+The original 10 `demo-map-*` policies were per-app-family records of the
+old two-key schema. They still exist in the tenant; the `tag-map-*` set
+above supersedes them and they can be deleted once nothing reads them.
 
 | Policy | Regex | Tags |
 |---|---|---|
@@ -126,18 +171,21 @@ per-resource tag assignments live in
 
 ## Maintenance rule
 
-**Rename or add an app → update its `demo-map-*` pattern in the same change.**
+**Rename or add an app → update its family's regex in
+`scripts/apply-tag-schema.mjs` and re-run it, in the same change.**
 A policy whose regex matches only dead names silently stops matching anything
 and nothing complains — this already happened once (demo-map-a2a matched the
 four pre-rename names until it was fixed 2026-10-11). Because policies never
 apply tags themselves, a stale policy costs nothing at runtime and everything
 at read time: the next person who trusts the console's record of the intended
-mapping gets lied to.
+mapping gets lied to. The script's orphan report (exit 2) is the tripwire.
 
 ## Why tag at all
 
 Tags are how the console answers "what is this for" when the name alone
-doesn't: every app, key, and policy in our tenant carries `demo` (which demo
-act uses it) and `purpose` (what it is there for). The map from tag value to
-demo step is the index into the whole tenant — see the "Tag map" section of
-[CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md).
+doesn't. The 4-key schema (above) is the current standard: `env` says which
+blast radius a resource sits in, `protection` says whether a real agent can
+be pointed at it (`governed`) or it is a red-team fixture (`hostile`),
+`capability` says what it does, and `source` says what manages it. The
+legacy `demo` / `purpose` tags remain the index into demo steps — see the
+"Tag map" section of [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md).

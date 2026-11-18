@@ -30,15 +30,16 @@ the menu bar. It is not a VPN and does not need one.
 
 ## Step 2 — Local console: get key/secret from the Privilege UI
 
-This is the credential a user can obtain themselves, with no devtools:
+**BROKEN as of 2026-11-18: key/secret auth 401s on every collection even with a
+valid, unexpired key minted in Settings → For Developers.** The error names the
+CLOUD host (`User is not authorized for console.privilege.pingone.com/api/…`)
+on calls to the LOCAL console, so the app's auth layer is delegating upstream
+and rejecting valid local keys. Observed across an app relaunch and a fresh
+key with Feb-2027 expiry. Do not burn time re-probing header/basic shapes —
+**use the `x-auth-token` cookie route (Step 3) instead.** If a future session
+finds key auth working again, update this note.
 
-1. Open the **PingOne Privilege** desktop app (or `https://local.procyon.ai:8643` in a
-   browser that trusts the self-signed cert).
-2. Go to **Settings → For Developers**.
-3. Create/copy the **API Key** and **API Secret**. The secret is shown once — store it in
-   your secret manager. Keys have an expiry (`NotAfter`) — check it before blaming auth.
-
-Wire scheme (this is the part the public docs omit):
+Wire scheme (kept for when it works again):
 
 ```bash
 TENANT='<tenant-uuid>'        # shown in the console URL / settings
@@ -48,13 +49,34 @@ curl -sk "$BASE/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
   -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
 ```
 
-- `Authorization: Basic <key>:<secret>` also works.
+- `Authorization: Basic <key>:<secret>` also worked (historically).
 - `x-procyon-session-id` is **structurally required but its value is unvalidated** — any
   random UUID passes (omit it → 400 "Procyon required header is missing"). Treat it as a
   correlation id, not a credential.
-- The **cloud** host (`console.privilege.pingone.com`, `privilege.pingone.com`) still 401s
-  this key/secret pair in every probed header/cookie/HMAC shape — do not burn time
-  re-probing; use the cookie route there.
+
+## Step 2b — TENANT UUID CHANGED 2026-11-18
+
+The live local tenant is `4cb38c18-691a-4201-a99d-b4b8842ca786`. The long-standing
+`0428ba4f-169c-436b-aff9-b230496e0e3b` now 401s on everything — the app was
+re-enrolled and got a fresh tenant id (same 31 apps present under the new id).
+Confirm the tenant before any API work: GET `/api/<id>/v1/applications` with a
+cookie and check the app list matches expectations. Docs elsewhere in the repo
+may still cite the old UUID.
+
+## Step 2c — Local console cookie route (the working path since 2026-11-18)
+
+The local console accepts an `x-auth-token` header whose value is a JSON blob
+(not an opaque cookie string) carrying `user`, `org`, `tenant`:
+
+```bash
+TOK='{"user":"<user-uuid>","org":"default","tenant":"<tenant-uuid>"}'
+curl -sk "https://local.procyon.ai:8643/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -H "x-auth-token: $TOK" -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
+```
+
+Get the blob: sign into the local console UI, devtools → Network → any XHR →
+copy the `x-auth-token` request header. `privilege/scripts/apply-tag-schema.mjs`
+accepts it as `--token '<json>'`.
 
 ## Step 3 — Cloud console: get the `auth_token` cookie from the browser
 
@@ -116,8 +138,12 @@ credentials — its 200 is **not** an auth signal.
 - **Tags:** apply via API PUT with `ObjectMeta.CTags: {Map:{k:v}}` — persists and shows in
   the "Tags And Labels" panel for http/Remote-Agent apps, but MCP Server apps show
   "No Procyon tags" even when set (UI bug, API state correct). The Create-Tag wizard UI is
-  undrivable by synthetic clicks; the API is not. Tag policies created via API do not
-  decorate existing apps.
+  undrivable by automation; the API is not. Tag policies created via API do not
+  decorate existing apps. **As of 2026-11-18 the tenant carries the 4-key schema
+  (`env`/`source`/`capability`/`protection`) across all 69 resources, applied by
+  `privilege/scripts/apply-tag-schema.mjs` (17 `tag-map-*` policies, idempotent,
+  exits 2 on orphan resources) — re-run it after adding/renaming resources. See
+  `privilege/TAG-POLICIES.md`.**
 - **AI Guard is per-KEY** (`agentaccesskeys` `Spec.AIGuardConfig`), not per-app.
 - **Policy propagation:** gateway changes take ~4 min to propagate; don't re-test sooner.
 - **No-policy = DENY ALL.** An ungoverned twin needs an explicit allow-all policy.
