@@ -434,6 +434,7 @@
     "/webmcp": "public",
     "/welcome": "public",
     "/workload-agents": "public",
+    "/workload-standards": "public",
     "/privilege-owasp-top10": "public"
   },
   "softAuthRoutes": [
