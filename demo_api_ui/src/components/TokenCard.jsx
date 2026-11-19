@@ -4,7 +4,7 @@ import './TokenCard.css';
 import JsonHighlight from './shared/JsonHighlight';
 import { deriveTokenCategory, TokenColorDot } from './TokenColorSystem';
 import { CLAIM_GLOSSARY } from '../constants/claimGlossary';
-import bffAxios from '../services/bffAxios';
+import { decodeSegment } from './shared/JsonPane';
 
 const IDENTITY_CLAIMS = ['sub', 'aud', 'iss', 'act', 'may_act', 'env', 'org'];
 
@@ -105,9 +105,10 @@ function SkeletonBody() {
 /**
  * TokenCard — canonical JWT token display component.
  *
- * Pass either `token` (raw JWT string) or `decoded` (pre-decoded BFF response object).
- * When `token` is passed the component POSTs to /api/token-display/raw-decode on mount.
- * When `decoded` is passed no BFF call is made.
+ * Pass either `token` (raw JWT string) or `decoded` (pre-decoded object).
+ * When `token` is passed the component decodes it with the shared decodeSegment (Rule 24b:
+ * one decoder, client-side — the /api/token-display/raw-decode round-trip is gone).
+ * When `decoded` is passed nothing is decoded.
  */
 export default function TokenCard({
   token,
@@ -130,28 +131,23 @@ export default function TokenCard({
 
   useEffect(() => {
     if (!token || decodedProp || invalidProps) return;
-    let cancelled = false;
     setLoading(true);
     setFetchError(null);
     setFetchedDecoded(null);
-    bffAxios
-      .post('/api/token-display/raw-decode', { token })
-      .then((res) => {
-        if (!cancelled) {
-          if (res.data?.success) {
-            setFetchedDecoded({ header: res.data.header, payload: res.data.payload, tokenType: res.data.tokenType });
-          } else {
-            setFetchError(res.data?.message || 'Decode failed');
-          }
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setFetchError(err.message || 'Network error');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
+    try {
+      const [h, p] = String(token).split('.');
+      const header = decodeSegment(h);
+      const payload = decodeSegment(p);
+      if (header && payload) {
+        setFetchedDecoded({ header, payload });
+      } else {
+        setFetchError('The token is not a decodable JWT');
+      }
+    } catch {
+      setFetchError('Decode failed');
+    } finally {
+      setLoading(false);
+    }
   }, [token, decodedProp, invalidProps]);
 
   if (invalidProps) {
