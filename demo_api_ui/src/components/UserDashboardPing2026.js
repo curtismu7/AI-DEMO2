@@ -72,6 +72,7 @@ import { dashboardModeText, chatStatusChip } from "./dashboardFrameStatus";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AuthLoadingScreen from "./shared/AuthLoadingScreen";
+import { decodeSegment } from './shared/JsonPane.jsx';
 
 /**
  * True when the server answered from its idempotency ledger rather than by
@@ -1008,8 +1009,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       const parts = token.split(".");
       if (parts.length !== 3) return null;
 
-      const header = JSON.parse(atob(parts[0]));
-      const payload = JSON.parse(atob(parts[1]));
+      const header = decodeSegment(parts[0]);
+      const payload = decodeSegment(parts[1]);
 
       return {
         header,

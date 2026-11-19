@@ -1,14 +1,13 @@
 import React, { useState } from "react";
 import apiClient from "../../services/apiClient";
-import JsonPane from "../../components/shared/JsonPane";
+import JsonPane, { decodeSegment } from "../../components/shared/JsonPane";
 
-/** Minimal base64url decode — no library needed for one JWT payload. */
+/** The payload of a JWT string, through the shared decoder. */
 function decodeJwtPayload(token) {
   const part = token.split(".")[1];
   if (!part) return null;
-  const b64 = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(part.length + ((4 - (part.length % 4)) % 4), "=");
   try {
-    return JSON.parse(atob(b64));
+    return decodeSegment(part);
   } catch {
     return null;
   }

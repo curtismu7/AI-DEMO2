@@ -4,6 +4,7 @@
 // Ping staff and selected customers; the capability has since gone generally available, release note 10 Nov 2026; this page calls the guide GUIDE) and the "Token claims from Auth0,
 // Okta, Microsoft, RFC9068, and PingOne" comparison sheets (public vendor sample tokens; SAMPLE). The page itself calls nothing:
 // it is a mock. Its refusal wording and settings behaviour were MEASURED live against PingOne on 2026-10-27 (see MEASURED below). Every issuer, client id, user id and host is a placeholder; real tenant ids from the guide are NOT copied.
+import { decodeSegment } from '../components/shared/JsonPane.jsx';
 import { wrapMessages } from './sequenceWrap';
 
 export const EVIDENCE = {
@@ -308,8 +309,7 @@ const respHeaders = (type = 'application/json') => [['Content-Type', type], ['Ca
 /** The decoded payload of a JWT string. Used by tests and the page to prove a displayed token decodes. */
 export function decodeJwt(token) {
   const [h, p] = token.split('.');
-  const dec = (s) => JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/')));
-  return { header: dec(h), payload: dec(p) };
+  return { header: decodeSegment(h), payload: decodeSegment(p) };
 }
 
 export function buildWire({ vendor, run, settings, assigned, now }) {
@@ -365,7 +365,7 @@ export function buildWire({ vendor, run, settings, assigned, now }) {
 const JWT_RE = /eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]*/g;
 const MAX_JWTS = 8;
 const MAX_JWT_LEN = 20000;
-const b64uJson = (seg) => JSON.parse(decodeURIComponent(escape(atob(seg.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(seg.length / 4) * 4, '=')))));
+const b64uJson = (seg) => decodeSegment(seg);
 
 /** Every JWT-looking string in a body, in order, with a decode (or an error). Bounded in count and length. */
 export function findJwts(text) {
