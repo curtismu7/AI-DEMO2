@@ -222,10 +222,23 @@ project ID and location (e.g. `us-central1`) you registered services in.
 
 ### Step 5 — First crawl timing
 
+> **Known limitation (observed 2026-11-19, local desktop console):** the
+> AGENT_REGISTRY account type does not crawl on this build. Verified
+> exhaustively: unlike AWS accounts (which rescan within ~1 min of re-save),
+> a registry account produces no scan on re-save, on re-saving the
+> credentials, or on delete + recreate — and no error is ever written (the
+> crawler for this type is modeled in the product but not implemented in the
+> desktop build). If your console shows the same silence, contact Ping
+> support / check whether the **cloud console**
+> (`console.privilege.pingone.com`) crawls the account type there, rather
+> than debugging your own setup — everything on the Google side can be
+> verified independently (Step 3's test script returns your registered
+> agents and MCP servers).
+
 After connecting, the first inventory may wait for the scheduled crawl (the
-console shows a "nightly crawl" notice). If the account is still uncrawled the
-next day, re-save the account through the console UI — the Add-flow's verify
-step can trigger an immediate scan.
+console shows a "nightly crawl" notice). If the account is still uncrawled
+the next day, re-save the account through the console UI — the Add-flow's
+verify step can trigger an immediate scan.
 
 ---
 
