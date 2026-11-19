@@ -1718,6 +1718,7 @@ export default function AdminSideNav({
       "Platform Gaps",
       "AI Security Academy",
       "Academy Standalone Demos",
+      "Workload Standards",
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",
