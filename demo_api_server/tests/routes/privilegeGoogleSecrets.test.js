@@ -49,9 +49,11 @@ describe('GET /api/privilege-google-secrets/hub', () => {
     const body = JSON.stringify(res.body);
     expect(body).not.toMatch(/GcpJsonCreds/);
     expect(body).not.toMatch(/private_key/);
-    // Secret entries carry id + path + provider only
+    // Secret entries carry id + path + provider (+ an optional provenance note) — never a value
     for (const s of res.body.secrets) {
-      expect(Object.keys(s).sort()).toEqual(['id', 'path', 'provider']);
+      expect(Object.keys(s).filter((k) => k !== 'note').sort()).toEqual(['id', 'path', 'provider']);
+      expect(s).not.toHaveProperty('value');
+      if (s.note) expect(typeof s.note).toBe('string');
     }
   });
 
