@@ -41,12 +41,14 @@
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md, 6px);
   background: var(--th-bg-card);
+  color: var(--th-text-body);
   text-align: center;
 }
 
 .a2a-page .a2a-wire__node--gateway {
   border-color: var(--th-status-warning);
   background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .a2a-page .a2a-wire__name {
@@ -231,6 +233,7 @@
   border-top: 3px solid var(--th-status-warning);
   border-radius: var(--radius-md, 6px);
   background: var(--th-bg-card);
+  color: var(--th-text-body);
 }
 
 .a2a-page .a2a-wire__hop-title {
