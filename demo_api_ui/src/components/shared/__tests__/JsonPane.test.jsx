@@ -471,7 +471,8 @@ describe('JsonPane: full view', () => {
 
 describe('JsonPane: per-field Copy (Form view)', () => {
   const writeText = vi.fn();
-  const copyBtn = (c, name) => within(c).getByRole('button', { name });
+  // Rule 24b: a pane with a JWT also renders decoded copies under it; scope copy-button lookups to the raw pane (the first .jp-box) so the decoded duplicates do not double-match.
+  const copyBtn = (c, name) => within([...c.querySelectorAll('.jp-box')][0] || c).getByRole('button', { name });
 
   beforeEach(() => {
     writeText.mockReset();
@@ -581,5 +582,33 @@ describe('JsonPane: per-field Copy (Form view)', () => {
     expect(rule).toMatch(/background:\s*var\(--th-/);
     expect(rule).toMatch(/\bcolor:\s*var\(--th-/); // a --th background always carries its own colour
     expect(rule).toMatch(/font-size:\s*var\(--font-size-3xs\)/);
+  });
+});
+
+describe('Rule 24b: decoded tokens under the pane', () => {
+  const b64 = (o) => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const jwtOf = (header, claims, sig = 'c2lnbmF0dXJl') => [b64(header), b64(claims), sig].join('.');
+  it('a PingOne-shaped token in a value gets a decoded card: Header, Payload, Signature, named by field', () => {
+    const token = jwtOf(
+      { alg: 'RS256', kid: 'mock-key-1', typ: 'JWT' },
+      { sub: 'u-123', client_id: 'bank-app', aud: ['gateway'], scope: 'openid transfer', act: { sub: 'agent-1' } }
+    );
+    const c = pane(<JsonPane value={{ access_token: token, token_type: 'Bearer' }} label="Token response" />);
+    const card = within(c).getByTestId('decoded-token');
+    expect(card.textContent).toMatch(/access_token/);
+    for (const h of ['Header', 'Payload', 'Signature']) expect(within(card).getByText(h)).toBeTruthy();
+    expect(card.textContent).toMatch(/RS256/);
+    expect(card.textContent).toMatch(/u-123/);
+    expect(card.textContent).toMatch(/agent-1/);
+  });
+  it('decode={false} skips the decoded block; a cut-short or non-JWT is skipped; text is never markup', () => {
+    const token = jwtOf({ alg: 'none' }, { sub: '<img src=x onerror=alert(1)>' }, '');
+    const c = pane(<JsonPane value={{ access_token: token }} decode={false} />);
+    expect(within(c).queryByTestId('decoded-tokens')).toBeNull();
+    const d = pane(<JsonPane value={{ access_token: token, short: `${token.slice(0, 40)}...` }} />);
+    const card = within(d).getByTestId('decoded-token');
+    expect(card.textContent).toMatch(/no signature segment/);
+    expect(card.querySelector('img, script')).toBeNull();
+    expect(d.querySelectorAll('[data-testid="decoded-token"]')).toHaveLength(1);
   });
 });
