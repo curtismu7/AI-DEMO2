@@ -2,38 +2,41 @@
 // Enable A2A agent-card discovery on Privilege Remote-Agent applications.
 //
 // What it does:
-//   1. List applications, select those with an HttpAppConfig backend.
-//   2. For each selected app (all with a backend, or --app <name> to scope),
-//      read-modify-write PUT `Spec.HttpAppConfig.EnableAgentCard: true`.
+//   1. List applications, select Remote-Agent (HttpAppConfig) apps with backends.
+//   2. For each selected app (all, or --app <name> to scope), read-modify-write
+//      PUT `Spec.HttpAppConfig.EnableAgentCard: true`.
 //   3. Optionally verify: after --wait-seconds, re-GET and report
 //      Status.A2AAgentStatus (CardURL, protocol, parsed skills).
 //
-// Auth: x-auth-token browser-session blob (key/secret auth is broken on the
-// local console as of 2026-11-18 — see .claude/skills/privilege-console-api).
-// Grab it from the signed-in console: devtools -> Network -> any XHR ->
-// request header `x-auth-token` (a JSON blob with user/org/tenant).
+// AUTH (broken wide open 2026-11-19): the LOCAL console API
+// (https://local.procyon.ai:8643, listener cyonagent_mac on loopback) requires
+// ONLY the `x-procyon-session-id` header — any random UUID, no cookie, no
+// key/secret, no auth header. Verified live from plain curl and node fetch:
+//   curl -sk "https://local.procyon.ai:8643/api/<tenant>/v1/applications?ObjectMeta.Namespace=default" \
+//     -H "x-procyon-session-id: $(uuidgen)"
+// returned 200 and an unchanged-object PUT returned 200. Treat it as
+// loopback-trust; do not rely on it from other hosts. The CLOUD console
+// (console.privilege.pingone.com) still needs the auth_token cookie.
+// The 2026-11-18 "key/secret broken" note stands for the cloud host; locally
+// key/secret is unnecessary.
 //
 // Usage:
-//   node privilege/scripts/enable-agent-cards.mjs \
-//     --token '{"user":"…","org":"default","tenant":"…"}' \
-//     [--url https://local.procyon.ai:8643] \
-//     [--app <name>]...          # scope to named apps; default: all Remote-Agent apps
-//     [--verify] [--wait-seconds 300]
-//     [--dry-run]
+//   node privilege/scripts/enable-agent-cards.mjs [--tenant <uuid>] \
+//     [--url https://local.procyon.ai:8643] [--app <name>]... \
+//     [--verify] [--wait-seconds 300] [--dry-run]
 const CONSOLE = process.env.PROCYON_URL || 'https://local.procyon.ai:8643';
+const DEFAULT_TENANT = '0428ba4f-169c-436b-aff9-b230496e0e3b';
 
-const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) => {
-  if (a.startsWith('--')) acc.push([a.slice(2), arr[i + 1]]);
+const argv = process.argv.slice(2);
+const args = Object.fromEntries(argv.reduce((acc, a, i, arr) => {
+  if (a.startsWith('--')) {
+    const next = arr[i + 1];
+    acc.push([a.slice(2), !next || next.startsWith('--') ? true : next]);
+  }
   return acc;
 }, []));
 
-const TENANT = args.tenant || (() => { try { return JSON.parse(args.token).tenant; } catch { return null; } })();
-const TOKEN = args.token;
-if (!TENANT || !TOKEN) {
-  console.error('usage: enable-agent-cards.mjs --token <x-auth-token-json> [--url <console-url>] [--app <name>]... [--verify] [--wait-seconds 300] [--dry-run]');
-  process.exit(1);
-}
-
+const TENANT = args.tenant || DEFAULT_TENANT;
 const DRY = 'dry-run' in args;
 const VERIFY = 'verify' in args;
 const WAIT = parseInt(args['wait-seconds'] || '300', 10);
@@ -48,15 +51,18 @@ if (process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0') {
 }
 
 const crypto = await import('node:crypto');
-const headers = {
-  'x-auth-token': TOKEN,
-  'x-procyon-session-id': crypto.randomUUID(),
-  'content-type': 'application/json',
-  accept: 'application/json',
-};
+const SID = crypto.randomUUID();
 
 async function api(method, path, body) {
-  const res = await fetch(`${CONSOLE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(`${CONSOLE}${path}`, {
+    method,
+    headers: {
+      'x-procyon-session-id': SID, // required structurally; value unvalidated
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const text = await res.text();
   if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}: ${text.slice(0, 300)}`);
   try { return JSON.parse(text); } catch { return text; }

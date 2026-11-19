@@ -20,7 +20,7 @@ a credential minted on one does not work on the other (wrong audience → 401 ev
 |---|---|---|
 | URL | `https://local.procyon.ai:8643` | `https://console.privilege.pingone.com` |
 | Cert | self-signed — use `curl -k` / `NODE_TLS_REJECT_UNAUTHORIZED=0` | normal CA |
-| Auth | **key/secret headers** (see Step 2) | **browser `auth_token` cookie** (see Step 3) |
+| Auth | **session-id header only — any UUID** (see Step 2; key/secret unnecessary) | **browser `auth_token` cookie** (see Step 3) |
 | Served by | the PingOne Privilege desktop app on this Mac | Ping cloud |
 
 **Uptime dependency (local):** `local.procyon.ai:8643` is served by the PingOne Privilege
@@ -28,16 +28,30 @@ desktop app. If API calls fail with "fetch failed", check `lsof -nP -iTCP:8643` 
 `open -a "PingOne Privilege"`. If the app is running but wedged, quit + relaunch it from
 the menu bar. It is not a VPN and does not need one.
 
-## Step 2 — Local console: get key/secret from the Privilege UI
+## Step 2 — Local console auth: THE ANSWER (corrected 2026-11-19)
 
-**BROKEN as of 2026-11-18: key/secret auth 401s on every collection even with a
-valid, unexpired key minted in Settings → For Developers.** The error names the
-CLOUD host (`User is not authorized for console.privilege.pingone.com/api/…`)
-on calls to the LOCAL console, so the app's auth layer is delegating upstream
-and rejecting valid local keys. Observed across an app relaunch and a fresh
-key with Feb-2027 expiry. Do not burn time re-probing header/basic shapes —
-**use the `x-auth-token` cookie route (Step 3) instead.** If a future session
-finds key auth working again, update this note.
+**The LOCAL console API requires only `x-procyon-session-id` — any random UUID.**
+No cookie, no key/secret, no auth header, no `x-auth-token` blob. Verified live
+2026-11-19 from plain curl AND node fetch: a GET on applications returned 200
+with 31 apps, and a no-op object PUT returned 200. The listener
+(`cyonagent_mac`, loopback 8643) apparently trusts local processes — treat this
+as loopback-trust and never rely on it from another host.
+
+```bash
+TENANT='0428ba4f-169c-436b-aff9-b230496e0e3b'
+curl -sk "https://local.procyon.ai:8643/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
+```
+
+**History of this section (all superseded):** key/secret auth was reported broken
+2026-11-18 (401s naming the cloud host); an `x-auth-token` JSON-blob header
+route was documented 2026-11-18 and could not be reproduced 2026-11-19 (the UI
+sends `authorization: Bearer undefined` and relies on an HttpOnly cookie that
+`document.cookie` and devtools request-header panels hide — but that cookie is
+itself unnecessary, see above). If the session-id-only route ever stops working,
+check Application → Cookies on `local.procyon.ai:8643` for an HttpOnly session
+cookie and send it as `cookie:` header. The CLOUD console
+(console.privilege.pingone.com) still needs its own `auth_token` cookie (Step 3).
 
 Wire scheme (kept for when it works again):
 
@@ -62,10 +76,10 @@ WRONG. The `4cb38c18…` id 401s on every call; the UI itself makes all its XHRs
 against `0428ba4f…` and they succeed (31 apps present). Always confirm by watching
 which tenant id the console UI's own network requests use before any API work.
 
-## Step 2c — Local console cookie route (the working path since 2026-11-18)
+## Step 2c — (superseded) the old `x-auth-token` blob route
 
-The local console accepts an `x-auth-token` header whose value is a JSON blob
-(not an opaque cookie string) carrying `user`, `org`, `tenant`:
+Documented 2026-11-18, could not be reproduced 2026-11-19. Kept only in case the
+session-id-only route (Step 2) stops working. Historically:
 
 ```bash
 TOK='{"user":"<user-uuid>","org":"default","tenant":"<tenant-uuid>"}'
@@ -73,9 +87,9 @@ curl -sk "https://local.procyon.ai:8643/api/$TENANT/v1/applications?ObjectMeta.N
   -H "x-auth-token: $TOK" -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
 ```
 
-Get the blob: sign into the local console UI, devtools → Network → any XHR →
-copy the `x-auth-token` request header. `privilege/scripts/apply-tag-schema.mjs`
-accepts it as `--token '<json>'`.
+`privilege/scripts/apply-tag-schema.mjs` still accepts `--token '<json>'`, but
+its `--key/--secret` args are equally unnecessary locally — the session-id-only
+route makes any of these credentials optional on the local console.
 
 ## Step 3 — Cloud console: get the `auth_token` cookie from the browser
 
