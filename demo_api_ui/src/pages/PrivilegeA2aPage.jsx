@@ -5,9 +5,11 @@ import {
   PingPage, SimBanner, PageFrame, Section, Card, StatusChip, KvList,
 } from '../components/pingUi';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
+import GatewayWiringDiagram from '../features/privilegeA2aClient/GatewayWiringDiagram';
 import { usePrivilegeA2aProfile } from '../features/privilegeA2aClient/usePrivilegeA2aProfile';
 // The tab imports its own sheet; naming it here as well lets scripts/check-ui-patterns.mjs scan it for this route.
 import '../features/privilegeA2aClient/PrivilegeA2aTab.css';
+import '../features/privilegeA2aClient/GatewayWiringDiagram.css';
 
 /**
  * Privilege A2A access review as its own page (it was a tab on the MCP client).
@@ -71,6 +73,9 @@ export default function PrivilegeA2aPage({ user }) {
               <a className="pu-btn" href="/use-case-diagrams/UC46" target="_blank" rel="noopener noreferrer" title="Privilege A2A access review diagram (opens in a new tab)">Diagram</a>
               <Link className="pu-btn" to="/privilege-mcp-client">MCP client</Link>
             </div>
+          </Card>
+          <Card title="Before the demo: how it is wired" aria-label="How the agents are wired through the gateway">
+            <GatewayWiringDiagram />
           </Card>
         </Section>
         <PrivilegeA2aTab />
