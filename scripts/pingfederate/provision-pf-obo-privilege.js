@@ -95,6 +95,8 @@ const POLICY_NAME = 'AI Demo PF Privilege OBO Exchange';
 const JWT_PROCESSOR_ID = 'aiDemoPfAccessSubjectProcessor';
 const REFRESH_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:id_token';
 const AGENT_ACT = CLIENT_ID; // act.sub: the agent acting on the user's behalf
+// spiffeId claim on client-credentials tokens: the agent's real SPIRE workload identity (SE K8 SPIRE, HANDOFF-2026-11-19-spiffe-complete.md).
+const SPIFFE_ID = process.env.PF_AGENT_SPIFFE_ID || 'spiffe://se-cluster.ping-devops/ns/ping-devops-cmuir/sa/mcp-agent';
 const VAULT_SECRET = 'PF_TOKEN_DEMO_CLIENT_SECRET';
 // Scopes the Privilege grant's scope tiers (opensearch:read/admin) and the pftoken-rs
 // backend (whoami:read) require; the client allowlist caps what can be requested. The
@@ -595,31 +597,36 @@ async function main() {
             ? api('PUT', agentGwMappingResource, AGENT_GW_MAPPING)
             : api('POST', 'oauth/accessTokenMappings', AGENT_GW_MAPPING)));
 
-    // Autonomous (client_credentials) testobo token, same shape as the cluster's
-    // client_credentials|routeCTestAtm mapping the BFF /privilege-pf-token page uses:
+    // Autonomous (client_credentials) tokens for the /privilege-pf-token page (routeCTestAtm) and
+    // the testobo door (testoboAgentAtm), same shape on both:
     // sub = client, act.sub = the agent (the NHI PFtoken requires act.sub + client_id).
-    const CC_MAPPING_ID = `client_credentials|${AGENT_GW_ATM_ID}`;
-    const ccMappingResource = `oauth/accessTokenMappings/${encodeURIComponent(CC_MAPPING_ID)}`;
-    const CC_MAPPING = {
-        id: CC_MAPPING_ID,
-        attributeSources: [],
-        attributeContractFulfillment: {
-            sub: { source: { type: 'CONTEXT' }, value: 'ClientId' },
-            act: { source: { type: 'EXPRESSION' }, value: `#{"sub": "${AGENT_ACT}"}` },
-            Username: { source: { type: 'CONTEXT' }, value: 'ClientId' },
-            client_id: { source: { type: 'CONTEXT' }, value: 'ClientId' },
-            scope: { source: { type: 'CONTEXT' }, value: 'OAuthScopes' },
-            spiffeId: { source: { type: 'TEXT' }, value: 'placeholder' },
-        },
-        issuanceCriteria: { conditionalCriteria: [] },
-        context: { type: 'CLIENT_CREDENTIALS' },
-        accessTokenManagerRef: { id: AGENT_GW_ATM_ID, location: `${PF_BASE}/oauth/accessTokenManagers/${AGENT_GW_ATM_ID}` },
-    };
-    await step(`mapping ${CC_MAPPING_ID}`,
-        async () => !(await find(ccMappingResource))?.attributeContractFulfillment?.act,
-        async () => (await find(ccMappingResource)
-            ? api('PUT', ccMappingResource, CC_MAPPING)
-            : api('POST', 'oauth/accessTokenMappings', CC_MAPPING)));
+    for (const atmId of [ATM_ID, AGENT_GW_ATM_ID]) {
+        const CC_MAPPING_ID = `client_credentials|${atmId}`;
+        const ccMappingResource = `oauth/accessTokenMappings/${encodeURIComponent(CC_MAPPING_ID)}`;
+        const CC_MAPPING = {
+            id: CC_MAPPING_ID,
+            attributeSources: [],
+            attributeContractFulfillment: {
+                sub: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+                act: { source: { type: 'EXPRESSION' }, value: `#{"sub": "${AGENT_ACT}"}` },
+                Username: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+                client_id: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+                scope: { source: { type: 'CONTEXT' }, value: 'OAuthScopes' },
+                spiffeId: { source: { type: 'TEXT' }, value: SPIFFE_ID },
+            },
+            issuanceCriteria: { conditionalCriteria: [] },
+            context: { type: 'CLIENT_CREDENTIALS' },
+            accessTokenManagerRef: { id: atmId, location: `${PF_BASE}/oauth/accessTokenManagers/${atmId}` },
+        };
+        await step(`mapping ${CC_MAPPING_ID}`,
+            async () => {
+                const fulfillment = (await find(ccMappingResource))?.attributeContractFulfillment;
+                return !fulfillment?.act || fulfillment.spiffeId?.value !== SPIFFE_ID;
+            },
+            async () => (await find(ccMappingResource)
+                ? api('PUT', ccMappingResource, CC_MAPPING)
+                : api('POST', 'oauth/accessTokenMappings', CC_MAPPING)));
+    }
 
     log(APPLY ? 'done' : 'dry run only - re-run with --apply');
 }
