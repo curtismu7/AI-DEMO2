@@ -182,6 +182,81 @@ credentials — its 200 is **not** an auth signal.
   (credentials:'include') if a console tab is open.
 - **Session-id hygiene:** mint a fresh UUID per call; never log the key/secret or cookie.
 
+## AI platform accounts & the Workload Scanner crawler (learned 2026-11-19)
+
+The `/ui/admin/workload-agents/*` tabs (Overview, Agents, Agent Cards, MCP
+Servers, Gateways/Policies) are fed by the Workload Scanner crawler from
+`aiagentaccounts`, NOT from gateway applications. Per source:
+
+| aiagentaccounts Spec.Type | Crawls | Lands in tab |
+|---|---|---|
+| `AGENTCORE` (AWS, RoleARN + Regions) | Bedrock AgentCore runtimes + gateways | Agents + Gateways/Policies |
+| `AGENT_REGISTRY` (GCP, GcpJsonCreds + Projects + Locations) | `agentregistry.googleapis.com` agents + mcpServers | Agents + Agent Cards + MCP Servers |
+
+- **API for aiagentaccounts:** same console API — GET/POST
+  `/api/<tenant>/v1/aiagentaccounts?ObjectMeta.Namespace=default`, per-object
+  `/default/<name>`. Read-modify-write PUT for changes. `Status.Status.Status`
+  holds Synced/Error/Scanning; `Status.AgentCount`; `Status.LastSyncedAt`.
+  Governance blobs (`Spec.AgentCoreSpec.Governance.*JSON`) hold the crawl
+  results (GatewaysJSON, IAMRolesJSON, GatewayBypassPostureJSON…).
+- **PUT triggers an AGENTCORE rescan within ~1 min** (a no-op field touch
+  worked). PUT does NOT trigger an AGENT_REGISTRY crawl — as of 2026-11-19 the
+  registry crawl awaited the nightly schedule; status stayed blank (`Status:
+  ""`, `LastSyncedAt: ""`) for 10+ min after creation.
+- **Crawl-region gotcha:** an account crawls only its configured Regions. Ours
+  had `us-east-1` only and silently ignored runtimes in us-east-2/us-west-2 —
+  fix by appending regions to `Spec.AgentCoreSpec.Regions.Elems` and re-PUT.
+- **Broken crawl looks like nothing:** a failed `AssumeRole` (external-ID
+  mismatch) showed `Status: Error, "failed to assume role"` and the crawler
+  simply produced nothing new. Check the account's `Status.Error` first when
+  tabs stop updating. Fixing the IAM trust + re-PUT resumes crawling.
+- **The local console binary (`cyonagent_mac`) contains full crawler code** for
+  all account types (AGENTREGISTRY strings present), but crawl scheduling for
+  AGENT_REGISTRY appears cloud/nightly-side.
+
+### GCP Agent Registry (agentregistry.googleapis.com) — registration recipe
+
+Discovery doc: `https://agentregistry.googleapis.com/$discovery/rest?version=v1`.
+Resources are read-only (`agents`, `mcpServers`: list/search/get); **you
+register things as `Services`** — POST
+`v1/projects/<proj>/locations/<loc>/services?serviceId=<id>` with a `Service`
+object. Fields:
+
+- `displayName`, `description`
+- **`agentSpec: {type: "A2A_AGENT_CARD", content: <the card JSON>}`** — the
+  card is validated STRICTLY (OpenAPI-ish schema). Gotchas that cost rounds:
+  1. `securitySchemes.<name>` must be flat OpenAPI shape: `{type: "oauth2",
+     flows: {...}}` — NOT the A2A `{oauth2: {...}}` wrapper.
+  2. `flows.authorizationCode` requires `authorizationUrl`, `tokenUrl`
+     (+ `refreshUrl`), real URLs.
+  3. `url` must not duplicate any `additionalInterfaces[].url` — drop the
+     redundant interface entry.
+- **`mcpServerSpec: {type: "NO_SPEC"}`** (or `TOOL_SPEC` = a `tools/list`
+  payload, ≤10KB) plus **`interfaces: [{url, protocolBinding: "JSONRPC"|"GRPC"|"HTTP_JSON"}]`**
+  — interfaces are REQUIRED; without them: "at least one interface must be
+  provided". `endpointSpec` and `mcpServerSpec` are a ONEOF — set only one.
+- Create returns a long-running `operations/...`; poll it, then GET the
+  service. Registered services appear in `agents`/`mcpServers` listings
+  (agents get a `urn:agent:…` id).
+- Enable first: `gcloud services enable agentregistry.googleapis.com --project <proj>`.
+- Crawler credentials: a GCP service account JSON key with viewer on the
+  project (`roles/viewer` covers registry list/get). Verify with the key via
+  `google-auth` before wiring it into Privilege. SA key creation is a
+  human-run privileged action (standing rule). Impersonation test needs
+  `roles/iam.serviceAccountTokenCreator` on the SA for your user.
+
+### Our setup (2026-11-19, for reference)
+
+- GCP project `privilege-workspace` (coachcurtis.org domain), location
+  `us-central1`, SA `privilege-crawler@privilege-workspace.iam.gserviceaccount.com`,
+  key at `/tmp/privilege-crawler-key.json` (re-create if lost).
+- Registered: `langchainagent` (A2A card from `langchain-midagent` app) +
+  `banking-mcp` (endpoint `https://mcpgw.ai-demo.ping-devops.com/banking-mcp/mcp`).
+- Privilege account: `gcp-agent-registry` (AGENT_REGISTRY) — created via API;
+  crawl pending nightly. Check `Status.LastSyncedAt`; if still blank next day,
+  recreate the account through the console UI Add-flow (its verify step may
+  trigger an immediate scan the API POST skips).
+
 ## Related skills / docs in this repo
 
 - `privilege-mcpgw-agent-k8s` — deploying/verifying the gateway itself on k8s.
