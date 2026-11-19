@@ -45,6 +45,7 @@ const PrivilegeDemoPage = lazyWithRetry(() => import("./pages/PrivilegeDemoPage"
 const PrivilegeIntentTriagePage = lazyWithRetry(() => import("./pages/PrivilegeIntentTriagePage"));
 const PrivilegeCodingAgentsPage = lazyWithRetry(() => import("./pages/PrivilegeCodingAgentsPage"));
 const PrivilegeSaasAccessPage = lazyWithRetry(() => import("./pages/PrivilegeSaasAccessPage"));
+const PrivilegeGoogleSecretsPage = lazyWithRetry(() => import("./pages/PrivilegeGoogleSecretsPage"));
 const PrivilegePromptLogPage = lazyWithRetry(() => import("./pages/PrivilegePromptLogPage"));
 const PrivilegeA2aPage = lazyWithRetry(() => import("./pages/PrivilegeA2aPage"));
 const PrivilegePiiDetectionPage = lazyWithRetry(() => import("./pages/PrivilegePiiDetectionPage"));
@@ -2442,6 +2443,10 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-saas-access"
                               element={<PrivilegeSaasAccessPage />}
+                            />
+                            <Route
+                              path="/privilege-google-secrets"
+                              element={<PrivilegeGoogleSecretsPage />}
                             />
                             <Route
                               path="/privilege-prompt-log"
