@@ -1448,6 +1448,12 @@ export default function AdminSideNav({
         searchAlias: "platform update saas access management jit just in time time bound github gitlab salesforce snowflake databricks google workspace reaper receipt drift",
       },
       {
+        label: "Privilege Hubs: Google Secrets",
+        path: "/privilege-google-secrets",
+        icon: "pol",
+        searchAlias: "privilege hubs google secret manager custodian agent key broker credential allow deny policy",
+      },
+      {
         label: "Platform Update: Prompt Logging",
         path: "/privilege-prompt-log",
         icon: "pol",
@@ -1712,6 +1718,7 @@ export default function AdminSideNav({
       "Platform Gaps",
       "AI Security Academy",
       "Academy Standalone Demos",
+      "Workload Standards",
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",

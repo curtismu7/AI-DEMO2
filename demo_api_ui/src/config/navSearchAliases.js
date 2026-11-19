@@ -231,6 +231,7 @@ export const NAV_SEARCH_ALIASES = {
   "/privilege-intent-triage": "platform update intent purpose behaviour three signals scored deterministic hard refusal anomaly baseline new nov 2026",
   "/privilege-coding-agents": "platform update coding agents claude code cursor codex gemini cli copilot antigravity hook machine-level managed configuration allow deny ask secrets laptop new nov 2026",
   "/privilege-saas-access": "platform update saas access management jit just in time bound github gitlab salesforce snowflake databricks workspace reaper receipt drift new nov 2026",
+  "/privilege-google-secrets": "privilege hubs google secret manager custodian agent key broker credential allow deny policy masked preview",
   "/privilege-prompt-log": "platform update prompt logging sealed encrypted public private browser agent insights records new nov 2026",
   "/privilege-pii-detection": "platform update pii personal data 23 kinds checksum validated nino aadhaar pan sin tfn ird gitleaks sanitize block alert new nov 2026",
   "/pingfederate-id-jag/inspect": "id-jag inspect token decode paste jwt claims typ pingfederate",

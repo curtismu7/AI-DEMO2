@@ -214,6 +214,8 @@
     "/privilege-intent-triage": "public",
     "/privilege-coding-agents": "public",
     "/privilege-saas-access": "public",
+    "/privilege-google-secrets": "public",
+    "/workload-standards": "public",
     "/privilege-prompt-log": "public",
     "/privilege-pii-detection": "public",
     "/pingfederate-ai-agent": "public",

@@ -150,6 +150,7 @@ se-update-config.sh
 se-update-pingone.sh
 security
 service-topology.json
+shots
 snap2.yml
 snapshots
 spiffe
