@@ -420,3 +420,10 @@
   font-weight: 700;
   color: var(--th-text);
 }
+
+/* ===== Decoded tokens (Rule 24b, owner 2026-11-18): Header / Payload / Signature under the pane, jwt.io order. Theme tokens only. ===== */
+.jdec { display: grid; gap: 8px; min-width: 0; }
+.jdec__h { margin: 8px 0 2px; font-size: var(--font-size-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--th-muted, var(--jp-punct)); }
+.jdec__card { margin: 0; padding: 8px 10px; border: 1px solid var(--th-border, var(--jp-border, var(--jp-punct))); border-radius: var(--radius-md); background: var(--th-surface-2, transparent); display: grid; gap: 2px; min-width: 0; }
+.jdec__name { margin: 0 0 4px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 700; color: var(--th-text, inherit); overflow-wrap: anywhere; }
+.jdec__none { margin: 0; font-size: var(--font-size-xs); color: var(--th-muted, var(--jp-punct)); font-style: italic; }

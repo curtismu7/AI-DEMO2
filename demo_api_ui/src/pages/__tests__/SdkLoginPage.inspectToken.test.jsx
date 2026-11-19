@@ -51,12 +51,13 @@ describe("SdkLoginPage — Inspect token", () => {
 
     // Defaults to Access Token: encoded shows the raw JWT, decoded shows its claims.
     expect(screen.getByText(ACCESS_TOKEN)).toBeInTheDocument();
-    expect(screen.getByText(/"banking-gateway"/)).toBeInTheDocument();
+    // Rule 24b: the decoded copy under the pane shows aud too; assert at least one (raw + decoded both present).
+    expect(screen.getAllByText(/"banking-gateway"/).length).toBeGreaterThanOrEqual(1);
 
     // Switching tabs swaps both the encoded and decoded views.
     await user.click(screen.getByRole("button", { name: "ID Token" }));
     expect(screen.getByText(ID_TOKEN)).toBeInTheDocument();
-    expect(screen.getByText(/only-in-id-token/)).toBeInTheDocument();
+    expect(screen.getAllByText(/only-in-id-token/).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(ACCESS_TOKEN)).not.toBeInTheDocument();
   });
 });
