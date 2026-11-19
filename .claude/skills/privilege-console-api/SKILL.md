@@ -54,14 +54,13 @@ curl -sk "$BASE/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
   random UUID passes (omit it → 400 "Procyon required header is missing"). Treat it as a
   correlation id, not a credential.
 
-## Step 2b — TENANT UUID CHANGED 2026-11-18
+## Step 2b — TENANT UUID (corrected 2026-11-19)
 
-The live local tenant is `4cb38c18-691a-4201-a99d-b4b8842ca786`. The long-standing
-`0428ba4f-169c-436b-aff9-b230496e0e3b` now 401s on everything — the app was
-re-enrolled and got a fresh tenant id (same 31 apps present under the new id).
-Confirm the tenant before any API work: GET `/api/<id>/v1/applications` with a
-cookie and check the app list matches expectations. Docs elsewhere in the repo
-may still cite the old UUID.
+The live local tenant is **`0428ba4f-169c-436b-aff9-b230496e0e3b`**. An earlier note
+here claimed the tenant changed to `4cb38c18-691a-4201-a99d-b4b8842ca786` — that was
+WRONG. The `4cb38c18…` id 401s on every call; the UI itself makes all its XHRs
+against `0428ba4f…` and they succeed (31 apps present). Always confirm by watching
+which tenant id the console UI's own network requests use before any API work.
 
 ## Step 2c — Local console cookie route (the working path since 2026-11-18)
 
@@ -147,6 +146,26 @@ credentials — its 200 is **not** an auth signal.
 - **AI Guard is per-KEY** (`agentaccesskeys` `Spec.AIGuardConfig`), not per-app.
 - **Policy propagation:** gateway changes take ~4 min to propagate; don't re-test sooner.
 - **No-policy = DENY ALL.** An ungoverned twin needs an explicit allow-all policy.
+- **A2A agent cards (learned 2026-11-19):** Discovery is per-app — set
+  `Spec.HttpAppConfig.EnableAgentCard: true` via read-modify-write PUT on the
+  Remote-Agent (HttpAppConfig) app with a backend; the gateway then polls
+  `<backend>/.well-known/agent-card.json` (A2A protocol 0.3.0) and populates
+  `Status.A2AAgentStatus` (AgentCardJson, parsed Skills, CardURL,
+  ProtocolVersion, LastDiscoveredAt) within minutes — no crawler or sync
+  endpoint needed. Backend must actually serve the well-known card. Script:
+  `privilege/scripts/enable-agent-cards.mjs`.
+- **Agent Cards UI tab is crawler-fed, NOT per-app discovery.** The
+  `/ui/admin/workload-agents/agent-cards` tab shows "No agent cards discovered
+  yet" even when the API has populated cards — it reads Workload Scanner
+  crawler results (`visibilitys` collection, `Status.CrawlerStartedAt/EndedAt`),
+  not `Status.A2AAgentStatus`. An empty tenant has zero visibility records.
+  Empty tab ≠ broken discovery; verify via the applications API.
+- **Browser-session fetch gotcha:** a `fetch` from the page against the WRONG
+  tenant id returns 401 "User is not authorized for
+  console.privilege.pingone.com/api/…" — the same misleading error text as the
+  broken key/secret route. 401 on one tenant + 200 on another = wrong tenant id,
+  not an auth outage. The Playwright session can hit the console directly
+  (credentials:'include') if a console tab is open.
 - **Session-id hygiene:** mint a fresh UUID per call; never log the key/secret or cookie.
 
 ## Related skills / docs in this repo

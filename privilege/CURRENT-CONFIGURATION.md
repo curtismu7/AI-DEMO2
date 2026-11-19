@@ -12,6 +12,14 @@ Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one
 > the `x-auth-token` cookie route; see `.claude/skills/privilege-console-api/SKILL.md`
 > and [TAG-POLICIES.md](TAG-POLICIES.md) (4-key tag schema now applied tenant-wide by
 > `scripts/apply-tag-schema.mjs`).
+>
+> **CORRECTION 2026-11-19: the 2026-11-18 note above is WRONG about the tenant.** Live
+> testing on 2026-11-19 shows the console UI making all its XHRs against
+> `0428ba4f-169c-436b-aff9-b230496e0e3b` and succeeding (31 apps), while
+> `4cb38c18-…` 401s on everything. The tenant did NOT change. The OIDC client-id /
+> env-id claims from that update should also be re-verified before relying on them.
+> The key/secret-auth breakage part stands. Always confirm the live tenant by watching
+> which id the UI's own requests use.
 
 > **Update 2026-10-12: the `opensearch22` Agentic App described below was deleted from the
 > console.** The dated measurements that name it are kept as a record of what was verified on
