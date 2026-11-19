@@ -1,157 +1,60 @@
 'use strict';
 
 /**
- * Privilege Hubs — Google secrets demo route (2026-11).
+ * Secrets Hub — Google Secret Manager demo route (2026-11 rework).
  *
- * Pattern: Privilege Hubs with a Google Secret Manager custodian. The Google
- * credential lives in GCP Secret Manager; Hubs brokers it. An AI agent
- * authenticates to the Hubs/MCP gateway with its agent access key; the
- * gateway's own policy — not this file — decides whether the agent may read
- * a given secret. A policy refusal surfaces as a 403 and is reported as
- * `denied`; the raw secret value returned on allow is masked by default and
- * only revealed when the caller explicitly asks for `reveal`.
+ * The Secrets Hub is a console feature, not a gateway-brokered agent flow:
+ * Privilege inventories an external secret store (sync), grants named users
+ * time-boxed access through a policy, and reads a secret's value from Google
+ * only when someone views it. Two independent audit trails result: Google's
+ * own audit log and Privilege's audit feed. It does NOT feed the gateway's
+ * User Token auth mode and did not supply a secret to an agent in anything
+ * tested (privilege/SECRETS-HUB-WITH-GOOGLE-SECRET-MANAGER.md, 2026-10-04).
  *
- * GUESSED CONFIG (owner to confirm): gateway URL and tool names come from env
- * with defaults matching the existing Procyon mesh frontend. Nothing here
- * talks to GCP directly — the gateway (and its custodian) does.
- *
- * Safety: session-required (same guard as privilegeDecisionDemo); tool names
- * must match a fixed allowlist; output is masked before it reaches the
- * browser unless `reveal: true` is sent, and even then only a trailing
- * 4-char preview plus the secret's metadata are returned — the browser never
- * receives the full raw secret.
+ * This route serves the measured tenant snapshot (data/secrets-hub-snapshot.json,
+ * exported 2026-11-17 via the console API) — read-only, no live console call,
+ * no secret values, no service-account credentials. Source of the runbook
+ * text: privilege/SECRETS-HUB-DEMO.md (partly verified live 2026-10-13/14).
  */
 
 const express = require('express');
 const { requireSession } = require('../middleware/auth');
-const configStore = require('../services/configStore');
-const { getProcyonDispatcher, isProcyonAgentUrl } = require('./privilegeMcpClient');
+const snapshot = require('../data/secrets-hub-snapshot.json');
 
 const router = express.Router();
 
-const GATEWAY_URL = process.env.PRIVILEGE_GOOGLE_SECRETS_GATEWAY_URL
-  || process.env.PRIVILEGE_DECISION_GATEWAY_URL
-  || 'https://a2a-mcp-tools.default.applications.procyon.ai:8643/mcp';
-
-// The allow path (in-scope secret) and the deny path (out-of-scope secret).
-// The gateway's policy decides which of these the agent key may read.
-const ALLOWED_TOOLS = new Set([
-  'get_google_secret',
-  'get_google_billing_secret',
-]);
-
-const MAX_ARGS_CHARS = 2000;
-
-function agentKey() {
-  return configStore.getEffective('PRIVILEGE_A2A_MAIN_AGENT_KEY')
-    || process.env.PRIVILEGE_A2A_MAIN_AGENT_KEY
-    || '';
-}
-
-// Mask any long credential-looking token in upstream text. Keeps enough of a
-// tail to prove "a real secret arrived" without shipping the full value.
-function maskSecrets(text) {
-  return String(text)
-    .replace(/\b([A-Za-z0-9_-]{24,})([A-Za-z0-9_-]{4})\b/g, (m, body, tail) => '•'.repeat(8) + tail)
-    .replace(/Bearer\s+\S+/gi, 'Bearer [MASKED]');
-}
-
-function sseDataLine(text) {
-  const line = String(text).split('\n').find((l) => l.startsWith('data: '));
-  return line ? line.slice(6) : null;
-}
-
-async function mcpCall(headers, body) {
-  const fetchOpts = { method: 'POST', headers, body: JSON.stringify(body) };
-  if (isProcyonAgentUrl(GATEWAY_URL)) fetchOpts.dispatcher = getProcyonDispatcher();
-  const res = await fetch(GATEWAY_URL, fetchOpts);
-  const sessionId = res.headers.get('mcp-session-id');
-  if (sessionId) headers['mcp-session-id'] = sessionId;
-  const text = await res.text();
-  return { res, text };
-}
-
-function parseResult(text) {
-  const data = sseDataLine(text) || (text.trim().startsWith('{') ? text.trim() : null);
-  if (!data) return { raw: text };
-  try { return JSON.parse(data); } catch { return { raw: text }; }
-}
-
-// POST /api/privilege-google-secrets/fetch — { tool, args?, reveal? }.
-router.post('/fetch', requireSession, async (req, res, next) => {
-  try {
-    const { tool, args, reveal } = req.body || {};
-    if (typeof tool !== 'string' || !ALLOWED_TOOLS.has(tool)) {
-      return res.status(400).json({ error: `tool must be one of the demo allowlist (got ${JSON.stringify(tool ?? null)})` });
-    }
-    if (args !== undefined && (typeof args !== 'object' || args === null || Array.isArray(args))) {
-      return res.status(400).json({ error: 'args must be a JSON object when present' });
-    }
-    if (reveal !== undefined && typeof reveal !== 'boolean') {
-      return res.status(400).json({ error: 'reveal must be a boolean when present' });
-    }
-    const argsJson = JSON.stringify(args ?? {});
-    if (argsJson.length > MAX_ARGS_CHARS) {
-      return res.status(400).json({ error: `args too large (${argsJson.length} > ${MAX_ARGS_CHARS} chars)` });
-    }
-    const key = agentKey();
-    if (!key) return res.status(503).json({ error: 'Privilege agent key is not configured on the server (vault entry PRIVILEGE_A2A_MAIN_AGENT_KEY).' });
-
-    const started = Date.now();
-    const mcpHeaders = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-      Authorization: `Bearer ${key}`,
-    };
-    const init = await mcpCall(mcpHeaders, {
-      jsonrpc: '2.0', id: 1, method: 'initialize',
-      params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'ai-demo-privilege-google-secrets', version: '1' } },
-    });
-    if (!init.res.ok) {
-      return res.status(502).json({ error: `gateway refused initialize (${init.res.status})`, upstream: maskSecrets(init.text.slice(0, 400)) });
-    }
-
-    const call = await mcpCall(mcpHeaders, {
-      jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: tool, arguments: args ?? {} },
-    });
-    const latencyMs = Date.now() - started;
-
-    if (call.res.status === 403) {
-      return res.json({ ok: true, decision: 'denied', by: 'privilege-gateway', status: 403, latencyMs, upstream: maskSecrets(call.text.slice(0, 500)) });
-    }
-    if (!call.res.ok) {
-      return res.status(502).json({ error: `gateway refused tools/call (${call.res.status})`, upstream: maskSecrets(call.text.slice(0, 400)), latencyMs });
-    }
-
-    const parsed = parseResult(call.text);
-    const isError = Boolean(parsed?.result?.isError);
-    const rawUpstream = parsed?.result?.content?.[0]?.text ?? parsed?.raw ?? call.text.slice(0, 500);
-    // Even in reveal mode only a preview survives; the gateway/custodian holds
-    // the full value and the browser shows enough to prove the flow ran.
-    const shown = reveal ? maskSecrets(rawUpstream) : maskSecrets(String(rawUpstream).replace(/[A-Za-z0-9_\/+=-]{20,}[A-Za-z0-9_\/+=-]{4}/g, (m) => '[MASKED:' + m.slice(-4) + ']'));
-    return res.json({
-      ok: true,
-      decision: isError ? 'tool_error' : 'allowed',
-      by: 'privilege-gateway',
-      status: call.res.status,
-      latencyMs,
-      revealed: Boolean(reveal),
-      upstream: shown,
-    });
-  } catch (err) {
-    err.status = err.status || 502;
-    err.expose = true;
-    return next(err);
-  }
-});
-
-// GET /api/privilege-google-secrets/status — what the page shows before running.
-router.get('/status', requireSession, (req, res) => {
+// GET /api/privilege-google-secrets/hub — the tenant's hub state + grant + runbook facts.
+router.get('/hub', requireSession, (req, res) => {
   res.json({
-    gatewayUrl: GATEWAY_URL,
-    agentKeyConfigured: Boolean(agentKey()),
-    tools: [...ALLOWED_TOOLS],
+    ...snapshot,
+    source: 'console-export-snapshot',
+    // The runbook's honesty list, served as data so the page and the facts stay in sync.
+    doesNot: [
+      'The hub does not feed the gateway\'s User Token auth mode — verified live: with a hub and a user policy in place, User Token still forwarded nothing.',
+      'It did not supply a secret to an app or an agent in anything tested — the flow seen is for people: sync, grant, view.',
+      'It does not copy secret values into Privilege on sync — a sync reads names and versions only; a view reads the value from Google at that moment.',
+    ],
+    auditTrail: [
+      { side: 'Google', event: 'AccessSecretVersion', where: 'Google Cloud audit log (project privilege-hub-test-643070), when Secret Manager read logging is on' },
+      { side: 'Privilege', event: 'Secret Vault Secret value accessed', where: 'the Privilege console audit feed' },
+    ],
+    uncomfortable: {
+      fact: 'Saving the hub wrote the service-account key — private key and all — into the console\'s audit feed in clear text.',
+      why: 'The key carries Secret Manager Admin: anyone who can read the SIEM index can use it against every secret the hub reaches.',
+      remediation: [
+        'Scope the hub to one project, not the organisation.',
+        'Restrict who can read the SIEM index.',
+        'Remove that audit record or rotate the key after adding/editing a hub.',
+        'Turn on Secret Manager read logging so every hub read is recorded on Google\'s side.',
+      ],
+    },
+    run: [
+      { step: 1, title: 'Add the hub', say: 'Console → Secrets Hub → Add Hubs → Integrate on the GCP card → Project → paste the key JSON.', detail: 'Project type needs Secret Manager Admin, Viewer and Secret Accessor on the project. The form omits one requirement: sync also needs the Cloud Resource Manager API.' },
+      { step: 2, title: 'Sync', say: 'Three calls — search projects, list secrets, list versions. None reads a secret\'s contents.', detail: 'A sync once on creation; Resync after that. If the count stays at 0 the hub status carries the error (usually the Cloud Resource Manager API being off).' },
+      { step: 3, title: 'View a secret', say: 'That read happens now, from Google, using the hub\'s service account — the value doesn\'t sit in Privilege.', detail: 'Two independent records result: Google\'s audit log and a Privilege audit event. Don\'t click the circular arrow beside View — it may rotate the secret.' },
+      { step: 4, title: 'Grant access with a policy', say: 'Access is a grant with an end date, not a shared credential.', detail: 'Policy → pick a secret → users, permission (Read = view values, Write = view and update), expiry. Creating the policy makes no call to Google. What a granted user then sees was not tested — don\'t demo that part.' },
+    ],
   });
 });
 
-module.exports = { router, ALLOWED_TOOLS, GATEWAY_URL, maskSecrets };
+module.exports = { router };
