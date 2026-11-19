@@ -140,6 +140,7 @@ describe("results (P7)", () => {
     fireEvent.click(runButton("permit"));
     const reel = await screen.findByTestId("ib-reel-permit");
     // The reel's body is the shared pane (Form by default); read it as JSON, where the sent text is exact.
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(reel).getByRole("button", { name: "JSON" }));
     expect(reel.textContent).toContain('"live": false');
     fireEvent.click(screen.getByTestId("ib-live-toggle")); // back on, after the run

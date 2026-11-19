@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HostileMcpDenialPanel from '../HostileMcpDenialPanel';
+import { flushEffects } from '../../../test-utils/flushEffects';
 
 const tools = [{
   name: 'get_weather',
@@ -57,6 +58,7 @@ describe('HostileMcpDenialPanel', () => {
 
     expect(await screen.findByText('Privilege allowed the resulting action')).toBeInTheDocument();
     expect(valueOf(pane('Privilege decision response'), 'transferId')).toBe('tx-1');
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(pane('Induced action').closest('.jp-box')).getByRole('button', { name: 'JSON' }));
     expect(JSON.parse(screen.getByLabelText('Induced action').textContent)).toEqual({ name: 'create_transfer', arguments: { amount: 1, to: 'external-001' } });
     expect(JSON.parse(screen.getByLabelText('Induced tool call request').textContent).body).toEqual({ name: 'create_transfer', arguments: { amount: 1, to: 'external-001' } });

@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ALL_CATEGORIES } from '../../hooks/useActivityLog';
 import ActivityLogPanel, { flowBoundaryKind } from '../ActivityLogPanel';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 // Stub the hook while keeping the real module's other exports (ALL_CATEGORIES etc).
 let _mockReturn = null;
@@ -147,6 +148,7 @@ describe('ActivityLogPanel — event details pane', () => {
     const metadata = { aud: 'mcp-server', nested: { a: 1 } };
     withEvent({ metadata });
     await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     await userEvent.click(within(screen.getByRole('group', { name: PANE_VIEW })).getByRole('button', { name: 'JSON' }));
     const raw = await waitFor(() => {
       const el = document.querySelector('pre.jp-raw[aria-label^="Event details: Token exchanged at "]');
@@ -163,6 +165,7 @@ describe('ActivityLogPanel — event details pane', () => {
       await userEvent.click(screen.getByRole('button', { name: /Token exchanged/ }));
     };
     const rawPane = async () => {
+      await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
       await userEvent.click(within(screen.getByRole('group', { name: PANE_VIEW })).getByRole('button', { name: 'JSON' }));
       return waitFor(() => {
         const el = document.querySelector('pre.jp-raw[aria-label^="Event details: Token exchanged at "]');

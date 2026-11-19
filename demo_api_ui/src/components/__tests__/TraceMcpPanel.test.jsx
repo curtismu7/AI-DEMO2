@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import TraceMcpPanel from "../TraceMcpPanel";
 
+// The JSON panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+beforeEach(() => { try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } });
+
 const STEPS = [
   { id: "signin", title: "Sign-in", lane: "PINGONE", status: "done", detail: {} },
   { id: "exchange", title: "Token exchange — delegation", lane: "BFF", status: "done", detail: {} },

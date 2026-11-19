@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ApiCallDisplay from '../ApiCallDisplay';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 const CALL = {
   id: 'c1',
@@ -53,6 +54,7 @@ describe('ApiCallDisplay JSON panes', () => {
 
   it('switches to the exact JSON text, and the click does not collapse the row', async () => {
     const details = await openCall();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(details).getAllByRole('button', { name: 'JSON' })[0]);
     await waitFor(() => expect(details.querySelector('.jp-raw[aria-label="Request headers"]')).not.toBeNull());
     expect(details.querySelector('.jp-raw[aria-label="Request headers"]').textContent).toContain('"content-type": "application/json"');
@@ -69,6 +71,7 @@ describe('ApiCallDisplay JSON panes', () => {
     expect(within(details).getByRole('group', { name: 'Request body' }).querySelector('[data-alert]')).toBeNull();
     expect(within(details).getByRole('group', { name: 'Response body' }).querySelector('[data-alert="true"]')).not.toBeNull();
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(within(details).getByRole('group', { name: 'Request body' }).closest('.jp-box')).getByRole('button', { name: 'JSON' }));
     await waitFor(() => expect(details.querySelector('pre.jp-raw[aria-label="Request body"]')).not.toBeNull());
     expect(details.querySelector('pre.jp-raw[aria-label="Request body"] .jp-tok--alert')).toBeNull();

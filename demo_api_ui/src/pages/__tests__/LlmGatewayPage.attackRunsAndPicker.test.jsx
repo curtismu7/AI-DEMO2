@@ -7,6 +7,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import LlmGatewayPage from "../LlmGatewayPage";
 import { MemoryRouter } from "react-router-dom";
 import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
+import { flushEffects } from "../../test-utils/flushEffects";
 
 const CONFIG = {
   gatewayUrl: "https://mcpgw.ai-demo.ping-devops.com",
@@ -320,6 +321,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
   });
 
   describe("decision view toggle", () => {
+    beforeEach(() => { window.localStorage.clear(); }); // the JSON panes keep the Form | JSON choice here
     async function sendAndGetDecision() {
       mockFetch(() => ({
         ok: true,
@@ -348,6 +350,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
       expect(screen.getByRole("button", { name: /^form$/i })).toHaveAttribute("aria-pressed", "true");
       expect(screen.queryByTestId("lgw-decision-json")).not.toBeInTheDocument();
 
+      await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
       fireEvent.click(screen.getByRole("button", { name: /^json$/i }));
 
       expect(screen.queryByTestId("lgw-decision")).not.toBeInTheDocument();
@@ -359,6 +362,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("switches back to the form view", async () => {
       await sendAndGetDecision();
+      await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
       fireEvent.click(screen.getByRole("button", { name: /^json$/i }));
       await screen.findByTestId("lgw-decision-json");
 

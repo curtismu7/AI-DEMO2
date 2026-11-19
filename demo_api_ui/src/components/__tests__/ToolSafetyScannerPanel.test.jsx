@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import ToolSafetyScannerPanel from '../ToolSafetyScannerPanel';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, '../ToolSafetyScannerPanel.css'), 'utf8');
@@ -33,6 +34,7 @@ test('after a run the scanned inputs and the findings are panes whose JSON view 
   expect(findings).toHaveTextContent('schema-violation');
   expect(screen.getByRole('group', { name: 'Inputs scanned' })).toHaveTextContent('create_transfer');
 
+  await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
   fireEvent.click(within(findings.closest('.jp-box')).getByRole('button', { name: 'JSON' }));
   // Wait for the JSON view itself before reading it: the click switches the view on the next render.
   await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Findings"]')).not.toBeNull());

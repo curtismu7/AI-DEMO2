@@ -39,6 +39,7 @@ import {
   callMcpTool,
   openMcpToolStream,
 } from "../../services/webMcpClient";
+import { flushEffects } from "../../test-utils/flushEffects";
 
 const MOCK_TOOLS = [
   {
@@ -280,6 +281,7 @@ describe("WebMcpPanel — tool invocation", () => {
     // The pane starts in Form: the value is already there as a field.
     expect(screen.getByText(/account balance/)).toBeInTheDocument();
     expect(document.querySelector('pre.jp-raw[aria-label="Server response"]')).toBeNull();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getByRole("button", { name: "JSON" }));
     // Wait for the JSON view itself before reading it: the click switches the view on the next render.
     await waitFor(() => {

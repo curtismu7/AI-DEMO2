@@ -7,6 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import apiClient from '../../services/apiClient';
 import { ThemeProvider } from '../../context/ThemeContext';
 import PingOneMcpInspector from '../PingOneMcpInspector';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 // The component reads ThemeContext for its dark-mode toggle, and useTheme()
 // throws outside a provider by design — so every render needs one, exactly as
@@ -59,7 +60,10 @@ function mockDisconnected() {
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } // the JSON panes keep the Form | JSON choice here
+});
 
 describe('PingOneMcpInspector — status display', () => {
   it('shows "Disconnected" when enabled is false', async () => {
@@ -187,6 +191,7 @@ describe('PingOneMcpInspector — form and invoke', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Execute/ })[0]);
     await waitFor(() => expect(screen.getByText('count')).toBeInTheDocument());
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
     expect(screen.getByText(/"count"/)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Output view' })).toBeInTheDocument();

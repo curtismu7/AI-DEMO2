@@ -12,8 +12,11 @@
  */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, test, expect } from "vitest";
+import { beforeEach, describe, test, expect } from "vitest";
 import { AamDecisionEduBox } from "../TokenChainDisplay";
+
+// The JSON panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
+beforeEach(() => { try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } });
 
 const aamEvent = (overrides = {}) => ({
   id: "gw-aam",

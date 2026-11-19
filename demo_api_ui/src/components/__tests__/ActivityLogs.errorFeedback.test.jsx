@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import apiClient from '../../services/apiClient';
 import { notifyError } from '../../utils/appToast';
 import ActivityLogs from '../ActivityLogs';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 vi.mock('../../services/apiClient', () => ({
   __esModule: true,
@@ -88,6 +89,7 @@ test('the record modal shows headers, request body and response body as shared J
   expect(screen.getByRole('group', { name: 'Request body' })).toHaveTextContent('open');
   expect(screen.getByRole('group', { name: 'Response body' })).toHaveTextContent('acct-1');
 
+  await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
   fireEvent.click(within(screen.getByRole('group', { name: 'Request body' }).closest('.jp-box')).getByRole('button', { name: 'JSON' }));
   // Wait for the JSON view itself before reading it: the click switches the view on the next render.
   await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Request body"]')).not.toBeNull());
@@ -119,6 +121,7 @@ test('the record modal paints no alert on a request body, and keeps it on a resp
   expect(screen.getByRole('group', { name: 'Response body' }).querySelector('[data-alert="true"]')).not.toBeNull();
 
   // JSON view
+  await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
   fireEvent.click(within(request.closest('.jp-box')).getByRole('button', { name: 'JSON' }));
   await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Request body"]')).not.toBeNull());
   expect(document.querySelector('pre.jp-raw[aria-label="Request body"]').querySelector('.jp-tok--alert')).toBeNull();
