@@ -90,6 +90,7 @@ export async function runMcpAuthorizationPipeline(
   config: GatewayConfig,
   toolName?: string,
   decisionContext?: string,
+  options?: { bridgeDiscovery?: boolean },
 ): Promise<AuthorizationResult> {
   const audit: AuditTrail = { introspection: null, policy: null };
 
@@ -140,7 +141,17 @@ export async function runMcpAuthorizationPipeline(
   // Step 1 — claims + identity policy
   let decoded: DecodedGatewayToken;
   try {
-    const raw = jwt.decode(bearerToken) as DecodedGatewayToken | null;
+    let raw = jwt.decode(bearerToken) as DecodedGatewayToken | null;
+    // A Privilege discovery probe runs as the gateway itself, on its own
+    // client-credentials token, and PingOne puts no `sub` in such a token. Name
+    // the client as the subject for that one case. Everything else, including
+    // every other token without a `sub`, is refused exactly as before.
+    if (raw && !raw.sub && options?.bridgeDiscovery) {
+      const clientId = (raw as { client_id?: unknown }).client_id;
+      if (typeof clientId === 'string' && clientId.trim()) {
+        raw = { ...raw, sub: clientId.trim() };
+      }
+    }
     if (!raw || !raw.sub) {
       throw new GatewayTokenPolicyError('Empty or missing token payload', 'invalid_token');
     }
