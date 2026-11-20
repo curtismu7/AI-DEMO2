@@ -24,6 +24,12 @@
 #                             PingOne and checks /api/auth/oauth/user/status. Needs
 #                             E2E_CUSTOMER_USERNAME, E2E_CUSTOMER_PASSWORD and
 #                             PINGONE_ENVIRONMENT_ID; without them it reports "not run".
+#   9. Privilege console      (opt-in) PREFLIGHT_PRIVILEGE_ACCESS=1: runs the read-only
+#      access (opt-in)        privilege-access-check (default ~/.local/bin/, override with
+#                             PRIVILEGE_ACCESS_CHECK) — fails when the PingID environment's
+#                             "PingOne Privilege" app has lost its PrivilegeAdmins group
+#                             restriction (users then get "no access to the Privilege
+#                             console"). Not run (WARN) if the script is not installed.
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
 #
@@ -561,6 +567,26 @@ if [[ "${PREFLIGHT_SIGNIN:-}" == "1" ]]; then
     2) row WARN "Real sign-in" "$signin_out" ;;
     *) row FAIL "Real sign-in" "$signin_out" ;;
   esac
+fi
+
+# ── 9. Privilege console access (opt-in) ─────────────────────────────────────
+# The PingID environment's "PingOne Privilege" app must stay restricted to the
+# PrivilegeAdmins group, or every user gets "does not have access to the PingOne
+# Privilege console". The check lives outside the repo (it uses the PingID worker
+# credentials in ~/.config/demo-kit/pingid-env.env). Exit 0 OK, 1 restriction
+# missing, 2 could not check (WARN, never OK).
+if [[ "${PREFLIGHT_PRIVILEGE_ACCESS:-}" == "1" ]]; then
+  pac="${PRIVILEGE_ACCESS_CHECK:-$HOME/.local/bin/privilege-access-check}"
+  if [[ ! -x "$pac" ]]; then
+    row WARN "Privilege console access" "not run: $pac is not installed"
+  else
+    pac_out="$("$pac" 2>&1)"; pac_rc=$?
+    case $pac_rc in
+      0) row OK   "Privilege console access" "$pac_out" ;;
+      2) row WARN "Privilege console access" "$pac_out" ;;
+      *) row FAIL "Privilege console access" "$pac_out" ;;
+    esac
+  fi
 fi
 
 # ── Table + verdict ───────────────────────────────────────────────────────────
