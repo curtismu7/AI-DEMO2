@@ -4,35 +4,45 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import JsonFormView from '../JsonFormView';
 
 describe('JsonFormView', () => {
-  it('renders a nested object as grouped label/value rows', () => {
-    render(<JsonFormView value={{ account: { openedOn: '2024-01-01', notes: 'first account' } }} />);
-    expect(screen.getByText('Account')).toBeInTheDocument();
-    expect(screen.getByText('Opened On')).toBeInTheDocument();
-    expect(screen.getByText('2024-01-01')).toBeInTheDocument();
-    expect(screen.getByText('Notes')).toBeInTheDocument();
-    expect(screen.getByText('first account')).toBeInTheDocument();
-    expect(screen.queryByText('Key Values')).toBeNull();
+  it('renders each top-level scalar inline in its section header', () => {
+    render(<JsonFormView value={{ accountId: 'acc_1', balance: 100 }} />);
+    expect(screen.getByText(/accountId:/)).toBeInTheDocument();
+    expect(screen.getByText('acc_1')).toBeInTheDocument();
+    expect(screen.getByText(/balance:/)).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  it('renders an array of primitives as Item rows', () => {
+  it('renders objects and arrays as collapsed sections that expand to flat dot-path rows', () => {
+    render(<JsonFormView value={{ account: { openedOn: '2024-01-01', notes: 'first account' } }} />);
+    const toggle = screen.getByRole('button', { name: /account/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('2024-01-01')).toBeNull();
+    fireEvent.click(toggle);
+    expect(screen.getByText('account.openedOn')).toBeInTheDocument();
+    expect(screen.getByText('2024-01-01')).toBeInTheDocument();
+    expect(screen.getByText('account.notes')).toBeInTheDocument();
+    expect(screen.getByText('first account')).toBeInTheDocument();
+  });
+
+  it('flattens array items with index paths', () => {
     render(<JsonFormView value={{ scopes: ['read', 'write'] }} />);
-    expect(screen.getByText('Item 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /scopes/i }));
+    expect(screen.getByText('scopes[0]')).toBeInTheDocument();
     expect(screen.getByText('read')).toBeInTheDocument();
-    expect(screen.getByText('Item 2')).toBeInTheDocument();
+    expect(screen.getByText('scopes[1]')).toBeInTheDocument();
     expect(screen.getByText('write')).toBeInTheDocument();
   });
 
-  it('renders an array of objects as indexed sub-groups', () => {
-    render(<JsonFormView value={{ accounts: [{ openedOn: '2024' }, { openedOn: '2025' }] }} />);
-    expect(screen.getAllByText(/Item \d/)).toHaveLength(2);
-    expect(screen.getByText('2024')).toBeInTheDocument();
-    expect(screen.getByText('2025')).toBeInTheDocument();
+  it('shows empty containers as empty when expanded', () => {
+    render(<JsonFormView value={{ tags: [] }} />);
+    fireEvent.click(screen.getByRole('button', { name: /tags/i }));
+    expect(screen.getByText(/\[ \] empty list/)).toBeInTheDocument();
   });
 
-  it('renders a null leaf as a muted dash, not omitted', () => {
+  it('renders a null leaf as null, not omitted', () => {
     render(<JsonFormView value={{ favoriteColor: null }} />);
-    expect(screen.getByText('Favorite Color')).toBeInTheDocument();
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText(/favoriteColor:/)).toBeInTheDocument();
+    expect(screen.getByText('null')).toBeInTheDocument();
   });
 
   it('truncates long string values with a Show more toggle', () => {
@@ -43,13 +53,9 @@ describe('JsonFormView', () => {
     expect(screen.getByText(long)).toBeInTheDocument();
   });
 
-  it('collects name-matched keys into a Key Values summary, without removing them from All Fields', () => {
-    render(<JsonFormView value={{ account: { accountId: 'acc_1', favoriteColor: 'blue' } }} />);
-    expect(screen.getByText('Key Values')).toBeInTheDocument();
-    expect(screen.getByText('All Fields')).toBeInTheDocument();
-    expect(screen.getByText('Account › Account Id')).toBeInTheDocument();
-    expect(screen.getAllByText('acc_1')).toHaveLength(2);
-    expect(screen.getByText('blue')).toBeInTheDocument();
+  it('keeps a Copy button on scalar values', () => {
+    render(<JsonFormView value={{ accountId: 'acc_1' }} />);
+    expect(screen.getAllByRole('button', { name: 'Copy' }).length).toBeGreaterThan(0);
   });
 
   it('shows the empty message when value is null, undefined, or an empty object', () => {

@@ -232,9 +232,9 @@ test('the Form tab renders the gateway test result as labeled fields', async () 
   await screen.findByText('200 OK');
   // The output tab bar comes first; the shared JsonPane switches below it are also named Form.
   fireEvent.click(screen.getAllByRole('button', { name: 'Form' })[0]);
-  expect(screen.getByText('Currency')).toBeInTheDocument();
+  expect(screen.getByText(/^currency/, { selector: '.jfv-head-name' })).toBeInTheDocument();
   expect(screen.getByText('USD')).toBeInTheDocument();
-  expect(screen.getByText('Count')).toBeInTheDocument();
+  expect(screen.getByText(/^count/, { selector: '.jfv-head-name' })).toBeInTheDocument();
 });
 
 function mockOneTool(postData) {
