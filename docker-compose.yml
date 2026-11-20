@@ -786,6 +786,10 @@ services:
       # (config/oauth.js, health oauth_provider probe) must leave via the host —
       # same mapping mcp-server/ping-gateway/mcp-resource-server already carry.
       - "local.ping-devops.com:host-gateway"
+      # The laptop PingID gateway (~/Development/pingid-gateway, `gw-switch local`) is
+      # published on the host. *.local.ping-devops.com resolves to 127.0.0.1, which inside
+      # this container is the container itself (ECONNREFUSED), so map the name to the host.
+      - "pingid-gw.local.ping-devops.com:host-gateway"
     group_add:
       - "0"
     networks:
