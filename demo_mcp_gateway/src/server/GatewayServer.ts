@@ -49,7 +49,7 @@ import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS 
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, setJwksSimDown, validationErrorHttpStatus, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
-import { isPrivilegeBridgeBearer, transactionTokenHeaderState } from '../auth/privilegeBridge';
+import { isPrivilegeBridgeBearer, markPrivilegeBridgeDiscovery, transactionTokenHeaderState } from '../auth/privilegeBridge';
 import { guardToolsList } from '../pingAuthorizeGuard';
 import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
@@ -913,6 +913,10 @@ export class GatewayServer {
         this.sendUnauthorized(req, res, 'invalid_token', 'Privilege bridge could not mint the gateway machine token');
         return;
       }
+      // Tell the authorize step this request is a bridge discovery probe, so its
+      // client-credentials token (no `sub`) is accepted for this read-only
+      // method only. In-process mark, not a header: callers cannot set it.
+      markPrivilegeBridgeDiscovery(req);
       if (!this.config.devBypass) {
         try {
           decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
