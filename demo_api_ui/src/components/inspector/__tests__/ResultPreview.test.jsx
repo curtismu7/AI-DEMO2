@@ -19,9 +19,8 @@ describe('ResultPreview', () => {
 
   it('renders JSON text as readable key values', () => {
     render(<ResultPreview call={call(rpc({ content: [text(JSON.stringify({ name: 'Checking', balance: 120 }))] }))} />);
-    // JsonFormView lists important keys in Key Values and again in All Fields.
+    // JsonFormView renders top-level scalars inline and branches as sections.
     expect(screen.getAllByText('Checking').length).toBeGreaterThan(0);
-    expect(screen.getByText('Key Values')).toBeInTheDocument();
   });
 
   it('says so, in red prose, when the tool reports an error', () => {
@@ -135,9 +134,9 @@ describe('ResultPreview', () => {
       expect(screen.getByText(/PINGONE_JWKS_ENDPOINT not configured/)).toBeInTheDocument();
     });
 
-    it('a non-list protocol result still uses the readable Key Values view', () => {
+    it('a non-list protocol result still uses the readable form view', () => {
       render(<ResultPreview call={proto('server/discover', rpc({ serverInfo: { name: 'bank-mcp' }, protocolVersion: '2025-06-18' }))} />);
-      expect(screen.getByText('Key Values')).toBeInTheDocument();
+      expect(screen.getByText(/serverInfo/)).toBeInTheDocument();
     });
 
     it('a tool call keeps the tool wording even when its result has a list', () => {
