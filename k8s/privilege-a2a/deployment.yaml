@@ -143,19 +143,30 @@ spec:
           value: "anthropic"
         - name: WORKER_AGENT_MODEL
           value: "claude-haiku-4-5-20251001"
+        # The worker's outbound legs go to the pingid-tenant gateway (the tenant behind the
+        # workeragentdemo2 app that forwards A2A here), with the pingid tenant's worker-agent
+        # virtual key for both the model leg and the MCP leg. Applied live 2026-11-20; before
+        # that these pointed at the old tenant's gateway (mcpgw.ai-demo...) and its keys
+        # (rollout revision 39), and the tool call failed with Unauthorized.
+        # Secret privilege-a2a-demo-pingid (key WORKER_AGENT_KEY) is created by hand, it is not
+        # in create-secrets.sh:
+        #   kubectl -n ping-devops-cmuir create secret generic privilege-a2a-demo-pingid \
+        #     --from-literal=WORKER_AGENT_KEY=<the pingid worker-agent virtual key>
+        # It is a separate Secret on purpose: privilege-a2a-demo is shared with mainagentdemo
+        # and mcpdemo, which still use the old tenant's keys.
         - name: ANTHROPIC_BASE_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/llm/anthropic"
+          value: "https://mcpgw-pingid.ai-demo.ping-devops.com/llm/anthropic"
         - name: ANTHROPIC_AUTH_TOKEN
           valueFrom:
             secretKeyRef:
-              name: ai-demo-secrets
-              key: PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC
+              name: privilege-a2a-demo-pingid
+              key: WORKER_AGENT_KEY
         - name: MCP_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/a2a-mcp-tools/mcp"
+          value: "https://mcpgw-pingid.ai-demo.ping-devops.com/a2a-mcp-tools/mcp"
         - name: WORKER_AGENT_KEY
           valueFrom:
             secretKeyRef:
-              name: privilege-a2a-demo
+              name: privilege-a2a-demo-pingid
               key: WORKER_AGENT_KEY
         resources:
           requests:
