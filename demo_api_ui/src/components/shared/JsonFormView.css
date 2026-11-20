@@ -20,6 +20,7 @@
   border: none;
   text-align: left;
   font-size: var(--font-size-xs);
+  color: var(--th-text);
 }
 .jfv-head--toggle {
   cursor: pointer;
@@ -29,6 +30,7 @@
 }
 .jfv-head--toggle:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 .jfv-head-name {
   color: var(--th-text);
@@ -108,4 +110,5 @@
 .jfv-expand:hover,
 .jfv-copy:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
