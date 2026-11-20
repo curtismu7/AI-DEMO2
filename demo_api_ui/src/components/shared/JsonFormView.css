@@ -6,7 +6,7 @@
   font-size: var(--font-size-sm);
 }
 .jfv-item {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -16,7 +16,7 @@
   gap: 0.5rem;
   width: 100%;
   padding: 0.4rem 0.75rem;
-  background: #f9fafb;
+  background: var(--th-bg-hover);
   border: none;
   text-align: left;
   font-size: var(--font-size-xs);
@@ -28,7 +28,7 @@
   color: var(--th-text);
 }
 .jfv-head--toggle:hover {
-  background: #f0f1f2;
+  background: var(--th-bg-hover);
 }
 .jfv-head-name {
   color: var(--th-text);
@@ -36,12 +36,12 @@
   word-break: break-all;
 }
 .jfv-caret {
-  color: #9ca3af;
+  color: var(--th-text-faint);
   flex: 0 0 auto;
 }
 .jfv-meta {
   margin-left: auto;
-  color: #9ca3af;
+  color: var(--th-text-faint);
   font-weight: 400;
   font-size: var(--font-size-3xs);
   white-space: nowrap;
@@ -54,7 +54,7 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.2rem 0;
-  border-bottom: 1px solid #f0f1f2;
+  border-bottom: 1px solid var(--th-bg-hover);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
 }
@@ -63,7 +63,7 @@
 }
 .jfv-label {
   flex: 0 0 46%;
-  color: #6b7280;
+  color: var(--th-text-faint);
   word-break: break-all;
 }
 .jfv-value {
@@ -80,24 +80,24 @@
   font-size: var(--font-size-2xs);
 }
 .jfv-empty {
-  color: #909ea4;
+  color: var(--th-text-faint);
   font-style: italic;
 }
 .jfv-empty-inline {
-  color: #9ca3af;
+  color: var(--th-text-faint);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
 }
 .jfv-empty-state {
-  color: #909ea4;
+  color: var(--th-text-faint);
   font-style: italic;
   padding: 1rem 0;
 }
 .jfv-expand,
 .jfv-copy {
-  border: 1px solid #cdd1d4;
-  background: #fff;
-  color: #263746;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg);
+  color: var(--th-text-body);
   font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 0.05rem 0.35rem;
@@ -107,5 +107,5 @@
 }
 .jfv-expand:hover,
 .jfv-copy:hover {
-  background: #eff0f1;
+  background: var(--th-bg-hover);
 }
