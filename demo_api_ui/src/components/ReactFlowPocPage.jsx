@@ -1326,16 +1326,10 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
       setSimulating(false);
     }
   };
-  const onNext = () => {
-    if (stepIndex < 0) {
-      // Starting from idle: show step 1, paused.
-      showStep(0);
-      setPaused(true);
-      return;
-    }
-    showStep(Math.min(stepIndex + 1, steps.length - 1));
-  };
-  const onPrev = () => showStep(Math.max(stepIndex - 1, 0));
+  // §8f (owner, 2026-11-21): Next/Prev from a fresh diagram (or while playing) drop into a paused
+  // walkthrough at that step, so stepping works without pressing Simulate first.
+  const onNext = () => { clearTimer(); setSimulating(true); setPaused(true); showStep(Math.max(0, Math.min(stepIndex + 1, steps.length - 1))); };
+  const onPrev = () => { clearTimer(); setSimulating(true); setPaused(true); showStep(Math.max(0, Math.min(stepIndex - 1, steps.length - 1))); };
   const onReset = () => {
     clearTimer();
     setSimulating(false);

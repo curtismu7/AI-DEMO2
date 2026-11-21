@@ -137,6 +137,16 @@ function DiagramControls({
           />
           {!isSimulating ? (
             <>
+              {/* §8f (owner, 2026-11-21): a walkthrough can start stepped, not only playing — Prev/Next from a
+                  fresh diagram start it paused at the first step (the handlers own that; see useDiagramStepper). */}
+              <button
+                type="button"
+                className="dc-ctrl-btn dc-ctrl-btn--prev"
+                onClick={then(".dc-ctrl-btn--pause", onPrev)}
+                disabled={totalSteps < 2}
+              >
+                ← Prev
+              </button>
               <button
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--simulate"
@@ -147,7 +157,8 @@ function DiagramControls({
               <button
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--step"
-                onClick={then(".dc-ctrl-btn--next", onNext)}
+                onClick={then(".dc-ctrl-btn--pause", onNext)}
+                disabled={totalSteps < 1}
                 title="Start the walkthrough paused on step 1"
               >
                 Step →
@@ -159,7 +170,7 @@ function DiagramControls({
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--prev"
                 onClick={onPrev}
-                disabled={!isPaused}
+                disabled={currentStep <= 1}
               >
                 ← Prev
               </button>
@@ -184,7 +195,7 @@ function DiagramControls({
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--next"
                 onClick={onNext}
-                disabled={!isPaused}
+                disabled={currentStep >= totalSteps}
               >
                 Next →
               </button>
