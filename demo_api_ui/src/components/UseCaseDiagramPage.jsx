@@ -21,7 +21,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { buildLiveUcWalk } from "../services/tokenChainTrace/ucLiveOverlay";
 import { diagramLinkProps } from "../utils/diagramLinks";
 import DiagramStepBar from "./DiagramStepBar";
-import DraggableModal from "./DraggableModal";
+import FloatingPanel from "./FloatingPanel";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./UseCaseDiagramPage.css";
 
@@ -184,7 +184,13 @@ export default function UseCaseDiagramPage() {
         walk={activeWalk}
         pingStyle={cfg.pingStyle === true}
         stepper={stepper}
-        onNodeClick={(node) => setPickedNode((prev) => (prev === node.id ? null : node.id))} // kept for the floating panel; node detail itself now shows in the box's Passport
+        onNodeClick={(node) => {
+          setPickedNode((prev) => (prev === node.id ? null : node.id));
+          // The box itself expands with the kit's Passport (StaticFlowDiagram);
+          // the floating panel opens alongside (if closed) — view-only, and the
+          // inline panel below also updates, unchanged.
+          setPanelOpen(true);
+        }}
         testId={`ucd-${cfg.id.toLowerCase()}`}
         ariaLabel={`${guide?.title || cfg.id} walkthrough`}
       />
@@ -214,44 +220,46 @@ export default function UseCaseDiagramPage() {
         </span>
       </section>
 
-      {/* Floating details panel, docked right — the same panel content as above in a
-          DraggableModal so a presenter can keep the hop/node detail beside the diagram.
-          Opening it never changes walk state: it is view-only. */}
-      <DraggableModal
-        isOpen={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        title={panel.head || "Details"}
-        placement="right"
-        defaultWidth={420}
-        defaultHeight={560}
-        minWidth={320}
-        minHeight={280}
-        storageKey="ucd-details-panel"
-        singletonKey="ucd-details-panel"
-        noBackdrop
-        zIndex={9500}
-        closeLabel="Close details"
-        className="ucd-floating"
-      >
-        <div className="ucd-floating__body" data-testid="ucd-floating-panel">
-          <span className="ucd-panel__chip">{panel.chip}</span>
-          {hop || picked ? (
-            <>
-              <div className="ucd-panel__hop"><b>{panel.head}</b>{hop?.label ? ` — ${hop.label}` : ""}</div>
-              {picked ? null : panel.lines.map((l, i) => (
-                <p key={i} className="ucd-panel__line">{l.who ? `${l.who}: ` : ""}{l.text}</p>
-              ))}
-              <WireRows rows={panel.tech} />
-              {!picked && !liveWalk && <StepDetail detail={stepDetailForBeat(cfg, stepper.step)} />}
-            </>
-          ) : (
-            <>
-              <p className="ucd-panel__hint">Press Simulate to walk the diagram; click a node for its detail.</p>
-              <WireRows rows={panel.tech} />
-            </>
-          )}
-        </div>
-      </DraggableModal>
+      {/* Floating details panel — the family-standard FloatingPanel (draggable, resizable,
+          pops out to its own window, drawer-docked right). Content mirrors the inline panel:
+          the picked node's detail, else the active hop, else the UC context. Node clicks on
+          the diagram open it AND fill it (pickedNode drives the content), so "click a box,
+          see the detail in the floating panel" is the default behavior when it is open. */}
+      {panelOpen && (
+        <FloatingPanel
+          title={picked ? picked.label : hop ? hop.title : (guide?.title || cfg.id)}
+          placement="drawer"
+          defaultWidth={400}
+          minWidth={300}
+          minHeight={240}
+          zIndex={9500}
+          onClose={() => setPanelOpen(false)}
+          className="ucd-float-panel"
+          data-testid="ucd-floating-panel"
+          role="status"
+          aria-label="Diagram details"
+        >
+          <div className="ucd-floating__body">
+            <span className="ucd-panel__chip">{panel.chip}</span>
+            {hop || picked ? (
+              <>
+                <div className="ucd-panel__hop"><b>{panel.head}</b>{hop?.label ? ` — ${hop.label}` : ""}</div>
+                {picked ? null : panel.lines.map((l, i) => (
+                  <p key={i} className="ucd-panel__line">{l.who ? `${l.who}: ` : ""}{l.text}</p>
+                ))}
+                <WireRows rows={panel.tech} />
+                {/* curated walk only: a live overlay re-derives the beats, so the config's beat indexes no longer apply */}
+                {!picked && !liveWalk && <StepDetail detail={stepDetailForBeat(cfg, stepper.step)} />}
+              </>
+            ) : (
+              <>
+                <p className="ucd-panel__hint">Press Simulate to walk the diagram; click a node for its detail.</p>
+                <WireRows rows={panel.tech} />
+              </>
+            )}
+          </div>
+        </FloatingPanel>
+      )}
 
       <div className="ucd-fab-row">
         <button
