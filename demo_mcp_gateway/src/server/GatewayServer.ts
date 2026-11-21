@@ -37,7 +37,7 @@ import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS 
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, setJwksSimDown, validationErrorHttpStatus, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
-import { isPrivilegeBridgeBearer, markPrivilegeBridgeDiscovery, transactionTokenHeaderState } from '../auth/privilegeBridge';
+import { isPrivilegeBridgeBearer, isPrivilegeBridgeDiscovery, markPrivilegeBridgeDiscovery, transactionTokenHeaderState } from '../auth/privilegeBridge';
 import { guardToolsList } from '../pingAuthorizeGuard';
 import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
@@ -1276,7 +1276,9 @@ export class GatewayServer {
         // request (authorizeMcpRequest.ts).
         const rawVertical = req.headers['x-active-vertical'];
         const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
-        const governed = await this.governHttpToolsList(responseBody, responseHeaders['Content-Type'], decoded, activeVertical);
+        const governed = await this.governHttpToolsList(
+          responseBody, responseHeaders['Content-Type'], decoded, activeVertical, isPrivilegeBridgeDiscovery(req),
+        );
         if (governed) responseBody = governed;
       }
 
@@ -1315,7 +1317,13 @@ export class GatewayServer {
     contentType: string | undefined,
     decoded: DecodedGatewayToken,
     activeVertical?: string,
+    bridgeDiscovery = false,
   ): Promise<Buffer | null> {
+    // A Privilege discovery probe has no user, and what it asks for is the whole
+    // catalogue: Privilege builds its per-tool policy from it and enforces the
+    // per-user view itself. The per-caller filter below would judge the
+    // gateway's own machine identity, so relay the upstream list unchanged.
+    if (bridgeDiscovery) return null;
     const isSse = (contentType || '').includes('text/event-stream');
     let parsed: { id?: unknown; result?: { tools?: unknown[] } } | undefined;
     try {
