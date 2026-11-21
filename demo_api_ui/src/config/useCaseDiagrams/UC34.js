@@ -21,6 +21,7 @@ const EDGES = [
   ["agent", "gw", "tool calls", { detail: "Whatever the LLM issues, each call enters the same pipeline as a deterministic chip." }],
   ["gw", "p1", "authorize per call", { detail: "Attribution and authorization are per-call — nothing rides on the reasoning being clever." }],
   ["p1", "res", "PERMIT · dispatched", { dashed: true, detail: "The analysis runs on data fetched through governed calls end to end." }],
+  ["res", "user", "analysis returns", { dashed: true, detail: "The composed analysis flows back through the agent and renders for Alice — every governed call behind it exists to serve this one answer." }],
 ];
 
 const walk = [
@@ -47,6 +48,12 @@ const walk = [
     nodes: ["p1", "res"], edges: [3],
     lines: [{ who: "PingOne", text: "Free-form reasoning changed what ran — never whether it was governed." }],
     tech: [{ t: "API", c: "tool dispatch -> 200; token chain shows exchange + authorize legs per call" }],
+  },
+  {
+    title: "Analysis returns to Alice", label: "The answer, rendered",
+    nodes: ["res", "user"], edges: [4],
+    lines: [{ who: "Alice", text: "The activity analysis renders in my chat — however the agent reasoned its way there, every call it made was attributed and permitted." }],
+    tech: [{ t: "TOKEN", c: "rendered analysis; per-call exchange + authorize legs on the chain" }],
   },
 ];
 
@@ -86,6 +93,13 @@ const steps = [
     beats: [3],
     detail: {
       form: "Tool dispatch -> 200 for each permitted call; the agent composes its analysis from the results.\n\nToken Chain: one exchange leg and one authorize leg per call. Free-form reasoning changed what ran, never whether it was governed.",
+      tokens: [],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "Rendered analysis in Alice's chat — every call behind it traveled the same exchange + authorize legs.",
       tokens: [],
     },
   },

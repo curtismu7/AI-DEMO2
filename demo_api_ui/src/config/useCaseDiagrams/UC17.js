@@ -21,6 +21,7 @@ const EDGES = [
   ["gw", "p1", "introspect", { detail: "Signature alone is not enough: the gateway checks the token is still inside its TTL." }],
   ["p1", "acct", "forward with live token", { dashed: true, detail: "Only a token inside its window reaches the API; a captured-and-expired one dies here." }],
   ["acct", "agent", "balance", { detail: "The answer returns on the same short-lived grant." }],
+  ["agent", "user", "balance to Alice", { detail: "The balance renders in Alice's chat — served by a credential that is already expiring." }],
 ];
 
 const walk = [
@@ -56,6 +57,12 @@ const walk = [
     nodes: ["acct", "agent"], edges: [4],
     lines: [{ who: "Presenter", text: "A credential captured after this run is already dead — the risk window is minutes, not days." }],
     tech: [{ t: "API", c: "balance -> agent -> Alice's chat" }],
+  },
+  {
+    title: "Balance to Alice", label: "rendered, then the token dies",
+    nodes: ["agent", "user"], edges: [5],
+    lines: [{ who: "Alice", text: "I see my balance in the chat — by the time it renders, the token that fetched it is seconds from expiry." }],
+    tech: [{ t: "TOKEN", c: "rendered balance; agent AT within seconds of exp-now+minutes" }],
   },
 ];
 

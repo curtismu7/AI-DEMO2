@@ -1283,11 +1283,20 @@ export default function ArchitectureTokenFlowPage({ user }) {
   }, [applyStep]);
 
   const nextStep = useCallback(() => {
+    if (!isPaused && !isSimulating && currentStep < 0) {
+      // Starting from idle: show step 1, paused.
+      stepsRef.current = SCENARIO_STEPS_TF[selectedScenario] || TOKEN_FLOW_SIMULATE_STEPS;
+      setTotalSteps(stepsRef.current.length);
+      pausedStep.current = 0;
+      applyStep(0);
+      setIsPaused(true);
+      return;
+    }
     const next = pausedStep.current + 1;
     if (next >= stepsRef.current.length) return;
     pausedStep.current = next;
     applyStep(next);
-  }, [applyStep]);
+  }, [isPaused, isSimulating, currentStep, selectedScenario, applyStep]);
 
   const stop = useCallback(() => {
     simTimeouts.current.forEach(clearTimeout);
@@ -1424,7 +1433,7 @@ export default function ArchitectureTokenFlowPage({ user }) {
         stepTimeOptions={STEP_TIME_OPTIONS}
         stepMs={stepMs}
         onSetStepMs={setStepMs}
-        currentStep={currentStep}
+        currentStep={currentStep < 0 ? 0 : currentStep}
         totalSteps={totalSteps}
         stepDetail={stepDetail}
         stepDetail2={stepDetail2}

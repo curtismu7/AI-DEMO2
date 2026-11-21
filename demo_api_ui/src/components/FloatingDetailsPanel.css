@@ -1,0 +1,135 @@
+.fdp {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 380px;
+  height: 560px;
+  min-width: 300px;
+  min-height: 280px;
+  max-width: calc(100% - 28px);
+  max-height: calc(100% - 28px);
+  display: flex;
+  flex-direction: column;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgba(15, 25, 40, 0.22), 0 2px 8px rgba(15, 25, 40, 0.14);
+  z-index: 30;
+  overflow: hidden;
+  text-align: left;
+}
+
+.fdp--dragging {
+  user-select: none;
+}
+
+.fdp__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border-bottom: 1px solid var(--th-border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.fdp__head:active {
+  cursor: grabbing;
+}
+
+.fdp__grip {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  letter-spacing: 2px;
+}
+
+.fdp__title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--th-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fdp__status {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fdp__spacer {
+  flex: 1;
+}
+
+.fdp__btn {
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.fdp__btn:hover {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.fdp__body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.fdp__resize {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+}
+
+.fdp__resize--corner {
+  left: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.fdp__resize--corner::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  width: 9px;
+  height: 9px;
+  border-left: 2px solid var(--th-text-muted);
+  border-bottom: 2px solid var(--th-text-muted);}
+
+.fdp__resize--left {
+  left: -3px;
+  top: 34px;
+  bottom: 14px;
+  width: 7px;
+  cursor: ew-resize;
+}
+
+.fdp__resize--bottom {
+  bottom: -3px;
+  left: 14px;
+  right: 6px;
+  height: 7px;
+  cursor: ns-resize;
+}

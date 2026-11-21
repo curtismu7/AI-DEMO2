@@ -67,6 +67,32 @@ describe("DiagramControls from the keyboard", () => {
     expect(document.activeElement).toBe(simulate());
   });
 
+  it("shows a Step button while idle and it starts the walkthrough paused on step 1", async () => {
+    const user = userEvent.setup();
+    const onSimulate = vi.fn();
+    const Harness = () => {
+      const [state, setState] = useState({ active: false, paused: false, step: 0 });
+      return (
+        <DiagramControls
+          currentStep={state.step + 1}
+          totalSteps={3}
+          isSimulating={state.active}
+          isPaused={state.paused}
+          onSimulate={() => { onSimulate(); setState({ active: true, paused: false, step: 0 }); }}
+          onNext={() => setState({ active: true, paused: true, step: 0 })}
+        />
+      );
+    };
+    render(<Harness />);
+    expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Step →" }));
+    expect(onSimulate).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Next →" }));
+    expect(screen.queryByRole("button", { name: "Step →" })).toBeNull();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("button", { name: "Resume" })).toBeTruthy();
+  });
+
   it("does not steal focus when the walkthrough changes without a toolbar press", () => {
     const { rerender } = render(
       <DiagramControls currentStep={1} totalSteps={3} isSimulating={false} onSimulate={() => {}} />,

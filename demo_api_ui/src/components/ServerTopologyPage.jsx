@@ -743,6 +743,8 @@ function ServerTopologyContent() {
   const [scenario, setScenario] = useState("protectedApi");
   const [stepIndex, setStepIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // Whether a walkthrough has been started (by Play or a cold-state Step press).
+  const [walkStarted, setWalkStarted] = useState(false);
   const [stepMs, setStepMs] = useState(1500);
 
   const playback = PLAYBACKS[scenario];
@@ -802,6 +804,7 @@ function ServerTopologyContent() {
   // A box click jumps the step bar to that box's first arrow (arrows into it first, else out of it) and brings the details into view.
   const selectNode = useCallback((id) => {
     setPlaying(false);
+    setWalkStarted(true);
     setSelectedNode(id);
     setStepNode(null);
     setDetailsOpen(true);
@@ -829,6 +832,7 @@ function ServerTopologyContent() {
     setScenario(event.target.value);
     setStepIndex(0);
     setPlaying(false);
+    setWalkStarted(false);
     setFilter("flow");
     setSelectedNode(null);
     setStepNode(null);
@@ -840,6 +844,7 @@ function ServerTopologyContent() {
     setScenario(key);
     setStepIndex(0);
     setPlaying(false);
+    setWalkStarted(false);
     setFilter("flow");
     setSelectedNode(null);
     setStepNode(null);
@@ -853,6 +858,7 @@ function ServerTopologyContent() {
     const edge = EDGE_BY_ID[step.edgeId];
     const keepBox = Boolean(selectedNode && edge && (edge.source === selectedNode || edge.target === selectedNode));
     setPlaying(false);
+    setWalkStarted(true);
     if (!keepBox) setSelectedNode(null);
     setStepNode(keepBox || !edge ? null : edge.target);
     setStepIndex(index);
@@ -860,8 +866,15 @@ function ServerTopologyContent() {
     setDetailsOpen(true);
   }, [playback.steps, selectedNode]);
   const moveStep = useCallback((delta) => {
+    if (delta > 0 && !playing && !walkStarted) {
+      // Cold state: "Step" starts the walkthrough paused on step 1.
+      setWalkStarted(true);
+      selectPlaybackStep(0);
+      return;
+    }
+    if (delta > 0 && stepIndex >= playback.steps.length - 1) return;
     selectPlaybackStep(Math.max(0, Math.min(playback.steps.length - 1, stepIndex + delta)));
-  }, [playback.steps.length, selectPlaybackStep, stepIndex]);
+  }, [playback.steps.length, playing, walkStarted, selectPlaybackStep, stepIndex]);
   const togglePlaying = useCallback(() => {
     setSelectedNode(null);
     setDetailsOpen(true);
@@ -872,12 +885,14 @@ function ServerTopologyContent() {
     }
     setFilter("flow");
     setSelectedEdge(null);
+    setWalkStarted(true);
     if (stepIndex >= playback.steps.length - 1) setStepIndex(0);
     setPlaying(true);
   }, [playback.steps, playing, stepIndex]);
   // Reset clears the walkthrough: back to step 1 with nothing selected.
   const reset = useCallback(() => {
     setPlaying(false);
+    setWalkStarted(false);
     setStepIndex(0);
     setSelectedNode(null);
     setStepNode(null);

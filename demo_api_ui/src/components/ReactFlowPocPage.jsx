@@ -1326,7 +1326,15 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
       setSimulating(false);
     }
   };
-  const onNext = () => showStep(Math.min(stepIndex + 1, steps.length - 1));
+  const onNext = () => {
+    if (stepIndex < 0) {
+      // Starting from idle: show step 1, paused.
+      showStep(0);
+      setPaused(true);
+      return;
+    }
+    showStep(Math.min(stepIndex + 1, steps.length - 1));
+  };
   const onPrev = () => showStep(Math.max(stepIndex - 1, 0));
   const onReset = () => {
     clearTimer();
@@ -1520,7 +1528,7 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
     <div className="rfp-panel__controls" data-testid="rfp-panel-controls">
       <span className="rfp-panel__controls-label">Step controls</span>
       <DiagramControls
-        currentStep={stepIndex < 0 ? 0 : stepIndex + 1}
+        currentStep={stepIndex < 0 ? 1 : stepIndex + 1}
         totalSteps={steps.length}
         isSimulating={simulating}
         isPaused={paused}
@@ -1530,7 +1538,6 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
         onResume={onResume}
         onNext={onNext}
         onStop={onReset}
-        onReset={onReset}
         stepTimeOptions={STEP_TIME_OPTIONS}
         stepMs={stepMs}
         onSetStepMs={setStepMs}

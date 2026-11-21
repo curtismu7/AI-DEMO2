@@ -136,13 +136,23 @@ function DiagramControls({
             title="Time each step takes during Simulate"
           />
           {!isSimulating ? (
-            <button
-              type="button"
-              className="dc-ctrl-btn dc-ctrl-btn--simulate"
-              onClick={then(".dc-ctrl-btn--pause", onSimulate)}
-            >
-              Simulate
-            </button>
+            <>
+              <button
+                type="button"
+                className="dc-ctrl-btn dc-ctrl-btn--simulate"
+                onClick={then(".dc-ctrl-btn--pause", onSimulate)}
+              >
+                Simulate
+              </button>
+              <button
+                type="button"
+                className="dc-ctrl-btn dc-ctrl-btn--step"
+                onClick={then(".dc-ctrl-btn--next", onNext)}
+                title="Start the walkthrough paused on step 1"
+              >
+                Step →
+              </button>
+            </>
           ) : (
             <>
               <button

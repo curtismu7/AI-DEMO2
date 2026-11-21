@@ -66,6 +66,7 @@ import { DashboardExplainers, FloatChainActions, MiddleAgentFab, MiddleResizeHan
 import DashboardGlobalModals from "./DashboardGlobalModals";
 import DashboardStepUpToast from "./DashboardStepUpToast";
 import { DetailPaneResizeHandle, RunTraceCard } from "./DashboardTracePanels";
+import FloatingDetailsPanel from "./FloatingDetailsPanel";
 import { SimBanner, StatusChip } from "./pingUi";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { dashboardModeText, chatStatusChip } from "./dashboardFrameStatus";
@@ -2571,7 +2572,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <RunTraceCard baselineRunId={traceBaselineRunId}>
+            <RunTraceCard baselineRunId={traceBaselineRunId} withPopout={Boolean(selectedSeqStep)}>
               <SequenceReelDiagram
                 onSelectStep={setSelectedSeqStep}
                 onReset={() => setSelectedSeqStep(null)}
@@ -2580,19 +2581,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 followFlow={followFlow}
                 onToggleSlowMode={() => setSlowMode(!slowMode)}
               />
+              {showSequenceDiagram && selectedSeqStep && (
+                <FloatingDetailsPanel
+                  open
+                  id="seq-step"
+                  title={selectedSeqStep.label || "Step details"}
+                  status={selectedSeqStep.status}
+                  onClose={() => setSelectedSeqStep(null)}
+                >
+                  <CollapsibleStepDetail step={selectedSeqStep} />
+                </FloatingDetailsPanel>
+              )}
             </RunTraceCard>
-          )}
-          {showSequenceDiagram && selectedSeqStep && (
-            <>
-              <DetailPaneResizeHandle
-                height={detailPaneHeight}
-                onMouseDown={onDetailPaneResizeMouseDown}
-                onKeyDown={onDetailPaneResizeKeyDown}
-              />
-              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
-              <CollapsibleStepDetail step={selectedSeqStep} />
-              </div>
-            </>
           )}
         </div>
       ) : (
@@ -2667,7 +2667,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
             {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <RunTraceCard baselineRunId={traceBaselineRunId}>
+            <RunTraceCard baselineRunId={traceBaselineRunId} withPopout={Boolean(selectedSeqStep)}>
               <SequenceReelDiagram
                 onSelectStep={setSelectedSeqStep}
                 onReset={() => setSelectedSeqStep(null)}
@@ -2676,19 +2676,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 followFlow={followFlow}
                 onToggleSlowMode={() => setSlowMode(!slowMode)}
               />
+              {showSequenceDiagram && selectedSeqStep && (
+                <FloatingDetailsPanel
+                  open
+                  id="seq-step"
+                  title={selectedSeqStep.label || "Step details"}
+                  status={selectedSeqStep.status}
+                  onClose={() => setSelectedSeqStep(null)}
+                >
+                  <CollapsibleStepDetail step={selectedSeqStep} />
+                </FloatingDetailsPanel>
+              )}
             </RunTraceCard>
-          )}
-          {showSequenceDiagram && selectedSeqStep && (
-            <>
-              <DetailPaneResizeHandle
-                height={detailPaneHeight}
-                onMouseDown={onDetailPaneResizeMouseDown}
-                onKeyDown={onDetailPaneResizeKeyDown}
-              />
-              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
-              <CollapsibleStepDetail step={selectedSeqStep} />
-              </div>
-            </>
           )}
           </div>
       )}

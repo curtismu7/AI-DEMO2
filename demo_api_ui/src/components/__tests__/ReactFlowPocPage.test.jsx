@@ -42,9 +42,11 @@ describe("ReactFlowPocPage", () => {
 
   it("renders the shared DiagramControls with step counter and speed selector", () => {
     renderPage();
-    expect(screen.getByText("Step 0 / 9")).toBeTruthy();
+    expect(screen.getByText("Step 1 / 9")).toBeTruthy();
     expect(screen.getByText("Simulate")).toBeTruthy();
-    expect(screen.getByText("↺ Reset")).toBeTruthy();
+    // Idle state starts paused at step 1: Step → instead of a Reset button.
+    expect(screen.getByText("Step →")).toBeTruthy();
+    expect(screen.queryByText("↺ Reset")).toBeNull();
   });
 
   it("renders the layer and outcome legends", () => {
@@ -64,7 +66,8 @@ describe("ReactFlowPocPage", () => {
     expect(nodes.length).toBeGreaterThan(0);
     nodes.forEach((n) => expect(n.classList.contains("draggable")).toBe(true));
     expect(screen.getByText("Simulate")).toBeTruthy();
-    expect(screen.getByText("↺ Reset")).toBeTruthy();
+    expect(screen.getByText("Step →")).toBeTruthy();
+    expect(screen.queryByText("↺ Reset")).toBeNull();
     expect(container.querySelector(".dc-steptime-select")).toBeTruthy();
   });
   /* eslint-enable testing-library/no-node-access, testing-library/no-container */
@@ -82,7 +85,7 @@ describe("ReactFlowPocPage", () => {
       target: { value: "hitl" },
     });
     await waitFor(() => {
-      expect(screen.getByText("Step 0 / 10")).toBeTruthy();
+      expect(screen.getByText("Step 1 / 10")).toBeTruthy();
     });
   });
 
@@ -92,7 +95,7 @@ describe("ReactFlowPocPage", () => {
       target: { value: "deny" },
     });
     await waitFor(() => {
-      expect(screen.getByText("Step 0 / 6")).toBeTruthy();
+      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
     });
   });
 
@@ -111,20 +114,21 @@ describe("ReactFlowPocPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Sequence"));
     expect(screen.getByText("Simulate")).toBeTruthy();
-    expect(screen.getByText("↺ Reset")).toBeTruthy();
+    expect(screen.getByText("Step →")).toBeTruthy();
     expect(screen.getByText("Step time:")).toBeTruthy();
-    fireEvent.click(screen.getByText("Simulate"));
+    // Cold state: Step → starts the walkthrough paused on step 1 (no separate
+    // Reset in idle controls anymore — Step → is the way in).
+    fireEvent.click(screen.getByText("Step →"));
     expect(screen.getByText(/^▶ Step/)).toBeTruthy();
-    fireEvent.click(screen.getByText("↺ Reset"));
-    expect(screen.queryByText(/^▶ Step/)).toBeNull();
+    expect(screen.getByText("Step 1 / 9")).toBeTruthy();
   });
 
   it("shows a sample token card for the active step", () => {
     renderPage();
     // No token before the tour starts.
     expect(screen.queryByTestId("rfp-sample-token")).toBeNull();
-    // Prev/Next only render while simulating — start the tour first.
-    fireEvent.click(screen.getByText("Simulate"));
+    // Prev/Next only render while the tour is active — start it first.
+    fireEvent.click(screen.getByText("Step →"));
     expect(screen.getByTestId("rfp-sample-token")).toBeTruthy();
     expect(screen.getByText("Session cookie")).toBeTruthy();
     expect(screen.getByText("user_maya_chen")).toBeTruthy();
@@ -132,7 +136,7 @@ describe("ReactFlowPocPage", () => {
 
   it("shows wire-level HTTP request/response detail for the active step", () => {
     renderPage();
-    fireEvent.click(screen.getByText("Simulate"));
+    fireEvent.click(screen.getByText("Step →"));
     expect(screen.getByTestId("rfp-wire")).toBeTruthy();
     expect(screen.getAllByText("POST", { exact: false }).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/code_challenge/).length).toBeGreaterThan(0);

@@ -21,6 +21,7 @@ const EDGES = [
   ["user", "p1", "approve", { dashed: true, detail: "Her decision happens off-session, out of the agent's reach." }],
   ["p1", "agent", "token", { dashed: true, detail: "The poll completes: ciba-poll done, token issued." }],
   ["agent", "tool", "dispatch", { detail: "Chain order on the record: authorize-decision -> ciba-poll -> tool-dispatched.", vertical: true }],
+  ["tool", "user", "transfer confirmed", { dashed: true, vertical: true, detail: "The confirmation reaches Alice's device/UI — the out-of-band approval she gave is what let this final answer happen." }],
 ];
 
 const walk = [
@@ -59,6 +60,12 @@ const walk = [
     nodes: ["agent", "tool"], edges: [5],
     lines: [{ who: "Gateway", text: "The transfer executes with the full order visible: authorize, poll, dispatch." }],
     tech: [{ t: "API", c: "token chain: authorize-decision -> ciba-poll -> tool-dispatched" }],
+  },
+  {
+    title: "Confirmation back to Alice", label: "The approval's purpose",
+    nodes: ["tool", "user"], edges: [6],
+    lines: [{ who: "Alice", text: "I get the transfer confirmation — the approval I gave on my phone is what produced it." }],
+    tech: [{ t: "POLICY", c: "rendered confirmation; CIBA approval receipt bound to this transfer on the record" }],
   },
 ];
 
@@ -118,6 +125,14 @@ const steps = [
         claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", exp: 1790000000 },
       }],
       refs: [RFC(6750, "Bearer token usage"), SPEC("MCP authorization 2025-11-25", "Model Context Protocol authorization")],
+    },
+  },
+  {
+    beats: [6],
+    detail: {
+      form: "Transfer confirmation rendered for Alice.\n\nThe CIBA approval she gave on her enrolled device is what authorized this final answer — no browser session was ever involved.",
+      tokens: [],
+      refs: [SPEC("OpenID CIBA Core 1.0", "Backchannel approval to completed transfer")],
     },
   },
 ];

@@ -3393,6 +3393,14 @@ export default function SequenceDiagramPage() {
   }, [isPaused, applyStep]);
 
   const nextStep = useCallback(() => {
+    if (!isPaused && !isSimulating && currentStepIdx < 0) {
+      // Starting from idle: show step 1, paused.
+      setIsSimulating(true);
+      setIsPaused(true);
+      pausedStepIdx.current = 0;
+      applyStep(0);
+      return;
+    }
     if (!isPaused) return;
     const next = pausedStepIdx.current + 1;
     if (next >= steps.length) {
@@ -3402,7 +3410,7 @@ export default function SequenceDiagramPage() {
     }
     applyStep(next);
     pausedStepIdx.current = next;
-  }, [isPaused, steps.length, applyStep, resetDiagram]);
+  }, [isPaused, isSimulating, currentStepIdx, steps.length, applyStep, resetDiagram]);
 
   const handleStepClick = useCallback(
     (idx) => {
@@ -3592,7 +3600,7 @@ export default function SequenceDiagramPage() {
           </button>
         </div>
         <DiagramControls
-          currentStep={currentStepIdx + 1}
+          currentStep={currentStepIdx < 0 ? 1 : currentStepIdx + 1}
           totalSteps={steps.length}
           isSimulating={isSimulating}
           isPaused={isPaused}

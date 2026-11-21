@@ -1382,6 +1382,21 @@ const SCENARIO_STEPS_FLOW = {
         note: "MCP Server validates aud=mcpserver.ping.demo — this token would be rejected at the gateway itself",
       },
     },
+    {
+      nodeIds: ["mcp-gw", "agent", "chatbot", "user"],
+      colorClass: "active",
+      stepLabel: "Tool result returns to the user: MCP → Gateway → Agent → Chatbot → User",
+      description:
+        "The tool result flows back through the gateway and agent, and the chatbot renders the answer for the user. The three exchanges in this scenario existed so this one response could be served with correctly-narrowed tokens.",
+      activeEdgeIds: [],
+      edgeStyle: A,
+      nodeBadges: {},
+      token: {
+        type: "Rendered Result",
+        data: "Tool result rendered in the chatbot for the user",
+        note: "Only the rendered result reaches the user — tokens stayed on the service path",
+      },
+    },
   ],
   "get-accounts": [
     {
@@ -1513,6 +1528,21 @@ const SCENARIO_STEPS_FLOW = {
         scope_used: "read",
       },
     },
+    {
+      nodeIds: ["mcp-server", "mcp-gw", "agent", "chatbot", "user"],
+      colorClass: "active",
+      stepLabel: "Account data returns: Banking API → MCP → Gateway → Agent → Chatbot → User",
+      description:
+        "The account list flows back through the chain and the chatbot renders it for the user. This final hop is the whole point of the flow: every earlier exchange existed so this one response could be served safely.",
+      activeEdgeIds: [],
+      edgeStyle: A,
+      nodeBadges: {},
+      token: {
+        type: "Rendered Result",
+        data: "Your checking account balance is $12,450.00",
+        note: "Only the rendered data reaches the user — no token ever rode along",
+      },
+    },
   ],
   withdrawal: [
     {
@@ -1623,6 +1653,21 @@ const SCENARIO_STEPS_FLOW = {
         scope_used: "write",
       },
     },
+    {
+      nodeIds: ["mcp-server", "mcp-gw", "agent", "chatbot", "user"],
+      colorClass: "active",
+      stepLabel: "Transfer confirmation returns: Banking API → MCP → Gateway → Agent → Chatbot → User",
+      description:
+        "The transfer receipt flows back through the chain and the chatbot confirms the $750 transfer to the user. The HITL pause existed so this final step could happen with a recorded human approval.",
+      activeEdgeIds: [],
+      edgeStyle: A,
+      nodeBadges: {},
+      token: {
+        type: "Rendered Result",
+        data: "Transfer TXN-2024-001 complete: $750 moved from CHK-001 to SAV-002",
+        note: "Confirmation only — the approval and tokens stayed server-side",
+      },
+    },
   ],
   "bad-scope": [
     {
@@ -1722,6 +1767,21 @@ const SCENARIO_STEPS_FLOW = {
         recovery:
           "Re-authenticate with write scope to enable transfers",
         note: "Graceful degradation: surface clear message, request scope upgrade, never silent-fail",
+      },
+    },
+    {
+      nodeIds: ["agent", "chatbot", "user"],
+      colorClass: "active-error",
+      stepLabel: "Denial returns to the user: Agent → Chatbot → User",
+      description:
+        "The 403 surfaces in the chatbot as a clear message to the user, who sees why the transfer was refused and what a scope upgrade would change. A DENY still completes its loop — the user is the final stop of every flow, permitted or not.",
+      activeEdgeIds: [],
+      edgeStyle: { stroke: "#ef4444", strokeWidth: 2.5 },
+      nodeBadges: {},
+      token: {
+        type: "Rendered Result",
+        data: "Unable to complete transfer — insufficient permissions",
+        note: "The refusal, not a token, is what reaches the user",
       },
     },
   ],
@@ -1845,6 +1905,21 @@ const SCENARIO_STEPS_FLOW = {
         aud: "agent1",
         scope: "balance",
         note: "consent grant checked per call (server-side), not carried in the token",
+      },
+    },
+    {
+      nodeIds: ["chatbot", "user"],
+      colorClass: "active",
+      stepLabel: "Context request returns to the user: Agent → Chatbot → User",
+      description:
+        "The agent's request for user context reaches the chatbot, which prompts the user to grant the balance scope. This final hop is the flow's purpose: the user is asked in their own UI, not in a token flow they never see.",
+      activeEdgeIds: [],
+      edgeStyle: A,
+      nodeBadges: {},
+      token: {
+        type: "Rendered Result",
+        data: "Sign-in required: grant balance scope to continue",
+        note: "The prompt in the chatbot is what the subject-token flow serves",
       },
     },
   ],
@@ -2057,6 +2132,21 @@ const SCENARIO_STEPS_FLOW = {
         type: "Bearer",
         credentialPath: "oauth_bearer",
         route: "/accounts",
+      },
+    },
+    {
+      nodeIds: ["mcp-gw", "agent", "chatbot", "user"],
+      colorClass: "active",
+      stepLabel: "Account data returns to the user: Resource Server → Gateway → BFF → Chatbot → User",
+      description:
+        "The account data flows back through the gateway and BFF, and the SPA renders it for the user. The forwarded-bearer path existed so this one response could be served without an exchange — and without a token ever reaching the browser.",
+      activeEdgeIds: [],
+      edgeStyle: { stroke: "#004687", strokeWidth: 2.5 },
+      nodeBadges: {},
+      token: {
+        type: "Rendered Result",
+        data: "Accounts rendered in the SPA for the user",
+        note: "Rendered data only — the inbound bearer stayed on the service path",
       },
     },
   ],
@@ -2906,6 +2996,14 @@ export default function ArchitectureFlowPage({ user }) {
   }, [isPaused, applyStep]);
 
   const nextStep = useCallback(() => {
+    if (!isPaused && !isSimulating && currentStep < 0) {
+      // Starting from idle: show step 1, paused.
+      stepsRef.current = SCENARIO_STEPS_FLOW[selectedScenario] || SIMULATE_STEPS;
+      applyStep(0);
+      pausedStep.current = 0;
+      setIsPaused(true);
+      return;
+    }
     if (!isPaused) return;
     const next = pausedStep.current + 1;
     // Already on the last step — stop in place, same as the auto-play path.
@@ -2915,7 +3013,7 @@ export default function ArchitectureFlowPage({ user }) {
     }
     applyStep(next);
     pausedStep.current = next;
-  }, [isPaused, applyStep]);
+  }, [isPaused, isSimulating, currentStep, selectedScenario, applyStep]);
 
   const stopSim = useCallback(() => {
     simTimeouts.current.forEach(clearTimeout);
@@ -3076,7 +3174,7 @@ export default function ArchitectureFlowPage({ user }) {
           Interactive Architecture Flow
         </h2>
         <DiagramControls
-          currentStep={currentStep + 1}
+          currentStep={currentStep < 0 ? 1 : currentStep + 1}
           totalSteps={stepsRef.current.length}
           isSimulating={isSimulating}
           isPaused={isPaused}

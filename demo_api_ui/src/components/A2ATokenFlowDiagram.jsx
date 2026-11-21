@@ -307,8 +307,7 @@ export default function A2ATokenFlowDiagram({ tokenEvents, labels }) {
       <div className="a2t-controls">
         <DiagramControls
           zoom={null}
-          currentStep={activeIndex + 1}
-          totalSteps={events.length}
+          currentStep={activeIndex + 1}          totalSteps={events.length}
           isSimulating={simulating}
           isPaused={paused}
           onSimulate={() => playFrom(0)}
@@ -322,7 +321,15 @@ export default function A2ATokenFlowDiagram({ tokenEvents, labels }) {
               setSimulating(false);
             }
           }}
-          onNext={() => showStep(Math.min(activeIndex + 1, events.length - 1))}
+          onNext={() => {
+            if (!simulating && !paused && activeIndex === 0) {
+              // Starting from idle: show step 1, paused.
+              showStep(0);
+              setPaused(true);
+              return;
+            }
+            showStep(Math.min(activeIndex + 1, events.length - 1));
+          }}
           onStop={() => { clearTimer(); setSimulating(false); setPaused(false); }}
           onReset={() => { clearTimer(); setSimulating(false); setPaused(false); setActiveIndex(0); setSelected(null); }}
           stepTimeOptions={STEP_TIME_OPTIONS}

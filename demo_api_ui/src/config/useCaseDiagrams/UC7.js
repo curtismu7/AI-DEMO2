@@ -20,6 +20,7 @@ const EDGES = [
   ["p1", "user", "MFA prompt", { detail: "Alice approves on her enrolled device — out of the agent's hands.", vertical: true }],
   ["p1", "gw", "acr upgraded", { detail: "Session assurance level rises; the retry carries the new ACR claim." }],
   ["gw", "agent", "PERMIT", { detail: "Re-evaluation passes with the upgraded session — transfer executes." }],
+  ["agent", "user", "transfer confirmed", { dashed: true, vertical: true, detail: "The transfer receipt renders in Alice's UI — the step-up existed so this confirmation could be given with MFA on the record." }],
 ];
 
 const walk = [
@@ -58,6 +59,12 @@ const walk = [
     nodes: ["gw", "agent"], edges: [5],
     lines: [{ who: "Agent", text: "The transfer runs — with MFA on the record." }],
     tech: [{ t: "POLICY", c: "Authorize re-evaluates: PERMIT (step-up satisfied)" }],
+  },
+  {
+    title: "Confirmation returns to Alice", label: "Receipt on screen",
+    nodes: ["agent", "user"], edges: [6],
+    lines: [{ who: "Alice", text: "I see the transfer confirmation — the MFA I approved was for this exact movement of money." }],
+    tech: [{ t: "POLICY", c: "rendered receipt: transfer complete · MFA (amr=mfa) satisfied the step-up for this transaction" }],
   },
 ];
 
@@ -144,6 +151,14 @@ Authorization: Bearer <delegated access token, acr=<MFA policy name>>`,
 { "jsonrpc": "2.0", "id": 2, "result": { "content": [{ "type": "text", "text": "<transfer receipt>" }] } }`,
       tokens: [HIGH_ACR],
       refs: [AUTHZ[0], AUTHZ[1]],
+    },
+  },
+  {
+    beats: [6],
+    detail: {
+      form: "Chatbot renders the receipt\n\nTransfer TXN-... complete: $600 moved from checking to savings.\n\nThe confirmation is the flow's final hop: Alice's MFA approval bound to this request is what allowed it.",
+      tokens: [],
+      refs: [STEPUP[1]],
     },
   },
 ];

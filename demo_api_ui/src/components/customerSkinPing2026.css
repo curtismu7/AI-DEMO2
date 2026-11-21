@@ -162,3 +162,8 @@
   padding: 2rem;
   text-align: center;
 }
+
+/* ── Clinical split: floating details pop-out host ─────────────────────────── */
+.customer-skin-p1 .csx-trace-wrap--popout-host {
+  position: relative;
+}
