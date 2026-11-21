@@ -224,6 +224,18 @@ export default function SpiffePanel({ isOpen, onClose, initialTabId }) {
             token as the <code>spiffeId</code> claim. See{' '}
             <code>spiffe/pingfederate/</code> for the PF admin API artifacts.
           </EduImplIntro>
+
+          <h4>Privilege gateway as a SPIFFE verifier (flag-gated)</h4>
+          <EduImplIntro repoPath="privilege/GATEWAY-WORKLOAD-IDENTITY-SETUP.md">
+            <code>POST /api/demo/spiffe/privilege/call</code> (flag{' '}
+            <code>ff_spiffe_privilege</code>) presents a workload identity to the Privilege
+            gateway&apos;s Non-Human Identity / Pass Agent Token path in three comparable shapes:
+            the raw SPIRE JWT-SVID, the PF-exchanged token, and a plain PF client-credentials
+            baseline. The gateway must fetch the registered JWKS over the public internet —
+            until the SPIRE discovery endpoint is exposed beyond
+            <code>local.ping-devops.com:8443</code>, a raw-SVID call demonstrates the refusal
+            rather than the acceptance. Setup steps live in <code>spiffe/README.md</code>.
+          </EduImplIntro>
         </>
       ),
     },

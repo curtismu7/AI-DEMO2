@@ -103,3 +103,55 @@ On the SPIRE side, volumes (`spiffe-server-data`, `spiffe-agent-data`,
 container recreation, re-run
 `docker compose --profile spiffe run --rm spire-registration` so workload
 entries point at the live agent.
+
+---
+
+## SPIFFE → Privilege gateway (federated workload identity)
+
+`POST /api/demo/spiffe/privilege/call` (flag `ff_spiffe_privilege`, default
+off) presents a workload identity to the Privilege gateway's Non-Human
+Identity / Pass Agent Token path — the same setup verified 2026-11-13 in
+`privilege/GATEWAY-WORKLOAD-IDENTITY-SETUP.md` for PingFederate tokens, here
+extended to SPIRE-issued identity. Three token shapes are comparable:
+
+| `token_mode` | Token presented | What it tests |
+|---|---|---|
+| `raw-svid` | SPIRE JWT-SVID, verbatim (`sub` = `spiffe://…`) | Does the gateway verify SPIFFE identity directly? |
+| `pf-exchanged` | PF token minted in exchange for that SVID as `actor_token` (`/pingfederate/exchange`) | The composite story: SVID → PF → gateway, with `client_id`/`act.sub` the required-claims pattern expects |
+| `pf-client-credentials` | Plain PF client-credentials token | Baseline with no SPIFFE at all |
+
+Request body (all optional): `token_mode` (default `raw-svid`), `resource`
+(gateway path, default `/mcp`), `mcp_method` (default `tools/list`),
+`audience` (SVID audience, default the gateway URL), `scopes`. The gateway's
+HTTP status and body are returned verbatim — a 401/403 **is the demo result**,
+not an error.
+
+### Privilege console setup (mirrors the PF pattern)
+
+1. **Non-Human Identities → Register Identity**: issuer = the SPIRE OIDC
+   Discovery Provider issuer (`https://local.ping-devops.com:8443` for the
+   PF-validated issuer currently configured), key source "Fetch from URL"
+   with the discovery provider's JWKS URL.
+2. **Agent app**: Agentic Apps → Add Application → MCP Server, Auth Mode
+   **Pass Agent Token** (see `privilege/GATEWAY-WORKLOAD-IDENTITY-SETUP.md`
+   part C).
+3. **Agent key**: Agent Registry → Add Agent, custodian = the identity from
+   step 1 (part D).
+
+### The reachability blocker (raw SVID against the remote gateway)
+
+The gateway fetches the registered JWKS from the **public internet**. The
+SPIRE OIDC Discovery Provider currently serves only on
+`local.ping-devops.com:8443`, which `mcpgw.ai-demo.ping-devops.com` cannot
+reach — so a `raw-svid` call against the remote gateway demonstrates the
+**refusal** (JWKS/issuer failure), which is itself a useful demo beat.
+Options to get the acceptance path live:
+
+- Deploy the discovery provider behind the SE cluster's public ingress
+  (`ai-demo.ping-devops.com`), then re-point the NHI registration's JWKS URL;
+  or
+- Run the checks against a locally deployed Privilege gateway
+  (`privilege/GATEWAY-LOCAL-DOCKER.md`), which can resolve the local host.
+
+The `pf-exchanged` and `pf-client-credentials` modes have no such constraint —
+their JWKS is PingFederate's, already public.

@@ -960,7 +960,9 @@
     "actors": [
       "workload-a",
       "local-mock-issuer",
-      "workload-b"
+      "workload-b",
+      "workforce-agent",
+      "privilege-gateway"
     ],
     "steps": [
       {
@@ -999,6 +1001,23 @@
         "body": {
           "svid": "demo.placeholder.svid",
           "expected_trust_domain": "demo.local"
+        },
+        "expected": {}
+      },
+      {
+        "id": "step-3",
+        "actor": "workforce-agent",
+        "fromActor": "workforce-agent",
+        "toActor": "privilege-gateway",
+        "action": "POST /api/demo/spiffe/privilege/call",
+        "label": "POST /api/demo/spiffe/privilege/call",
+        "method": "POST",
+        "endpoint": "/api/demo/spiffe/privilege/call",
+        "step": 3,
+        "title": null,
+        "description": "LIVE Privilege gateway call with a SPIFFE workload identity as the only credential. Complements /pingfederate/exchange above: that one proves PF accepts an SVID in token exchange; this one proves (or measures) whether the Privilege gateway's Non-Human Identity / Pass Agent Token path accepts SPIFFE-issued identity. Three token shapes are comparable; see services/spiffePrivilegeService.js. Gated by ff_spiffe_privilege; off by default. The access token is returned for playground inspection only.",
+        "body": {
+          "token_mode": "raw-svid"
         },
         "expected": {}
       }

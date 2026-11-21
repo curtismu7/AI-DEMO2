@@ -181,4 +181,4 @@ async function exchangeWithPingFederate({ audience, scopes } = {}) {
   return { accessToken, spiffeId: actorSpiffeId, actorSpiffeId, issuer };
 }
 
-module.exports = { exchangeWithPingFederate, mintJwtSvid };
+module.exports = { exchangeWithPingFederate, mintJwtSvid, pfHttpsAgent };
