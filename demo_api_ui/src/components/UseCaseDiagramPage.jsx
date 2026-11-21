@@ -184,7 +184,7 @@ export default function UseCaseDiagramPage() {
         walk={activeWalk}
         pingStyle={cfg.pingStyle === true}
         stepper={stepper}
-        onNodeClick={(node) => setPickedNode((prev) => (prev === node.id ? null : node.id))}
+        onNodeClick={(node) => setPickedNode((prev) => (prev === node.id ? null : node.id))} // kept for the floating panel; node detail itself now shows in the box's Passport
         testId={`ucd-${cfg.id.toLowerCase()}`}
         ariaLabel={`${guide?.title || cfg.id} walkthrough`}
       />
