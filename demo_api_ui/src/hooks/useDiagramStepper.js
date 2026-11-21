@@ -7,6 +7,7 @@ import { DEFAULT_STEP_MS } from "../components/diagram";
  *
  * The shape matches DiagramControls: Simulate starts it playing, Pause/Resume
  * toggle auto-advance, Prev/Next work while paused, Stop returns to off.
+ * Next from the idle state starts the walkthrough paused on step 1.
  */
 export function useDiagramStepper(total) {
   const [step, setStep] = useState(-1);
@@ -37,7 +38,16 @@ export function useDiagramStepper(total) {
     if (step >= last) setStep(0);
     setPaused(false);
   }, [step, last]);
-  const next = useCallback(() => setStep((s) => Math.min(s + 1, last)), [last]);
+  const next = useCallback(() => {
+    if (step < 0) {
+      // Starting from idle: show step 1, paused.
+      if (total < 1) return;
+      setPaused(true);
+      setStep(0);
+      return;
+    }
+    setStep((s) => Math.min(s + 1, last));
+  }, [step, total, last]);
   const prev = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
   // jump straight to a step (a click on the movie reel) and stop auto-advance there
   const goTo = useCallback(

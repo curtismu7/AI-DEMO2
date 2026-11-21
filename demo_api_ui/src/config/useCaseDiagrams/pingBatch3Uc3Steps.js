@@ -171,6 +171,14 @@ export const UC_BATCH3_STEPS = {
         refs: [HTTP],
       },
     },
+    {
+      beats: [5],
+      detail: {
+        form: `Balance rendered in Alice's chat.\n\n${note("The delegated token never left the service path; by the time the balance renders, it is seconds from expiry.")}`,
+        tokens: [],
+        refs: [HTTP],
+      },
+    },
   ],
 
   UC18: [

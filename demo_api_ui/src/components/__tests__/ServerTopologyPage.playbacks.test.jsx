@@ -395,7 +395,7 @@ describe("Server topology use-case playback", () => {
     fireEvent.change(selector, { target: { value: "apiKeyBackend" } });
 
     const steps = within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem");
-    expect(steps).toHaveLength(7);
+    expect(steps).toHaveLength(8);
     expect(steps[5]).toHaveTextContent("PingOne Authorize · policy decision");
     expect(steps[6]).toHaveTextContent("API resource server · X-API-Key");
     expect(steps.some((step) => /RFC 8693 exchange/i.test(step.textContent))).toBe(false);
@@ -408,7 +408,7 @@ describe("Server topology use-case playback", () => {
     fireEvent.change(selector, { target: { value: "protectedApi" } });
 
     const steps = within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem");
-    expect(steps).toHaveLength(9);
+    expect(steps).toHaveLength(10);
     expect(steps[6]).toHaveTextContent("RFC 8693 exchange");
     expect(steps[8]).toHaveTextContent("OAuth MCP server → BFF API · delegated user bearer");
     expect(PLAYBACKS.protectedApi.label).toMatch(/Step 9 passthrough/i);
@@ -426,7 +426,7 @@ describe("Server topology use-case playback", () => {
       expect(playback.result).toMatch(/conditional|when configured/i);
       expect(playback.result).toMatch(/Step 9/i);
       expect(playback.result).toMatch(/BANKING_API_RESOURCE_URI must match the BFF resource audience/i);
-      expect(playback.steps).toHaveLength(10);
+      expect(playback.steps).toHaveLength(11);
       expect(playback.steps[8]).toMatchObject({ edgeId: route.edgeId });
       expect(playback.steps[8].title).toContain(`MCP server → ${route.provider}`);
       expect(playback.steps[9].edgeId).toBe("mcpmcp-bff-api");
@@ -450,6 +450,7 @@ describe("Server topology use-case playback", () => {
       "browser-mcpmcp-direct",
       "mcpmcp-pingfederate-step9",
       "mcpmcp-bff-api",
+      "frontend-bff",
     ]);
     expect(PLAYBACKS.protectedApiPingFederate).toBeUndefined();
     expect(SERVER_EDGES.find(({ id }) => id === "mcpmcp-pingfederate-step9")).toMatchObject({
@@ -468,7 +469,7 @@ describe("Server topology use-case playback", () => {
     fireEvent.change(selector, { target: { value: "directMcp" } });
 
     expect(screen.getByText(/Hosted MCP requests route through PingGateway/i)).toBeInTheDocument();
-    expect(within(screen.getByLabelText("Numbered flow steps")).getByRole("listitem"))
+    expect(within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem")[0])
       .toHaveTextContent("Local Compose client → directly published MCP server");
   });
 
@@ -509,8 +510,20 @@ describe("Server topology use-case playback", () => {
     fireEvent.click(screen.getByRole("button", { name: /Step 05: BFF agent → Demo Agent Gateway/ }));
 
     const details = screen.getByRole("complementary", { name: /selected topology details/i });
-    expect(within(details).getByText(/Diagram step 05 of 9/i)).toBeInTheDocument();
+    expect(within(details).getByText(/Diagram step 05 of 10/i)).toBeInTheDocument();
     expect(within(details).getByRole("heading", { name: /BFF \/ API server → Demo Agent Gateway/ })).toBeInTheDocument();
+  });
+
+  it("starts paused on step 1 when Next hop is pressed from the cold state", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(screen.getByText(/Step 1 of 10/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(screen.getByText(/Step 2 of 10/)).toBeInTheDocument();
+    expect(reactFlowMocks.nodes.find((n) => n.id === "frontend").selected).toBe(true);
   });
 
   it("maps Demo Steps to individual route connections", () => {
@@ -542,7 +555,7 @@ describe("Server topology use-case playback", () => {
     fireEvent.click(screen.getByRole("button", { name: /^06 · /i }));
 
     const details = screen.getByRole("complementary", { name: /selected topology details/i });
-    expect(within(details).getByText(/Diagram step 06 of 9/i)).toBeInTheDocument();
+    expect(within(details).getByText(/Diagram step 06 of 10/i)).toBeInTheDocument();
     expect(within(details).getByText(/Demo Steps mapping/i)).toBeInTheDocument();
     expect(within(details).getByRole("listitem")).toHaveTextContent(/UC1\s*Full flow — delegated access/);
   });
@@ -569,7 +582,7 @@ describe("Server topology agent-to-agent buttons", () => {
     expect(screen.getByLabelText("Choose a request flow").value).toBe("privilegeA2aChain");
     expect(screen.getByLabelText("Flow boxes only").checked).toBe(true);
     const visible = reactFlowMocks.nodes.filter((node) => node.type === "server" && !node.hidden).map((node) => node.id).sort();
-    expect(visible).toEqual(["a2amain", "langchain", "privgw"]);
+    expect(visible).toEqual(["a2amain", "bff", "langchain", "privgw"]);
   });
 });
 
@@ -608,7 +621,7 @@ describe("Server topology step detail and box sync", () => {
     render(<ServerTopologyPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
-    expect(screen.getByText(/Step 5 of 9/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 5 of 10/)).toBeInTheDocument();
     // the jumped-to step's request, tokens and standards show beside the box detail
     const boxDetails = screen.getByRole("complementary", { name: /selected topology details/i });
     expect(within(boxDetails).getByRole("heading", { name: "Request on the wire" })).toBeInTheDocument();
@@ -618,11 +631,11 @@ describe("Server topology step detail and box sync", () => {
     expect(screen.getByRole("button", { name: /Step 05:/ }).closest("li")).toHaveAttribute("aria-current", "step");
 
     fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
-    expect(screen.getByText(/Step 6 of 9/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 6 of 10/)).toBeInTheDocument();
     expect(reactFlowMocks.nodes.find((n) => n.id === "nodegw").selected).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
-    expect(screen.getByText(/Step 7 of 9/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 7 of 10/)).toBeInTheDocument();
     expect(reactFlowMocks.nodes.find((n) => n.id === "nodegw").selected).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
@@ -652,10 +665,16 @@ describe("Server topology step detail and box sync", () => {
     render(<ServerTopologyPage />);
 
     const byId = (id) => reactFlowMocks.edges.find((e) => e.id === id);
+    // Cold state: dashed lines for every arrow after the not-yet-started flow.
     expect(byId("browser-ingress").className).not.toContain("stm-edge--dashed");
     expect(byId("ingress-frontend").className).toContain("stm-edge--dashed");
     expect(byId("nodegw-authz").className).toContain("stm-edge--dashed");
     expect(byId("nodegw-authz").style.strokeDasharray).toBeTruthy();
+    // Cold-state Next starts the walkthrough paused on step 1: only the step's own arrow is un-dashed.
+    fireEvent.click(screen.getByRole("button", { name: /^Next hop$|^Next$/ }));
+    expect(byId("browser-ingress").className).not.toContain("stm-edge--dashed");
+    expect(byId("ingress-frontend").className).toContain("stm-edge--dashed");
+    // The next press steps to 2.
     fireEvent.click(screen.getByRole("button", { name: /^Next hop$|^Next$/ }));
     expect(byId("ingress-frontend").className).not.toContain("stm-edge--dashed");
     expect(byId("nodegw-pingone").className).toContain("stm-edge--dashed");
@@ -666,7 +685,7 @@ describe("Server topology step detail and box sync", () => {
     fireEvent.change(screen.getByLabelText(/Filter servers by category/i), { target: { value: "all" } });
     const lit = reactFlowMocks.edges.filter((e) => !e.hidden && !e.className.includes("stm-edge--dimmed"));
     expect(lit.length).toBeGreaterThan(40);
-    for (const e of lit) expect(e.data.stepNumbers, e.id).toHaveLength(1);
+    for (const e of lit) expect(e.data.stepNumbers.length, e.id).toBeGreaterThan(0);
     const outside = lit.find((e) => !e.className.includes("stm-edge--route"));
     expect(outside.data.extraNumber).toBe(true);
     expect(Number(outside.data.stepNumbers[0])).toBeGreaterThan(Number(reactFlowMocks.edges.filter((e) => e.className.includes("stm-edge--route")).length));

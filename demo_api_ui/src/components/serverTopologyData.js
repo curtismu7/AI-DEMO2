@@ -295,6 +295,7 @@ export const PLAYBACKS = {
       { edgeId: "privgw-a2aworker", title: "Gateway → worker · forwarded after key, scope, policy, guardrail" },
       { edgeId: "a2aworker-privgw", title: "Worker → gateway · model and tool calls with its own key" },
       { edgeId: "privgw-a2aworker", title: "Gateway → MCP server · permitted tool call, result screened" },
+      { edgeId: "bff-a2amain", title: "Result returns: main agent → BFF → app · screened answer reaches the user" },
     ],
   },
   privilegeA2aChain: {
@@ -305,6 +306,7 @@ export const PLAYBACKS = {
       { edgeId: "a2amain-privgw", title: "Main agent → gateway · first hop" },
       { edgeId: "privgw-langchain", title: "Gateway → LangChain agent · forwarded" },
       { edgeId: "langchain-privgw", title: "LangChain agent → gateway · second hop with its own key" },
+      { edgeId: "bff-a2amain", title: "Result returns: main agent → BFF → app · screened answer reaches the user" },
     ],
   },
   pingOneLogin: {
@@ -345,6 +347,7 @@ export const PLAYBACKS = {
     result: "This playback shows the direct MCP listener published by local Compose. Hosted MCP requests route through PingGateway; only Protected Resource Metadata is sent directly to the MCP server. Use the PingGateway playback for the hosted request path.",
     steps: [
       { edgeId: "browser-mcpmcp-direct", title: "Local Compose client → directly published MCP server" },
+      { edgeId: "browser-mcpmcp-direct", title: "Result returns: MCP server → local client · tool result rendered" },
     ],
   },
   directMcpPingFederateStep9: {
@@ -355,6 +358,7 @@ export const PLAYBACKS = {
       { edgeId: "browser-mcpmcp-direct", title: "Local Compose WebSocket client → OAuth MCP server · PF-issued bearer" },
       { edgeId: "mcpmcp-pingfederate-step9", title: "MCP server → PingFederate · conditional Step 9 RFC 8693 exchange" },
       { edgeId: "mcpmcp-bff-api", title: "OAuth MCP server → BFF API · delegated user bearer" },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · data rendered for the user" },
     ],
   },
   protectedApi: {
@@ -371,6 +375,7 @@ export const PLAYBACKS = {
       { edgeId: "nodegw-pingone", title: "Demo Agent Gateway → PingOne · RFC 8693 exchange" },
       { edgeId: "nodegw-mcpmcp", title: "Gateway → OAuth MCP server" },
       { edgeId: "mcpmcp-bff-api", title: "OAuth MCP server → BFF API · delegated user bearer", demoStepIds: ["UC1"] },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · data rendered for the user" },
     ],
   },
   protectedApiPingOne: {
@@ -388,6 +393,7 @@ export const PLAYBACKS = {
       { edgeId: "nodegw-mcpmcp", title: "Gateway → OAuth MCP server" },
       { edgeId: "mcpmcp-pingone-step9", title: "MCP server → PingOne · conditional Step 9 RFC 8693 exchange" },
       { edgeId: "mcpmcp-bff-api", title: "OAuth MCP server → BFF API · delegated user bearer", demoStepIds: ["UC1"] },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · data rendered for the user" },
     ],
   },
   apiKeyBackend: {
@@ -402,6 +408,7 @@ export const PLAYBACKS = {
       { edgeId: "bff-nodegw", title: "BFF agent → Demo Agent Gateway (Node MCP Gateway)" },
       { edgeId: "nodegw-authz", title: "Demo Agent Gateway → PingOne Authorize · policy decision" },
       { edgeId: "nodegw-apiresource-apikey", title: "Gateway → API resource server · X-API-Key" },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · data rendered for the user" },
     ],
   },
   mcpResource: {
@@ -418,6 +425,7 @@ export const PLAYBACKS = {
       { edgeId: "nodegw-pingone", title: "Demo Agent Gateway → PingOne · RFC 8693 exchange" },
       { edgeId: "nodegw-mcpmcp", title: "Gateway → OAuth MCP server" },
       { edgeId: "mcpmcp-mcpresource", title: "MCP server → MCP resource server", demoStepIds: ["UC1"] },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · data rendered for the user" },
     ],
   },
   pingGateway: {
@@ -433,6 +441,7 @@ export const PLAYBACKS = {
       { edgeId: "pinggw-authz", title: "PingGateway → introspection / Authorize" },
       { edgeId: "pinggw-mcpmcp", title: "PingGateway → OAuth MCP server" },
       { edgeId: "mcpmcp-mcpresource", title: "MCP server → MCP resource server" },
+      { edgeId: "frontend-bff", title: "Result returns: PingGateway → BFF → frontend → browser · data rendered for the user" },
     ],
   },
   weather: {
@@ -447,6 +456,7 @@ export const PLAYBACKS = {
       { edgeId: "bff-nodegw", title: "BFF agent → Demo Agent Gateway" },
       { edgeId: "nodegw-authz", title: "Demo Agent Gateway → PingOne Authorize · policy decision" },
       { edgeId: "nodegw-weather", title: "Demo Agent Gateway → Weather MCP backend", demoStepIds: ["UC30"] },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · weather rendered for the user" },
     ],
   },
   brave: {
@@ -461,6 +471,7 @@ export const PLAYBACKS = {
       { edgeId: "bff-nodegw", title: "BFF agent → Demo Agent Gateway" },
       { edgeId: "nodegw-authz", title: "Demo Agent Gateway → PingOne Authorize · policy decision" },
       { edgeId: "nodegw-brave", title: "Demo Agent Gateway → Brave news search MCP" },
+      { edgeId: "frontend-bff", title: "Result returns: BFF → frontend → browser · news rendered for the user" },
     ],
   },
   telemetry: {

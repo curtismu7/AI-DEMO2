@@ -39,10 +39,14 @@ function useRunTraceStatus(baselineRunId) {
 }
 
 /** Labelled card around the run trace (sequence diagram). The diagram itself is unchanged. */
-export function RunTraceCard({ children, baselineRunId }) {
+export function RunTraceCard({ children, baselineRunId, withPopout = false }) {
   const status = useRunTraceStatus(baselineRunId);
   return (
-    <section className="udp-card udp-trace" aria-labelledby="udp-trace-h" data-testid="dashboard-run-trace">
+    <section
+      className={`udp-card udp-trace${withPopout ? " udp-trace--popout-host" : ""}`}
+      aria-labelledby="udp-trace-h"
+      data-testid="dashboard-run-trace"
+    >
       <div className="udp-card__head">
         <h2 id="udp-trace-h" className="udp-card__title">Run trace</h2>
         <StatusChip tone={status.tone}>{status.word}</StatusChip>

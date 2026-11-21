@@ -77,7 +77,7 @@ describe("UseCaseDiagramPage", () => {
 
   it("opens on hop 1 active-and-paused with the entry node ringed", () => {
     renderAt("/use-case-diagrams/UC1");
-    expect(screen.getByTestId("ucd-hop-label").textContent).toContain("1 / 4");
+    expect(screen.getByTestId("ucd-hop-label").textContent).toContain("1 / 5");
     expect(document.querySelector(".sfd-node.step-hot")).toBeTruthy();
   });
 
@@ -107,7 +107,7 @@ describe("UseCaseDiagramPage", () => {
     const next = screen.getByRole("button", { name: "Next →" });
     expect(next.disabled).toBe(false);
     fireEvent.click(next);
-    expect(screen.getByTestId("ucd-hop-label").textContent).toContain("2 / 4");
+    expect(screen.getByTestId("ucd-hop-label").textContent).toContain("2 / 5");
   });
 
   it("gallery lists every registered config with deep links", () => {

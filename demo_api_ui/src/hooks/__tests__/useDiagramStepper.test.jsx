@@ -32,6 +32,27 @@ describe("useDiagramStepper", () => {
     act(() => result.current.stop());
     expect(result.current.step).toBe(-1);
   });
+
+  it("starts paused on step 1 when Next is pressed from idle", () => {
+    const { result } = renderHook(() => useDiagramStepper(3));
+    expect(result.current.step).toBe(-1);
+    act(() => result.current.next());
+    expect(result.current.step).toBe(0);
+    expect(result.current.paused).toBe(true);
+    // Paused: no auto-advance; the next click moves to step 2.
+    act(() => vi.advanceTimersByTime(result.current.stepMs));
+    expect(result.current.step).toBe(0);
+    act(() => result.current.next());
+    expect(result.current.step).toBe(1);
+    act(() => result.current.stop());
+    expect(result.current.step).toBe(-1);
+  });
+
+  it("Next from idle does nothing when the walkthrough is empty", () => {
+    const { result } = renderHook(() => useDiagramStepper(0));
+    act(() => result.current.next());
+    expect(result.current.step).toBe(-1);
+  });
 });
 
 describe("stepEdges / edgeCaptions", () => {
