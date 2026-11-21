@@ -92,8 +92,8 @@ export default function UseCaseDiagramPage() {
   const stepper = useDiagramStepper(cfg ? activeWalk.length : 0);
   // the node the presenter picked on the diagram (null = panel shows the hop/UC)
   const [pickedNode, setPickedNode] = useState(null);
-  // the floating details modal (view-only; the inline panel below stays as it is)
-  const [panelOpen, setPanelOpen] = useState(false);
+  // closing the floating drawer (the panel itself is always mounted)
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const guide = cfg ? DEMO_STEP_GUIDES[cfg.id] : null;
   const stepNum = cfg ? demoStepNumber(cfg.id) : null;
@@ -153,20 +153,19 @@ export default function UseCaseDiagramPage() {
         <div className="ucd-head__row1">
           <Link to="/dashboard" className="ucd-back" data-testid="ucd-back"
             title="Back to the dashboard — Mission Control reopens where the demo left off">
-            ← Back to dashboard
+            ← Back
           </Link>
-          {stepNum != null && (
-            <Link to={`/use-cases#${cfg.id}`} className="ucd-cue" title={`Run this step live on /use-cases — it is step ${stepNum} of the demo script`}>
-              Run this step ↗
-            </Link>
-          )}
           <h1 data-testid="ucd-title">{guide?.title || cfg.id}</h1>
           <span className={`ucd-pill ${TONE_CLASS[cfg.result.tone]}`} data-testid="ucd-result">{cfg.result.label}</span>
           <span className="ucd-pill ucd-pill--info" data-testid="ucd-mode">
             {liveWalk ? "Live run overlay" : "Curated walkthrough"}
           </span>
-          <span className="ucd-id">{cfg.id}</span>
           <span className="ucd-meta">Demo step <b data-testid="ucd-step">{stepNum ?? "—"}</b></span>
+          {stepNum != null && (
+            <Link to={`/use-cases#${cfg.id}`} className="ucd-cue" title={`Run this step live on /use-cases — it is step ${stepNum} of the demo script`}>
+              Run this step ↗
+            </Link>
+          )}
         </div>
         <p className="ucd-desc" data-testid="ucd-desc">{guide?.what || ""}</p>
         <p className="ucd-value" data-testid="ucd-value"><span>Business value</span>{guide?.businessValue || ""}</p>
@@ -186,18 +185,32 @@ export default function UseCaseDiagramPage() {
         stepper={stepper}
         onNodeClick={(node) => {
           setPickedNode((prev) => (prev === node.id ? null : node.id));
-          // A box click opens the floating panel (if closed) so the detail is
-          // visible where the presenter put it — the inline panel below also
-          // updates, unchanged.
+          // A box click re-opens the drawer (if closed) so the detail is visible.
           setPanelOpen(true);
         }}
         testId={`ucd-${cfg.id.toLowerCase()}`}
         ariaLabel={`${guide?.title || cfg.id} walkthrough`}
       />
 
-      <section className="ucd-panel" data-testid="ucd-panel">
-        <span className="ucd-panel__chip">{panel.chip}</span>
-        <div className="ucd-panel__body">
+      {/* Floating details panel — the family-standard FloatingPanel (draggable, resizable,
+          pops out to its own window, drawer-docked right). It is THE detail surface: open by
+          default, follows the walk, and a node click fills it with that node. The old inline
+          panel and the bottom UC-pill row are gone. */}
+      <FloatingPanel
+        title={picked ? picked.label : hop ? hop.title : (guide?.title || cfg.id)}
+        placement="drawer"
+        defaultWidth={380}
+        minWidth={300}
+        minHeight={240}
+        zIndex={9500}
+        onClose={() => setPanelOpen(false)}
+        className="ucd-float-panel"
+        data-testid="ucd-floating-panel"
+        role="status"
+        aria-label="Diagram details"
+      >
+        <div className="ucd-floating__body">
+          <span className="ucd-panel__chip">{panel.chip}</span>
           {hop || picked ? (
             <>
               <div className="ucd-panel__hop"><b>{panel.head}</b>{hop?.label ? ` — ${hop.label}` : ""}</div>
@@ -215,73 +228,7 @@ export default function UseCaseDiagramPage() {
             </>
           )}
         </div>
-        <span className="ucd-panel__step" data-testid="ucd-hop-label">
-          {stepper.step >= 0 ? `${stepper.step + 1} / ${activeWalk.length}` : `0 / ${activeWalk.length}`}
-        </span>
-      </section>
-
-      {/* Floating details panel — the family-standard FloatingPanel (draggable, resizable,
-          pops out to its own window, drawer-docked right). Content mirrors the inline panel:
-          the picked node's detail, else the active hop, else the UC context. Node clicks on
-          the diagram open it AND fill it (pickedNode drives the content), so "click a box,
-          see the detail in the floating panel" is the default behavior when it is open. */}
-      {panelOpen && (
-        <FloatingPanel
-          title={picked ? picked.label : hop ? hop.title : (guide?.title || cfg.id)}
-          placement="drawer"
-          defaultWidth={400}
-          minWidth={300}
-          minHeight={240}
-          zIndex={9500}
-          onClose={() => setPanelOpen(false)}
-          className="ucd-float-panel"
-          data-testid="ucd-floating-panel"
-          role="status"
-          aria-label="Diagram details"
-        >
-          <div className="ucd-floating__body">
-            <span className="ucd-panel__chip">{panel.chip}</span>
-            {hop || picked ? (
-              <>
-                <div className="ucd-panel__hop"><b>{panel.head}</b>{hop?.label ? ` — ${hop.label}` : ""}</div>
-                {picked ? null : panel.lines.map((l, i) => (
-                  <p key={i} className="ucd-panel__line">{l.who ? `${l.who}: ` : ""}{l.text}</p>
-                ))}
-                <WireRows rows={panel.tech} />
-                {/* curated walk only: a live overlay re-derives the beats, so the config's beat indexes no longer apply */}
-                {!picked && !liveWalk && <StepDetail detail={stepDetailForBeat(cfg, stepper.step)} />}
-              </>
-            ) : (
-              <>
-                <p className="ucd-panel__hint">Press Simulate to walk the diagram; click a node for its detail.</p>
-                <WireRows rows={panel.tech} />
-              </>
-            )}
-          </div>
-        </FloatingPanel>
-      )}
-
-      <div className="ucd-fab-row">
-        <button
-          type="button"
-          className="ucd-fab"
-          data-testid="ucd-panel-toggle"
-          aria-pressed={panelOpen}
-          onClick={() => setPanelOpen((v) => !v)}
-        >
-          {panelOpen ? "Hide details" : "Details"}
-        </button>
-      </div>
-
-      <nav className="ucd-next" aria-label="More use-case diagrams">
-        {CONFIGS.filter((c) => c.id !== cfg.id).map((c) => {
-          const g = DEMO_STEP_GUIDES[c.id];
-          const tip = g?.title ? `${c.id} — ${g.title}${g.what ? `: ${g.what}` : ""}` : c.id;
-          return (
-            <Link key={c.id} className="ucd-next__link" to={`/use-case-diagrams/${c.id}`} title={tip} aria-label={tip} {...diagramLinkProps(`/use-case-diagrams/${c.id}`)}>{c.id}</Link>
-          );
-        })}
-      </nav>
+      </FloatingPanel>
     </main>
   );
 }

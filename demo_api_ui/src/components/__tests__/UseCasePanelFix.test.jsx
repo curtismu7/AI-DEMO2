@@ -28,7 +28,7 @@ function renderAt(path) {
 describe("hop panel rendering (review findings 1+3)", () => {
   it("shows the hop label in the header and the line text exactly once", () => {
     renderAt("/use-case-diagrams/UC1");
-    const panel = screen.getByTestId("ucd-panel").textContent;
+    const panel = screen.getByTestId("ucd-floating-panel").textContent;
     expect(panel).toContain("— Alice's authority, explicitly granted"); // hop label from data
     const hits = panel.split("Sign-in consent is what authorizes everything that follows.").length - 1;
     expect(hits).toBe(1);
