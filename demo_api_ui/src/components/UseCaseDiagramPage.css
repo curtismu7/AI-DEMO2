@@ -72,10 +72,10 @@
   outline-offset: 2px;
 }
 
-/* Floating details panel (DraggableModal, docked right by default). The modal
-   owns its chrome; we only theme the body content, which reuses .ucd-panel__*
-   classes so both themes follow the tokens. */
-.ucd-floating .dm-body { padding: 10px 14px 14px; overflow: auto; }
+/* Floating details panel (FloatingPanel, drawer-docked right). The panel shell
+   owns its chrome; we theme the body content, which reuses .ucd-panel__* classes
+   so both themes follow the tokens. */
+.ucd-float-panel .fp-content { overflow: auto; padding: 10px 14px 14px; }
 .ucd-floating__body { display: grid; gap: 6px; align-content: start; }
 .ucd-floating__body .ucd-panel__chip { justify-self: start; }
 

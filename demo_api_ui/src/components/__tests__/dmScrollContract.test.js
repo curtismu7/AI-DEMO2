@@ -55,7 +55,6 @@ const SELF_PADDED = new Set([
   'components/LoginSuccessModal.jsx',
   'components/MCPToolsListModal.js',
   'components/MFALogsModal.jsx',
-  'components/UseCaseDiagramPage.jsx', // .ucd-floating__body pads itself (grid gap), reuses .ucd-panel__* styles
   'components/PreflightModal.jsx',
   'components/TokenChainDisplay.jsx',
   'components/TokenChainModal.js',
