@@ -8,7 +8,7 @@ import React from "react";
 import "./SequenceActorHeader.css";
 
 export const initialsOf = (name) => {
-  const words = String(name ?? "").trim().split(/\s+/).filter(Boolean);
+  const words = String(name ?? "").replace(/\([^)]*\)/g, " ").trim().split(/\s+/).filter(Boolean); // a parenthetical ("User (chat widget)") is a role note, not part of the name
   if (words.length === 0) return "?";
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[1][0]).toUpperCase();

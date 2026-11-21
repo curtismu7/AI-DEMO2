@@ -25,6 +25,7 @@ export const DIAGRAMS_INDEX = [
       D("Interactive Flow", "/architecture/flow", "Step through the end-to-end flow."),
       D("Sequence Diagram", "/sequence-diagram", "Sequence view of a run."),
       D("POC flow", "/poc-flow", "The customer POC pattern: one agent token exchange, Authorize deciding each tool call, and CIBA approval for writes. 24 steps in nine groups."),
+      D("Agent Booking CIBA Approval", "/ciba-approval-sequence", "An agent searches flights freely, but a booking is held by policy until the user approves on another device: 71 numbered messages in three phases. Click a message for its request, response, tokens and standards."),
       D("Canvas Diagram", "/architecture/canvas", "Editable canvas for drawing your own diagram."),
       D("Delegated Access Proof", "/academy/delegation/guided", "Guided proof of delegated access."),
       D("A2A Architecture", "/a2a-architecture", "Agent-to-agent delegation and Agent Card discovery."),

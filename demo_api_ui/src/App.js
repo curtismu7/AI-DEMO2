@@ -62,6 +62,7 @@ const PrivilegeFirstGatewayPage = lazyWithRetry(() => import("./components/Privi
 const PersonalAgentDesignPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentDesignPage"));
 const UhgChatgptMcpFlowPage = lazyWithRetry(() => import("./pages/UhgChatgptMcpFlowPage"));
 const PocFlowPage = lazyWithRetry(() => import("./pages/PocFlowPage"));
+const CibaApprovalSequencePage = lazyWithRetry(() => import("./pages/CibaApprovalSequencePage"));
 const GatewayClaimsPage = lazyWithRetry(() => import("./pages/GatewayClaimsPage"));
 const PoppyPage = lazyWithRetry(() => import("./pages/PoppyPage"));
 const PoppyInspectorPage = lazyWithRetry(() => import("./pages/PoppyInspectorPage"));
@@ -2615,6 +2616,13 @@ function AppWithAuth() {
                               element={
                                 // Customer POC pattern: signed-in users only.
                                 loading ? null : user ? <PocFlowPage /> : <SignInPrompt message="This customer POC pattern needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/ciba-approval-sequence"
+                              element={
+                                // Internal architecture chart with the real component names: signed-in users only.
+                                loading ? null : user ? <CibaApprovalSequencePage /> : <SignInPrompt message="This architecture sequence needs a signed-in session." />
                               }
                             />
                             <Route
