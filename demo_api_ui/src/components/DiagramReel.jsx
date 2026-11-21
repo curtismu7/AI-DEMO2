@@ -178,7 +178,7 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
                 {panel.refs.map((r) => (
                   <li key={r.id}>
                     <span className={`dreel-ref dreel-ref--${r.kind}`}>{r.kind === 'emerging' ? 'emerging' : r.kind === 'spec' ? 'spec' : 'RFC'}</span>
-                    <strong>{r.id}</strong> {r.title}
+                    {r.href ? <a href={r.href} target="_blank" rel="noopener noreferrer"><strong>{r.id}</strong></a> : <strong>{r.id}</strong>} {r.title}
                   </li>
                 ))}
               </ul>

@@ -18,6 +18,7 @@ import { parseSequence } from "../utils/parseSequence";
 import { markEdges, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import { useReelSync } from "../hooks/useReelSync";
 import DiagramReel from "./DiagramReel";
+import { resolveRefs } from "../utils/specRefs";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize, useFitOnSource } from "../hooks/useFitOnResize";
 import "./SequenceFlowDiagram.css";
@@ -36,6 +37,7 @@ const PART_H = 64;
 const TOP = 120; // room for participant boxes of 4 lines before the first row
 const LINE_H = 17;
 const FIT = { padding: 0.04 };
+const TOKEN_INDENT = 2; // decoded token claims are pretty-printed for the reel's JSON pane
 // Floor for the fitted zoom: 13px message labels stay >= 11px on screen (a little headroom for box bands).
 const MIN_ZOOM = 0.88;
 
@@ -102,18 +104,52 @@ function BoxBand({ data }) {
   );
 }
 
+// "lucid" variant: a coloured phase band behind a run of messages, and an alt / loop frame with its [title] and else dividers.
+function Band({ data }) {
+  return <div className="sfx-band" style={{ width: data.w, height: data.h, background: data.colour }} />;
+}
+function Frame({ data }) {
+  return (
+    <div className="sfx-frame" style={{ width: data.w, height: data.h }}>
+      <span className="sfx-frame__tag">{data.kind}</span>
+      <span className="sfx-frame__title">{data.text ? `[${data.text}]` : ""}</span>
+      {data.elses.map((e, i) => (
+        <div key={i} className="sfx-frame__else" style={{ top: e.dy }}><span className="sfx-frame__title">{e.text ? `[${e.text}]` : ""}</span></div>
+      ))}
+    </div>
+  );
+}
+// The numbered black disc at the start of a message ("lucid" variant).
+function Disc({ x, y, n }) {
+  return (
+    <g className="sfx-disc" aria-hidden="true">
+      <circle cx={x} cy={y} r="9" />
+      <text x={x} y={y + 3.5} textAnchor="middle">{n}</text>
+    </g>
+  );
+}
+// A message label that opens that message's details when the page gave it a pick handler.
+export function Label({ data, className, style }) {
+  const pick = data.onPick ? () => data.onPick(data.i) : undefined;
+  return (
+    <div
+      className={`sfx-label nodrag nopan${className ? ` ${className}` : ""}${pick ? " sfx-label--pick" : ""}`}
+      style={style}
+      {...(pick ? { role: "button", tabIndex: 0, "aria-label": `Message ${data.i + 1}: ${data.text.replace(/\n/g, " ")}. Show details`, onClick: pick, onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } } } : null)}
+    >
+      {data.text}
+    </div>
+  );
+}
+
 function MessageEdge({ id, sourceX, sourceY, targetX, targetY, style, markerStart, markerEnd, data }) {
   const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   return (
     <>
       <BaseEdge id={id} path={path} style={style} markerStart={markerStart} markerEnd={markerEnd} />
+      {data.disc && <Disc x={sourceX} y={sourceY} n={data.n} />}
       <EdgeLabelRenderer>
-        <div
-          className="sfx-label nodrag nopan"
-          style={{ transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 4}px)` }}
-        >
-          {data.text}
-        </div>
+        <Label data={data} style={{ transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 4}px)` }} />
       </EdgeLabelRenderer>
     </>
   );
@@ -124,16 +160,15 @@ function SelfEdge({ id, sourceX, sourceY, style, markerEnd, data }) {
   return (
     <>
       <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
+      {data.disc && <Disc x={sourceX} y={sourceY} n={data.n} />}
       <EdgeLabelRenderer>
-        <div className="sfx-label sfx-label--self nodrag nopan" style={{ transform: `translate(0, -50%) translate(${x + 8}px, ${sourceY + 13}px)` }}>
-          {data.text}
-        </div>
+        <Label data={data} className="sfx-label--self" style={{ transform: `translate(0, -50%) translate(${x + 8}px, ${sourceY + 13}px)` }} />
       </EdgeLabelRenderer>
     </>
   );
 }
 
-const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, payload: Payload, issue: Issue, frag: Fragment, box: BoxBand };
+const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, payload: Payload, issue: Issue, frag: Fragment, box: BoxBand, band: Band, frame: Frame };
 const edgeTypes = { msg: MessageEdge, self: SelfEdge };
 
 const ARROW = { type: "arrowclosed", width: 16, height: 16 };
@@ -151,8 +186,9 @@ export function issueHeight(issue) {
   return 18 + 24 + lines * 17 + rows.length * 6;
 }
 
-export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {}) {
-  const model = parseSequence(source);
+export function buildSequenceFlow(source, payloads = [], { lanes, issues, variant, onPick } = {}) {
+  const lucid = variant === "lucid"; // bands, frames and numbered discs, in the look of the reference Lucidchart sequence
+  const model = parseSequence(source, { structure: lucid });
   // Two or more `box` groups are separate flows. Draw them stacked, each with its own
   // participant row, instead of side by side, so the diagram stays narrow enough to read.
   const stacked = model.boxes.length > 1;
@@ -178,6 +214,11 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
   let cur = null;
   let y = TOP;
   let n = 0;
+  const bandStack = [];
+  const frameStack = [];
+  const allCx = model.participants.map((p) => cx[p.id]);
+  const minX = Math.min(...allCx);
+  const maxX = Math.max(...allCx);
 
   const open = (g) => {
     if (cur !== null) spans[cur].end = y + 20;
@@ -202,7 +243,7 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
       nodes.push({ id: a, type: "anchor", position: { x: cx[it.from] - 3, y: y - 3 }, data: {}, draggable: false, selectable: false, zIndex: 3 });
       nodes.push({ id: b, type: "anchor", position: { x: cx[it.to] - 3, y: y + (self ? 23 : -3) }, data: {}, draggable: false, selectable: false, zIndex: 3 });
       n += 1;
-      const text = model.autonumber ? `${n}. ${it.text}` : it.text;
+      const text = model.autonumber && !lucid ? `${n}. ${it.text}` : it.text;
       const lane = lanes?.[it.from];
       const stroke = lane ? `var(--sfx-color-${lane})` : undefined;
       edges.push({
@@ -215,7 +256,7 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
         markerEnd: lane ? { ...ARROW, color: stroke } : ARROW,
         ...(it.both ? { markerStart: lane ? { ...ARROW, color: stroke } : ARROW } : null),
         style: { ...(it.dashed ? { strokeDasharray: "6 4" } : null), ...(lane ? { stroke, strokeWidth: 3 } : null) },
-        data: { text, stroke },
+        data: { text, stroke, ...(lucid ? { disc: true, n, i: n - 1, onPick } : null) },
         selectable: false,
         zIndex: 2,
       });
@@ -246,10 +287,34 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
       const xs = it.over.map((id) => cx[id]);
       const x0 = Math.min(...xs) - 90;
       const w = Math.max(...xs) - Math.min(...xs) + 180;
-      const lines = it.text.split("\n").length;
+      // lucid: a long note wraps inside its width, so count the wrapped lines too (else it grows over the next message)
+      const lines = lucid ? Math.max(it.text.split("\n").length, ...it.text.split("\n").map((l) => Math.ceil((l.length * 6.4) / Math.max(60, w - 24)))) : it.text.split("\n").length;
       y += 14;
       nodes.push({ id: `n${i}`, type: "note", position: { x: x0, y }, data: { text: it.text, w }, draggable: false, selectable: false });
       y += lines * LINE_H + 18;
+    } else if (it.type === "rect") {
+      y += 8;
+      bandStack.push({ y, colour: it.colour });
+    } else if (it.type === "rectEnd") {
+      const b = bandStack.pop();
+      if (b) nodes.push({ id: `band${i}`, type: "band", position: { x: minX - 74, y: b.y }, data: { w: maxX - minX + 148, h: y - b.y + 8, colour: b.colour }, draggable: false, selectable: false, zIndex: -2 });
+      y += 14;
+    } else if (it.type === "fragment" && lucid && it.kind !== "else" && it.kind !== "and") {
+      y += 8;
+      frameStack.push({ kind: it.kind, text: it.text, y, elses: [] });
+      y += 28;
+    } else if (it.type === "fragment" && lucid) {
+      const f = frameStack[frameStack.length - 1];
+      y += 6;
+      if (f) f.elses.push({ dy: y - f.y, text: it.text });
+      y += 24;
+    } else if (it.type === "fragmentEnd") {
+      const f = frameStack.pop();
+      if (f) {
+        const inset = frameStack.length * 10;
+        nodes.push({ id: `frame${i}`, type: "frame", position: { x: minX - 56 + inset, y: f.y }, data: { w: maxX - minX + 112 - inset * 2, h: y - f.y + 6, kind: f.kind, text: f.text, elses: f.elses }, draggable: false, selectable: false, zIndex: -1 });
+      }
+      y += 12;
     } else if (it.type === "fragment") {
       const all = groupCx(cur);
       y += 12;
@@ -298,7 +363,7 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
   return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, label, step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
+function Inner({ source, label, step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues, variant }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -311,7 +376,9 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const { nodes, edges, steps, bounds, messages, people, rows } = useMemo(() => buildSequenceFlow(source, payloads, { lanes, issues }), [source, payloads, lanes, issues]);
+  const pickRef = useRef(null); // a message click goes through a ref so the built nodes and edges stay stable between renders
+  const onPick = useMemo(() => (i) => pickRef.current?.(i), []);
+  const { nodes, edges, steps, bounds, messages, people, rows } = useMemo(() => buildSequenceFlow(source, payloads, { lanes, issues, variant, onPick }), [source, payloads, lanes, issues, variant, onPick]);
   const rf = useReactFlow();
   // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
   // sequence stays at a readable size instead of shrinking to fit one screen.
@@ -340,13 +407,22 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
           ...(d?.why ? [{ who: "Why it matters", text: d.why }] : []),
           ...(d?.open ? [{ who: "Open", text: d.open }] : []),
           ...(payloads?.[i] ? [{ who: "Payload", code: payloads[i] }] : []),
+          // wire detail, when the page gives it: the request and response as the wire text, each decoded token, the repo file behind the step
+          ...(d?.request ? [{ who: "Request", code: d.request }] : []),
+          ...(d?.response ? [{ who: "Response", code: d.response }] : []),
+          ...(d?.tokens || []).map((t) => ({ who: `Token: ${t.label}`, code: JSON.stringify({ header: t.header, payload: t.payload }, null, TOKEN_INDENT) })), // shown in the reel's JsonPane (ReelCode), not in a <pre>
+          ...(d?.source ? [{ who: "In this repo", text: d.source }] : []),
         ];
-        return extra.length ? { ...r, lines: [...r.lines, ...extra] } : r;
+        const refs = d?.refs?.length ? resolveRefs(d.refs) : null;
+        // lucid: the step's own detail first (each lifeline box has its own role text when clicked), so the request and response are not pushed below two paragraphs
+        const lines = variant === "lucid" && extra.length ? extra : [...r.lines, ...extra];
+        return extra.length || refs ? { ...r, lines, ...(refs?.length ? { refs } : null) } : r;
       });
     },
-    [reelStepper, messages, people, details, payloads, stepDetails],
+    [reelStepper, messages, people, details, payloads, stepDetails, variant],
   );
   const [nodeDetail, setNodeDetail] = useState(null);
+  const [openKey, setOpenKey] = useState(0); // a message click bumps it: the reel opens the details row for that step
   // Header strip state. Mirrors stepEdges: step < 0 leaves everything shown,
   // otherwise edges past the focus are not reached yet. `active` (page-driven)
   // lights just those messages.
@@ -378,6 +454,13 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
       if (top < window.scrollY + 120 || top > window.scrollY + vh - 160) window.scrollTo({ top: Math.max(0, top - vh * 0.35), behavior: "smooth" });
     } catch (_) { /* scrolling is a convenience */ }
   }, [focus, rows, rf]);
+  pickRef.current = reelStepper
+    ? (i) => {
+        setNodeDetail(null);
+        reelStepper.goTo(i);
+        setOpenKey((k) => k + 1);
+      }
+    : null;
   const showPart = (id) => setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === id), details));
   const onNodeClick = (_, node) => {
     if (!reelStepper || node.type !== "part") return;
@@ -409,7 +492,7 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
     <>
       {!external && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} label={label ? `${label} controls` : undefined} />}
       {reelStepper && (
-        <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
+        <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} openKey={openKey} testId="sequence-reel" />
       )}
       <SequenceActorHeader actors={headerActors} segments={headerSegments} />
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
@@ -448,12 +531,15 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
  * movie reel's details row. `stepDetails` is one { what, why, open } per message, shown in the reel's details row
  * when that step is picked. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
  * the message index) to get the diagram highlight and the movie reel without a second control bar.
+ * `variant="lucid"` draws `rect` bands, alt/loop frames and numbered discs, makes each message label open its details, and uses the
+ * reference Lucidchart colours. A step detail may also carry request, response, tokens ([{ label, header, payload }]), source and
+ * refs ([{ spec, section?, note? }], see utils/specRefs.js).
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues, variant }) {
   return (
-    <div className={`sfx${lanes ? " sfx--lanes" : ""}`} role="group" aria-label={label}>
+    <div className={`sfx${lanes ? " sfx--lanes" : ""}${variant === "lucid" ? " sfx--lucid" : ""}`} role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} label={label} step={step} active={active} details={details} driver={driver} payloads={payloads} stepDetails={stepDetails} reelSync={reelSync} lanes={lanes} issues={issues} />
+        <Inner source={source} label={label} step={step} active={active} details={details} driver={driver} payloads={payloads} stepDetails={stepDetails} reelSync={reelSync} lanes={lanes} issues={issues} variant={variant} />
       </ReactFlowProvider>
     </div>
   );

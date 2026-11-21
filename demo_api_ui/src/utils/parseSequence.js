@@ -7,7 +7,8 @@
 const br = (s) => s.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
 const BOX_COLOUR = /^(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)\s*/i;
 
-export function parseSequence(source = "") {
+export function parseSequence(source = "", { structure = false } = {}) {
+  // structure: also emit where a `rect` band and an alt/opt/loop/par/critical frame start and end (the "lucid" variant draws them as bands and frames).
   const participants = [];
   const boxes = [];
   const items = [];
@@ -41,14 +42,18 @@ export function parseSequence(source = "") {
     } else if ((m = line.match(/^(participant|actor)\s+(\S+)(?:\s+as\s+(.+))?$/i))) {
       ensure(m[2], m[3] ? br(m[3]) : undefined);
     } else if (/^rect\b/i.test(line)) {
-      fragments.push("rect"); // background band: no item, but its `end` must balance
+      fragments.push("rect"); // background band: no item (unless `structure`), but its `end` must balance
+      if (structure) items.push({ type: "rect", colour: line.replace(/^rect\s*/i, "").trim() });
     } else if ((m = line.match(/^(alt|opt|loop|par|critical)\s*(.*)$/i))) {
       fragments.push(m[1]);
       items.push({ type: "fragment", kind: m[1].toLowerCase(), text: br(m[2]) });
     } else if ((m = line.match(/^(else|and)\s*(.*)$/i))) {
       items.push({ type: "fragment", kind: m[1].toLowerCase(), text: br(m[2]) });
     } else if (line === "end") {
-      if (fragments.pop() === "box") openBox = null;
+      const closed = fragments.pop();
+      if (closed === "box") openBox = null;
+      if (structure && closed === "rect") items.push({ type: "rectEnd" });
+      if (structure && closed && /^(alt|opt|loop|par|critical)$/i.test(closed)) items.push({ type: "fragmentEnd", kind: closed.toLowerCase() });
     } else if ((m = line.match(/^Note\s+(?:over|left of|right of)\s+([^:]+):\s*(.*)$/i))) {
       const over = m[1].split(",").map((s) => s.trim());
       over.forEach((id) => ensure(id));
