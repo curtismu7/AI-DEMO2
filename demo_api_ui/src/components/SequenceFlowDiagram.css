@@ -227,17 +227,24 @@
 .sfx-frame__else { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--lucid-life, #8b7fd1); }
 .sfx-frame__else .sfx-frame__title { top: 3px; }
 [data-theme="dark"] .sfx--lucid .sfx-band { filter: brightness(0.25) saturate(1.3); }
-/* A 71-message diagram is thousands of pixels tall: the details row would open far above the message you clicked. In this variant
-   it floats at the bottom of the window instead, stays while you scroll, and closes with its Close button. */
+/* A 71-message diagram is thousands of pixels tall: the details row would open far above the message you clicked. In this variant it is a
+   side panel docked on the right (non-modal: no backdrop, the step bar and the diagram stay usable), it follows the step in focus while
+   Simulate runs, stays while you scroll, and closes with its Close button. On a narrow screen it becomes a sheet along the bottom. */
 .sfx--lucid .dreel-detail {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  top: 4.5rem;
+  right: 0;
+  bottom: 0;
   z-index: 60;
-  width: min(620px, calc(100vw - 32px));
-  max-height: 58vh;
+  width: min(30rem, 42vw);
+  max-height: none;
   overflow: auto;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+  border-right: 0;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.22);
+}
+@media (max-width: 62rem) {
+  .sfx--lucid .dreel-detail { top: auto; left: 0; width: auto; height: 45vh; border-radius: var(--radius-md) var(--radius-md) 0 0; border-right: 1px solid var(--th-border); box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.22); }
 }
 .sfx--lucid .react-flow__arrowhead polyline { stroke: var(--lucid-arrow) !important; fill: var(--lucid-arrow) !important; }
 /* Lifelines, bands and frames do nothing when clicked and sit over the message labels: let the click through to the label. */

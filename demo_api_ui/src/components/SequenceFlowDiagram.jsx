@@ -492,7 +492,7 @@ function Inner({ source, label, step, active, details, driver, payloads, stepDet
     <>
       {!external && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} label={label ? `${label} controls` : undefined} />}
       {reelStepper && (
-        <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} openKey={openKey} testId="sequence-reel" />
+        <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} openKey={openKey} follow={variant === "lucid"} testId="sequence-reel" />
       )}
       <SequenceActorHeader actors={headerActors} segments={headerSegments} />
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
