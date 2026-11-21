@@ -38,17 +38,10 @@ export function useDiagramStepper(total) {
     if (step >= last) setStep(0);
     setPaused(false);
   }, [step, last]);
-  const next = useCallback(() => {
-    if (step < 0) {
-      // Starting from idle: show step 1, paused.
-      if (total < 1) return;
-      setPaused(true);
-      setStep(0);
-      return;
-    }
-    setStep((s) => Math.min(s + 1, last));
-  }, [step, total, last]);
-  const prev = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
+  // §8f (owner, 2026-11-21): Next/Prev from a fresh diagram start the walkthrough PAUSED at the first
+  // step, so a viewer can step without playing. From an active walkthrough they just move one step.
+  const next = useCallback(() => setStep((s) => (s < 0 ? (setPaused(true), 0) : Math.min(s + 1, last))), [last]);
+  const prev = useCallback(() => setStep((s) => (s < 0 ? (setPaused(true), 0) : Math.max(s - 1, 0))), []);
   // jump straight to a step (a click on the movie reel) and stop auto-advance there
   const goTo = useCallback(
     (i) => {

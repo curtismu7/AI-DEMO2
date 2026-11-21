@@ -2987,33 +2987,27 @@ export default function ArchitectureFlowPage({ user }) {
     scheduleFrom(pausedStep.current + 1);
   }, [isPaused, scheduleFrom]);
 
+  // §8f (owner, 2026-11-21): Next/Prev from a fresh diagram (or while playing) drop into a paused
+  // walkthrough at that step, so stepping works without pressing Simulate first.
+  const stepTo = useCallback((idx) => {
+    simTimeouts.current.forEach(clearTimeout);
+    simTimeouts.current = [];
+    const clamped = Math.max(0, Math.min(idx, stepsRef.current.length - 1));
+    setIsSimulating(true);
+    setIsPaused(true);
+    applyStep(clamped);
+    pausedStep.current = clamped;
+  }, [applyStep]);
+
   const prevStep = useCallback(() => {
-    if (!isPaused) return;
-    const prev = pausedStep.current - 1;
-    if (prev < 0) return;
-    applyStep(prev);
-    pausedStep.current = prev;
-  }, [isPaused, applyStep]);
+    if (!isSimulating) { stepTo(0); return; }
+    stepTo(pausedStep.current - 1);
+  }, [isSimulating, stepTo]);
 
   const nextStep = useCallback(() => {
-    if (!isPaused && !isSimulating && currentStep < 0) {
-      // Starting from idle: show step 1, paused.
-      stepsRef.current = SCENARIO_STEPS_FLOW[selectedScenario] || SIMULATE_STEPS;
-      applyStep(0);
-      pausedStep.current = 0;
-      setIsPaused(true);
-      return;
-    }
-    if (!isPaused) return;
-    const next = pausedStep.current + 1;
-    // Already on the last step — stop in place, same as the auto-play path.
-    if (next >= stepsRef.current.length) {
-      setIsSimulating(false);
-      return;
-    }
-    applyStep(next);
-    pausedStep.current = next;
-  }, [isPaused, isSimulating, currentStep, selectedScenario, applyStep]);
+    if (!isSimulating) { stepTo(0); return; }
+    stepTo(pausedStep.current + 1);
+  }, [isSimulating, stepTo]);
 
   const stopSim = useCallback(() => {
     simTimeouts.current.forEach(clearTimeout);

@@ -280,8 +280,8 @@ export default function A2ATokenFlowDiagram({ tokenEvents, labels }) {
 
   const showStep = useCallback((index) => {
     clearTimer();
-    setSimulating(false);
-    setPaused(false);
+    setSimulating(true);
+    setPaused(true);
     setActiveIndex(Math.max(0, Math.min(index, events.length - 1)));
   }, [clearTimer, events.length]);
 

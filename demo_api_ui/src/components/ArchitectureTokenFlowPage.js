@@ -1275,28 +1275,27 @@ export default function ArchitectureTokenFlowPage({ user }) {
     scheduleFrom(pausedStep.current + 1);
   }, [scheduleFrom]);
 
-  const prevStep = useCallback(() => {
-    const prev = pausedStep.current - 1;
-    if (prev < 0) return;
-    pausedStep.current = prev;
-    applyStep(prev);
+  // §8f (owner, 2026-11-21): Next/Prev from a fresh diagram (or while playing) drop into a paused
+  // walkthrough at that step, so stepping works without pressing Simulate first.
+  const stepTo = useCallback((idx) => {
+    simTimeouts.current.forEach(clearTimeout);
+    simTimeouts.current = [];
+    const clamped = Math.max(0, Math.min(idx, stepsRef.current.length - 1));
+    setIsSimulating(true);
+    setIsPaused(true);
+    pausedStep.current = clamped;
+    applyStep(clamped);
   }, [applyStep]);
 
+  const prevStep = useCallback(() => {
+    if (!isSimulating) { stepTo(0); return; }
+    stepTo(pausedStep.current - 1);
+  }, [isSimulating, stepTo]);
+
   const nextStep = useCallback(() => {
-    if (!isPaused && !isSimulating && currentStep < 0) {
-      // Starting from idle: show step 1, paused.
-      stepsRef.current = SCENARIO_STEPS_TF[selectedScenario] || TOKEN_FLOW_SIMULATE_STEPS;
-      setTotalSteps(stepsRef.current.length);
-      pausedStep.current = 0;
-      applyStep(0);
-      setIsPaused(true);
-      return;
-    }
-    const next = pausedStep.current + 1;
-    if (next >= stepsRef.current.length) return;
-    pausedStep.current = next;
-    applyStep(next);
-  }, [isPaused, isSimulating, currentStep, selectedScenario, applyStep]);
+    if (!isSimulating) { stepTo(0); return; }
+    stepTo(pausedStep.current + 1);
+  }, [isSimulating, stepTo]);
 
   const stop = useCallback(() => {
     simTimeouts.current.forEach(clearTimeout);
