@@ -71,3 +71,25 @@
   outline: 2px solid var(--th-status-info);
   outline-offset: 2px;
 }
+
+/* Floating details panel (DraggableModal, docked right by default). The modal
+   owns its chrome; we only theme the body content, which reuses .ucd-panel__*
+   classes so both themes follow the tokens. */
+.ucd-floating .dm-body { padding: 10px 14px 14px; overflow: auto; }
+.ucd-floating__body { display: grid; gap: 6px; align-content: start; }
+.ucd-floating__body .ucd-panel__chip { justify-self: start; }
+
+/* The toggle that opens it: small pill pinned to the panel row's right edge. */
+.ucd-fab-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+.ucd-fab {
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  padding: 4px 14px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+.ucd-fab[aria-pressed="true"] { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-color: var(--th-bg-emphasis); }
+.ucd-fab:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }

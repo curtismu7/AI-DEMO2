@@ -12,16 +12,17 @@
 // node ringed — diagram and details visible with zero clicks.
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { diagramLinkProps } from "../utils/diagramLinks";
-import StaticFlowDiagram from "./StaticFlowDiagram";
-import DiagramStepBar from "./DiagramStepBar";
-import { useDiagramStepper } from "../hooks/useDiagramStepper";
-import { CONFIGS, getConfig } from "../config/useCaseDiagrams";
-import { stepDetailForBeat } from "../config/useCaseDiagrams/stepDetail";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
+import { CONFIGS, getConfig } from "../config/useCaseDiagrams";
+import { stepDetailForBeat } from "../config/useCaseDiagrams/stepDetail";
+import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { buildLiveUcWalk } from "../services/tokenChainTrace/ucLiveOverlay";
+import { diagramLinkProps } from "../utils/diagramLinks";
+import DiagramStepBar from "./DiagramStepBar";
+import DraggableModal from "./DraggableModal";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./UseCaseDiagramPage.css";
 
 const TONE_CLASS = { ok: "ucd-pill--ok", warn: "ucd-pill--warn", err: "ucd-pill--err", info: "ucd-pill--info" };
@@ -91,6 +92,8 @@ export default function UseCaseDiagramPage() {
   const stepper = useDiagramStepper(cfg ? activeWalk.length : 0);
   // the node the presenter picked on the diagram (null = panel shows the hop/UC)
   const [pickedNode, setPickedNode] = useState(null);
+  // the floating details modal (view-only; the inline panel below stays as it is)
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const guide = cfg ? DEMO_STEP_GUIDES[cfg.id] : null;
   const stepNum = cfg ? demoStepNumber(cfg.id) : null;
@@ -210,6 +213,57 @@ export default function UseCaseDiagramPage() {
           {stepper.step >= 0 ? `${stepper.step + 1} / ${activeWalk.length}` : `0 / ${activeWalk.length}`}
         </span>
       </section>
+
+      {/* Floating details panel, docked right — the same panel content as above in a
+          DraggableModal so a presenter can keep the hop/node detail beside the diagram.
+          Opening it never changes walk state: it is view-only. */}
+      <DraggableModal
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        title={panel.head || "Details"}
+        placement="right"
+        defaultWidth={420}
+        defaultHeight={560}
+        minWidth={320}
+        minHeight={280}
+        storageKey="ucd-details-panel"
+        singletonKey="ucd-details-panel"
+        noBackdrop
+        zIndex={9500}
+        closeLabel="Close details"
+        className="ucd-floating"
+      >
+        <div className="ucd-floating__body" data-testid="ucd-floating-panel">
+          <span className="ucd-panel__chip">{panel.chip}</span>
+          {hop || picked ? (
+            <>
+              <div className="ucd-panel__hop"><b>{panel.head}</b>{hop?.label ? ` — ${hop.label}` : ""}</div>
+              {picked ? null : panel.lines.map((l, i) => (
+                <p key={i} className="ucd-panel__line">{l.who ? `${l.who}: ` : ""}{l.text}</p>
+              ))}
+              <WireRows rows={panel.tech} />
+              {!picked && !liveWalk && <StepDetail detail={stepDetailForBeat(cfg, stepper.step)} />}
+            </>
+          ) : (
+            <>
+              <p className="ucd-panel__hint">Press Simulate to walk the diagram; click a node for its detail.</p>
+              <WireRows rows={panel.tech} />
+            </>
+          )}
+        </div>
+      </DraggableModal>
+
+      <div className="ucd-fab-row">
+        <button
+          type="button"
+          className="ucd-fab"
+          data-testid="ucd-panel-toggle"
+          aria-pressed={panelOpen}
+          onClick={() => setPanelOpen((v) => !v)}
+        >
+          {panelOpen ? "Hide details" : "Details"}
+        </button>
+      </div>
 
       <nav className="ucd-next" aria-label="More use-case diagrams">
         {CONFIGS.filter((c) => c.id !== cfg.id).map((c) => {
