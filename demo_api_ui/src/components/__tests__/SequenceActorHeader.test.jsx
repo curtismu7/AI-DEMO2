@@ -7,7 +7,7 @@ describe("SequenceActorHeader", () => {
     expect(initialsOf("User Browser")).toBe("UB");
     expect(initialsOf("AIC")).toBe("AI");
     expect(initialsOf("User (chat widget)")).toBe("US");
-    expect(initialsOf("Kong API GW (ciba-approval + ping-auth)")).toBe("KA");
+    expect(initialsOf("API gateway (approval plugin + policy check)")).toBe("AG");
     expect(initialsOf("")).toBe("?");
   });
 

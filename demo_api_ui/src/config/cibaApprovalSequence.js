@@ -7,19 +7,19 @@ import { wrapMessages } from './sequenceWrap';
 // CIBA_APPROVAL_STEP_DETAILS (per message: what, why, request / response text, tokens, standards, source file).
 //
 // Payloads are examples, never captured traffic. REPO (below) adds, per message number, what this repository really does and SOURCES names the
-// file; the Kong plugin, the Strands runtime, flight-mcp-aigw and flight-api live outside this repo, so those steps keep chart-level detail.
+// file; the approval plugin, the agent runtime, the Flight MCP server and the flights API live outside this repo, so those steps keep chart-level detail.
 // What neither the chart nor the repo states is marked "(not traced)" or "Illustrative".
 
 const J = (o) => JSON.stringify(o, null, 2);
 const JSN = 'Content-Type: application/json';
 const FORM = 'Content-Type: application/x-www-form-urlencoded';
 const SSE = 'Content-Type: text/event-stream';
-const AS = 'https://auth.pingone.com/ENV_ID';
+const AS = 'https://auth.example.com/ENV_ID';
 const GW = 'https://ping-ai-gateway.example.com';
-const MCPH = 'http://flight-mcp-aigw';
-const APIGW = 'http://kong-paz-aigw:8000';
+const MCPH = 'https://flight-mcp.example.com';
+const APIGW = 'https://approval-gateway.example.com';
 const PDP = 'https://paz.example.com';
-const API = 'http://flight-api';
+const API = 'https://flights.example.com';
 const T = 'urn:ietf:params:oauth:grant-type:token-exchange';
 const AT = 'urn:ietf:params:oauth:token-type:access_token';
 const CIBA = 'urn:openid:params:grant-type:ciba';
@@ -30,8 +30,8 @@ const ILL = 'Illustrative: the chart gives the key fields; the rest is a typical
 
 const tok = (label, payload, extra = {}) => ({ label, header: hdr, payload: { iss: AS, ...payload, ...times }, ...extra });
 const userToken = tok('User access token', { sub: 'user-123', aud: 'chat-widget-example', scope: 'openid profile' }, { focus: ['sub'], notes: { sub: 'The person everything below is done for. It stays the same in every token in this flow.' } });
-const gatewayToken = tok('Gateway-bound token (on behalf of the user)', { sub: 'user-123', aud: 'ping-ai-gateway.example.com', client_id: 'agent-runtime-example' }, { focus: ['sub', 'aud'], notes: { aud: 'Only the Ping AI Gateway should accept this token. Any other service must refuse it.' } });
-const upstreamToken = tok('Scoped upstream token', { sub: 'user-123', aud: 'kong-paz-aigw:8000', scope: 'flights-api-aigw', client_id: 'flight-mcp-example' }, { focus: ['aud', 'scope'], notes: { aud: 'Narrowed to the one Kong API GW this call is going to.', scope: 'Narrowed to the flights API only.' } });
+const gatewayToken = tok('Gateway-bound token (on behalf of the user)', { sub: 'user-123', aud: 'ping-ai-gateway.example.com', client_id: 'agent-runtime-example' }, { focus: ['sub', 'aud'], notes: { aud: 'Only the AI gateway should accept this token. Any other service must refuse it.' } });
+const upstreamToken = tok('Scoped upstream token', { sub: 'user-123', aud: 'approval-gateway.example.com', scope: 'flights-api', client_id: 'flight-mcp-example' }, { focus: ['aud', 'scope'], notes: { aud: 'Narrowed to the one API gateway this call is going to.', scope: 'Narrowed to the flights API only.' } });
 
 const req = (method, url, headers, body, notice) => ({ method, url, ...(headers?.length ? { headers } : {}), ...(body ? { body } : {}), ...(notice ? { notice } : {}) });
 const res = (status, headers, body, notice) => ({ status, ...(headers?.length ? { headers } : {}), ...(body ? { body } : {}), ...(notice ? { notice } : {}) });
@@ -40,21 +40,21 @@ const rpcCall = (id, name, args) => J({ jsonrpc: '2.0', id, method: 'tools/call'
 const rpcOk = (id, text) => J({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] } });
 const bearer = (n) => `Authorization: Bearer ${n}`;
 const r = (spec, section, note) => ({ spec, ...(section ? { section } : {}), ...(note ? { note } : {}) });
-const exchangeBody = (extra) => `grant_type=${T}&subject_token=user-token-example&subject_token_type=${AT}&audience=kong-paz-aigw:8000&scope=flights-api-aigw${extra || ''}`;
-const exchangeResp = { status: '200 OK', headers: [JSN, 'Cache-Control: no-store'], body: J({ access_token: 'upstream-token-example', issued_token_type: AT, token_type: 'Bearer', expires_in: 300, scope: 'flights-api-aigw' }) };
+const exchangeBody = (extra) => `grant_type=${T}&subject_token=user-token-example&subject_token_type=${AT}&audience=approval-gateway.example.com&scope=flights-api${extra || ''}`;
+const exchangeResp = { status: '200 OK', headers: [JSN, 'Cache-Control: no-store'], body: J({ access_token: 'upstream-token-example', issued_token_type: AT, token_type: 'Bearer', expires_in: 300, scope: 'flights-api' }) };
 
 // Lifelines, left to right: [id, label, one short role line].
 const PARTICIPANTS = [
   ['user', 'User (chat widget)', 'asks, approves elsewhere'],
-  ['agent', 'Agent Runtime (Strands)', 'holds the tool call open'],
-  ['aigw', 'Ping AI Gateway', 'validates the agent token'],
-  ['mcp', 'flight-mcp-aigw (MCP)', 'exchanges tokens, replays'],
-  ['gw', 'Kong API GW (ciba-approval + ping-auth)', 'approval plugin + policy check'],
+  ['agent', 'Agent runtime', 'holds the tool call open'],
+  ['aigate', 'AI gateway', 'validates the agent token'],
+  ['mcp', 'Flight MCP server', 'exchanges tokens, replays'],
+  ['gw', 'API gateway (approval plugin + policy check)', 'approval plugin + policy check'],
   ['store', 'Redis (approval store)', 'short-lived keys'],
   ['pdp', 'PingOne Authorize (PAZ)', 'decides every call'],
   ['as', 'PingOne (CIBA)', 'tokens + approval'],
   ['device', 'Other device (push)', 'where the user approves'],
-  ['api', 'flight-api', 'the protected resource'],
+  ['api', 'Flights API', 'the protected resource'],
 ];
 
 // One entry per message, in order. A step is { title, what, why, refs, wire }; the wire text is turned into request / response strings below.
@@ -69,64 +69,64 @@ m('user', 'agent', '"Book LAX to JFK" + Bearer user token (OIDC via DaVinci logi
   refs: [r('OIDC Core 1.0'), r('RFC 6750', '2.1')],
   wire: { request: req('POST', 'https://agent-runtime.example.com/chat', [JSN, bearer('user-token-example')], J({ message: 'Book LAX to JFK' }), ILL), tokens: [userToken] },
 });
-m('agent', 'as', 'AgentCore Identity OBO exchange (user token -> token, aud = AI Gateway)', false, {
-  title: 'The agent swaps the user\'s token for one meant for the Ping AI Gateway',
-  what: 'AgentCore Identity (beside the agent runtime) asks PingOne for a token whose audience is the Ping AI Gateway, presenting the user\'s token as proof (an on-behalf-of exchange). Whether this is RFC 8693 or a vendor-specific variant is (not traced); the shape below is the standard one.',
+m('agent', 'as', 'agent identity service OBO exchange (user token -> token, aud = AI Gateway)', false, {
+  title: 'The agent swaps the user\'s token for one meant for the AI gateway',
+  what: 'agent identity service (beside the agent runtime) asks PingOne for a token whose audience is the AI gateway, presenting the user\'s token as proof (an on-behalf-of exchange). Whether this is RFC 8693 or a vendor-specific variant is (not traced); the shape below is the standard one.',
   why: 'The user\'s own token was issued for the chat widget. A token for the gateway lets the gateway trust the call without the agent ever holding a broader credential.',
   refs: [r('RFC 8693', '2.1'), r('RFC 6749', '3.2')],
   wire: { request: req('POST', `${AS}/as/token`, [FORM, BASIC], `grant_type=${T}&subject_token=user-token-example&subject_token_type=${AT}&audience=ping-ai-gateway.example.com`, ILL) },
 });
 m('as', 'agent', 'gateway-bound access token', true, {
-  title: 'A token for the Ping AI Gateway comes back',
-  what: 'PingOne answers with an access token whose audience is the Ping AI Gateway. It still names the same user as subject.',
+  title: 'A token for the AI gateway comes back',
+  what: 'PingOne answers with an access token whose audience is the AI gateway. It still names the same user as subject.',
   why: 'The audience claim is what stops this token working anywhere else. A service that receives a token meant for another audience must refuse it.',
   refs: [r('RFC 8693', '2.2'), r('RFC 7519', '4.1.3')],
   wire: { response: { ...exchangeResp, body: J({ access_token: 'gateway-token-example', issued_token_type: AT, token_type: 'Bearer', expires_in: 300 }), notice: ILL }, tokens: [gatewayToken] },
 });
-m('agent', 'aigw', 'tools/call search_flights, Authorization: Bearer gateway token', false, {
+m('agent', 'aigate', 'tools/call search_flights, Authorization: Bearer gateway token', false, {
   title: 'The agent calls the search_flights tool',
-  what: 'The agent runtime sends an MCP tools/call request for search_flights to the Ping AI Gateway, with the gateway-bound token in the Authorization header.',
+  what: 'The agent runtime sends an MCP tools/call request for search_flights to the AI gateway, with the gateway-bound token in the Authorization header.',
   why: 'Tool calls are the only way the model touches the outside world, and they all pass through the gateway where they can be checked and logged.',
   refs: [r('MCP'), r('RFC 6750', '2.1')],
   wire: { request: req('POST', `${GW}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(1, 'search_flights', { origin: 'LAX', destination: 'JFK' })), tokens: [gatewayToken] },
 });
-m('aigw', 'aigw', 'validate token (connection OAuth)', false, {
-  title: 'The Ping AI Gateway validates the token',
+m('aigate', 'aigate', 'validate token (connection OAuth)', false, {
+  title: 'The AI gateway validates the token',
   what: 'The gateway checks the token against its configured OAuth connection: signature, issuer, audience and expiry. Whether it uses published keys or introspection is (not traced).',
   why: 'A forged, expired or wrongly addressed token stops here, before anything reaches a tool.',
   refs: [r('RFC 7519', '4.1'), r('RFC 8725'), r('RFC 7662', '2.2')],
   wire: none('Internal check inside the gateway. Nothing is sent: it reads the token\'s claims and the connection\'s settings.'),
 });
-m('aigw', 'mcp', 'POST /mcp (agent token forwarded unchanged)', false, {
-  title: 'The gateway forwards the call to the flight-mcp-aigw',
+m('aigate', 'mcp', 'POST /mcp (agent token forwarded unchanged)', false, {
+  title: 'The gateway forwards the call to the Flight MCP server',
   what: 'The gateway passes the MCP request on as is, with the agent\'s token unchanged. The MCP server does not use this token downstream; it exchanges it first (next steps).',
-  why: 'Forwarding unchanged keeps the gateway simple. The hard part, getting a token the Kong API GW will accept, happens at the MCP server.',
+  why: 'Forwarding unchanged keeps the gateway simple. The hard part, getting a token the API gateway will accept, happens at the MCP server.',
   refs: [r('MCP'), r('RFC 9110', '9.3.3')],
   wire: { request: req('POST', `${MCPH}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(1, 'search_flights', { origin: 'LAX', destination: 'JFK' })) },
 });
-m('mcp', 'as', 'RFC 8693 token exchange (subject = user token, aud = kong-paz-aigw:8000, scope = flights-api-aigw)', false, {
-  title: 'The MCP server exchanges the token for one the Kong API GW accepts',
-  what: 'The flight-mcp-aigw asks PingOne for a new token. The subject is the user\'s token, the audience is the Kong API GW in front of the flights API, and the scope is narrowed to flights-api-aigw.',
+m('mcp', 'as', 'RFC 8693 token exchange (subject = user token, aud = approval-gateway.example.com, scope = flights-api)', false, {
+  title: 'The MCP server exchanges the token for one the API gateway accepts',
+  what: 'The Flight MCP server asks PingOne for a new token. The subject is the user\'s token, the audience is the API gateway in front of the flights API, and the scope is narrowed to flights-api.',
   why: 'This is token exchange doing its job: the downstream token is smaller than the one that came in, and it is addressed to exactly one service.',
   refs: [r('RFC 8693', '2.1'), r('RFC 8693', '2.2.1', 'Successful response')],
   wire: { request: req('POST', `${AS}/as/token`, [FORM, BASIC], exchangeBody(), ILL) },
 });
 m('as', 'mcp', 'scoped upstream token', true, {
   title: 'A narrow upstream token comes back',
-  what: 'PingOne returns an access token for the Kong API GW: same user, audience set to the Kong API GW, scope flights-api-aigw.',
+  what: 'PingOne returns an access token for the API gateway: same user, audience set to the API gateway, scope flights-api.',
   why: 'If this token leaks it is useful against one gateway for one scope, for five minutes, and nothing else.',
   refs: [r('RFC 8693', '2.2.1'), r('RFC 6749', '5.1')],
   wire: { response: exchangeResp, tokens: [upstreamToken] },
 });
 m('mcp', 'gw', 'GET /flights, Bearer upstream token', false, {
-  title: 'The MCP server calls the flights API through the Kong API GW',
-  what: 'A plain read: GET /flights with the scoped upstream token as a Bearer credential. The Kong API GW sits in front of the flights API and runs the ciba-approval plugin and a policy check on every call.',
+  title: 'The MCP server calls the flights API through the API gateway',
+  what: 'A plain read: GET /flights with the scoped upstream token as a Bearer credential. The API gateway sits in front of the flights API and runs the approval plugin and a policy check on every call.',
   why: 'Every call to the API goes through this one door, so the policy runs no matter which agent or tool made the call.',
   refs: [r('RFC 9110', '9.3.1'), r('RFC 6750', '2.1')],
   wire: { request: req('GET', `${APIGW}/flights?from=LAX&to=JFK`, [bearer('upstream-token-example'), 'Accept: application/json']), tokens: [upstreamToken] },
 });
 m('gw', 'pdp', 'POST /sideband/request (client-token credential, bearer token + request payload)', false, {
-  title: 'The Kong API GW asks PingOne Authorize for a verdict',
+  title: 'The API gateway asks PingOne Authorize for a verdict',
   what: 'The gateway sends a sideband request: the incoming bearer token and a description of the request (method, path, headers). It authenticates itself to PingOne Authorize with its own client token. The exact field names are (not traced).',
   why: 'The gateway enforces; it does not decide. Keeping the decision in a separate policy engine means rules change without changing the gateway.',
   refs: [r('RFC 7662', '2.1'), r('RFC 6750', '2.1')],
@@ -147,7 +147,7 @@ m('pdp', 'gw', 'PERMIT', true, {
   wire: { response: res('200 OK', [JSN], J({ decision: 'PERMIT' }), ILL) },
 });
 m('gw', 'api', 'GET /flights', false, {
-  title: 'The Kong API GW forwards the read to the flights API',
+  title: 'The API gateway forwards the read to the flights API',
   what: 'With a PERMIT in hand, the gateway sends the original GET /flights to the flights API.',
   why: 'The flights API never sees the call unless policy said yes.',
   refs: [r('RFC 9110', '9.3.1')],
@@ -161,21 +161,21 @@ m('api', 'gw', '200 flights', true, {
   wire: { response: res('200 OK', [JSN], J({ flights: [{ id: 'FL-100', from: 'LAX', to: 'JFK', price: 289 }, { id: 'FL-200', from: 'LAX', to: 'JFK', price: 341 }] }), 'Example data only.') },
 });
 m('gw', 'mcp', '200', true, {
-  title: 'The Kong API GW passes the answer back',
-  what: 'The gateway returns the 200 response to the flight-mcp-aigw.',
+  title: 'The API gateway passes the answer back',
+  what: 'The gateway returns the 200 response to the Flight MCP server.',
   why: 'The gateway is transparent on success: the caller sees the API\'s own answer.',
   refs: [r('RFC 9110', '15.3.1')],
   wire: { response: res('200 OK', [JSN], J({ flights: [{ id: 'FL-100' }, { id: 'FL-200' }] }), 'Body shortened.') },
 });
-m('mcp', 'aigw', 'tools/call result', true, {
+m('mcp', 'aigate', 'tools/call result', true, {
   title: 'The MCP server wraps the flights as a tool result',
-  what: 'The flight-mcp-aigw turns the API answer into an MCP tools/call result and returns it to the Ping AI Gateway.',
+  what: 'The Flight MCP server turns the API answer into an MCP tools/call result and returns it to the AI gateway.',
   why: 'Tools speak MCP to the agent; the HTTP details of the flights API stay hidden behind the server.',
   refs: [r('MCP')],
   wire: { response: res('200 OK', [JSN], rpcOk(1, 'FL-100 $289, FL-200 $341')) },
 });
-m('aigw', 'agent', 'forwarded verbatim', true, {
-  title: 'The Ping AI Gateway returns the result unchanged',
+m('aigate', 'agent', 'forwarded verbatim', true, {
+  title: 'The AI gateway returns the result unchanged',
   what: 'The gateway passes the tool result to the agent runtime without altering it.',
   why: 'The gateway validated and logged the call; on the way back it does not edit what the tool said.',
   refs: [r('MCP')],
@@ -197,44 +197,44 @@ m('user', 'agent', '"book it"', false, {
   refs: [r('OIDC Core 1.0')],
   wire: { request: req('POST', 'https://agent-runtime.example.com/chat', [JSN, bearer('user-token-example')], J({ message: 'book it' })), tokens: [userToken] },
 });
-m('agent', 'aigw', 'tools/call create_booking (flight, passengers)', false, {
+m('agent', 'aigate', 'tools/call create_booking (flight, passengers)', false, {
   title: 'The agent calls the create_booking tool',
-  what: 'An MCP tools/call for create_booking with the chosen flight and the passenger details, sent to the Ping AI Gateway with the gateway-bound token.',
+  what: 'An MCP tools/call for create_booking with the chosen flight and the passenger details, sent to the AI gateway with the gateway-bound token.',
   why: 'This is the call that has side effects, so it is the one the approval flow is built to hold.',
   refs: [r('MCP'), r('RFC 6750', '2.1')],
   wire: { request: req('POST', `${GW}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(2, 'create_booking', { flight: 'FL-100', passengers: [{ name: 'Alex Example' }] })), tokens: [gatewayToken] },
 });
-m('aigw', 'mcp', 'POST /mcp', false, {
+m('aigate', 'mcp', 'POST /mcp', false, {
   title: 'The gateway forwards it to the MCP server',
-  what: 'Same as the search: the Ping AI Gateway validates the token and forwards the request to the flight-mcp-aigw.',
-  why: 'The gateway adds no approval logic. Approval is decided further down, at the Kong API GW and PingOne Authorize.',
+  what: 'Same as the search: the AI gateway validates the token and forwards the request to the Flight MCP server.',
+  why: 'The gateway adds no approval logic. Approval is decided further down, at the API gateway and PingOne Authorize.',
   refs: [r('MCP'), r('RFC 9110', '9.3.3')],
   wire: { request: req('POST', `${MCPH}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(2, 'create_booking', { flight: 'FL-100', passengers: [{ name: 'Alex Example' }] })) },
 });
-m('mcp', 'as', 'RFC 8693 token exchange (scope = flights-api-aigw, aud = kong-paz-aigw:8000)', false, {
+m('mcp', 'as', 'RFC 8693 token exchange (scope = flights-api, aud = approval-gateway.example.com)', false, {
   title: 'The MCP server exchanges the token again',
-  what: 'The same exchange as in phase 1: subject is the user\'s token, audience is the Kong API GW, scope is flights-api-aigw.',
+  what: 'The same exchange as in phase 1: subject is the user\'s token, audience is the API gateway, scope is flights-api.',
   why: 'Each call gets its own short-lived token. Nothing is reused between the search and the booking.',
   refs: [r('RFC 8693', '2.1')],
   wire: { request: req('POST', `${AS}/as/token`, [FORM, BASIC], exchangeBody(), ILL) },
 });
 m('as', 'mcp', 'scoped upstream token', true, {
   title: 'A fresh upstream token comes back',
-  what: 'A new access token for the Kong API GW, same shape as before.',
+  what: 'A new access token for the API gateway, same shape as before.',
   why: 'It proves who the user is and which gateway it is for. It does not prove anyone approved this booking; that is still missing.',
   refs: [r('RFC 8693', '2.2.1'), r('RFC 6749', '5.1')],
   wire: { response: exchangeResp, tokens: [upstreamToken] },
 });
 m('mcp', 'gw', 'POST /bookings (no x-ciba-approval header)', false, {
   title: 'The MCP server tries to create the booking',
-  what: 'POST /bookings to the Kong API GW with the upstream token and no x-ciba-approval header, because no approval exists yet.',
+  what: 'POST /bookings to the API gateway with the upstream token and no x-ciba-approval header, because no approval exists yet.',
   why: 'This is the first attempt. It is expected to be held; the missing header is what tells the gateway there is no approval yet.',
   refs: [r('RFC 9110', '9.3.3'), r('RFC 6750', '2.1')],
   wire: { request: req('POST', `${APIGW}/bookings`, [JSN, bearer('upstream-token-example')], J({ flight: 'FL-100', passengers: [{ name: 'Alex Example' }] })), tokens: [upstreamToken] },
 });
 m('gw', 'pdp', 'POST /sideband/request', false, {
-  title: 'The Kong API GW asks for a verdict on the booking',
-  what: 'The ciba-approval plugin runs first (it has priority over the policy plugin). It finds a protected call with no approval header and forwards it for a policy verdict anyway.',
+  title: 'The API gateway asks for a verdict on the booking',
+  what: 'The approval plugin runs first (it has priority over the policy plugin). It finds a protected call with no approval header and forwards it for a policy verdict anyway.',
   why: 'Asking PingOne Authorize means the rule lives in one place: the gateway does not hard-code which calls need approval.',
   refs: [r('RFC 7662', '2.1')],
   wire: { request: req('POST', `${PDP}/sideband/request`, [JSN, bearer('gateway-client-token-example')], J({ method: 'POST', path: '/bookings', headers: { authorization: 'Bearer upstream-token-example' } }), ILL) },
@@ -255,7 +255,7 @@ m('pdp', 'gw', 'DENY 401, WWW-Authenticate auth_challenge acr_values="ciba-appro
 });
 m('gw', 'gw', 'generate short code BK-XXXX', false, {
   title: 'The gateway makes a short code for the approval',
-  what: 'The ciba-approval plugin generates a short, human-readable code such as BK-XXXX for this request.',
+  what: 'The approval plugin generates a short, human-readable code such as BK-XXXX for this request.',
   why: 'The user will see the code on the other device and in the chat. Matching them shows they are approving the booking they asked for, not someone else\'s.',
   refs: [r('CIBA Core 1.0', undefined, 'binding_message: shown on both devices so the user can match them')],
   wire: none('Internal step inside the gateway plugin: it picks the code and keeps it with the request.'),
@@ -281,12 +281,12 @@ m('as', 'device', 'push: "Approve BK-XXXX"', false, {
   refs: [r('CIBA Core 1.0', undefined, 'The server authenticates the user out of band')],
   wire: none('Delivered by the push service of PingOne. The payload is internal to the product (not traced).'),
 });
-m('gw', 'store', 'SET aigw-ciba:request', false, {
+m('gw', 'store', 'SET approval:request', false, {
   title: 'The gateway remembers what this approval is for',
   what: 'The plugin writes the request to a short-lived store: the auth_req_id bound to the user, the HTTP method, the path and a hash of the parameters.',
   why: 'Later the replay must match exactly what was approved. Binding the approval to the request stops it being used for a different booking.',
   refs: [r('CIBA Core 1.0', undefined, 'auth_req_id identifies the pending request')],
-  wire: none('Not HTTP. A Redis write: SET aigw-ciba:request, value {auth_req_id, sub, method, path, params_hash}, with an expiry matching expires_in.'),
+  wire: none('Not HTTP. A Redis write: SET approval:request, value {auth_req_id, sub, method, path, params_hash}, with an expiry matching expires_in.'),
 });
 m('store', 'gw', 'OK', true, {
   title: 'The store confirms the write',
@@ -302,19 +302,19 @@ m('gw', 'mcp', '401 approval_required {auth_req_id, code, expires_in}', true, {
   refs: [r('RFC 9110', '15.5.2'), r('RFC 6750', '3')],
   wire: { response: res('401 Unauthorized', [JSN], J({ error: 'approval_required', auth_req_id: 'req-example-1', code: 'BK-XXXX', expires_in: 120 }), ILL) },
 });
-m('mcp', 'aigw', 'tools/call isError=true _meta[com.pingidentity/approval]: requestState, code, expiresIn', true, {
+m('mcp', 'aigate', 'tools/call isError=true _meta[com.example/approval]: requestState, code, expiresIn', true, {
   title: 'The MCP server returns the approval request as a tool error',
   what: 'The server turns the 401 into an MCP tool result with isError set and the approval details in the result\'s _meta: the request state, the code and expiresIn.',
   why: 'MCP has no "approval needed" result, so it is carried as metadata on an error. The agent runtime recognises it and does not treat it as a failure.',
   refs: [r('MCP')],
-  wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: 'Approval required' }], _meta: { 'com.pingidentity/approval': { requestState: 'req-example-1', code: 'BK-XXXX', expiresIn: 120 } } } }), '') },
+  wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: 'Approval required' }], _meta: { 'com.example/approval': { requestState: 'req-example-1', code: 'BK-XXXX', expiresIn: 120 } } } }), '') },
 });
-m('aigw', 'agent', 'forwarded verbatim', true, {
-  title: 'The Ping AI Gateway returns it unchanged',
+m('aigate', 'agent', 'forwarded verbatim', true, {
+  title: 'The AI gateway returns it unchanged',
   what: 'The gateway passes the error result, with its _meta, to the agent runtime unchanged.',
   why: 'The gateway must not hide or rewrite an approval request; the runtime needs the exact details.',
   refs: [r('MCP')],
-  wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 2, result: { isError: true, _meta: { 'com.pingidentity/approval': { requestState: 'req-example-1', code: 'BK-XXXX', expiresIn: 120 } } } }), 'Body shortened.') },
+  wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 2, result: { isError: true, _meta: { 'com.example/approval': { requestState: 'req-example-1', code: 'BK-XXXX', expiresIn: 120 } } } }), 'Body shortened.') },
 });
 m('agent', 'user', 'SSE approval_required [code: BK-XXXX, reference: auth_req_id]', true, {
   title: 'The agent tells the chat widget approval is needed',
@@ -325,47 +325,47 @@ m('agent', 'user', 'SSE approval_required [code: BK-XXXX, reference: auth_req_id
 });
 
 // ---- Phase 3: replay and polling (messages 38-63) -------------------------------------------------------------------------------------------
-m('agent', 'aigw', 'tools/call create_booking + approval: auth_req_id', false, {
+m('agent', 'aigate', 'tools/call create_booking + approval: auth_req_id', false, {
   title: 'The agent retries the booking, naming the approval',
   what: 'The runtime repeats the create_booking call and adds the auth_req_id as an approval argument.',
   why: 'The retry carries the handle, not a verdict. Whether the user approved is checked against PingOne, never taken from the agent.',
   refs: [r('MCP'), r('CIBA Core 1.0', undefined, 'auth_req_id is the handle for the pending request')],
   wire: { request: req('POST', `${GW}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(3, 'create_booking', { flight: 'FL-100', passengers: [{ name: 'Alex Example' }], approval: 'req-example-1' }), ILL), tokens: [gatewayToken] },
 });
-m('aigw', 'mcp', 'POST /mcp', false, {
+m('aigate', 'mcp', 'POST /mcp', false, {
   title: 'The gateway forwards the retry',
-  what: 'The Ping AI Gateway validates the token again and forwards the request to the flight-mcp-aigw.',
+  what: 'The AI gateway validates the token again and forwards the request to the Flight MCP server.',
   why: 'Every call is checked from scratch; a retry gets no shortcut.',
   refs: [r('MCP'), r('RFC 9110', '9.3.3')],
   wire: { request: req('POST', `${MCPH}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(3, 'create_booking', { flight: 'FL-100', approval: 'req-example-1' }), 'Body shortened.') },
 });
-m('mcp', 'as', 'RFC 8693 token exchange again (fresh upstream token, scope = flights-api-aigw)', false, {
+m('mcp', 'as', 'RFC 8693 token exchange again (fresh upstream token, scope = flights-api)', false, {
   title: 'Another token exchange for the replay',
-  what: 'The server exchanges the user\'s token once more for a fresh upstream token with audience Kong API GW and scope flights-api-aigw.',
+  what: 'The server exchanges the user\'s token once more for a fresh upstream token with audience API gateway and scope flights-api.',
   why: 'The earlier upstream token was for the first attempt. A new short-lived one is cheap and means nothing stale is replayed.',
   refs: [r('RFC 8693', '2.1')],
   wire: { request: req('POST', `${AS}/as/token`, [FORM, BASIC], exchangeBody(), ILL) },
 });
 m('as', 'mcp', 'scoped upstream token', true, {
   title: 'A fresh upstream token comes back',
-  what: 'A new access token for the Kong API GW.',
+  what: 'A new access token for the API gateway.',
   why: 'Same user, same audience, new lifetime.',
   refs: [r('RFC 8693', '2.2.1'), r('RFC 6749', '5.1')],
   wire: { response: exchangeResp, tokens: [upstreamToken] },
 });
 m('mcp', 'gw', 'POST /bookings + x-ciba-approval: auth_req_id', false, {
-  title: 'The replay reaches the Kong API GW with the approval handle',
+  title: 'The replay reaches the API gateway with the approval handle',
   what: 'POST /bookings again, now with an x-ciba-approval header carrying the auth_req_id. The server reads the approval argument from the tool call and sets the header on this hop.',
   why: 'The header is how the approval handle gets to the gateway. The gateway will check it; it does not trust it.',
   refs: [r('RFC 9110', '9.3.3'), r('CIBA Core 1.0')],
   wire: { request: req('POST', `${APIGW}/bookings`, [JSN, bearer('upstream-token-example'), 'x-ciba-approval: req-example-1'], J({ flight: 'FL-100', passengers: [{ name: 'Alex Example' }] })), tokens: [upstreamToken] },
 });
-m('gw', 'store', 'GET aigw-ciba:request', false, {
+m('gw', 'store', 'GET approval:request', false, {
   title: 'The gateway looks up the stored request',
   what: 'The plugin reads the record it stored in phase 2 for this auth_req_id.',
   why: 'The stored record is the ground truth of what was asked for. The replay is compared with it.',
   refs: [r('CIBA Core 1.0')],
-  wire: none('Not HTTP. A Redis read of aigw-ciba:request for the auth_req_id.'),
+  wire: none('Not HTTP. A Redis read of approval:request for the auth_req_id.'),
 });
 m('store', 'gw', 'binding {sub, method, path, params_hash}', true, {
   title: 'The store returns what was approved',
@@ -416,12 +416,12 @@ m('gw', 'gw', 'ngx.sleep(interval)', false, {
   refs: [r('CIBA Core 1.0', undefined, 'interval and slow_down in poll mode')],
   wire: none('Internal wait inside the gateway plugin. Nothing is sent.'),
 });
-m('gw', 'store', 'SET aigw-ciba:spent', false, {
+m('gw', 'store', 'SET approval:spent', false, {
   title: 'The gateway marks the approval as used',
   what: 'The plugin writes a spent marker for this auth_req_id.',
   why: 'One approval is one booking. Without the marker the same approval could be replayed to book again.',
   refs: [r('CIBA Core 1.0')],
-  wire: none('Not HTTP. A Redis write: SET aigw-ciba:spent for the auth_req_id, with an expiry.'),
+  wire: none('Not HTTP. A Redis write: SET approval:spent for the auth_req_id, with an expiry.'),
 });
 m('store', 'gw', 'OK', true, {
   title: 'The store confirms',
@@ -437,7 +437,7 @@ m('gw', 'gw', 'set upstream x-ciba-approval: approved', false, {
   refs: [r('CIBA Core 1.0'), r('RFC 9110')],
   wire: none('Internal header rewrite inside the gateway plugin. Nothing is sent.'),
 });
-m('gw', 'pdp', 'POST /sideband/request (ping-auth re-evaluates)', false, {
+m('gw', 'pdp', 'POST /sideband/request (policy re-evaluates)', false, {
   title: 'The gateway asks PingOne Authorize again',
   what: 'The same sideband request as in phase 2, now carrying the trusted x-ciba-approval: approved value.',
   why: 'The decision is still the policy engine\'s. The approval is just one more input it can read.',
@@ -473,21 +473,21 @@ m('api', 'gw', '201 reservation', true, {
   wire: { response: res('201 Created', [JSN], J({ reservation: 'RES-9001', flight: 'FL-100', status: 'confirmed' }), 'Example data only.') },
 });
 m('gw', 'mcp', '201', true, {
-  title: 'The Kong API GW returns the 201',
-  what: 'The gateway passes the 201 response to the flight-mcp-aigw.',
+  title: 'The API gateway returns the 201',
+  what: 'The gateway passes the 201 response to the Flight MCP server.',
   why: 'On success the gateway is transparent again.',
   refs: [r('RFC 9110', '15.3.2')],
   wire: { response: res('201 Created', [JSN], J({ reservation: 'RES-9001' })) },
 });
-m('mcp', 'aigw', 'tools/call success result', true, {
+m('mcp', 'aigate', 'tools/call success result', true, {
   title: 'The MCP server returns a success result',
   what: 'The server wraps the reservation as a normal tools/call result.',
   why: 'From here on the call looks like any successful tool call.',
   refs: [r('MCP')],
   wire: { response: res('200 OK', [JSN], rpcOk(3, 'Booked: RES-9001 on FL-100')) },
 });
-m('aigw', 'agent', 'result', true, {
-  title: 'The Ping AI Gateway returns the result',
+m('aigate', 'agent', 'result', true, {
+  title: 'The AI gateway returns the result',
   what: 'The gateway passes the success result to the agent runtime.',
   why: 'The held tool call finally completes.',
   refs: [r('MCP')],
@@ -530,9 +530,9 @@ m('gw', 'mcp', '403 approval_denied / approval_expired', true, {
   refs: [r('RFC 9110', '15.5.4')],
   wire: { response: res('403 Forbidden', [JSN], J({ error: 'approval_denied' }), 'approval_expired has the same shape.') },
 });
-m('mcp', 'aigw', 'isError, no approval _meta', true, {
+m('mcp', 'aigate', 'isError, no approval _meta', true, {
   title: 'The MCP server returns a plain tool error',
-  what: 'An MCP result with isError set and no approval metadata. In the chart the hop from the Ping AI Gateway back to the agent is not drawn for this branch.',
+  what: 'An MCP result with isError set and no approval metadata. In the chart the hop from the AI gateway back to the agent is not drawn for this branch.',
   why: 'With no approval metadata the agent runtime knows this is the end, not a request to try again.',
   refs: [r('MCP')],
   wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 3, result: { isError: true, content: [{ type: 'text', text: 'Approval denied or expired' }] } }), ILL) },
@@ -551,16 +551,16 @@ m('gw', 'mcp', '401 approval_pending', true, {
   refs: [r('RFC 9110', '15.5.2'), r('CIBA Core 1.0', undefined, 'authorization_pending in poll mode')],
   wire: { response: res('401 Unauthorized', [JSN], J({ error: 'approval_pending' }), ILL) },
 });
-m('mcp', 'aigw', 'isError + _meta pending: true', true, {
+m('mcp', 'aigate', 'isError + _meta pending: true', true, {
   title: 'The MCP server returns a pending result',
   what: 'An MCP tool result with isError set and _meta marking the approval as pending.',
   why: 'The runtime reads the pending flag and keeps waiting instead of giving up.',
   refs: [r('MCP')],
-  wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 3, result: { isError: true, _meta: { 'com.pingidentity/approval': { pending: true } } } }), ILL) },
+  wire: { response: res('200 OK', [JSN], J({ jsonrpc: '2.0', id: 3, result: { isError: true, _meta: { 'com.example/approval': { pending: true } } } }), ILL) },
 });
-m('agent', 'aigw', 'replay again with same auth_req_id (until deadline from expiresIn)', false, {
+m('agent', 'aigate', 'replay again with same auth_req_id (until deadline from expiresIn)', false, {
   title: 'The agent replays the call with the same approval handle',
-  what: 'The runtime sends create_booking again with the same auth_req_id, until the deadline given by expiresIn. The chart draws this arrow from the agent runtime to the Ping AI Gateway.',
+  what: 'The runtime sends create_booking again with the same auth_req_id, until the deadline given by expiresIn. The chart draws this arrow from the agent runtime to the AI gateway.',
   why: 'Retrying with the same handle lets the user take their time without the model being involved, and it ends at a fixed deadline.',
   refs: [r('MCP'), r('CIBA Core 1.0')],
   wire: { request: req('POST', `${GW}/mcp`, [JSN, bearer('gateway-token-example')], rpcCall(4, 'create_booking', { flight: 'FL-100', approval: 'req-example-1' }), ILL) },
@@ -579,11 +579,11 @@ const FRAMES = [
   { kind: 'alt', title: 'denied or expired', from: 63, to: 70, elseAt: 68, elseTitle: 'still pending' },
 ];
 const NOTES = [
-  { at: 24, over: ['gw'], text: 'ciba-approval plugin (priority 1001): protected call, no approval header' },
+  { at: 24, over: ['gw'], text: 'approval plugin (priority 1001): protected call, no approval header' },
   { at: 34, over: ['mcp'], text: 'ApprovalRequiredError caught by withApproval' },
   { at: 36, over: ['agent'], text: 'tool call held open - model sees nothing yet' },
   { at: 36, over: ['user'], text: 'card: "Approve request BK-XXXX on your other device"' },
-  { at: 41, over: ['mcp'], text: 'argsApproval reads the approval argument, sets header on the Kong hop' },
+  { at: 41, over: ['mcp'], text: 'argsApproval reads the approval argument, sets header on the gateway hop' },
   { at: 42, over: ['gw'], text: 'replay path: caller-supplied trusted headers stripped' },
   { at: 50, over: ['gw'], text: 'plugin discards the returned tokens - only the approval verdict matters' },
 ];
@@ -611,11 +611,11 @@ export const CIBA_APPROVAL_SOURCE = wrapMessages(SOURCE);
 // ---- Role text for the movie reel's details row, per participant -----------------------------------------------------------------------------
 export const CIBA_APPROVAL_DETAILS = {
   user: 'The person in the chat widget. Signs in with OpenID Connect (a DaVinci login), asks the agent to search and book, and approves the booking on another device. In this repo the demo UI plays this role.',
-  agent: 'Agent Runtime (Strands). Runs the model, makes the MCP tool calls, holds the call open while approval is pending and replays it with the auth_req_id. Lives outside this repo.',
-  aigw: 'Ping AI Gateway. Validates the agent token (connection OAuth) and forwards MCP calls unchanged. ping-gateway/ in this repo is the PingGateway version of this role.',
-  mcp: 'flight-mcp-aigw, the flights MCP server. Exchanges the token (RFC 8693), calls flight-api through Kong, turns the approval 401 into an MCP tool error with _meta, and replays with x-ciba-approval. Lives outside this repo.',
-  gw: 'Kong API GW with the ciba-approval and ping-auth plugins. Asks PingOne Authorize for a verdict, starts CIBA on a challenge, remembers the request in Redis, checks the replay and polls PingOne. Lives outside this repo; ping-gateway/ shows the Authorize sideband side.',
-  store: 'Redis, the approval store. aigw-ciba:request binds the auth_req_id to user, method, path and a params hash; aigw-ciba:spent marks it used. Lives outside this repo.',
+  agent: 'Agent runtime. Runs the model, makes the MCP tool calls, holds the call open while approval is pending and replays it with the auth_req_id. Lives outside this repo.',
+  aigate: 'AI gateway. Validates the agent token (connection OAuth) and forwards MCP calls unchanged. ping-gateway/ in this repo is the PingGateway version of this role.',
+  mcp: 'The flights MCP server. Exchanges the token (RFC 8693), calls the flights API through the API gateway, turns the approval 401 into an MCP tool error with _meta, and replays with x-ciba-approval. Lives outside this repo.',
+  gw: 'API gateway with the approval and policy-check plugins. Asks PingOne Authorize for a verdict, starts CIBA on a challenge, remembers the request in Redis, checks the replay and polls PingOne. Lives outside this repo; ping-gateway/ shows the Authorize sideband side.',
+  store: 'Redis, the approval store. approval:request binds the auth_req_id to user, method, path and a params hash; approval:spent marks it used. Lives outside this repo.',
   pdp: 'PingOne Authorize (PAZ). Decides every call: allows the search, answers the write with a 401 auth_challenge for ciba-approval, and permits the replay once x-ciba-approval is approved. In this repo demo_authz_server mocks it (routes/decision.js, routes/sideband.js).',
   as: 'PingOne (CIBA). Issues and exchanges tokens, runs CIBA backchannel authorization (/as/cibaAuthorization), collects the approval and answers the poll at /as/token. This repo uses it for UC22 (demo_api_server/services/cibaService.js).',
   device: 'Other device (push). Where the user sees BK-XXXX and approves. In this repo\'s PingOne setup the prompt is an email or SMS link through DaVinci, not a push.',
@@ -630,8 +630,8 @@ export const CIBA_APPROVAL_PAYLOADS = [];
 const REPO = {
   5: 'The Ping gateway in this repo validates inbound tokens by introspection or, with ff_mcp_gateway_jwks on, locally by JWKS (signature, exp, iss, aud, scope); a failure is 401 invalid_token with a WWW-Authenticate Bearer challenge.',
   7: 'In this repo the gateway\'s exchange narrows with RFC 8707 resource= because PingOne ignores audience= when the client has grants on several resources.',
-  10: 'This repo\'s gateway does the same with the stock PingAuthorizeFilter: it posts method, path, headers and client IP to the Authorize Sideband API (POST /sideband/request; mock in demo_authz_server). The Kong plugin is outside this repo.',
-  27: 'In this repo Authorize pauses a write as PERMIT with an unfulfilled obligation and the gateway answers 428 consent_pending. A 401 auth_challenge with acr_values is the Kong plugin\'s, outside this repo.',
+  10: 'This repo\'s gateway does the same with the stock PingAuthorizeFilter: it posts method, path, headers and client IP to the Authorize Sideband API (POST /sideband/request; mock in demo_authz_server). The approval plugin is outside this repo.',
+  27: 'In this repo Authorize pauses a write as PERMIT with an unfulfilled obligation and the gateway answers 428 consent_pending. A 401 auth_challenge with acr_values is the approval plugin\'s, outside this repo.',
   29: 'The BFF makes the same call with client secret basic auth. There binding_message is limited to 8 characters (BK-XXXX fits) and acr_values is not forwarded: PingOne reads it as a DaVinci policy id.',
   30: 'In the demo tenant auth_req_id lives 120 s with a 2 s poll interval, and PingOne supports poll delivery only.',
   31: 'In this repo\'s PingOne setup the approval prompt is an email or SMS magic link through a DaVinci CIBA flow policy, not a push.',
@@ -663,9 +663,9 @@ const SOURCES = {
 };
 // Real open questions only (the design or the chart leaves them unanswered).
 const OPEN = {
-  2: 'Is the AgentCore Identity on-behalf-of exchange RFC 8693, or a vendor-specific variant?',
-  27: 'What is the exact WWW-Authenticate layout the Kong plugin and PingOne Authorize agree on?',
-  31: 'The chart says push; this repo\'s PingOne path sends an email or SMS link. Which does the Kong plugin target?',
+  2: 'Is the agent identity service on-behalf-of exchange RFC 8693, or a vendor-specific variant?',
+  27: 'What is the exact WWW-Authenticate layout the approval plugin and PingOne Authorize agree on?',
+  31: 'The chart says push; this repo\'s PingOne path sends an email or SMS link. Which does the approval plugin target?',
 };
 
 const wireText = (first, headers, body) => [first, ...(headers || []), ...(body ? ['', body] : [])].join('\n');

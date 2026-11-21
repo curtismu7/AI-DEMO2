@@ -216,7 +216,7 @@ export const NAV_SEARCH_ALIASES = {
   "/transaction-consent": "ciba consent approval step-up mock phone binding message agent pay withdrawal transfer",
   "/transaction-trace": "chain of custody hops authorization decision pdp inferred token privilege gateway filters",
   "/transactions": "transfers deposits withdrawals history review end user date sortable admin",
-  "/ciba-approval-sequence": "ciba hitl approval booking flight agent gateway kong redis authorize pingone push binding message auth_req_id x-ciba-approval rfc 8693 obo sequence lucid",
+  "/ciba-approval-sequence": "ciba hitl approval booking flight agent gateway plugin redis authorize pingone push binding message auth_req_id x-ciba-approval rfc 8693 obo sequence lucid",
   "/poc-flow": "poc customer entergy swa agent token exchange act obo authorize ciba hitl jsonrpc 403 gateway bedrock privilege sequence",
   "/uhg-chatgpt-mcp-flow": "uhg optum hsid pingfederate chatgpt mcp pkce s256 rfc 8693 obo authorization code",
   "/ungoverned-agent": "anti-pattern shadow ai browser session opencli full user power no audit consent",

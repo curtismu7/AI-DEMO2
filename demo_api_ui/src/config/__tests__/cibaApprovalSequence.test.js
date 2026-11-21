@@ -15,10 +15,10 @@ describe('CIBA approval sequence data', () => {
   const flat = (t) => t.replace(/\s+/g, ' ');
 
   it('has the 10 participants of the chart, left to right, each with a label and a role line', () => {
-    expect(model.participants.map((p) => p.id)).toEqual(['user', 'agent', 'aigw', 'mcp', 'gw', 'store', 'pdp', 'as', 'device', 'api']);
+    expect(model.participants.map((p) => p.id)).toEqual(['user', 'agent', 'aigate', 'mcp', 'gw', 'store', 'pdp', 'as', 'device', 'api']);
     expect(model.participants.map((p) => p.label.split('\n')[0])).toEqual([
-      'User (chat widget)', 'Agent Runtime (Strands)', 'Ping AI Gateway', 'flight-mcp-aigw (MCP)', 'Kong API GW (ciba-approval + ping-auth)',
-      'Redis (approval store)', 'PingOne Authorize (PAZ)', 'PingOne (CIBA)', 'Other device (push)', 'flight-api',
+      'User (chat widget)', 'Agent runtime', 'AI gateway', 'Flight MCP server', 'API gateway (approval plugin + policy check)',
+      'Redis (approval store)', 'PingOne Authorize (PAZ)', 'PingOne (CIBA)', 'Other device (push)', 'Flights API',
     ]);
     for (const p of model.participants) expect(p.label.split('\n').length, p.id).toBe(2);
     expect(model.autonumber).toBe(true);
@@ -28,14 +28,14 @@ describe('CIBA approval sequence data', () => {
     expect(messages).toHaveLength(71);
     const at = (n) => messages[n - 1];
     expect([at(1).from, at(1).to, at(1).dashed]).toEqual(['user', 'agent', false]);
-    expect(flat(at(7).text)).toMatch(/RFC 8693 token exchange .*aud = kong-paz-aigw:8000.*scope = flights-api-aigw/);
+    expect(flat(at(7).text)).toMatch(/RFC 8693 token exchange .*aud = approval-gateway.example.com.*scope = flights-api/);
     expect([at(8).from, at(8).to, at(8).dashed]).toEqual(['as', 'mcp', true]);
     expect([at(27).from, at(27).to, at(27).dashed]).toEqual(['pdp', 'gw', true]);
     expect(flat(at(27).text)).toMatch(/DENY 401.*auth_challenge.*acr_values="ciba-approval"/);
     expect(flat(at(29).text)).toMatch(/POST \/as\/cibaAuthorization.*binding_message=BK-XXXX/);
     expect([at(32).from, at(32).to]).toEqual(['gw', 'store']);
-    expect(flat(at(32).text)).toBe('SET aigw-ciba:request');
-    expect(flat(at(35).text)).toMatch(/_meta\[com\.pingidentity\/approval\]/);
+    expect(flat(at(32).text)).toBe('SET approval:request');
+    expect(flat(at(35).text)).toMatch(/_meta\[com\.example\/approval\]/);
     expect(flat(at(42).text)).toMatch(/POST \/bookings \+ x-ciba-approval: auth_req_id/);
     expect(flat(at(46).text)).toMatch(/grant_type=urn:openid:params:grant-type:ciba/);
     expect(flat(at(50).text)).toBe('ngx.sleep(interval)');
@@ -61,7 +61,7 @@ describe('CIBA approval sequence data', () => {
     const notes = model.items.filter((i) => i.type === 'note' && !/^Phase \d - /.test(i.text));
     expect(notes).toHaveLength(7);
     expect(notes.map((n) => n.over)).toEqual([['gw'], ['mcp'], ['agent'], ['user'], ['mcp'], ['gw'], ['gw']]);
-    expect(notes[0].text).toMatch(/ciba-approval plugin \(priority 1001\)/);
+    expect(notes[0].text).toMatch(/approval plugin \(priority 1001\)/);
   });
 
   it('has no payload boxes under the messages: the wire text lives in the step details', () => {
