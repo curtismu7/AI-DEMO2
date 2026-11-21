@@ -78,17 +78,22 @@ const SIZES = [["small", "A−", "Decrease details font size"], ["medium", "A", 
  * diagram can pass `nodeDetail` to show that node instead.
  *
  * Props: steps (buildReelSteps), stepper (useDiagramStepper), nodeDetail ({ title, lines } | null),
- * onClearNode, openKey (optional number: a change opens the details row for the step in focus), testId.
+ * onClearNode, openKey (optional number: a change opens the details row for the step in focus), follow (optional: the details row
+ * follows the step in focus while the walkthrough runs), testId.
  */
-export default function DiagramReel({ steps, stepper, nodeDetail = null, onClearNode, openKey = 0, testId = "diagram-reel" }) {
+export default function DiagramReel({ steps, stepper, nodeDetail = null, onClearNode, openKey = 0, follow = false, testId = "diagram-reel" }) {
   const [open, setOpen] = useState(false);
+  // follow: while the walkthrough runs, the details row shows the step in focus without a click (a side panel that follows the stepped
+  // message). Close turns that off until the walkthrough is stopped or a card / message is picked again.
+  const [followOff, setFollowOff] = useState(false);
   const [fontSize, setFontSize] = useState("medium");
   // a box click on the diagram bumps openKey: open the details row for the step it jumped to
   useEffect(() => {
-    if (openKey) setOpen(true);
+    if (openKey) { setOpen(true); setFollowOff(false); }
   }, [openKey]);
   const stripRef = useRef(null);
   const step = stepper?.step ?? -1;
+  useEffect(() => { if (step < 0) setFollowOff(false); }, [step]);
 
   // keep the card in focus visible inside the strip (scroll the strip, never the page)
   useEffect(() => {
@@ -109,9 +114,11 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
   // step. This row follows the same step, so a second polite region would read every step twice: it goes quiet until the
   // walkthrough is paused or stopped, and a card or node click (not playing) is still announced here.
   const autoPlaying = Boolean(stepper?.active && !stepper?.paused);
-  const panel = nodeDetail || (open && current ? { title: current.title, label: current.label, lines: current.lines, refs: current.refs } : null);
+  const followed = follow && step >= 0 && !followOff;
+  const panel = nodeDetail || ((open || followed) && current ? { title: current.title, label: current.label, lines: current.lines, refs: current.refs } : null);
   const close = () => {
     setOpen(false);
+    if (follow) setFollowOff(true);
     onClearNode?.();
     // The Close button unmounts with the panel; without this focus falls to the page body. Back to the card in focus
     // (the one that opened the row), or the first card when a diagram node opened it.
@@ -119,10 +126,12 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
   };
   const pick = (i) => {
     onClearNode?.();
-    if (i === step && open) {
+    if (i === step && (open || followed)) {
       setOpen(false);
+      if (follow) setFollowOff(true);
       return;
     }
+    setFollowOff(false);
     stepper.goTo(i);
     setOpen(true);
   };
