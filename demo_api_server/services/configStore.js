@@ -861,6 +861,11 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   spiffe_pf_exchange_client_secret:       { public: false, default: '' },
   spiffe_pf_subject_client_id:            { public: false, default: '' },
   spiffe_pf_subject_client_secret:        { public: false, default: '' },
+  // SPIFFE workload identity → Privilege gateway (Non-Human Identity / federated agent).
+  // Gated by ff_spiffe_privilege; off by default so behaviour is unchanged.
+  ff_spiffe_privilege:                    { public: true,  default: 'false' },
+  spiffe_privilege_gateway_url:           { public: true,  default: 'https://mcpgw.ai-demo.ping-devops.com' },
+  spiffe_privilege_audience:              { public: true,  default: '' },
   spiffe_bridge_private_key:              { public: false, default: '' },
   spiffe_bridge_kid:                      { public: true,  default: '' },
   spiffe_pingone_client_map:              { public: true,  default: '' },

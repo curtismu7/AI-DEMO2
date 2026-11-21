@@ -172,4 +172,52 @@ router.post('/pingfederate/exchange', express.json(), async (req, res) => {
   }
 });
 
+/**
+ * LIVE Privilege gateway call with a SPIFFE workload identity as the only
+ * credential. Complements /pingfederate/exchange above: that one proves PF
+ * accepts an SVID in token exchange; this one proves (or measures) whether
+ * the Privilege gateway's Non-Human Identity / Pass Agent Token path accepts
+ * SPIFFE-issued identity. Three token shapes are comparable; see
+ * services/spiffePrivilegeService.js. Gated by ff_spiffe_privilege; off by
+ * default. The access token is returned for playground inspection only.
+ *
+ * @flow spiffe
+ * @name SPIFFE
+ * @actor workforce-agent
+ * @to privilege-gateway
+ * @step 3
+ * @body {"token_mode":"raw-svid"}
+ * @why The Privilege gateway's federated-identity path verifies a caller's JWT against a registered issuer's JWKS — the same contract a SPIRE JWT-SVID satisfies — so an agent's workload identity can be the only credential it presents.
+ * @example Like a building whose door reader accepts a badge from a visitor's own company, after checking that company's published key list — no lobby-issued badge needed.
+ * @ai Agents get short-lived, attested workload identities instead of static secrets; the gateway decides what the identity may do without minting or storing a key for it.
+ */
+router.post('/privilege/call', express.json(), async (req, res) => {
+  try {
+    const result = await require('../services/spiffePrivilegeService').callPrivilegeWithWorkloadIdentity({
+      tokenMode: req.body?.token_mode,
+      resource: req.body?.resource,
+      mcpMethod: req.body?.mcp_method,
+      audience: req.body?.audience,
+      scopes: req.body?.scopes,
+    });
+    res.json({
+      call: 'spiffe-privilege-workload-identity',
+      token_mode: result.tokenMode,
+      issuer: result.issuer,
+      claims: result.claims,
+      gateway: {
+        url: result.gatewayUrl,
+        status: result.gatewayStatus,
+        body: result.gatewayBody,
+      },
+      access_token: result.token,
+    });
+  } catch (err) {
+    if (err.isConfigError) {
+      return res.status(err.httpStatus || 503).json({ error: 'spiffe_privilege_unavailable', error_description: err.message, details: err.details });
+    }
+    return res.status(502).json({ error: 'spiffe_privilege_call_failed', error_description: err.message });
+  }
+});
+
 module.exports = router;
