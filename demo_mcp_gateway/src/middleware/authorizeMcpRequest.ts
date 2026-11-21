@@ -33,6 +33,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { PingOneAuthorizeClient, policySourceForEngine, actChainDepth } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
+import { isPrivilegeBridgeDiscovery } from '../auth/privilegeBridge';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient, scopeMismatchReasonFromExchangeError } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
@@ -407,6 +408,7 @@ export function buildAuthorizeMcpRequest(
         config,
         preParsed.params?.name,
         preParsed.method === 'tools/call' ? 'McpToolCall' : undefined,
+        { bridgeDiscovery: isPrivilegeBridgeDiscovery(_req) },
       );
       auditTrail.introspection = pipelineResult.audit.introspection;
       auditTrail.policy = pipelineResult.audit.policy;
