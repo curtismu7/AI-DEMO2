@@ -185,7 +185,8 @@ export default function UseCaseDiagramPage() {
         stepper={stepper}
         onNodeClick={(node) => {
           setPickedNode((prev) => (prev === node.id ? null : node.id));
-          // A box click re-opens the drawer (if closed) so the detail is visible.
+          // The box itself expands with the kit's Passport (StaticFlowDiagram);
+          // a box click also re-opens the drawer (if closed) so the detail is visible.
           setPanelOpen(true);
         }}
         testId={`ucd-${cfg.id.toLowerCase()}`}
