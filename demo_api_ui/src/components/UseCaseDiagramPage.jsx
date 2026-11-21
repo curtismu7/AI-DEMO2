@@ -186,9 +186,9 @@ export default function UseCaseDiagramPage() {
         stepper={stepper}
         onNodeClick={(node) => {
           setPickedNode((prev) => (prev === node.id ? null : node.id));
-          // A box click opens the floating panel (if closed) so the detail is
-          // visible where the presenter put it — the inline panel below also
-          // updates, unchanged.
+          // The box itself expands with the kit's Passport (StaticFlowDiagram);
+          // the floating panel opens alongside (if closed) — view-only, and the
+          // inline panel below also updates, unchanged.
           setPanelOpen(true);
         }}
         testId={`ucd-${cfg.id.toLowerCase()}`}

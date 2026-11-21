@@ -173,3 +173,14 @@
   line-height: 1.4;
   pointer-events: none;
 }
+
+/* An expanded box (diagram kit §8c): the box's root carries .dk-open while its
+   Passport is open; widen it so the details are readable and let it scroll. */
+.react-flow__node.dk-open {
+  width: 320px;
+}
+.sfd-node.dk-open,
+.react-flow__node.dk-open .sfd-node {
+  max-height: 420px;
+  overflow-y: auto;
+}
