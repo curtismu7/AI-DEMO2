@@ -88,6 +88,18 @@ Which gateway is in the path depends on the Quick Flag. The README's Architectur
 - **Fonts and writing style come from the Ping brand hub, <https://brand.pingidentity.com/hub/39>** (SSO-gated). Montserrat is the app-wide font (loaded in `demo_api_ui/public/index.html`, tokenized as `--font-primary` in `demo_api_ui/src/index.css`); written-tone/copy rules live there too. Take new fonts or voice/copy conventions from the hub, never invent them — and don't reintroduce Inter, Fraunces, Newsreader, or IBM Plex Sans (IBM Plex Mono stays for code). Documented exceptions exist (THEMING.md §8.2, SVG-label narrow sans, vendor-mock chrome) — leave them alone.
 - **Palette and readability (2026-10-18 review; checklist `docs/reports/ui-consistency-review-2026-10-18.md`).** Ping Red `#d20e0f` (hover `#aa0005`) is the only accent/danger red, Core Dark `#051727` and Ping blue `#12538d` are the other brand colours, **no purple or pink anywhere**. Use `--font-mono` (leads with IBM Plex Mono) for code, `--radius-*` / `--font-size-*` tokens instead of literals (`designTokenRatchet.test.js` fails on new ones), and `<PageHeader>` from `components/common` for a page title band. Text must stay readable in both themes: a PostToolUse hook runs `demo_api_ui/scripts/check-contrast.mjs` on every CSS edit, and `npm run audit:contrast` (needs `vite preview` on 4173) checks every route as rendered. Never apply generated CSS overrides unscoped.
 
+## Never-repeat lessons
+
+Each is a real incident. Add one line here when an agent makes a mistake worth never repeating; keep it to things the repo itself can't tell you.
+
+- **Never `gh pr merge --delete-branch` from inside the PR's own worktree** — `gh` can't delete a checked-out branch, falls back to checking the worktree out onto `main` and aborts, so edits look reverted. Merge with plain `--merge`, then `ExitWorktree`, or run the merge from the main checkout.
+- **After every implementer-subagent dispatch, run `git status --short` and `git log --oneline -3` in the main checkout, not just the worktree.** Subagents given an absolute worktree path have still committed to `main`, or left uncommitted copies of their work there. Their report listing paths outside the worktree is the tell.
+- **Feature flags default OFF** in tests, mocks, fixtures and assumptions. Turn one on only when the task is about that flag's on-path, and say so.
+- **`env_file` changes need a recreate** (`docker compose up -d <svc>`), not `restart`. Single-file bind mounts pin the old inode after git replaces the file: `--force-recreate`.
+- **The SE/AWS nginx is a separate ConfigMap.** A route added to `k8s/02-configmap.yaml` also has to go in `k8s/aws/nginx-http-configmap.yaml`, and nginx only reloads on a pod restart (`kubectl rollout restart deploy/frontend`).
+- **A 200 is not proof it works — check the content.** Jaeger answered `200` with its HTML shell for API paths, so the trace view loaded and silently showed nothing. Assert content type or body shape, not just status.
+- **Fail closed.** A gate written as `=== 'DENY'` treats every other value as allow. Use allowlists, and trace every producer and consumer of a shared value. Checklist: [docs/SILENT_FAILURE_REVIEW_GUIDE.md](docs/SILENT_FAILURE_REVIEW_GUIDE.md).
+
 ## Knowledge bundles
 
 Citable facts live in `graphify-out/*.kb.json`: `repo-topology` (service boundaries, token exchange, scope topology, feature-flag wiring, MCP tools) and `banking-domain` (balances, transfer limits, fraud holds the demo agent enforces). Check these before re-deriving a documented fact; add new assertions (`id`, `claim`, `source`, `confidence`) per `schemas/knowledge-bundle.schema.json`. `banking-domain` grounds the demo agent when `ff_knowledge_grounding` is ON — this is the demo's citable-facts feature, not Google's Open Knowledge Format.
@@ -114,7 +126,8 @@ Use **Super Sports** as the default vertical for manual validation and tests tha
    - UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify` (run these only if you touched that surface).
    - A single-route fix, copy change, or one isolated test file needs the scoped run only. Say which scope you ran.
 2. **Never conclude from a piped command's exit status.** `cmd | tail` exits with `tail`'s status, so a `deploy-live.sh` run that aborted with exit 1 reads as exit 0 — every "verified, exit 0" claim made through a pipe is unfounded, and the failure is silent by construction. Redirect to a file and read the file, or check `${PIPESTATUS[0]}`. Scripts under `scripts/` that run a subcommand whose failure should matter set `-o pipefail`.
-3. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
+3. **Non-trivial work (new feature, auth/token/session change, anything that will be deployed or rolled out) also needs:** a short spec first with the unhappy paths (`spec-first` skill; specs live in `docs/superpowers/specs/`); for a bug fix, a test that fails without the fix and passes with it; `npm run ci:local` for the broad local gate; and an independent `/code-review` of the diff (the diff, not your summary) before merge. A one-line fix or copy change needs none of this.
+4. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
 
 ## AI-DLC (opt-in only)
 
