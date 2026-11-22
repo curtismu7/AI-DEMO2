@@ -62,13 +62,15 @@ test('idempotent: merging the merged package changes nothing', () => {
 test('inert for normal requests, denies only KsProbe=deny-me (offline evaluator)', async () => {
   const { predict } = await import('../scripts/predict-p1az-denies.mjs');
   const { merged } = mergeKsTimingProbe(load());
-  const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ks-probe-')), 'merged.snapshot.json');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ks-probe-'));
+  const tmp = path.join(dir, 'merged.snapshot.json');
   fs.writeFileSync(tmp, JSON.stringify(merged));
   const request = { DecisionContext: 'Transaction', McpMethod: '', ToolName: '', Amount: '', TransactionType: '', UserId: 'u1' };
   const baseline = predict(SNAPSHOT, request);
   const normal = predict(tmp, request);
   assert.deepEqual(normal.fired, baseline.fired, 'a normal request fires exactly the same deny rules as before');
   const probe = predict(tmp, { ...request, KsProbe: 'deny-me' });
+  fs.rmSync(dir, { recursive: true, force: true });
   assert.deepEqual(probe.fired.filter((n) => !baseline.fired.includes(n)), ['KS Timing Probe Deny']);
 });
 
@@ -80,6 +82,12 @@ test('refuses a malformed export and a partly-present probe (no silent bad file,
   const merged = mergeKsTimingProbe(load()).merged;
   const noRule = merged.filter((o) => !(o && o.id === IDS.rule));
   assert.throws(() => mergeKsTimingProbe(noRule), /partial import/);
+});
+
+test('refuses an export with two policies of the target name', () => {
+  const orig = load();
+  const pol = orig.find((o) => o && o.type === 'Policy' && o.name === TARGET_POLICY);
+  assert.throws(() => mergeKsTimingProbe([...orig, { ...pol, id: 'ffffffff-0000-4000-8000-000000000002' }]), /more than one policy/i);
 });
 
 test('refuses a standalone package (a publish would replace the whole tree)', () => {

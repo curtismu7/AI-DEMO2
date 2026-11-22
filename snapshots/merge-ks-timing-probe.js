@@ -63,6 +63,7 @@ function mergeKsTimingProbe(exported) {
   const pkg = JSON.parse(JSON.stringify(exported));
   const policy = pkg.find((o) => o && o.type === 'Policy' && o.name === TARGET_POLICY);
   if (!policy) throw new Error(`target policy "${TARGET_POLICY}" not found: this is not an export of the live tree (a standalone package would replace it)`);
+  if (pkg.filter((o) => o && o.type === 'Policy' && o.name === TARGET_POLICY).length !== 1) throw new Error(`more than one policy named "${TARGET_POLICY}"; refusing to guess which one to change`);
   if (pkg.filter((o) => o && o.type === 'PolicySet').length !== 1) throw new Error('the package must contain exactly one PolicySet');
   if (pkg.some((o) => o && o.id === IDS.attr)) {
     const has = (id) => pkg.some((o) => o && o.id === id);
@@ -91,7 +92,7 @@ function mergeKsTimingProbe(exported) {
   const child = { id: IDS.rule, type: 'Rule' };
   if (catchAll < 0) target.children.push(child); else target.children.splice(catchAll, 0, child);
   // PingOne SKIPS an object whose version is unchanged, so the policy needs a new (content-derived, deterministic) version.
-  target.version = uuidFrom(stable(target.children));
+  target.version = uuidFrom(stable({ ...target, version: null }));
 
   // validation
   const ids = pkg.filter((o) => o && o.id).map((o) => o.id);
