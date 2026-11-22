@@ -19,7 +19,8 @@ import type { DecodedToken } from './server/tokenValidator';
 type Level = 'INFO' | 'WARN' | 'ERROR';
 
 const MAX_LINE = 400;
-const JWT_LIKE = /eyJ[\w-]{4,}\.[\w-]{4,}\.?[\w-]*/g;
+// A JWT, or any piece of one (a header or payload segment on its own): every `eyJ...` run. No backtracking: the dotted tail is optional.
+const JWT_LIKE = /eyJ[\w-]{6,}(?:\.[\w-]*){0,2}/g;
 
 /** Default ON. Off for `false`, `0`, `off` or `no` (any case). */
 export function decisionLogEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -41,56 +42,58 @@ export function __setDecisionSinkForTests(fn: ((level: Level, line: string) => v
 
 /** One field value: safe characters only, so a claim cannot add a key=value pair, a quote or a second line. */
 export function fieldValue(v: unknown, max = 120): string {
-  const s = String(v ?? '').replace(JWT_LIKE, '<jwt>').replace(/[^A-Za-z0-9._:/@+<>,-]+/g, '_').slice(0, max);
+  const s = String(v ?? '').slice(0, max * 4).replace(JWT_LIKE, '<jwt>').replace(/[^A-Za-z0-9._:/@+<>,*-]+/g, '_').slice(0, max);
   return s || '-';
 }
 
-/** Free text (a reason): one line, no control characters, JWT-shaped strings replaced, bounded. */
-export function reasonText(v: unknown, max = 160): string {
-  return String(v ?? '').replace(JWT_LIKE, '<jwt>').replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-function write(level: Level, message: string): void {
+// The message is built inside the guard too, so an odd claim shape can never throw out of a log call.
+function emit(level: Level, build: () => string): void {
   if (!decisionLogEnabled()) return;
   try {
-    sink(level, `[${new Date().toISOString()}] ${level}: ${message}`.slice(0, MAX_LINE));
+    sink(level, `[${new Date().toISOString()}] ${level}: ${build()}`.slice(0, MAX_LINE));
   } catch { /* a log sink must never change an MCP reply */ }
 }
 
-const scopesOf = (d: DecodedToken): string => (Array.isArray(d.scope) ? d.scope.map(String) : String(d.scope ?? '').split(' ')).filter(Boolean).join(' ');
+const scopesOf = (d: DecodedToken): string => (Array.isArray(d.scope) ? d.scope.map(String) : String(d.scope ?? '').split(' ')).filter(Boolean).join(',');
 
 /** Token passed signature, expiry and audience. */
-export function logTokenValidated(method: string, d: DecodedToken & { client_id?: string }): void {
-  const act = d.act as { sub?: string; act?: { sub?: string } } | undefined;
-  write('INFO', `token audience validated method=${fieldValue(method, 40)} sub=${fieldValue(d.sub)} client=${fieldValue(d.client_id)} act=${fieldValue(act?.sub)} actprior=${fieldValue(act?.act?.sub)} scope="${fieldValue(scopesOf(d).replace(/ /g, ','), 160)}"`);
+export function logTokenValidated(method: string, d: DecodedToken): void {
+  emit('INFO', () => `token audience validated method=${fieldValue(method, 40)} sub=${fieldValue(d.sub)} client=${fieldValue(d.client_id)} act=${fieldValue(d.act?.sub)} actprior=${fieldValue(d.act?.act?.sub)} scope="${fieldValue(scopesOf(d), 160)}"`);
 }
 
-/** Token failed. TokenError.code picks the phrase; anything else is a plain validation failure. */
+/** The gateway's static token: accepted by a shared secret, with no audience or signature check and no person. Said as exactly that. */
+export function logStaticTokenAccepted(method: string, scope: string): void {
+  emit('INFO', () => `token accepted method=${fieldValue(method, 40)} kind=gateway-static sub=- scope="${fieldValue(scope.replace(/[\s,]+/g, ','), 160)}"`);
+}
+
+/** Token failed. TokenError.code picks the phrase; the reason is the code, never the message (it can carry claim values). */
 export function logTokenRefused(method: string, err: unknown): void {
-  const code = (err as { code?: string })?.code;
-  const phrase = code === 'invalid_aud' ? 'audience mismatch' : code === 'expired_token' ? 'token expired' : 'token validation failed';
-  write('WARN', `${phrase} method=${fieldValue(method, 40)} reason=${reasonText(err instanceof Error ? err.message : err)}`);
+  emit('WARN', () => {
+    const code = (err as { code?: string })?.code;
+    const phrase = code === 'invalid_aud' ? 'audience mismatch' : code === 'expired_token' ? 'token expired' : 'token validation failed';
+    return `${phrase} method=${fieldValue(method, 40)} reason=${fieldValue(code ?? 'error', 40)}`;
+  });
 }
 
-/** No bearer token on an HTTP request. */
+/** No bearer token. `method` is the JSON-RPC method (or the transport event); `path` carries no query string. */
 export function logNoBearer(method: string | undefined, path: string): void {
-  write('WARN', `unauthorized method=${fieldValue(method, 40)} path=${fieldValue(path, 60)} reason=no bearer token`);
+  emit('WARN', () => `unauthorized method=${fieldValue(method, 40)} path=${fieldValue(String(path ?? '').split('?')[0], 60)} reason=no bearer token`);
 }
 
 /** A tool name is written only when the server knows it; request text never becomes a field. */
 export function logToolUnknown(sub: string): void {
-  write('WARN', `tool call denied tool=- reason=unknown tool sub=${fieldValue(sub)}`);
+  emit('WARN', () => `tool call denied tool=- reason=unknown tool sub=${fieldValue(sub)}`);
 }
 
 export function logScopeRefused(tool: string, required: string[], sub: string): void {
-  write('WARN', `insufficient scope tool=${fieldValue(tool, 64)} required="${fieldValue(required.join(','), 160)}" sub=${fieldValue(sub)}`);
+  emit('WARN', () => `insufficient scope tool=${fieldValue(tool, 64)} required="${fieldValue(required.join(','), 160)}" sub=${fieldValue(sub)}`);
 }
 
 /** Exactly `Tool <name> called`: the shape the panel reads as served. `tool` must be a registered tool name. */
 export function logToolCalled(tool: string): void {
-  write('INFO', `Tool ${fieldValue(tool, 64)} called`);
+  emit('INFO', () => `Tool ${fieldValue(tool, 64)} called`);
 }
 
 export function logToolFailed(tool: string, sub: string): void {
-  write('ERROR', `tool call failed tool=${fieldValue(tool, 64)} sub=${fieldValue(sub)}`);
+  emit('ERROR', () => `tool call failed tool=${fieldValue(tool, 64)} sub=${fieldValue(sub)}`);
 }

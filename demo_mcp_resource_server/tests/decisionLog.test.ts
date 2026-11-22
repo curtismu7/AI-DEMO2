@@ -11,6 +11,7 @@ import http from 'http';
 import os from 'os';
 import path from 'path';
 import type { AddressInfo } from 'net';
+import WebSocket from 'ws';
 import { __setDecisionSinkForTests, decisionLogEnabled, fieldValue, logToolFailed } from '../src/decisionLog';
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-declog-'));
@@ -44,8 +45,12 @@ afterAll(async () => {
 beforeEach(() => {
   lines.length = 0;
   delete process.env.MCP_RESOURCE_SERVER_DECISION_LOG;
+  delete process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN;
+  delete process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES;
   __setDecisionSinkForTests((level, line) => { lines.push({ level, line }); });
 });
+
+afterEach(() => { jest.restoreAllMocks(); });
 
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 function token(claims: Record<string, unknown>): string {
@@ -188,6 +193,71 @@ describe('decision log: hostile claims and the shared reader', () => {
   });
 });
 
+describe('decision log: other paths a call can take', () => {
+  it('an audience claim holding key=value text cannot forge a field: the reason is the error code, never the message', async () => {
+    const r = await post(call('whoami'), token({ sub: 'p', scope: 'whoami:read', aud: 'x sub=admin client=trusted' }));
+    expect(r.status).toBe(401);
+    expect(messages()).toEqual(['audience mismatch method=tools/call reason=invalid_aud']);
+    expect(lines[0].line).not.toMatch(/admin|trusted/);
+  });
+
+  it('a JWT, or a header or payload segment on its own, is never written; a very long run stays fast and bounded', async () => {
+    const header = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9';
+    const started = Date.now();
+    const r = await post(call('whoami'), token({ sub: `${header} ${'eyJ'.repeat(1500)}`, scope: 'whoami:read' }));
+    expect(r.status).toBe(200);
+    expect(Date.now() - started).toBeLessThan(3000);
+    for (const { line } of lines) {
+      expect(line).not.toContain(header);
+      expect(line.length).toBeLessThanOrEqual(400);
+    }
+  });
+
+  it('the gateway static token is logged as accepted by a shared secret (no audience check, no person), never as "audience validated"', async () => {
+    process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN = 'static-token-for-the-test-0123456789abcdef';
+    process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES = 'whoami:read';
+    const r = await post(call('whoami'), 'static-token-for-the-test-0123456789abcdef');
+    expect(r.status).toBe(200);
+    expect(messages()).toEqual(['token accepted method=tools/call kind=gateway-static sub=- scope="whoami:read"', 'Tool whoami called']);
+    expect(lines.some((l) => /audience validated/.test(l.line))).toBe(false);
+    expect(lines.some((l) => /static-token-for-the-test/.test(l.line))).toBe(false);
+  });
+
+  it('a tool that throws, through the server, logs "tool call failed" at ERROR (and no "Tool ... called")', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'get_investment_balance', arguments: { account_id: 'nope', accountId: 'nope' } } }, token({ sub: 'p', scope: '*' }));
+    expect(r.status).toBe(200);
+    expect(r.json.result.isError).toBe(true);
+    expect(messages()).toEqual(['token audience validated method=tools/call sub=p client=- act=- actprior=- scope="*"', 'tool call failed tool=get_investment_balance sub=p']);
+    expect(lines[1].level).toBe('ERROR');
+  });
+
+  it('completion/complete with an expired token is refused silently in the reply but logged', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'completion/complete', params: { ref: { type: 'ref/prompt', name: 'summarize_airline_booking' }, argument: { name: 'bookingId', value: '' } } }, token({ sub: 'p', scope: 'whoami:read', exp: Math.floor(Date.now() / 1000) - 60 }));
+    expect(r.status).toBe(200);
+    expect(messages()).toEqual(['token expired method=completion/complete reason=expired_token']);
+  });
+
+  it('WebSocket: no bearer is closed 4001 and logged; a valid call over WebSocket logs once, not twice', async () => {
+    const wsUrl = base.replace('http', 'ws');
+    const closed = await new Promise<number>((resolve, reject) => {
+      const ws = new WebSocket(wsUrl);
+      ws.on('close', (code) => resolve(code));
+      ws.on('error', reject);
+    });
+    expect(closed).toBe(4001);
+    expect(messages()).toEqual(['unauthorized method=ws-connect path=/ reason=no bearer token']);
+
+    lines.length = 0;
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(wsUrl, { headers: { Authorization: `Bearer ${token({ sub: 'ws-person', scope: 'whoami:read' })}` } });
+      ws.on('open', () => ws.send(JSON.stringify(call('whoami'))));
+      ws.on('message', () => { ws.close(); resolve(); });
+      ws.on('error', reject);
+    });
+    expect(messages()).toEqual(['token audience validated method=tools/call sub=ws-person client=- act=- actprior=- scope="whoami:read"', 'Tool whoami called']);
+  });
+});
+
 describe('decision log: flag and failing sink', () => {
   it.each(['false', '0', 'off', 'no', 'FALSE'])('MCP_RESOURCE_SERVER_DECISION_LOG=%s writes nothing and the reply is unchanged', async (v) => {
     process.env.MCP_RESOURCE_SERVER_DECISION_LOG = v;
@@ -207,7 +277,20 @@ describe('decision log: flag and failing sink', () => {
     __setDecisionSinkForTests(() => { throw new Error('disk full'); });
     const ok = await post(call('whoami'), token({ sub: 'p', scope: 'whoami:read' }));
     expect(ok.status).toBe(200);
+    expect(ok.json.result.isError).toBe(false);
     const refused = await post(call('whoami'), token({ sub: 'p', scope: 'mcp' }));
     expect(refused.status).toBe(403);
+    const bad = await post(call('whoami'), 'not-a-jwt');
+    expect(bad.status).toBe(401);
+  });
+
+  it('the default sink (console) throwing changes nothing either', async () => {
+    __setDecisionSinkForTests(null);
+    // Only the decision lines fail: the server's other console output (the JWKS warning) is not under test here.
+    for (const m of ['log', 'warn', 'error'] as const) jest.spyOn(console, m).mockImplementation((...args: unknown[]) => { if (String(args[0]).startsWith('[20')) throw new Error('stdout closed'); });
+    const ok = await post(call('whoami'), token({ sub: 'p', scope: 'whoami:read' }));
+    expect(ok.status).toBe(200);
+    expect(ok.json.result.isError).toBe(false);
+    expect((await post(call('whoami'), token({ sub: 'p', scope: 'mcp' }))).status).toBe(403);
   });
 });
