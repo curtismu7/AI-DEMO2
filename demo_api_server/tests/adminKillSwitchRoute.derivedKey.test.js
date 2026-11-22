@@ -27,6 +27,7 @@ function buildApp() {
     req.sessionID = 'sess-fixed';
     req.session = {
       user: { id: 'u1' },
+      oauthType: 'user',
       destroy: (cb) => cb(),
     };
     // Mock the authenticateToken middleware by setting user
@@ -51,7 +52,8 @@ describe('POST /agent/:agentId/kill-switch uses the derived session key, not the
       .send({ reason: 'test', scope: 'instance' });
 
     expect(killSwitchService.killAgent).toHaveBeenCalledWith(
-      expectedKey, 'test', 'u1', null, 'instance', 'sess-fixed',
+      // 7th arg: which PingOne app the session's tokens came from (#3672), so the revoke authenticates as it.
+      expectedKey, 'test', 'u1', null, 'instance', 'sess-fixed', 'user',
     );
     expect(killSwitchService.isAgentRevoked).toHaveBeenCalledWith(expectedKey);
   });
