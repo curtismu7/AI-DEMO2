@@ -27,10 +27,19 @@ let svc;
 let spiffeDemo;
 let savedDisable;
 
-function post(body) {
+// The route requires a session; tests are signed in unless they say otherwise.
+function appFor({ signedIn = true } = {}) {
   const app = express();
+  app.use((req, _res, next) => {
+    if (signedIn) req.session = { user: { id: 'u1' } };
+    next();
+  });
   app.use('/api/demo/spiffe', spiffeDemo);
-  return request(app).post('/api/demo/spiffe/privilege/call').send(body);
+  return app;
+}
+
+function post(body, opts) {
+  return request(appFor(opts)).post('/api/demo/spiffe/privilege/call').send(body);
 }
 
 beforeEach(() => {
@@ -48,6 +57,39 @@ afterEach(() => {
   jest.restoreAllMocks();
   if (savedDisable === undefined) delete process.env.DISABLE_RATE_LIMIT;
   else process.env.DISABLE_RATE_LIMIT = savedDisable;
+});
+
+describe('requires a signed-in session', () => {
+  it('401 for the exact body the page sends, service never called', async () => {
+    const res = await post(PAGE_BODY, { signedIn: false });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('unauthenticated');
+    expect(svc.callPrivilegeWithWorkloadIdentity).not.toHaveBeenCalled();
+  });
+
+  it('401 with no body at all', async () => {
+    const res = await post(undefined, { signedIn: false });
+    expect(res.status).toBe(401);
+    expect(svc.callPrivilegeWithWorkloadIdentity).not.toHaveBeenCalled();
+  });
+
+  it('401 for a session object with no user', async () => {
+    const app = express();
+    app.use((req, _res, next) => { req.session = {}; next(); });
+    app.use('/api/demo/spiffe', spiffeDemo);
+    const res = await request(app).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY);
+    expect(res.status).toBe(401);
+  });
+
+  it('anonymous traffic does not use up the rate-limit bucket signed-in users share', async () => {
+    const anon = appFor({ signedIn: false });
+    for (let i = 0; i < 70; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await request(anon).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY);
+    }
+    const res = await post(PAGE_BODY);
+    expect(res.status).toBe(200);
+  });
 });
 
 describe('accepted calls (demo unchanged)', () => {
@@ -129,8 +171,7 @@ describe('service failures still map as before', () => {
 
 describe('rate limit', () => {
   it('returns 429 after 60 calls a minute from one client', async () => {
-    const app = express();
-    app.use('/api/demo/spiffe', spiffeDemo);
+    const app = appFor();
     const statuses = [];
     for (let i = 0; i < 61; i += 1) {
       // eslint-disable-next-line no-await-in-loop
@@ -142,8 +183,7 @@ describe('rate limit', () => {
 
   it('is off when DISABLE_RATE_LIMIT is set, like the other limiters', async () => {
     process.env.DISABLE_RATE_LIMIT = 'true';
-    const app = express();
-    app.use('/api/demo/spiffe', spiffeDemo);
+    const app = appFor();
     let last;
     for (let i = 0; i < 65; i += 1) {
       // eslint-disable-next-line no-await-in-loop

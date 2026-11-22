@@ -21,6 +21,7 @@
  */
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { requireSession } = require('../middleware/auth');
 const router = express.Router();
 const spiffeTrustDomain = require('../services/spiffeTrustDomain');
 const mockSpiffeWorkloadApi = require('../services/mockSpiffeWorkloadApi');
@@ -173,9 +174,10 @@ router.post('/pingfederate/exchange', express.json(), async (req, res) => {
   }
 });
 
-// This route is public but mints a JWT-SVID / PingFederate token and forwards it to the
-// Privilege gateway, so the caller may not choose where it goes or what it asks for. These
-// are the values SpiffePrivilegePage.jsx sends (tests/spiffePrivilegeCallRoute.test.js reads the
+// This route mints a JWT-SVID / PingFederate token and forwards it to the Privilege gateway, so it
+// needs a signed-in session (checked before the limiter, so anonymous traffic cannot use up a per-IP
+// bucket that signed-in users share) and the caller may not choose where it goes or what it asks for.
+// These are the values SpiffePrivilegePage.jsx sends (tests/spiffePrivilegeCallRoute.test.js reads the
 // page source and fails if they drift); omitted fields keep the service defaults.
 const PRIVILEGE_CALL_ALLOWED = {
   resources: ['/spire-mcp/mcp'],
@@ -224,7 +226,7 @@ function disallowedPrivilegeCallField(b) {
  * @example Like a building whose door reader accepts a badge from a visitor's own company, after checking that company's published key list — no lobby-issued badge needed.
  * @ai Agents get short-lived, attested workload identities instead of static secrets; the gateway decides what the identity may do without minting or storing a key for it.
  */
-router.post('/privilege/call', privilegeCallLimiter, express.json(), async (req, res) => {
+router.post('/privilege/call', requireSession, privilegeCallLimiter, express.json(), async (req, res) => {
   const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
   const bad = disallowedPrivilegeCallField(body);
   if (bad) {

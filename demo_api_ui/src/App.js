@@ -1152,7 +1152,13 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/spiffe-privilege"
-                  element={<SpiffePrivilegePageRoute user={user} logout={logout} />}
+                  element={
+                    loading ? null : user ? (
+                      <SpiffePrivilegePageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
                 />
                 <Route
                   path="/workload-standards"
