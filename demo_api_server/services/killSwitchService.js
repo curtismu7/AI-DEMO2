@@ -56,40 +56,56 @@ function revocationClientAuth(cfg) {
  * 401 invalid_client ("No client credentials included") and the token stays active (measured 2026-11-22
  * with a real user token). An end-user session holds tokens issued to the USER app; an admin session, to the ADMIN app.
  * @param {string} token - access_token or id_token value
- * @param {{ oauthType?: 'user'|'admin', tokenTypeHint?: string }} [opts]
+ * @param {{ oauthType?: 'user'|'admin', tokenTypeHint?: string }} [opts] - oauthType omitted: try the user app, then the admin app
  * @returns {Promise<{revoked: boolean}>}
  */
 async function revokeTokenAtPingOne(token, opts = {}) {
   if (!token) return { revoked: false, error: 'no_token' };
-  const cfg = opts.oauthType === 'user' ? oauthUserConfig : oauthConfig;
-  const revokeUrl = cfg.revocationEndpoint || `${oauthConfig._base}/revoke`;
-  const authMode = revocationClientAuth(cfg);
-  const params = new URLSearchParams({ token });
-  if (opts.tokenTypeHint) params.set('token_type_hint', opts.tokenTypeHint);
-  const reqOpts = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 };
-  if (authMode === 'basic') {
-    reqOpts.auth = { username: cfg.clientId, password: cfg.clientSecret };
-  } else {
-    if (cfg.clientId) params.set('client_id', cfg.clientId);
-    if (authMode === 'post') params.set('client_secret', cfg.clientSecret);
+  // RFC 7009: PingOne answers 200 even when the token belongs to a DIFFERENT client and nothing is revoked, so a wrong
+  // client cannot be detected from the response. When the caller does not know which app issued the token, try both.
+  const kinds = opts.oauthType ? [opts.oauthType] : ['user', 'admin'];
+  let lastError = null;
+  let revoked = false;
+  for (const kind of kinds) {
+    try {
+      const cfg = kind === 'user' ? oauthUserConfig : oauthConfig;
+      const revokeUrl = cfg.revocationEndpoint || `${oauthConfig._base}/revoke`;
+      const authMode = revocationClientAuth(cfg);
+      const params = new URLSearchParams({ token });
+      if (opts.tokenTypeHint) params.set('token_type_hint', opts.tokenTypeHint);
+      const reqOpts = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 };
+      if (authMode === 'basic') {
+        reqOpts.auth = { username: cfg.clientId, password: cfg.clientSecret };
+      } else {
+        if (cfg.clientId) params.set('client_id', cfg.clientId);
+        if (authMode === 'post') params.set('client_secret', cfg.clientSecret);
+      }
+      const response = await axios.post(revokeUrl, params.toString(), reqOpts);
+      // PingOne returns 200 on success
+      if (response.status === 200) revoked = true;
+    } catch (err) {
+      lastError = err;
+    }
   }
-  const response = await axios.post(revokeUrl, params.toString(), reqOpts);
-  // PingOne returns 200 on success
-  return { revoked: response.status === 200 };
+  if (!revoked && lastError) throw lastError;
+  return { revoked };
 }
 
 /**
- * Revoke both the access token and ID token from the session.
- * Runs both revocations in parallel; logs results individually.
- * @param {{ accessToken?: string, idToken?: string }} oauthTokens
+ * Revoke the session's access token, refresh token and ID token.
+ * Runs the revocations in parallel; logs results individually. The refresh token matters: left alive it
+ * mints a new access token after the kill. PingOne does not revoke ID tokens (400 unsupported_token_type),
+ * so that one is best-effort and never counts as the kill.
+ * @param {{ accessToken?: string, refreshToken?: string, idToken?: string }} oauthTokens
  * @param {'user'|'admin'} [oauthType] - which app the session's tokens were issued to (req.session.oauthType)
  * @returns {Promise<{ revoked: boolean, timestamp: string, time_ms: number, error?: string }>}
  */
 async function revokeAllTokens(oauthTokens, oauthType) {
   const startTime = Date.now();
   const tokensToRevoke = [
-    { type: 'access_token', value: oauthTokens?.accessToken },
-    { type: 'id_token',     value: oauthTokens?.idToken },
+    { type: 'access_token',  value: oauthTokens?.accessToken },
+    { type: 'refresh_token', value: oauthTokens?.refreshToken },
+    { type: 'id_token',      value: oauthTokens?.idToken },
   ].filter(t => t.value);
 
   if (tokensToRevoke.length === 0) {
@@ -99,13 +115,14 @@ async function revokeAllTokens(oauthTokens, oauthType) {
 
   const results = await Promise.allSettled(
     tokensToRevoke.map(t =>
-      revokeTokenAtPingOne(t.value, { oauthType, tokenTypeHint: t.type === 'access_token' ? 'access_token' : undefined })
+      revokeTokenAtPingOne(t.value, { oauthType, tokenTypeHint: t.type === 'id_token' ? undefined : t.type })
         .then(r => { console.log(`[killSwitch] ${t.type} revoked: ${r.revoked}`); return r; })
         .catch(e => { console.error(`[killSwitch] ${t.type} revocation failed: ${e.message}`); return { revoked: false }; })
     )
   );
 
-  const anyRevoked = results.some(r => r.status === 'fulfilled' && r.value?.revoked);
+  // The ID token cannot be revoked at PingOne, so only the access/refresh result decides whether the kill took.
+  const anyRevoked = results.some((r, i) => tokensToRevoke[i].type !== 'id_token' && r.status === 'fulfilled' && r.value?.revoked);
   const timeMs = Date.now() - startTime;
   console.log(`[killSwitch] Token revocation complete in ${timeMs}ms (${tokensToRevoke.length} tokens)`);
   return { revoked: anyRevoked, timestamp: new Date().toISOString(), time_ms: timeMs, ...(anyRevoked ? {} : { error: 'revocation_failed' }) };
@@ -543,7 +560,7 @@ async function getAgentRefreshToken(agentId) {
  * @param {string} agentId
  * @param {string} reason - Reason for kill switch activation
  * @param {string} [userId] - PingOne user id, for disableUserAtPingOne
- * @param {{accessToken?: string, idToken?: string}} [oauthTokens]
+ * @param {{accessToken?: string, refreshToken?: string, idToken?: string}} [oauthTokens]
  * @param {'full'|'instance'} [scope] - 'instance' (default) skips disableAgentApplicationsAtPingOne
  *   and disableUserAtPingOne so only THIS caller's tokens/session are stopped.
  *   'full' also disables the agent's PingOne application(s) and the user account.
@@ -575,7 +592,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       key: 'token_revocation',
       label: 'Revoke OAuth tokens at PingOne',
       detail: revokeResult.revoked
-        ? 'Access/ID token revoked (RFC 7009) — already-issued tokens are now invalid. This does not interrupt a call already in progress; it stops the token being reused on the next one.'
+        ? 'Access and refresh tokens revoked (RFC 7009) — already-issued tokens are now invalid and cannot be refreshed. This does not interrupt a call already in progress; it stops the token being reused on the next one.'
         : (revokeResult.error === 'revocation_failed'
           ? 'PingOne did not revoke the access/ID token (the revoke call failed). The token may stay valid until it expires; the local session block still applies.'
           : 'No valid access/ID token found on this session to revoke.'),

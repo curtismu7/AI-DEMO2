@@ -18,19 +18,29 @@ authentication returned 200 and the access token went inactive; the refresh toke
 fails `invalid_grant`).
 
 **What changed:** the revoke authenticates as the client the session's tokens belong to — the user app for an
-end-user session, the admin app otherwise (`req.session.oauthType` is passed as `killAgent`'s new 7th argument from both
-call sites) — using the configured revocation endpoint and that app's token-endpoint auth method (`post`, `basic`,
-or `none` = client_id only). The kill step now says when PingOne refused the revoke instead of "no token found".
+end-user session, the admin app for an admin session (`req.session.oauthType` is passed as `killAgent`'s new 7th
+argument from both call sites) — using the configured revocation endpoint and that app's token-endpoint auth method
+(`post`, `basic`, or `none` = client_id only). When the type is not given it tries the user app, then the admin app,
+because PingOne answers 200 for a token that belongs to a different client and revokes nothing (RFC 7009), so a wrong
+client cannot be detected from the response. The refresh token is now revoked too (left alive it mints a new access
+token after the kill). The kill step says when PingOne refused the revoke instead of "no token found", and an ID-token
+result never counts as the kill.
 
-**Not changed / known:** PingOne does not revoke ID tokens (400 `unsupported_token_type`, with or without a hint);
-that call stays best-effort and the access-token revoke is what counts. The refresh token is not revoked by a kill.
-Tokens for the default PingOne API resource were refused even with client authentication; the banking-resource
-tokens this app uses were fine. Verified live against the local config only, not the live deployment.
+**Real-mode results (2026-11-22, real PingOne, real sign-ins, a throwaway user, the app's own `killAgent`):**
+instance kill: access token inactive, refresh `invalid_grant`, user and shared agent app untouched. Full kill: user
+disabled and cannot sign in again, shared agent app disabled (its client-credentials request then fails `invalid_client`),
+SSO sessions gone (3 before, 0 after); app re-enabled and user deleted afterwards. Session type unknown: revoked via the
+fallback. Admin-app session: not run in real mode (the app requires MFA; the demo admin cannot be automated).
+
+**Known limits:** PingOne does not revoke ID tokens (400 `unsupported_token_type`); that call stays best-effort.
+A WRONG explicit session type silently no-ops (PingOne answers 200); both routes pass `req.session.oauthType`.
+Tokens for the default PingOne API resource were refused even with client authentication; the banking-resource tokens
+this app uses were fine. PingFederate sign-in is covered by unit tests only. Not tested against the live deployment.
 
 **Do not break:** a kill must still complete (revoke failures are logged, not thrown), the local block and session
 invalidation still run, and logout's revoke path (`oauthService` / `oauthUserService`) is untouched.
 **Verify:** `cd demo_api_server && CI=true npx jest tests/killSwitchRevokeAuth.test.js tests/killSwitchAutoReset.test.js src/__tests__/killSwitchService.test.js --forceExit`
-(36 passed; 6 of the 8 new tests fail against the old code).
+(39 passed).
 
 ### 2026-10-07 — UC14b PERMIT: get_my_accounts refused insufficient_scope; sim fell back to fake ids
 

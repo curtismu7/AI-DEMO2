@@ -66,9 +66,22 @@ describe('killSwitchService.revokeTokenAtPingOne client authentication', () => {
     expect(bodyOf().get('client_id')).toBeNull();
   });
 
-  test('no session type defaults to the admin app (the previous config source)', async () => {
-    await killSwitchService.revokeTokenAtPingOne('tok-3');
-    expect(optsOf().auth).toEqual({ username: 'admin-app-id', password: 'admin-app-secret' });
+  test('no session type: tries the user app, then the admin app (PingOne answers 200 for a token that is not the caller\'s)', async () => {
+    const r = await killSwitchService.revokeTokenAtPingOne('tok-3');
+    expect(r.revoked).toBe(true);
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('client_id')).toBe('user-app-id');
+    expect(axios.post.mock.calls[1][2].auth).toEqual({ username: 'admin-app-id', password: 'admin-app-secret' });
+  });
+
+  test('no session type: one app failing does not hide the other succeeding', async () => {
+    axios.post.mockRejectedValueOnce(new Error('401')).mockResolvedValueOnce({ status: 200 });
+    expect((await killSwitchService.revokeTokenAtPingOne('tok-5')).revoked).toBe(true);
+  });
+
+  test('no session type: both refused -> throws', async () => {
+    axios.post.mockRejectedValue(new Error('401'));
+    await expect(killSwitchService.revokeTokenAtPingOne('tok-6')).rejects.toThrow('401');
   });
 
   test('a public (PKCE-only) app sends client_id and never a secret', async () => {
@@ -103,15 +116,26 @@ describe('killAgent reports a failed revoke honestly', () => {
     expect(step.detail).toMatch(/No valid access\/ID token found/);
   });
 
-  test('revoke succeeds: the original success wording, and both tokens are sent as the user app', async () => {
+  test('revoke succeeds: success wording, and access, refresh and ID tokens are all sent as the user app', async () => {
     axios.post.mockResolvedValue({ status: 200 });
     const res = await killSwitchService.killAgent('agent-revoke-auth-c', 'test', null,
-      { accessToken: 'a', idToken: 'i' }, 'instance', null, 'user');
-    expect(res.steps.find((s) => s.key === 'token_revocation').detail).toMatch(/revoked \(RFC 7009\)/);
+      { accessToken: 'a', refreshToken: 'r', idToken: 'i' }, 'instance', null, 'user');
+    expect(res.steps.find((s) => s.key === 'token_revocation').detail).toMatch(/refresh tokens revoked \(RFC 7009\)/);
     const bodies = axios.post.mock.calls.map((c) => new URLSearchParams(c[1]));
     // RFC 7009 hints are access_token | refresh_token, so the ID token carries none
-    expect(bodies.map((b) => b.get('token_type_hint'))).toEqual(expect.arrayContaining(['access_token', null]));
-    expect(bodies).toHaveLength(2);
+    expect(bodies.map((b) => b.get('token_type_hint'))).toEqual(expect.arrayContaining(['access_token', 'refresh_token', null]));
+    expect(bodies).toHaveLength(3);
     bodies.forEach((b) => expect(b.get('client_id')).toBe('user-app-id'));
+  });
+
+  test('a failed ID-token revoke does not count as the kill, and a failed access revoke is not hidden by it', async () => {
+    // access token refused, ID token "succeeds": must still read as failed
+    axios.post.mockImplementation((_u, body) => {
+      const b = new URLSearchParams(body);
+      return b.get('token') === 'i' ? Promise.resolve({ status: 200 }) : Promise.reject(new Error('refused'));
+    });
+    const res = await killSwitchService.killAgent('agent-revoke-auth-d', 'test', null,
+      { accessToken: 'a', refreshToken: 'r', idToken: 'i' }, 'instance', null, 'user');
+    expect(res.steps.find((s) => s.key === 'token_revocation').detail).toMatch(/did not revoke/i);
   });
 });
