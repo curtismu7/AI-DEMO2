@@ -10,7 +10,7 @@ decision flipped from PERMIT to DENY within about 10 s of clicking Publish, on e
 ## The rule that matters: never import a standalone package
 A P1AZ publish **replaces the entire authorization version**. A package that is not "export of the live tree + additions" makes its lone root
 set the whole tree: every live rule stops being evaluated (this happened once: a $50 call with no audience and no actor went from DENY to PERMIT).
-So the probe is **merged into an export**, like `merge-airline-booking-rules.js`. `merge-ks-timing-probe.js` refuses anything that is not such an export.
+So the probe is **merged into an export**, like `merge-airline-booking-rules.js`. `merge-ks-timing-probe.js` refuses a package with no target policy or more than one PolicySet (for example a KS-only standalone file), a malformed export, a partly-present probe, and an output path equal to its input. It cannot tell a fresh console export from an older copy such as the repo snapshot, so always start from an export taken just before you import.
 
 ## What it adds (inert for real traffic)
 | Object | Detail |
@@ -24,7 +24,7 @@ Only a request carrying `KsProbe=deny-me` is denied. The policy gets a new (dete
 ## Steps
 1. Console: Authorize, Trust Framework, **Export** the live policy. Keep that file: it is the undo.
 2. `node snapshots/merge-ks-timing-probe.js export.json ks-timing.merged.snapshot.json`
-   (refuses and writes nothing if the export is not the live tree; prints "nothing to do" if the probe is already there).
+   (refuses and writes nothing if the export lacks the target policy or is malformed; prints "nothing to do" if the probe is already there).
 3. Console: Trust Framework, **Import** the merged file. The preview should list only `KsProbe`, `KsProbeIsDenyMe`, `KS Timing Probe Denied`,
    `KS Timing Probe Deny` and `AI Demo Transaction Authorization` as modified. Anything else, or anything removed: cancel.
 4. **Publish** (give the version a label). Time it with a read-only probe, e.g. a decision request with `KsProbe=deny-me` polled every few seconds.
@@ -33,7 +33,8 @@ Only a request carrying `KsProbe=deny-me` is denied. The policy gets a new (dete
 ## Acceptance criteria
 - The merged package differs from the export by exactly four added objects and one modified policy (`snapshots/merge-ks-timing-probe.test.js`).
 - Still exactly one PolicySet; ids unique; every reference resolves.
-- A normal request fires exactly the same deny rules before and after; `KsProbe=deny-me` fires only `KS Timing Probe Deny` (offline evaluator).
+- A normal request fires exactly the same deny rules before and after; `KsProbe=deny-me` fires only `KS Timing Probe Deny` (offline evaluator, non-MCP context; the evaluator ignores policy applicability, so only a live decision proves it).
+- Applicability: the rule sits in "AI Demo Transaction Authorization", which applies only to non-MCP requests. MCP-context requests go to "AI Demo MCP Delegation Authorization" and never reach the probe. Send the probe as `{"parameters":{"KsProbe":"deny-me"}}` with no MCP `DecisionContext`, as the watcher does.
 - Idempotent: merging a package that already has the probe changes nothing.
 
 ## Unhappy paths

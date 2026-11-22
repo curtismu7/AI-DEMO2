@@ -17,9 +17,14 @@
  *   statement   ks_deny (DENY)
  *   rule        "KS Timing Probe Deny", attached to "AI Demo Transaction Authorization" ahead of its catch-all
  * Only a decision request carrying KsProbe=deny-me is denied; that is the probe the timing watcher sends.
+ * APPLICABILITY: "AI Demo Transaction Authorization" applies only when the request is NOT an MCP first-tool request, and MCP traffic is
+ * routed to "AI Demo MCP Delegation Authorization" instead. So the probe request must NOT carry an MCP DecisionContext (the watcher
+ * sends only {"KsProbe":"deny-me"}). The offline evaluator ignores applicability, so only a live decision proves it.
  *
- * SAFETY: refuses (nothing written) unless the target policy exists, there is exactly one PolicySet, ids are unique and every
- * reference resolves. Idempotent. The ids are fixed so a later export that already contains the probe is recognised, not duplicated.
+ * SAFETY: refuses (nothing written) unless the target policy exists, there is exactly one PolicySet, the package has its attribute
+ * and separator anchors, ids are unique and every reference resolves; it also refuses to overwrite its own input. It CANNOT tell a
+ * fresh console export from an older copy such as the repo snapshot: start from an export taken just before you import, or the publish
+ * drops any console-made change. Idempotent (a partly-present probe is refused, not skipped). The ids are fixed so a later export that already contains the probe is recognised, not duplicated.
  * To remove the probe: re-import your pre-merge export and publish.
  * Full runbook: docs/p1az-ks-timing-probe.md
  */
@@ -59,7 +64,12 @@ function mergeKsTimingProbe(exported) {
   const policy = pkg.find((o) => o && o.type === 'Policy' && o.name === TARGET_POLICY);
   if (!policy) throw new Error(`target policy "${TARGET_POLICY}" not found: this is not an export of the live tree (a standalone package would replace it)`);
   if (pkg.filter((o) => o && o.type === 'PolicySet').length !== 1) throw new Error('the package must contain exactly one PolicySet');
-  if (pkg.some((o) => o && o.id === IDS.attr)) return { merged: pkg, changed: false };
+  if (pkg.some((o) => o && o.id === IDS.attr)) {
+    const has = (id) => pkg.some((o) => o && o.id === id);
+    const wired = (policy.children || []).some((c) => c.id === IDS.rule);
+    if (has(IDS.cond) && has(IDS.stmt) && has(IDS.rule) && wired) return { merged: pkg, changed: false };
+    throw new Error('the KsProbe attribute is present but the condition, statement, rule or policy child is missing (partial import?); re-export the live tree and retry');
+  }
   if (pkg.some((o) => o && o.type === 'ATTRIBUTE' && o.name === 'KsProbe')) throw new Error('a different KsProbe attribute already exists; refusing to guess');
   const taken = new Set(pkg.filter((o) => o && o.id).map((o) => o.id));
   for (const id of Object.values(IDS)) if (taken.has(id)) throw new Error(`id ${id} already used by another object`);
@@ -67,6 +77,9 @@ function mergeKsTimingProbe(exported) {
   const ob = buildObjects();
   let last = -1;
   pkg.forEach((o, i) => { if (o && o.objectType === 'AttributeDefinition') last = i; });
+  const sep = pkg.findIndex((o) => o && o.type === 'SnapshotPackageFile$PackageSeparator');
+  if (last < 0) throw new Error('no AttributeDefinition found to anchor the new attribute: not a normal Authorize export');
+  if (sep < 0) throw new Error('no PackageSeparator found to anchor the new condition: not a normal Authorize export');
   pkg.splice(last + 1, 0, ob.attr);
   pkg.splice(pkg.findIndex((o) => o && o.type === 'SnapshotPackageFile$PackageSeparator'), 0, ob.cond);
   const firstPolicy = pkg.findIndex((o) => o && o.type === 'Policy');
@@ -95,6 +108,7 @@ function main() {
   const src = process.argv[2];
   if (!src) { console.error('usage: node snapshots/merge-ks-timing-probe.js <export.json> [out.json]'); process.exit(1); }
   const out = process.argv[3] || path.join(process.cwd(), 'ks-timing.merged.snapshot.json');
+  if (path.resolve(out) === path.resolve(src)) { console.error('REFUSING TO WRITE: output path equals the input export (that copy is your undo). Pass a different out.json.'); process.exit(1); }
   try {
     const res = mergeKsTimingProbe(JSON.parse(fs.readFileSync(src, 'utf8')));
     if (!res.changed) { console.log('export already contains the KsProbe rule: nothing to do'); return; }
