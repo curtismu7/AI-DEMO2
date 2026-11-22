@@ -124,8 +124,8 @@ extended to SPIRE-issued identity. Three token shapes are comparable:
 
 Request body (all optional): `token_mode` (default `raw-svid`), `resource`
 (gateway path, default `/mcp`), `mcp_method` (default `tools/list`),
-`audience` (SVID audience, default the gateway URL), `scopes`. The route is
-public, so it only accepts the values the page sends — `resource`
+`audience` (SVID audience, default the gateway URL), `scopes`. The route
+needs a signed-in session (401 otherwise) and only accepts the values the page sends — `resource`
 `/spire-mcp/mcp`, `mcp_method` `tools/list`, `scopes` `["mcp:invoke"]`, and the
 Privilege NHI `audience` — and answers any other value with 400
 `invalid_request` (omit a field to keep its default). It is limited to 60
