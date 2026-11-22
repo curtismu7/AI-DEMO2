@@ -202,7 +202,7 @@ models_seeded_on_disk() {
     pod="$(kubectl get pods -n "$NS" -l "$label" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
     [ -n "$pod" ] || continue
     if kubectl exec -n "$NS" "$pod" -- sh -c \
-        'test -f /models/gpt-oss-20b-MXFP4.gguf && test -f /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf' \
+        'test -f /models/gpt-oss-20b-MXFP4.gguf && test -f /models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf' \
         2>/dev/null; then
       llm_ok=1
       break

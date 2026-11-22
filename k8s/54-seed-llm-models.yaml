@@ -76,9 +76,14 @@ spec:
             - |
               set -eu
               # dest|repo|filename
+              # NOTE: no Phi-4 here — the SE llm-models PVC is 20Gi and the four
+              # models below fill it to ~19.5G. Phi-4-mini (2.3G) is only used
+              # by the 55-llamacpp lane (local Docker/host), never by the SE
+              # 56-llm-stack tiers; seeding it on SE overflows the PVC
+              # (curl exit 23, seed job BackoffLimitExceeded, measured
+              # 2026-11-22).
               MODELS="
               /models/gpt-oss-20b-MXFP4.gguf|ggml-org/gpt-oss-20b-GGUF|gpt-oss-20b-MXFP4.gguf
-              /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf|bartowski/microsoft_Phi-4-mini-instruct-GGUF|microsoft_Phi-4-mini-instruct-Q4_K_M.gguf
               /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf|bartowski/Llama-3.2-3B-Instruct-GGUF|Llama-3.2-3B-Instruct-Q4_K_M.gguf
               /models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf|bartowski/Llama-3-Groq-8B-Tool-Use-GGUF|Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf
               /embed-models/nomic-embed-text-v1.5.Q8_0.gguf|nomic-ai/nomic-embed-text-v1.5-GGUF|nomic-embed-text-v1.5.Q8_0.gguf
