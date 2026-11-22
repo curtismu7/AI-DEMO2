@@ -150,9 +150,10 @@ router.post('/verify', express.json(), (req, res) => {
  * `spiffe` Docker compose profile (real SPIRE server + agent + helper) and
  * PingFederate 13 with the SPIRE JWT Token Processor 2.0 configured
  * (see spiffe/pingfederate/). Gated by ff_spiffe_pf_exchange; off by default
- * so the demo stack behaves exactly as before.
+ * so the demo stack behaves exactly as before. It mints a real PF token, so
+ * it needs a signed-in session.
  */
-router.post('/pingfederate/exchange', express.json(), async (req, res) => {
+router.post('/pingfederate/exchange', requireSession, express.json(), async (req, res) => {
   try {
     const result = await require('../services/spiffePingfederateService').exchangeWithPingFederate({
       audience: req.body?.audience,
