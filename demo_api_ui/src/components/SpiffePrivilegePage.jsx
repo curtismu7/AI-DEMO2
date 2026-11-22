@@ -114,7 +114,10 @@ export default function SpiffePrivilegePage() {
   const anyRunning = Object.values(states).some((s) => s.running);
   const mounted = useRef(true);
 
-  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const runShape = useCallback(async (tokenMode) => {
     setStates((prev) => ({ ...prev, [tokenMode]: { running: true, result: prev[tokenMode]?.result ?? null } }));
