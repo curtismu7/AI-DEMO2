@@ -6,6 +6,12 @@ vi.mock("../../services/apiClient", () => ({
   default: { post: vi.fn() },
 }));
 
+// Stub global fetch: the page calls it directly (bypasses apiClient's 10s
+// default timeout, which is shorter than a cold mint+gateway round trip).
+function fetchOk(json) {
+  return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(json) });
+}
+
 import apiClient from "../../services/apiClient";
 
 const OK_RESPONSE = {
@@ -32,7 +38,7 @@ describe("SpiffePrivilegePage", () => {
   });
 
   it("a 200 tools/list result renders a PERMIT verdict and the inspector", async () => {
-    apiClient.post.mockResolvedValueOnce(OK_RESPONSE);
+    global.fetch = vi.fn(() => fetchOk(OK_RESPONSE.data));
     render(<SpiffePrivilegePage />);
     fireEvent.click(screen.getAllByRole("button", { name: /run this shape/i })[0]);
     await waitFor(() => expect(screen.getAllByText(/PERMIT/).length).toBeGreaterThan(0));
@@ -43,14 +49,12 @@ describe("SpiffePrivilegePage", () => {
   });
 
   it("a 401 token_not_found renders an honest REFUSED verdict", async () => {
-    apiClient.post.mockResolvedValueOnce({
-      data: {
+global.fetch = vi.fn(() => fetchOk({
         token_mode: "pf-exchanged",
         claims: { sub: "x" },
         access_token: "tok",
         gateway: { url: "https://gw/spire-mcp/mcp", status: 401, body: { error: "unauthorized", error_description: "Bearer token required" } },
-      },
-    });
+      }));
     render(<SpiffePrivilegePage />);
     fireEvent.click(screen.getAllByRole("button", { name: /run this shape/i })[1]);
     await waitFor(() => expect(screen.getByText(/REFUSED/)).toBeInTheDocument());
@@ -58,9 +62,11 @@ describe("SpiffePrivilegePage", () => {
   });
 
   it("a 503 config error from the BFF surfaces the message without crashing", async () => {
-    apiClient.post.mockRejectedValueOnce({
-      response: { status: 503, data: { error: "spiffe_privilege_unavailable", error_description: "SPIFFE Privilege gateway calls are disabled (ff_spiffe_privilege)" } },
-    });
+global.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({ error: "spiffe_privilege_unavailable", error_description: "SPIFFE Privilege gateway calls are disabled (ff_spiffe_privilege)" }),
+    }));
     render(<SpiffePrivilegePage />);
     fireEvent.click(screen.getAllByRole("button", { name: /run this shape/i })[2]);
     await waitFor(() => expect(screen.getAllByText(/ff_spiffe_privilege/i).length).toBeGreaterThan(0));

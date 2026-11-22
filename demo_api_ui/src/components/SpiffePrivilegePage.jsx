@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./SpiffePrivilegePage.css";
 import PageHeader from "./common/PageHeader";
-import apiClient from "../services/apiClient";
 
 const SHAPES = [
   {
@@ -119,24 +118,35 @@ export default function SpiffePrivilegePage() {
 
   const runShape = useCallback(async (tokenMode) => {
     setStates((prev) => ({ ...prev, [tokenMode]: { running: true, result: prev[tokenMode]?.result ?? null } }));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000);
     try {
-      const res = await apiClient.post("/api/demo/spiffe/privilege/call", {
-        token_mode: tokenMode,
-        resource: "/spire-mcp/mcp",
-        audience: "priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr",
-        scopes: ["mcp:invoke"],
-      }, { timeout: 60000 });
-      const data = res?.data ?? res;
+      const res = await fetch("/api/demo/spiffe/privilege/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token_mode: tokenMode,
+          resource: "/spire-mcp/mcp",
+          audience: "priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr",
+          scopes: ["mcp:invoke"],
+        }),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw Object.assign(new Error(data?.error_description || data?.error || `HTTP ${res.status}`), { detail: data });
+      }
       if (mounted.current) {
         setStates((prev) => ({ ...prev, [tokenMode]: { running: false, result: { gateway: data.gateway, claims: data.claims, token: data.access_token, issuer: data.issuer } } }));
       }
     } catch (err) {
-      const resp = err?.response;
-      const body = resp?.data;
-      const message = body?.error_description || body?.error || err?.message || "call failed";
+      const body = err?.detail;
+      const message = body?.error_description || body?.error || (err?.name === "AbortError" ? "timed out after 90s" : err?.message || "call failed");
       if (mounted.current) {
-        setStates((prev) => ({ ...prev, [tokenMode]: { running: false, result: { error: message, detail: formatJson(body ?? err) } } }));
+        setStates((prev) => ({ ...prev, [tokenMode]: { running: false, result: { error: message, detail: formatJson(body ?? (err?.name === "AbortError" ? { timeout_ms: 90000 } : err)) } } }));
       }
+    } finally {
+      clearTimeout(timer);
     }
   }, []);
 
