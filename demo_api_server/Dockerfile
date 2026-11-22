@@ -24,6 +24,13 @@ RUN addgroup -g 1001 -S appgroup && \
 # Build tools required for native modules (argon2, lmdb)
 RUN apk add --no-cache python3 make g++ curl
 
+# Docker CLI: spiffePingfederateService.mintJwtSvid() shells out to `docker run`
+# to reach the SPIRE agent Workload API through the shared agent socket (the
+# workload attestor selects on the calling container's docker labels). The
+# socket itself is mounted in docker-compose.yml; without the CLI the live
+# SPIFFE PF exchange / Privilege gateway routes fail with "spawn docker ENOENT".
+RUN apk add --no-cache docker-cli
+
 # PingCLI for the PingCLI demo page. The dev bind mount (./demo_api_server:/app)
 # shadows /app/bin with the repo's macOS Mach-O binary, which cannot exec in a
 # Linux container ("Exec format error"). Bake the matching Linux build into a
