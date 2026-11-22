@@ -124,9 +124,13 @@ extended to SPIRE-issued identity. Three token shapes are comparable:
 
 Request body (all optional): `token_mode` (default `raw-svid`), `resource`
 (gateway path, default `/mcp`), `mcp_method` (default `tools/list`),
-`audience` (SVID audience, default the gateway URL), `scopes`. The gateway's
-HTTP status and body are returned verbatim — a 401/403 **is the demo result**,
-not an error.
+`audience` (SVID audience, default the gateway URL), `scopes`. The route is
+public, so it only accepts the values the page sends — `resource`
+`/spire-mcp/mcp`, `mcp_method` `tools/list`, `scopes` `["mcp:invoke"]`, and the
+Privilege NHI `audience` — and answers any other value with 400
+`invalid_request` (omit a field to keep its default). It is limited to 60
+calls a minute per client. The gateway's HTTP status and body are returned
+verbatim — a 401/403 **is the demo result**, not an error.
 
 ### Privilege console setup (mirrors the PF pattern)
 

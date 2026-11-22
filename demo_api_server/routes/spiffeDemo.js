@@ -22,7 +22,6 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const configStore = require('../services/configStore');
 const spiffeTrustDomain = require('../services/spiffeTrustDomain');
 const mockSpiffeWorkloadApi = require('../services/mockSpiffeWorkloadApi');
 
@@ -176,7 +175,8 @@ router.post('/pingfederate/exchange', express.json(), async (req, res) => {
 
 // This route is public but mints a JWT-SVID / PingFederate token and forwards it to the
 // Privilege gateway, so the caller may not choose where it goes or what it asks for. These
-// are the values SpiffePrivilegePage.jsx sends; omitted fields keep the service defaults.
+// are the values SpiffePrivilegePage.jsx sends (tests/spiffePrivilegeCallRoute.test.js reads the
+// page source and fails if they drift); omitted fields keep the service defaults.
 const PRIVILEGE_CALL_ALLOWED = {
   resources: ['/spire-mcp/mcp'],
   audience: 'priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr',
@@ -186,7 +186,9 @@ const PRIVILEGE_CALL_ALLOWED = {
 
 const privilegeCallLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  // Per client IP. `trust proxy` is 1, so behind more than one proxy hop (SE cluster) visitors can
+  // share a bucket: keep this well above what a page run needs (3 shapes) so that never trips the demo.
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => ['1', 'true', 'yes'].includes(String(process.env.DISABLE_RATE_LIMIT || '').toLowerCase()),
@@ -195,9 +197,8 @@ const privilegeCallLimiter = rateLimit({
 
 /** Returns the field name of the first caller-chosen value that is not allowed, or null. */
 function disallowedPrivilegeCallField(b) {
-  const audiences = [PRIVILEGE_CALL_ALLOWED.audience, String(configStore.getEffective('spiffe_privilege_audience') || '').trim()].filter(Boolean);
   if (b.resource !== undefined && !PRIVILEGE_CALL_ALLOWED.resources.includes(b.resource)) return 'resource';
-  if (b.audience !== undefined && !audiences.includes(b.audience)) return 'audience';
+  if (b.audience !== undefined && b.audience !== PRIVILEGE_CALL_ALLOWED.audience) return 'audience';
   if (b.scopes !== undefined
     && !(Array.isArray(b.scopes) && b.scopes.length > 0 && b.scopes.every((s) => PRIVILEGE_CALL_ALLOWED.scopes.includes(s)))) return 'scopes';
   if (b.mcp_method !== undefined && !PRIVILEGE_CALL_ALLOWED.methods.includes(b.mcp_method)) return 'mcp_method';

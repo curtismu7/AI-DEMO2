@@ -6,6 +6,8 @@
  * to choose the audience, scopes, gateway path or JSON-RPC method, and the route is
  * rate limited. Spec: docs/superpowers/specs/2026-11-22-spiffe-privilege-call-input-lock.md
  */
+const fs = require('fs');
+const path = require('path');
 const request = require('supertest');
 const express = require('express');
 
@@ -69,18 +71,21 @@ describe('accepted calls (demo unchanged)', () => {
     });
   });
 
-  it('accepts tools/list and the configured spiffe_privilege_audience', async () => {
-    // Same module instance the route loaded after jest.resetModules().
-    const configStore = require('../services/configStore');
-    const real = configStore.getEffective.bind(configStore);
-    jest.spyOn(configStore, 'getEffective').mockImplementation(
-      (key) => (key === 'spiffe_privilege_audience' ? 'configured-aud' : real(key)),
-    );
-    const res = await post({ token_mode: 'raw-svid', audience: 'configured-aud', mcp_method: 'tools/list' });
+  it('accepts tools/list', async () => {
+    const res = await post({ token_mode: 'raw-svid', mcp_method: 'tools/list' });
     expect(res.status).toBe(200);
-    expect(svc.callPrivilegeWithWorkloadIdentity.mock.calls[0][0]).toMatchObject({
-      audience: 'configured-aud', mcpMethod: 'tools/list',
-    });
+    expect(svc.callPrivilegeWithWorkloadIdentity.mock.calls[0][0]).toMatchObject({ mcpMethod: 'tools/list' });
+  });
+
+  it('allowlist still matches what SpiffePrivilegePage.jsx sends (drift guard)', async () => {
+    // If the NHI is re-registered the page changes; this fails in CI, not at demo time.
+    const src = fs.readFileSync(path.join(__dirname, '../../demo_api_ui/src/components/SpiffePrivilegePage.jsx'), 'utf8');
+    const audience = /audience:\s*"([^"]+)"/.exec(src)?.[1];
+    const resource = /resource:\s*"([^"]+)"/.exec(src)?.[1];
+    const scopes = JSON.parse(`${/scopes:\s*(\[[^\]]*\])/.exec(src)?.[1].replace(/'/g, '"')}`);
+    expect({ audience, resource, scopes }).toEqual({ audience: PAGE_AUDIENCE, resource: '/spire-mcp/mcp', scopes: ['mcp:invoke'] });
+    const res = await post({ token_mode: 'raw-svid', resource, audience, scopes });
+    expect(res.status).toBe(200);
   });
 });
 
@@ -123,16 +128,16 @@ describe('service failures still map as before', () => {
 });
 
 describe('rate limit', () => {
-  it('returns 429 after 20 calls a minute from one client', async () => {
+  it('returns 429 after 60 calls a minute from one client', async () => {
     const app = express();
     app.use('/api/demo/spiffe', spiffeDemo);
     const statuses = [];
-    for (let i = 0; i < 21; i += 1) {
+    for (let i = 0; i < 61; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       statuses.push((await request(app).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY)).status);
     }
-    expect(statuses.slice(0, 20).every((s) => s === 200)).toBe(true);
-    expect(statuses[20]).toBe(429);
+    expect(statuses.slice(0, 60).every((s) => s === 200)).toBe(true);
+    expect(statuses[60]).toBe(429);
   });
 
   it('is off when DISABLE_RATE_LIMIT is set, like the other limiters', async () => {
@@ -140,7 +145,7 @@ describe('rate limit', () => {
     const app = express();
     app.use('/api/demo/spiffe', spiffeDemo);
     let last;
-    for (let i = 0; i < 25; i += 1) {
+    for (let i = 0; i < 65; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       last = (await request(app).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY)).status;
     }
