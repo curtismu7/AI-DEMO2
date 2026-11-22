@@ -178,6 +178,24 @@ generated audience `priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr`:
   OIDC-platform NHIs are not loaded as verifier keys. Documented as a
   known gap; the demo UI shows these as honest REFUSED verdicts.
 
+### PF-exchange prerequisite (2026-11-22 fix, do not skip)
+
+The exchange step itself 400s with "Invalid Token" unless PF's
+**`aiDemoPfAccessSubjectProcessor`** (the TE policy's subject token
+processor) lists the gateway URL in **Allowed Audiences** — the
+client-credentials subject token carries `aud` = the gateway resource
+URL, and PF validates it. Add
+`https://mcpgw.ai-demo.ping-devops.com/spire-mcp/mcp` via the admin API
+(`idp/tokenProcessors/aiDemoPfAccessSubjectProcessor`, Allowed Audiences
+table) or the admin console. With that fixed, the BFF reaches the
+gateway (the 401 `token_not_found` above is the *gateway's* refusal,
+which is the honest demo beat).
+
+Also note the config lives in the BFF LMDB config store, not `.env`:
+`spiffe_pf_exchange_client_id` = `ai-demo-spiffe-te` (secret in
+`spiffe/pingfederate/spiffe-te-client.json`), `spiffe_pf_subject_client_id`
+= `ai-demo-pf-standard-agent-exchanger`, `ff_spiffe_pf_exchange` = `true`.
+
 The demo page is **`/spiffe-privilege`** (nav: Architecture & Learning →
 "SPIFFE → Privilege Gateway (live)"): runs all three shapes live, shows
 the verdict, decoded claims, redacted token, and the full
