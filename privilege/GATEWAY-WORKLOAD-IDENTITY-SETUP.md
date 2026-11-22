@@ -3,6 +3,14 @@
 > Verified live end to end **2026-11-13** on gateway `mcpgw.ai-demo.ping-devops.com`
 > (`privilege-aigw v1.261024+`), PingFederate issuer `https://cmuir-pf.ping-devops.com`,
 > Privilege tenant `0428ba4f-…`. Every step below was re-run and returned 200 today.
+>
+> **2026-11-22 — SPIFFE extension:** the same pattern now works with a real SPIRE
+> JWT-SVID (raw, no PF) on gateway `mcpgw.ai-demo.ping-devops.com`, tenant
+> `4cb38c18-…` — app `spire-mcp`, NHI `spire-ai-demo` (inline pinned JWKS), key
+> `spire-agent`. Raw SVID → gateway 200 with real tools. PF-token shapes against
+> the local PF issuer are refused (`token_not_found`, gateway inline-JWKS verifier
+> gap). Full recipe and live results: `spiffe/README.md` and the demo page
+> `/spiffe-privilege`.
 
 ## What this proves
 
