@@ -189,7 +189,7 @@ spec:
       # leave this container on an image that does not exist. Bump it with the
       # gateway's authz-server tag when that changes.
       - name: authz-server
-        image: ghcr.io/cmuir_pingcorp/ai-demo-authz-server:sha-9af44c3459faea380b7c1bb1f9d5a485965e0587
+        image: ghcr.io/curtismu7/ai-demo2-authz-server@sha256:25c73ad3e4aa30e71a82d61852159aee4f5ec5699345c9744fe051fe75184444
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9001
