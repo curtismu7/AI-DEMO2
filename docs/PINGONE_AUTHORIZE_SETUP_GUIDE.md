@@ -494,6 +494,8 @@ Then import it: PingOne Console → **Authorize → Trust Framework → Import**
 
 The `main` links always give the newest committed snapshot. To hand someone an exact version, replace `main` with a commit SHA. The committed snapshot is built from this repo, not exported from a live tenant, so a tenant that was edited in the console can differ from it (for example in attribute defaults). To match a specific tenant exactly, export that tenant's Trust Framework from the console and share that file instead.
 
+> **Optional, kill-switch demo only: publish-time probe.** To time how fast a published change applies, one inert rule (fires only for `KsProbe=deny-me`) can be merged into an *export* of the live tree with `node snapshots/merge-ks-timing-probe.js export.json out.json`. Never import a standalone package: a publish replaces the whole authorization version. Re-importing the repo snapshot above removes the probe. Runbook and spec: [p1az-ks-timing-probe.md](p1az-ks-timing-probe.md).
+
 What remains manual in this part is only what a snapshot cannot carry: enabling decision recording, and binding the imported policy set to a decision endpoint. The Part 3.3–3.8 walk-through below is kept for readers who want to build or inspect the objects by hand.
 
 ### Step 3.1 — Find the Authorize section
