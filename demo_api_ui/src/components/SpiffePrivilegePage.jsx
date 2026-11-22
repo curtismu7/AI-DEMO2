@@ -75,7 +75,13 @@ function ShapeCard({ shape, state, onRun, disabled }) {
       <p className="spfp-card__expectation">{shape.expectation}</p>
       {verdict && <p className={`spfp-card__verdict spfp-card__verdict--${verdict.tone}`}>{verdict.verdict}</p>}
       {running && <p className="spfp-card__running">⚡ running — minting token, calling the gateway…</p>}
-      {result && result.error && <p className="spfp-card__error spfp-card__error">{result.error}</p>}
+      {result && result.error && (
+        <p className="spfp-card__error spfp-card__error">
+          {/token exchange failed|Invalid Token|400/i.test(result.error)
+            ? "⚠ Upstream error before the gateway — PingFederate rejected the exchange (known intermittent JWKS-cache issue after SPIRE agent restarts). Retry, or see spiffe/README.md."
+            : `Error: ${result.error}`}
+        </p>
+      )}
       <button type="button" className="spfp-card__run" onClick={() => onRun(shape.id)} disabled={disabled || running}>
         {running ? "Running…" : result ? "Run again" : "Run this shape"}
       </button>
