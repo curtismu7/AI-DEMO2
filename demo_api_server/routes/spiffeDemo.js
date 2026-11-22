@@ -20,6 +20,7 @@
  * enforced now; see services/spiffeTrustDomain.js.
  */
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const spiffeTrustDomain = require('../services/spiffeTrustDomain');
 const mockSpiffeWorkloadApi = require('../services/mockSpiffeWorkloadApi');
@@ -172,6 +173,38 @@ router.post('/pingfederate/exchange', express.json(), async (req, res) => {
   }
 });
 
+// This route is public but mints a JWT-SVID / PingFederate token and forwards it to the
+// Privilege gateway, so the caller may not choose where it goes or what it asks for. These
+// are the values SpiffePrivilegePage.jsx sends (tests/spiffePrivilegeCallRoute.test.js reads the
+// page source and fails if they drift); omitted fields keep the service defaults.
+const PRIVILEGE_CALL_ALLOWED = {
+  resources: ['/spire-mcp/mcp'],
+  audience: 'priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr',
+  scopes: ['mcp:invoke'],
+  methods: ['tools/list'],
+};
+
+const privilegeCallLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  // Per client IP. `trust proxy` is 1, so behind more than one proxy hop (SE cluster) visitors can
+  // share a bucket: keep this well above what a page run needs (3 shapes) so that never trips the demo.
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => ['1', 'true', 'yes'].includes(String(process.env.DISABLE_RATE_LIMIT || '').toLowerCase()),
+  message: { error: 'rate_limit_exceeded', error_description: 'Too many calls. Try again in a minute.' },
+});
+
+/** Returns the field name of the first caller-chosen value that is not allowed, or null. */
+function disallowedPrivilegeCallField(b) {
+  if (b.resource !== undefined && !PRIVILEGE_CALL_ALLOWED.resources.includes(b.resource)) return 'resource';
+  if (b.audience !== undefined && b.audience !== PRIVILEGE_CALL_ALLOWED.audience) return 'audience';
+  if (b.scopes !== undefined
+    && !(Array.isArray(b.scopes) && b.scopes.length > 0 && b.scopes.every((s) => PRIVILEGE_CALL_ALLOWED.scopes.includes(s)))) return 'scopes';
+  if (b.mcp_method !== undefined && !PRIVILEGE_CALL_ALLOWED.methods.includes(b.mcp_method)) return 'mcp_method';
+  return null;
+}
+
 /**
  * LIVE Privilege gateway call with a SPIFFE workload identity as the only
  * credential. Complements /pingfederate/exchange above: that one proves PF
@@ -191,14 +224,19 @@ router.post('/pingfederate/exchange', express.json(), async (req, res) => {
  * @example Like a building whose door reader accepts a badge from a visitor's own company, after checking that company's published key list — no lobby-issued badge needed.
  * @ai Agents get short-lived, attested workload identities instead of static secrets; the gateway decides what the identity may do without minting or storing a key for it.
  */
-router.post('/privilege/call', express.json(), async (req, res) => {
+router.post('/privilege/call', privilegeCallLimiter, express.json(), async (req, res) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const bad = disallowedPrivilegeCallField(body);
+  if (bad) {
+    return res.status(400).json({ error: 'invalid_request', error_description: `${bad} is not an allowed value for this demo call` });
+  }
   try {
     const result = await require('../services/spiffePrivilegeService').callPrivilegeWithWorkloadIdentity({
-      tokenMode: req.body?.token_mode,
-      resource: req.body?.resource,
-      mcpMethod: req.body?.mcp_method,
-      audience: req.body?.audience,
-      scopes: req.body?.scopes,
+      tokenMode: body.token_mode,
+      resource: body.resource,
+      mcpMethod: body.mcp_method,
+      audience: body.audience,
+      scopes: body.scopes,
     });
     res.json({
       call: 'spiffe-privilege-workload-identity',
