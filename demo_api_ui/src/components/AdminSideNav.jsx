@@ -1254,6 +1254,7 @@ export default function AdminSideNav({
           action: () => window.open("/learning-mirror/", "_blank", "noopener,noreferrer"),
         },
         { label: "SPIFFE → PingOne Bridge (TODO)", path: "/spiffe-pingone-bridge", icon: "syn", badge: "TODO" },
+        { label: "SPIFFE → Privilege Gateway (live)", path: "/spiffe-privilege", icon: "syn", searchAlias: "spiffe privilege gateway svid workload identity spire gateway mcp door federated" },
         { label: "Workload Standards", path: "/workload-standards", icon: "doc", searchAlias: "workload standards comparison spiffe oidc oauth rfc 8693 wimse status" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
