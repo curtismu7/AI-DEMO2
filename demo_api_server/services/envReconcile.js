@@ -217,6 +217,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'spiffe_pf_issuer', 'spiffe_pf_token_endpoint', 'spiffe_pf_svid_audience', 'spiffe_pf_ca_path',
   'spiffe_pf_exchange_client_id', 'spiffe_pf_exchange_client_secret',
   'spiffe_pf_subject_client_id', 'spiffe_pf_subject_client_secret',
+  // Privilege gateway URL and the Privilege NHI audience: Privilege's own values, not PingOne env-scoped.
+  'spiffe_privilege_gateway_url', 'spiffe_privilege_audience',
   'pf_ai_agent_actor_client_id', 'pf_ai_agent_actor_client_secret',
   'pf_ai_agent_actor_token_endpoint_auth_method',
   'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',
