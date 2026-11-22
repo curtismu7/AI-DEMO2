@@ -2,8 +2,8 @@
 
 /**
  * POST /api/demo/spiffe/pingfederate/exchange — the route must fail closed
- * (503, structured error) when the feature flag is off, and must never
- * require auth bypass: it rides the same public demo surface as /svid.
+ * (503, structured error) when the feature flag is off, and it mints a real
+ * PingFederate token, so it requires a signed-in session (401 otherwise).
  */
 const request = require('supertest');
 const express = require('express');
@@ -15,8 +15,12 @@ jest.mock('../services/spiffePingfederateService', () => ({
 
 const spiffeDemo = require('../routes/spiffeDemo');
 
-function buildApp() {
+function buildApp({ signedIn = true } = {}) {
   const app = express();
+  app.use((req, _res, next) => {
+    if (signedIn) req.session = { user: { id: 'u1' } };
+    next();
+  });
   app.use('/api/demo/spiffe', spiffeDemo);
   return app;
 }
@@ -75,4 +79,32 @@ it('maps service failures to 502 with the upstream reason', async () => {
     .send({});
   expect(res.status).toBe(502);
   expect(res.body.error).toBe('spiffe_pf_exchange_failed');
+});
+
+describe('requires a signed-in session', () => {
+  it.each([
+    ['no body', undefined],
+    ['an empty body', {}],
+    ['a caller-chosen audience and scopes', { audience: 'https://evil.example', scopes: ['admin'] }],
+  ])('401 for %s, service never called', async (_name, body) => {
+    const svc = require('../services/spiffePingfederateService');
+    svc.exchangeWithPingFederate.mockClear();
+    const res = await request(buildApp({ signedIn: false }))
+      .post('/api/demo/spiffe/pingfederate/exchange')
+      .send(body);
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('unauthenticated');
+    expect(svc.exchangeWithPingFederate).not.toHaveBeenCalled();
+  });
+
+  it('401 even when the flag is on', async () => {
+    const real = configStore.getEffective.bind(configStore);
+    jest.spyOn(configStore, 'getEffective').mockImplementation(
+      (key) => (key === 'ff_spiffe_pf_exchange' ? 'true' : real(key)),
+    );
+    const res = await request(buildApp({ signedIn: false }))
+      .post('/api/demo/spiffe/pingfederate/exchange')
+      .send({});
+    expect(res.status).toBe(401);
+  });
 });
