@@ -102,7 +102,9 @@ On the SPIRE side, volumes (`spiffe-server-data`, `spiffe-agent-data`,
 `spiffe-bootstrap`) persist the CA, keys, and join token; after any agent
 container recreation, re-run
 `docker compose --profile spiffe run --rm spire-registration` so workload
-entries point at the live agent.
+entries point at the live agent — or just run
+`scripts/spiffe-recover.sh`, which does the stop → re-register → start
+sequence and waits for the workload API socket.
 
 ---
 
@@ -155,3 +157,28 @@ Options to get the acceptance path live:
 
 The `pf-exchanged` and `pf-client-credentials` modes have no such constraint —
 their JWKS is PingFederate's, already public.
+
+### Live results (2026-11-22, laptop SPIRE → `mcpgw.ai-demo.ping-devops.com`)
+
+The blocker above was solved with **inline pinned JWKS** on the NHI
+(`spire-ai-demo`, platform `spiffe`) instead of a fetch URL, plus the
+generated audience `priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr`:
+
+- **`raw-svid`: 200 from the gateway with the real OpenSearch MCP tool
+  list**, verified repeatedly — gateway log:
+  `workload token accepted for key spire-agent issuer=https://local.ping-devops.com:8443 subject=spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent`.
+- **`pf-exchanged` / `pf-client-credentials`: 401 `token_not_found`.**
+  The token itself is correct (verified at PF: `spiffeId`, `sub`,
+  `act.sub` = the exchanger client). The pinned inline-JWKS NHI
+  `pf-local-spiffe` (issuer `https://local.ping-devops.com:9031`, kid
+  `aidemopf-idjag-signing`) is upserted on the gateway
+  (`llmgw: upserted workload key pf-local-agent … rebuilding 1 key(s)`)
+  but never matches — the gateway only ever logs `workloadid:` verifier
+  keys for remote JwksURIs. Suspected gateway-side limitation: inline-JWKS
+  OIDC-platform NHIs are not loaded as verifier keys. Documented as a
+  known gap; the demo UI shows these as honest REFUSED verdicts.
+
+The demo page is **`/spiffe-privilege`** (nav: Architecture & Learning →
+"SPIFFE → Privilege Gateway (live)"): runs all three shapes live, shows
+the verdict, decoded claims, redacted token, and the full
+request/response JSON.
