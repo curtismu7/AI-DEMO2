@@ -297,6 +297,7 @@
     "/oas-demo": "public",
     "/oauth-academy": "public",
     "/spiffe-pingone-bridge": "public",
+    "/spiffe-privilege": "public",
     "/oauth-debug-logs": "admin",
     "/oauth/token-display": "public",
     "/orchestration-sdk": "public",
