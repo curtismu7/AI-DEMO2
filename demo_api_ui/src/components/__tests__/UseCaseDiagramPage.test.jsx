@@ -66,10 +66,10 @@ describe("UseCaseDiagramPage", () => {
     expect(back.textContent).toMatch(/back/i);
   });
 
-  it("opens on hop 1 active-and-paused with the entry node ringed", () => {
+  it("opens idle with the Simulate button visible (walk starts on click)", () => {
     renderAt("/use-case-diagrams/UC1");
-    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("1 / 5");
-    expect(document.querySelector(".sfd-node.step-hot")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("Press Simulate to walk the diagram");
   });
 
   it("unknown ucId shows the fallback listing valid ids", () => {
@@ -95,9 +95,9 @@ describe("UseCaseDiagramPage", () => {
 
   it("Prev/Next step the walk while paused", () => {
     renderAt("/use-case-diagrams/UC1");
-    const next = screen.getByRole("button", { name: "Next →" });
-    expect(next.disabled).toBe(false);
-    fireEvent.click(next);
+    fireEvent.click(screen.getByRole("button", { name: "Step →" })); // idle -> paused at step 1
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("1 / 5");
+    fireEvent.click(screen.getByRole("button", { name: "Next →" }));
     expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("2 / 5");
   });
 

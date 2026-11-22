@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import UseCaseDiagramPage from "../UseCaseDiagramPage";
 
 class ResizeObserverStub { observe() {} unobserve() {} disconnect() {} }
@@ -28,6 +28,7 @@ function renderAt(path) {
 describe("hop panel rendering (review findings 1+3)", () => {
   it("shows the hop label in the header and the line text exactly once", () => {
     renderAt("/use-case-diagrams/UC1");
+    fireEvent.click(screen.getByRole("button", { name: "Step →" })); // idle -> paused at hop 1
     const panel = screen.getByTestId("ucd-floating-panel").textContent;
     expect(panel).toContain("— Alice's authority, explicitly granted"); // hop label from data
     const hits = panel.split("Sign-in consent is what authorizes everything that follows.").length - 1;

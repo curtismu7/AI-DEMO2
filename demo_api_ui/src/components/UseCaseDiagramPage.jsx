@@ -98,13 +98,12 @@ export default function UseCaseDiagramPage() {
   const guide = cfg ? DEMO_STEP_GUIDES[cfg.id] : null;
   const stepNum = cfg ? demoStepNumber(cfg.id) : null;
 
-  // Open state per the approved mock: hop 1 active and paused, entry node
-  // ringed — diagram and its details are visible with zero clicks. goTo sets
-  // paused=true, so Prev/Next work immediately.
-  // A run landing on (or leaving) this page is a new story: restart the walk
-  // so the stepper never points past the end of a switched walk.
+  // Idle open state (owner, 2026-11-21): the Simulate button is visible on load —
+  // the walkthrough starts only when the presenter presses it. A run landing on
+  // (or leaving) this page is a new story: stop the walk so the stepper never
+  // points past the end of a switched walk.
   useEffect(() => {
-    if (cfg) stepper.goTo(0);
+    if (cfg) stepper.stop();
     setPickedNode(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg?.id, activeWalk.length]);

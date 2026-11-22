@@ -77,6 +77,7 @@ describe("UseCaseDiagramPage with a config that does not opt in", () => {
 describe("per-step detail (cfg.steps)", () => {
   it("the pilot shows form, mock token and standards for the active step, and follows the stepper", async () => {
     renderAt("UC-NHI2");
+    fireEvent.click(screen.getByRole("button", { name: "Step →" })); // idle -> paused at step 1
     const d = await screen.findByTestId("ucd-step-detail");
     expect(d.textContent).toContain("POST /api/admin/agent/{agentId}/kill-switch");
     expect(d.textContent).toContain("MOCK, teaching values only");
