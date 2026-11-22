@@ -28,10 +28,10 @@ let spiffeDemo;
 let savedDisable;
 
 // The route requires a session; tests are signed in unless they say otherwise.
-function appFor({ signedIn = true } = {}) {
+function appFor({ signedIn = true, userId = 'u1' } = {}) {
   const app = express();
   app.use((req, _res, next) => {
-    if (signedIn) req.session = { user: { id: 'u1' } };
+    if (signedIn) req.session = { user: { id: userId } };
     next();
   });
   app.use('/api/demo/spiffe', spiffeDemo);
@@ -179,6 +179,24 @@ describe('rate limit', () => {
     }
     expect(statuses.slice(0, 60).every((s) => s === 200)).toBe(true);
     expect(statuses[60]).toBe(429);
+  });
+
+  it('counts per signed-in user, not per IP: one user hitting the cap does not block another on the same IP', async () => {
+    const alice = appFor({ userId: 'alice' });
+    for (let i = 0; i < 60; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await request(alice).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY);
+    }
+    expect((await request(alice).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY)).status).toBe(429);
+    // Same client IP (supertest loopback), different user: own bucket.
+    expect((await request(appFor({ userId: 'bob' })).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY)).status).toBe(200);
+  });
+
+  it('falls back to the client IP when the session user has no id', async () => {
+    const app = express();
+    app.use((req, _res, next) => { req.session = { user: {} }; next(); });
+    app.use('/api/demo/spiffe', spiffeDemo);
+    expect((await request(app).post('/api/demo/spiffe/privilege/call').send(PAGE_BODY)).status).toBe(200);
   });
 
   it('is off when DISABLE_RATE_LIMIT is set, like the other limiters', async () => {

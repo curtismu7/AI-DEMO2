@@ -188,9 +188,11 @@ const PRIVILEGE_CALL_ALLOWED = {
 
 const privilegeCallLimiter = rateLimit({
   windowMs: 60 * 1000,
-  // Per client IP. `trust proxy` is 1, so behind more than one proxy hop (SE cluster) visitors can
-  // share a bucket: keep this well above what a page run needs (3 shapes) so that never trips the demo.
+  // Per signed-in user (requireSession runs first, so the id is always set). Keying on IP would put
+  // everyone behind the SE-cluster ingress or a shared NAT in one bucket (`trust proxy` is 1).
+  // 60 stays well above what a page run needs (3 shapes).
   max: 60,
+  keyGenerator: (req) => (req.session.user.id ? `user:${req.session.user.id}` : `ip:${req.ip}`),
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => ['1', 'true', 'yes'].includes(String(process.env.DISABLE_RATE_LIMIT || '').toLowerCase()),
