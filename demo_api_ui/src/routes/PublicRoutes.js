@@ -80,6 +80,7 @@ const LlmGatewayCombinedPage = lazyWithRetry(() => import("../pages/LlmGatewayCo
 const IntentInspectorPage = lazyWithRetry(() => import("../pages/IntentInspectorPage"));
 const AuditAgentPage = lazyWithRetry(() => import("../pages/AuditAgentPage"));
 const SpiffePingoneBridgePage = lazyWithRetry(() => import("../components/SpiffePingoneBridgePage"));
+const SpiffePrivilegePage = lazyWithRetry(() => import("../components/SpiffePrivilegePage"));
 const WorkloadStandardsPage = lazyWithRetry(() => import("../components/WorkloadStandardsPage"));
 
 export default function PublicRoutes({ user, logout }) {
@@ -562,6 +563,14 @@ export function SpiffePingoneBridgePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <SpiffePingoneBridgePage />
+    </AppShell>
+  );
+}
+
+export function SpiffePrivilegePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SpiffePrivilegePage />
     </AppShell>
   );
 }
