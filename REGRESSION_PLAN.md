@@ -5,6 +5,43 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-11-22 — STOP AGENT's token revoke was refused by PingOne, so the access token stayed active
+
+**Files changed:** `demo_api_server/services/killSwitchService.js`, `demo_api_server/routes/admin.js`,
+`demo_api_server/routes/controlPlane.js` (+ `demo_api_server/tests/killSwitchRevokeAuth.test.js`).
+
+**What was broken:** `revokeTokenAtPingOne` POSTed a bare `token=` to `/revoke` with no client authentication,
+on the belief that PingOne requires that. Measured with a real demo-user token (user app, banking scopes): PingOne
+answered `401 invalid_client — No client credentials included`, introspection still said `active: true`, and the kill
+step then read "No valid access/ID token found on this session", hiding the failure. The same revoke with client
+authentication returned 200 and the access token went inactive; the refresh token was revoked too (refresh then
+fails `invalid_grant`).
+
+**What changed:** the revoke authenticates as the client the session's tokens belong to — the user app for an
+end-user session, the admin app for an admin session (`req.session.oauthType` is passed as `killAgent`'s new 7th
+argument from both call sites) — using the configured revocation endpoint and that app's token-endpoint auth method
+(`post`, `basic`, or `none` = client_id only). When the type is not given it tries the user app, then the admin app,
+because PingOne answers 200 for a token that belongs to a different client and revokes nothing (RFC 7009), so a wrong
+client cannot be detected from the response. The refresh token is now revoked too (left alive it mints a new access
+token after the kill). The kill step says when PingOne refused the revoke instead of "no token found", and an ID-token
+result never counts as the kill.
+
+**Real-mode results (2026-11-22, real PingOne, real sign-ins, a throwaway user, the app's own `killAgent`):**
+instance kill: access token inactive, refresh `invalid_grant`, user and shared agent app untouched. Full kill: user
+disabled and cannot sign in again, shared agent app disabled (its client-credentials request then fails `invalid_client`),
+SSO sessions gone (3 before, 0 after); app re-enabled and user deleted afterwards. Session type unknown: revoked via the
+fallback. Admin-app session: not run in real mode (the app requires MFA; the demo admin cannot be automated).
+
+**Known limits:** PingOne does not revoke ID tokens (400 `unsupported_token_type`); that call stays best-effort.
+A WRONG explicit session type silently no-ops (PingOne answers 200); both routes pass `req.session.oauthType`.
+Tokens for the default PingOne API resource were refused even with client authentication; the banking-resource tokens
+this app uses were fine. PingFederate sign-in is covered by unit tests only. Not tested against the live deployment.
+
+**Do not break:** a kill must still complete (revoke failures are logged, not thrown), the local block and session
+invalidation still run, and logout's revoke path (`oauthService` / `oauthUserService`) is untouched.
+**Verify:** `cd demo_api_server && CI=true npx jest tests/killSwitchRevokeAuth.test.js tests/killSwitchAutoReset.test.js src/__tests__/killSwitchService.test.js --forceExit`
+(39 passed).
+
 ### 2026-10-07 — UC14b PERMIT: get_my_accounts refused insufficient_scope; sim fell back to fake ids
 
 **Files:** `ping-gateway/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`, `demo_api_server/services/attackSimulatorService.js` (`_runRarPermit`), `demo_api_ui/src/components/AIAgent.js`, tests `pgOlbScopeCoversTransfer`, `intentBindingDemo`, `refreshServiceEnvsPfGateway`, `AIAgent.demoStepGate`.

@@ -933,7 +933,7 @@ router.post(
       // Execute kill switch — pass userId and session tokens for revocation at PingOne
       const userId = await require('../services/pingOneSessionUser').pingOneUserIdFor(req, req.session?.user?.oauthId || req.session?.user?.id || null);
       const oauthTokens = req.session?.oauthTokens || null;
-      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope, req.sessionID);
+      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope, req.sessionID, req.session?.oauthType);
 
       // Destroy admin session — token is revoked, session is now invalid.
       // Session-scoped in-process caches no longer die with it (REGRESSION_PLAN §4).
