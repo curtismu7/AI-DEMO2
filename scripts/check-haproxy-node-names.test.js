@@ -2,7 +2,8 @@
 
 // The mcpgw-lb node names (ownName + peers[].name) are written into the HAProxy config as server names, use-server
 // rules and the callback strip. This pins what the chart does with them. Needs `helm`; the behaviour checks also
-// need `docker` (haproxy:3.2-alpine, the live image) and `openssl`. Missing tools skip with a message.
+// need `docker` (haproxy:3.2-alpine, the live image) and `openssl`. Locally a missing tool skips with a message; in CI
+// (CI=true) it fails, so a runner without them cannot give a green run with no coverage.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,6 +20,11 @@ const has = (cmd, args = ['--version']) => spawnSync(cmd, args, { stdio: 'ignore
 const HELM = has('helm', ['version']);
 const DOCKER = has('docker', ['info']) && has('openssl', ['version']);
 const IMAGE = 'haproxy:3.2-alpine';
+const skipUnless = (ok, why) => (ok || process.env.CI ? false : `${why} (this skips locally and fails in CI)`);
+
+test('CI has the tools this test needs', { skip: !process.env.CI && 'only enforced in CI' }, () => {
+  assert.ok(HELM && DOCKER, 'helm, docker and openssl must be installed on the CI runner');
+});
 
 function render(valuesYaml) {
   const files = [OVERLAY];
@@ -40,10 +46,10 @@ function cfgOf(out) {
   return m[1].replace(/^ {4}/gm, '');
 }
 
-const NAMES = (own, peers) => `loadBalancer:\n  ownName: ${JSON.stringify(own)}\n  peers:\n${peers.map((p) => `    - name: ${JSON.stringify(p)}\n      address: peer.x.svc.cluster.local:8623\n      scheme: https\n`).join('')}`;
+const NAMES = (own, peers, legacy = []) => `loadBalancer:\n  ownName: ${JSON.stringify(own)}\n  legacyNodeNames: ${JSON.stringify(legacy)}\n  peers:\n${peers.map((p) => `    - name: ${JSON.stringify(p)}\n      address: peer.x.svc.cluster.local:8623\n      scheme: https\n`).join('')}`;
 const stripExpr = (cfg) => cfg.match(/set-query %\[query,(.*)\] if \{ path \/callback \}/)[1];
 
-test('the overlay renders: every node name is a server, a use-server rule and a strip, in the same order, legacy tags first', { skip: !HELM && 'helm not installed' }, () => {
+test('the overlay renders: every node name is a server, a use-server rule and a strip; legacy tags are stripped; the generic pattern is last', { skip: skipUnless(HELM, 'helm not installed') }, () => {
   const r = render();
   assert.ok(r.ok, r.err);
   const cfg = cfgOf(r.out);
@@ -51,44 +57,55 @@ test('the overlay renders: every node name is a server, a use-server rule and a 
   assert.deepEqual([...cfg.matchAll(/^\s+server (\S+) /gm)].map((m) => m[1]), names, 'server order = hash order, unchanged by a rename');
   assert.deepEqual([...cfg.matchAll(/^\s+use-server (\S+) /gm)].map((m) => m[1]), names);
   const expr = stripExpr(cfg);
-  assert.ok(expr.startsWith('regsub(~gateway-[0-9]+,,g)'), 'legacy gateway-<n> tags are still stripped');
+  assert.ok(expr.endsWith('regsub(~gateway-[0-9]+,,g)'), 'the generic gateway-<n> pattern goes last, so it cannot eat the front of a longer name');
   for (const n of names) assert.ok(expr.includes(`regsub(~${n},,g)`), `${n} is stripped`);
+  // the tags a login in flight carries today (the names the live LB uses) are still stripped after the rename
+  for (const old of ['gateway-old-1', 'gateway-pingid-1', 'gateway-pingid-2', 'gateway-pingid-3']) assert.ok(expr.includes(`regsub(~${old},,g)`), `legacy ${old} is stripped`);
   assert.match(cfg, /server mcpgw-cm-spare1 .* disabled/, 'the parked spare stays disabled');
   assert.match(cfg, /server mcpgw-ct-retired1 .* disabled/, 'the parked own node stays disabled');
 });
 
-test('a name that is a prefix of another is stripped after it (otherwise ~pool10 would leave a 0)', { skip: !HELM && 'helm not installed' }, () => {
+test('a name that is a prefix of another is stripped after it (otherwise ~pool10 would leave a 0)', { skip: skipUnless(HELM, 'helm not installed') }, () => {
   const r = render(NAMES('n-pool1', ['n-pool10', 'n-pool2']));
   assert.ok(r.ok, r.err);
   const expr = stripExpr(cfgOf(r.out));
   assert.ok(expr.indexOf('~n-pool10,') < expr.indexOf('~n-pool1,'), expr);
 });
 
-test('names that would change the regex, or repeat, fail the render with a clear message', { skip: !HELM && 'helm not installed' }, () => {
-  for (const bad of ['bad name)', 'a.b', 'x|y', '']) {
-    const r = render(NAMES('ok-1', [bad]));
-    assert.equal(r.ok, false, `"${bad}" must be refused`);
-    assert.match(r.err, /may only contain letters, digits, - and _/);
+test('names that would change the regex, are too short, start with a dash, or repeat fail the render with a clear message', { skip: skipUnless(HELM, 'helm not installed') }, () => {
+  for (const bad of ['bad name)', 'a.b-pool', 'x|y-pool', '-leading-dash', 'abc', 'ab_', '']) {
+    const asPeer = render(NAMES('ok-node-1', [bad]));
+    assert.equal(asPeer.ok, false, `peer "${bad}" must be refused`);
+    assert.match(asPeer.err, /must start with a letter or digit, use only letters, digits, - and _, and be at least 6 characters/);
+    if (bad) { // an empty ownName is not an error: the chart defaults it to gateway-1
+      const asOwn = render(NAMES(bad, ['ok-node-2']));
+      assert.equal(asOwn.ok, false, `ownName "${bad}" must be refused`);
+    }
+    const asLegacy = render(NAMES('ok-node-1', ['ok-node-2'], [bad]));
+    assert.equal(asLegacy.ok, false, `legacy name "${bad}" must be refused`);
   }
-  const dup = render(NAMES('same-1', ['same-1']));
-  assert.equal(dup.ok, false);
-  assert.match(dup.err, /must be unique/);
+  for (const [label, v] of [['ownName and a peer', NAMES('same-node', ['same-node'])], ['two peers', NAMES('ok-node-1', ['dup-node', 'dup-node'])], ['a peer and a legacy name', NAMES('ok-node-1', ['ok-node-2'], ['ok-node-2'])]]) {
+    const r = render(v);
+    assert.equal(r.ok, false, `${label} sharing a name must be refused`);
+    assert.match(r.err, /must be unique/);
+  }
 });
 
 async function freePort() {
   return new Promise((resolve) => { const s = net.createServer().listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); }); });
 }
 
-test('HAProxy accepts the rendered config and strips exactly the node tag (real haproxy:3.2)', { skip: !(HELM && DOCKER) && 'helm, docker or openssl missing', timeout: 180000 }, async () => {
+test('HAProxy accepts the rendered config and strips exactly the node tag (real haproxy:3.2)', { skip: skipUnless(HELM && DOCKER, 'helm, docker or openssl missing'), timeout: 180000 }, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lbhap-'));
   // 1. the full rendered config parses (a throwaway certificate stands in for the mounted site.pem)
-  const r = render(NAMES('n-pool1', ['n-pool10', 'n-pool2']));
+  const r = render(NAMES('n-pool1', ['n-pool10', 'n-pool2', 'gateway-2-new'], ['gateway-pingid-1', 'gateway-old-1']));
   assert.ok(r.ok, r.err);
   const cfg = cfgOf(r.out);
   fs.writeFileSync(path.join(tmp, 'full.cfg'), cfg);
   spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=t', '-days', '1', '-keyout', path.join(tmp, 'k.pem'), '-out', path.join(tmp, 'c.pem')], { stdio: 'ignore' });
   fs.writeFileSync(path.join(tmp, 'site.pem'), fs.readFileSync(path.join(tmp, 'k.pem'), 'utf8') + fs.readFileSync(path.join(tmp, 'c.pem'), 'utf8'));
   const check = spawnSync('docker', ['run', '--rm', '-v', `${tmp}/full.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro`, '-v', `${tmp}/site.pem:/tls/site.pem:ro`, IMAGE, 'haproxy', '-c', '-f', '/usr/local/etc/haproxy/haproxy.cfg'], { encoding: 'utf8' });
+  assert.equal(check.status, 0, `haproxy -c failed: ${check.stdout}${check.stderr}`);
   assert.ok(!/\[ALERT\]/.test(check.stdout + check.stderr), check.stdout + check.stderr);
 
   // 2. the same strip expression, run for real
@@ -109,6 +126,9 @@ test('HAProxy accepts the rendered config and strips exactly the node tag (real 
     assert.equal(await q('state=xyz~n-pool10&code=A'), 'state=xyz&code=A', 'the longer name is stripped whole');
     assert.equal(await q('state=xyz~n-pool2'), 'state=xyz');
     assert.equal(await q('state=xyz~gateway-3&code=Q~R'), 'state=xyz&code=Q~R', 'a legacy tag from before a rename is stripped');
+    assert.equal(await q('state=xyz~gateway-2-new&code=A'), 'state=xyz&code=A', 'a name that starts with gateway-<n> is stripped whole');
+    assert.equal(await q('state=s~gateway-pingid-1&code=A'), 'state=s&code=A', 'a tag from before the rename (the live name) is stripped');
+    assert.equal(await q('state=s~gateway-old-1'), 'state=s');
     assert.equal(await q('code=A~B&state=plain'), 'code=A~B&state=plain', 'no tag, nothing changes');
   } finally {
     spawnSync('docker', ['rm', '-f', name], { stdio: 'ignore' });

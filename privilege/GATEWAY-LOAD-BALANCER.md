@@ -165,12 +165,12 @@ sign-in state in memory).
 The browser callback is the global `/callback?code&state` (no app in the path), so it
 cannot use that key. The authorize 302 to the IdP gets the issuing node appended to
 `state` (`<state>~gateway-2`); `/callback` reads the tag, `use-server` sends it to that
-
-> **Node names (2026-11-23).** The tag is the node name, and the names are `loadBalancer.ownName` / `peers[].name` (standard: `mcpgw-<where>-<role><n>`, see [NAMING-CONVENTION.md](NAMING-CONVENTION.md) section 8). The chart builds the strip from those names, plus the old `gateway-<n>` tags, and refuses a name with anything but letters, digits, `-`, `_` or a duplicate. Keep the server order when renaming: it sets the consistent-hash positions. `scripts/check-haproxy-node-names.test.js` runs the real HAProxy against the rendered config.
 node, and `set-query` strips the tag so the gateway sees the state it issued. Stateless:
 no stick table, no peers section. An untagged callback, or one tagged for a node that is
 down, falls back to the balancer. Only a 302 whose `Location` contains `%2Fcallback` is
 tagged, so a client's own error redirect is left alone. The log line gains `app=`.
+
+> **Node names (2026-11-23).** The tag is the node name, and the names are `loadBalancer.ownName` / `peers[].name` (standard: `mcpgw-<where>-<role><n>`, see [NAMING-CONVENTION.md](NAMING-CONVENTION.md) section 8). The chart builds the strip from those names, plus `legacyNodeNames` (tags from before a rename, so a login in flight completes) and the old `gateway-<n>` tags. A name must start with a letter or digit, use only letters, digits, `-` and `_`, be at least 6 characters (each name is stripped from the whole query, so a short one could eat part of `code`) and be unique; the chart refuses anything else. Keep the server order when renaming: it sets the consistent-hash positions. `scripts/check-haproxy-node-names.test.js` runs the real HAProxy against the rendered config.
 
 Tested 2026-10-31 (haproxy 3.0.30, three fake gateways, then live): one IP's 8 apps landed
 on all three nodes, and each callback reached the node that issued its authorize. Not yet

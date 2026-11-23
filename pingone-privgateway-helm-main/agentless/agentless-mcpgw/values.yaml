@@ -44,6 +44,9 @@ loadBalancer:
   #       address: agentless-mcpgw.ping-devops-cmuir.svc.cluster.local:8623
   #       scheme: http
   #       parked: false
+  # Node names a login in flight may still carry after a rename (for example the old gateway-pingid-1).
+  # They are only stripped from the callback, never routed to. Same rules as node names.
+  legacyNodeNames: []
   peers: []
   resources:
     requests: {cpu: 50m, memory: 32Mi}
