@@ -57,7 +57,13 @@ describe('HostileMcpDenialPanel', () => {
 
     expect(await screen.findByText('Privilege allowed the resulting action')).toBeInTheDocument();
     expect(valueOf(pane('Privilege decision response'), 'transferId')).toBe('tx-1');
-    fireEvent.click(within(pane('Induced action').closest('.jp-box')).getByRole('button', { name: 'JSON' }));
+    const jsonButton = within(pane('Induced action').closest('.jp-box')).getByRole('button', { name: 'JSON' });
+    fireEvent.click(jsonButton);
+    // The Form | JSON choice reaches every pane through a shared store. Wait for the switch to show up before reading, rather than
+    // reading straight after the click: on a loaded CI runner the panes re-render a beat later and a read in between got the
+    // Form view's text ("name", "create_transfer", ...), which is not JSON (flaked once in CI shard 4/4, 2026-11-23).
+    await waitFor(() => expect(jsonButton).toHaveAttribute('aria-pressed', 'true'));
+    await waitFor(() => expect(screen.getByLabelText('Induced action').tagName).toBe('PRE'));
     expect(JSON.parse(screen.getByLabelText('Induced action').textContent)).toEqual({ name: 'create_transfer', arguments: { amount: 1, to: 'external-001' } });
     expect(JSON.parse(screen.getByLabelText('Induced tool call request').textContent).body).toEqual({ name: 'create_transfer', arguments: { amount: 1, to: 'external-001' } });
   });
