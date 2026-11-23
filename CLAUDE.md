@@ -23,6 +23,8 @@ Always-on hard rule from `§0` — **emoji allowlist only:** `⚠️` `✅` `❌
 
 **[THEMING.md](THEMING.md)** is the UI standard — light/dark, type, and the token families. Dark is `:root[data-theme="dark"]` only, never `prefers-color-scheme`. Prefer converting literals to `--th-*` over writing a dark block; take `font-size` from the scale, whose floor `--font-size-3xs` is 10px; keep colour, background and font-size out of inline `style={{ }}`. Verify with `getComputedStyle` on the live page, not by grepping the stylesheet — skins and `!important` make the file lie. The three hard rules (H1 ink-and-ground, H2 the 10px floor, H3 no inline themeable styles) live in `REGRESSION_PLAN.md` §0 and are enforced there. **Editing a page's stylesheet? Bring it up to standard in the same PR; if it already is, skip it.** 189 of 274 stylesheets are still light-only, so this closes opportunistically — never in one sweep.
 
+**[privilege/NAMING-CONVENTION.md](privilege/NAMING-CONVENTION.md)** is the naming standard for Privilege apps, agent keys, policies and gateways (`lab-<system>-<variant>`, the full/limited/blocked trio, `mcpgw-<where>-<role><n>`). Create, rename or remove any of those and you follow it **and update that file and its change log in the same PR**; `demo_api_server/tests/privilegeNamingConvention.test.js` fails the build if the names, families and doc drift apart.
+
 ## Working practice — worktree (required)
 
 Edit→test→commit only in an **isolated git worktree** — concurrent sessions share one index and collisions have wiped staged work.
