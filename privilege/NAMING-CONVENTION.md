@@ -155,8 +155,11 @@ Gateway names never contain a PingOne environment name, because the environment 
 Every Deployment carries the labels `ping.demo/gateway`, `ping.demo/where`, `ping.demo/role` and the annotation `ping.demo/purpose`. List them with
 `kubectl get deploy -A -l ping.demo/gateway`. The cluster ID in the console stays `ai-demo-cmuir` for every node of a tenant (it cannot change after registration);
 nodes are told apart by the names above. The per-gateway table (host, HAProxy backend, image) is kept in the rebuild runbook's `GATEWAY-INVENTORY.md`.
-HAProxy backend names (`gateway-pingid-N`) are still the old ones: renaming them needs a chart change (the OAuth callback strips the node tag with a regex in the
-template), so it goes through a PR, not a hand edit of the live ConfigMap.
+HAProxy backend names are the gateway names too (`loadBalancer.ownName` and `peers[].name` in `gateway1-lb.values.yaml`): `mcpgw-ct-retired1` (own, parked),
+`mcpgw-cm-pool1`, `mcpgw-cm-spare1` (parked), `mcpgw-ct-pool2`. The names are written into the HAProxy config and into the OAuth callback strip, so they may only use
+letters, digits, `-` and `_`, start with a letter or digit, be at least 6 characters and unique, and keep their order when renamed (it sets the consistent-hash positions); the chart refuses anything else. Since PR
+`chart/haproxy-backend-names` the strip is built from the configured names (old names go in `loadBalancer.legacyNodeNames` so logins in flight still complete; `gateway-<n>` tags are always stripped). The live cluster still runs the old
+names until the owner applies the overlay (`helm upgrade --reuse-values -f gateway1-lb.values.yaml`, dry-run first); then `gateway-pingid-1/2/3` and `gateway-old-1` are gone.
 
 ## 9. Change log (add a line whenever the names, families or rules change)
 
@@ -164,3 +167,4 @@ template), so it goes through a PR, not a hand edit of the live ConfigMap.
 |---|---|---|
 | 2026-11-23 | Rulebook created: grammar, full/limited/blocked trio, key rules, rename procedure, families (PRs #3686, #3687) | Tenant cleanup after the Pingid-privilege rebuild |
 | 2026-11-23 | Made binding for all repos and agents (§0); drift test added; §8 gateway scheme added; full family list recorded in §5 | Owner request: one naming standard, kept current as apps change |
+| 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |

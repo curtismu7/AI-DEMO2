@@ -16,31 +16,41 @@ loadBalancer:
   replicas: 2
   image: nginx:stable-alpine
   engine: haproxy          # live since PR #1022; nginx rolls the public LB back to passive health checks
-  haproxyImage: haproxy:3.0-alpine
+  haproxyImage: haproxy:3.2-alpine
   resources:
     requests: {cpu: 50m, memory: 32Mi}
     limits: {cpu: 500m, memory: 128Mi}
-  ownName: gateway-1
-  ownParked: false
+  # Node names follow privilege/NAMING-CONVENTION.md section 8: mcpgw-<where>-<role><n>. They are also the
+  # `~tag` the load balancer appends to `state`, so they may only use letters, digits, - and _ and must be
+  # unique (the chart refuses anything else). The old names were gateway-old-1 and gateway-pingid-1/2/3;
+  # a login that started under an old tag still completes because those tags are in legacyNodeNames.
+  # This release's own gateway is the retired old-tenant one (scaled to 0), so it is parked.
+  # Tags a login that started under the old names still carries: stripped on the callback so it completes.
+  legacyNodeNames: [gateway-old-1, gateway-pingid-1, gateway-pingid-2, gateway-pingid-3]
+  ownName: mcpgw-ct-retired1
+  ownParked: true
   # A failed gateway is held out for 10 minutes before it is tried again
   # (failover drill 2026-10-03: a 10s return made clients sign in twice).
   maxFails: 2
   failTimeout: 600s
   connectTimeout: 3s
+  # The runtime API (park/unpark without a restart, used by the demo's admin LB panel). The stats login
+  # (loadBalancer.stats.auth) is a secret and is set at install time, not here.
+  runtimeSocket:
+    enabled: true
+  # Server order sets the consistent-hash positions, so keep it when renaming.
   peers:
-    - name: gateway-2
-      # Gateway 2's Service in the other namespace. It serves plain HTTP because
-      # its OAuth URL is the public one, which its own certificate does not match.
-      address: agentless-mcpgw.ping-devops-cmuir.svc.cluster.local:8623
-      scheme: http
+    - name: mcpgw-cm-pool1        # was gateway-pingid-1: release agentless-mcpgw-pingid, ns ping-devops-cmuir
+      address: agentless-mcpgw-pingid.ping-devops-cmuir.svc.cluster.local:8623
+      scheme: https
       parked: false
-    - name: gateway-3
-      # Gateway 3 (release agentless-mcpgw3, gateway3.values.yaml) in THIS namespace. Installed
-      # 2026-10-04, scaled to 0 the same day while its pod requested 1000m CPU, and brought back
-      # 2026-10-05 once the main container's request was cut to 250m. Plain HTTP for the same
-      # reason as gateway 2. To take it out again: `parked: true`, upgrade, then scale it to 0.
-      address: agentless-mcpgw3.ping-devops-curtismuir.svc.cluster.local:8623
-      scheme: http
+    - name: mcpgw-cm-spare1       # was gateway-pingid-2: parked spare, kept for migration, takes no traffic
+      address: agentless-mcpgw-pingid2.ping-devops-cmuir.svc.cluster.local:8623
+      scheme: https
+      parked: true          # Helm values never recorded this; the live ConfigMap has `disabled` from a hand edit
+    - name: mcpgw-ct-pool2        # was gateway-pingid-3: release agentless-mcpgw-pingid, ns ping-devops-curtismuir
+      address: agentless-mcpgw-pingid.ping-devops-curtismuir.svc.cluster.local:8623
+      scheme: https
       parked: false
 
 # Gateway 1's per-node OpenSearch MCP sidecar. It was added by hand with kubectl and a helm
@@ -74,6 +84,7 @@ opensearch:
     requests:
       cpu: 25m
 
-# Pin the gateway image to the deployed build (latest only refreshes on pod recreation).
+# Pin the gateway image to the deployed build (latest only refreshes on pod recreation). This release's own
+# gateway is the retired old-tenant one (image v1.261112-NYLb, as deployed); the pool gateways have their own releases.
 image:
-  tag: v1.261030
+  tag: v1.261112-NYLb
