@@ -87,7 +87,9 @@ opensearch:
     requests:
       cpu: 25m
 
-# Pin the gateway image to the deployed build (latest only refreshes on pod recreation). This release's own
-# gateway is the retired old-tenant one (image v1.261112-NYLb, as deployed); the pool gateways have their own releases.
+# Pin the gateway image to a version tag, never the floating `latest` (it only refreshes on pod recreation, so what
+# runs would depend on when a pod last restarted). This release's own gateway is the retired old-tenant one (scaled to
+# 0); the pool gateways have their own releases. v1.261120 is the same image as `latest` today (digest 2733e787) and
+# what the pool gateways run; the NYL builds (v1.261112-NYL*) are no longer used for the shared gateways.
 image:
-  tag: v1.261112-NYLb
+  tag: v1.261120
