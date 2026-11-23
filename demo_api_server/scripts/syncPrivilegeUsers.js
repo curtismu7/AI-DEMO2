@@ -68,7 +68,15 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
     if (!token) throw new Error(`worker token refused (HTTP ${tokenRes.status})`);
     return { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
   };
-  let H = await workerHeaders();
+  let H;
+  try {
+    H = await workerHeaders();
+  } catch (err) {
+    if (!oneEnv) throw err;
+    // Most demo installs have no Privilege at all: a failed token must not turn into a bootstrap warning.
+    log(`[syncPrivilegeUsers] ⚠️  Could not get a worker token (${err.message}) — skipping`);
+    return noSeparateEnv();
+  }
   const api = (e) => `https://api.pingone.${region}/v1/environments/${e}`;
   const get = async (url) => {
     const r = await fetchImpl(url, { headers: H });
@@ -81,8 +89,18 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
 
   if (oneEnv) {
     // One-environment setup: Privilege was added to the demo env itself. Without its app there is nothing to sync.
-    const apps = (await get(`${api(src)}/applications`))._embedded?.applications || [];
-    if (!apps.some((a) => a.name === PRIVILEGE_APP_NAME)) return noSeparateEnv();
+    let found = false;
+    try {
+      let url = `${api(src)}/applications?limit=200`;
+      for (let page = 0; url && !found && page < 20; page++) {
+        const j = await get(url);
+        found = (j._embedded?.applications || []).some((a) => a.name === PRIVILEGE_APP_NAME);
+        url = j._links?.next?.href;
+      }
+    } catch (err) {
+      log(`[syncPrivilegeUsers] ⚠️  Could not list the demo env's applications (${err.message}) — skipping`);
+    }
+    if (!found) return noSeparateEnv();
     dst = src;
     log(`[syncPrivilegeUsers] One-environment setup: ${PRIVILEGE_APP_NAME} is in the demo env — adding the demo accounts to ${GROUP_NAME} there`);
   }
@@ -129,10 +147,13 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
     if (dryRun) log(`[syncPrivilegeUsers] would create group ${GROUP_NAME}`);
     else {
       const r = await fetchImpl(`${api(dst)}/groups`, { method: 'POST', headers: H, body: JSON.stringify({ name: GROUP_NAME, description: 'Admins allowed into PingOne Privilege' }) });
-      const g = await r.json();
-      if (!r.ok || !g.id) throw new Error(`could not create group ${GROUP_NAME} (HTTP ${r.status} ${g.code || ''})`);
-      groupId = g.id;
-      log(`[syncPrivilegeUsers] ✅ Created group ${GROUP_NAME}`);
+      const g = await r.json().catch(() => ({}));
+      groupId = r.ok ? g.id : undefined;
+      if (!groupId) {
+        // A parallel run may have created it a moment ago: look again before giving up.
+        groupId = ((await get(`${api(dst)}/groups?filter=${encodeURIComponent(`name eq "${GROUP_NAME}"`)}`))._embedded?.groups || [])[0]?.id;
+        if (!groupId) throw new Error(`could not create group ${GROUP_NAME} (HTTP ${r.status} ${g.code || ''})`);
+      } else log(`[syncPrivilegeUsers] ✅ Created group ${GROUP_NAME}`);
     }
   }
   const pops = (await get(`${api(dst)}/populations`))._embedded?.populations || [];
@@ -146,7 +167,8 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
     if (!source) continue; // not a sign-in account on this tenant
     const label = `${source.username} <${source.email}>`;
 
-    let target = (await users(dst, `email eq "${source.email}"`))[0];
+    // One environment: the demo account IS the Privilege account (a duplicate email must not pick someone else).
+    let target = oneEnv ? source : (await users(dst, `email eq "${source.email}"`))[0];
     if (!target) {
       const holder = (await users(dst, `username eq "${source.username}"`))[0];
       // Same username with no email (hand-made) is the same account; use it.
