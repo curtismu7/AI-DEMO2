@@ -11,6 +11,21 @@ this file is the rulebook going forward.
 
 ---
 
+## 0. This is a standard (binding, all future development)
+
+- **Who and where.** Every agent and every person, in every repo (AI-DEMO2, AI-DEMO-Standalone, all `*-LAB` repos, the rebuild runbooks), whenever a
+  Privilege app, agent key, policy or gateway is created, renamed or removed. Pick the name from §1-§3 and §8 before you create anything.
+- **It changes with the apps.** If your change adds a system word (§1), a family (§5 and `FAMILIES` in `apply-tag-schema.mjs`), a rename (the `APPS` / `KEYS`
+  tables in `cleanup-rename-apps.mjs`) or a gateway, **edit this file in the same PR** and add a dated line to the change log (§9). A PR that adds or renames
+  objects without touching this file is incomplete.
+- **How it is enforced.** `demo_api_server/tests/privilegeNamingConvention.test.js` fails when: a name declared in `cleanup-rename-apps.mjs` breaks the grammar
+  or fits no family (the static form of `orphan 0`); a `tag-map-*` family exists in the script but not in §5, or the reverse; the system words in §1 are not
+  the ones the grammar accepts; or this file lost its change log or stopped being linked from `CLAUDE.md`. On the live tenant, `apply-tag-schema.mjs` must report `orphan 0`.
+- **Exceptions are written down.** Unprefixed production-plumbing names stay as they are until the owner says otherwise (§1). Any other exception gets a line in §9
+  with the reason, or it is a defect.
+
+---
+
 ## 1. The name grammar
 
 ```
@@ -101,6 +116,12 @@ Every object must match exactly one `tag-map-*` family regex in
 | key families | `*-key`, provider names, `priv-log-agent`… | inherit their app family |
 | policy families | `<app>-permit`, `<key>-grant`, River principals | inherit their app family |
 
+Every `tag-map-*` family currently in the script (the drift test keeps this list identical to the script; add a name here in the same edit as the script):
+`tag-map-banking`, `tag-map-aggregate`, `tag-map-opensearch`, `tag-map-hostile`, `tag-map-a2a`, `tag-map-catalog`, `tag-map-infra`, `tag-map-idjag`,
+`tag-map-meridian`, `tag-map-muse`, `tag-map-key-aggregate`, `tag-map-key-a2a`, `tag-map-key-lab-banking`, `tag-map-key-llm`, `tag-map-key-logging`,
+`tag-map-key-idjag`, `tag-map-key-obs`, `tag-map-pol-lab-banking`, `tag-map-pol-lab-idjag`, `tag-map-pol-river`, `tag-map-pol-opensearch`,
+`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`.
+
 Adding a family: edit `FAMILIES` in the script, follow the existing comment style
 ("Edit HERE when apps are added or renamed"), then re-run and require `orphan 0`.
 
@@ -121,3 +142,25 @@ Adding a family: edit `FAMILIES` in the script, follow the existing comment styl
 `privilege/scripts/cleanup-rename-apps.mjs` (this repo) implements the whole pattern for the
 2026-11-23 cleanup: APPS + KEYS tables at the top are declarative; the rest is generic.
 Copy it, edit the two tables, dry-run, apply.
+
+## 8. Gateways (decided 2026-11-23)
+
+Gateway names never contain a PingOne environment name, because the environment behind a gateway changes. Scheme: **`mcpgw-<where>-<role><n>`**.
+
+| Part | Values |
+|---|---|
+| `where` | `cm` = Kubernetes namespace `ping-devops-cmuir`, `ct` = `ping-devops-curtismuir`, `local` = the owner's Mac |
+| `role` | `lb` front door, `pool` behind the load balancer and takes traffic, `spare` running but parked, `dev` development/demo outside the pool, `retired` old-tenant gateway scaled to 0 |
+
+Every Deployment carries the labels `ping.demo/gateway`, `ping.demo/where`, `ping.demo/role` and the annotation `ping.demo/purpose`. List them with
+`kubectl get deploy -A -l ping.demo/gateway`. The cluster ID in the console stays `ai-demo-cmuir` for every node of a tenant (it cannot change after registration);
+nodes are told apart by the names above. The per-gateway table (host, HAProxy backend, image) is kept in the rebuild runbook's `GATEWAY-INVENTORY.md`.
+HAProxy backend names (`gateway-pingid-N`) are still the old ones: renaming them needs a chart change (the OAuth callback strips the node tag with a regex in the
+template), so it goes through a PR, not a hand edit of the live ConfigMap.
+
+## 9. Change log (add a line whenever the names, families or rules change)
+
+| Date | Change | Why |
+|---|---|---|
+| 2026-11-23 | Rulebook created: grammar, full/limited/blocked trio, key rules, rename procedure, families (PRs #3686, #3687) | Tenant cleanup after the Pingid-privilege rebuild |
+| 2026-11-23 | Made binding for all repos and agents (§0); drift test added; §8 gateway scheme added; full family list recorded in §5 | Owner request: one naming standard, kept current as apps change |
