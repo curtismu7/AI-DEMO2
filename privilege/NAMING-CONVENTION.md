@@ -101,6 +101,12 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
   the console identity's audience (`PFtoken`, `PFtoken-testobo`), the PingFederate access token manager's Audience Claim Value (and Resource URI where it has one;
   `routeCTestAtm`, `testoboAgentAtm`), the token-exchange SP connection's entity ID and resource URI (`aiDemoPfPrivilegeOboSp`), the token processor's Allowed Audiences
   (`aiDemoPfAccessSubjectProcessor`), and the lab's door URL. Then confirm a live call: 200 with a real token, 401 with a made-up one.
+- Console-made policies (the generated `<Name>River-<hex>` ones, issued to an identity) hold their rules by app and key **name**, and a rename or delete leaves them
+  pointing at nothing: the gateway then logs `policy <River…> has no rule matching this application and principal` and the door answers 403 even though the token is
+  accepted. After a rename, list every policy and repoint those rules (`KarunRiver` for `PFtoken`, `StillwaterRiver` for `PFtoken-testobo`). A key-bound grant written
+  before a key was deleted and recreated also stays stale; recreate it after the key.
+- An `obo` door's **client secret is write-only**: a copy made from a backup has no secret, and the gateway's own exchange fails with `invalid_client` (door answers 502).
+  Re-enter it in the console (for the PingFederate client `privilege-gw-obo` it is the vault secret `PF_GW_OBO_CLIENT_SECRET`) after every recreate.
 - A key that authenticates by an identity's token must have the **identity as its custodian** (`CustodianRef` kind `NonHumanIdentity`) and no `VirtualKey`; a stored
   virtual key cannot be cleared by PUT, so a key built from a user-custodian template has to be deleted and recreated under the same name. `lab-pftoken-key` and
   `lab-obo-pf-key` are bound to `PFtoken` and `PFtoken-testobo` this way.
@@ -176,4 +182,4 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | Rulebook created: grammar, full/limited/blocked trio, key rules, rename procedure, families (PRs #3686, #3687) | Tenant cleanup after the Pingid-privilege rebuild |
 | 2026-11-23 | Made binding for all repos and agents (§0); drift test added; §8 gateway scheme added; full family list recorded in §5 | Owner request: one naming standard, kept current as apps change |
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
-| 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new trap about PingFederate-side audiences | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
+| 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new traps (PingFederate-side audiences, River policies, write-only OBO secret) | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
