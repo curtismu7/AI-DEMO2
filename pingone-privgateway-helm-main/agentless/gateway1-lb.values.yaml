@@ -7,6 +7,9 @@
 # To park a gateway for a test, set its `parked` (or `ownParked`) to true and run
 # the same upgrade; the load balancer pods roll on their own.
 meshPort: 8690
+# The old-tenant gateway in this release (agentless-mcpgw) is scaled to 0 by owner decision ("Do not scale
+# or restart"). The scale was done by hand, so the release still said 1 and an upgrade would have started it.
+replicaCount: 0
 frontService: ""          # empty = the ingresses use the chart's load balancer
 # Every key is spelled out on purpose: --reuse-values may not pick up the chart's
 # new defaults, so nothing here relies on them.
