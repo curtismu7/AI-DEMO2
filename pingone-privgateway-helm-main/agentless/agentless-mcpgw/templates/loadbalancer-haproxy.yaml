@@ -26,6 +26,13 @@
 {{- if and $lb.enabled (eq ($lb.engine | default "nginx") "haproxy") }}
 {{- $name := include "agentless-mcpgw.lbName" . }}
 {{- $ownName := $lb.ownName | default "gateway-1" }}
+{{- /* Node names are written into a regex (the callback strip below), so they are restricted and must be unique. */ -}}
+{{- $nodeNames := list $ownName }}
+{{- range $peer := $lb.peers }}{{- $nodeNames = append $nodeNames $peer.name }}{{- end }}
+{{- range $n := $nodeNames }}
+{{- if not (regexMatch "^[A-Za-z0-9_-]+$" (toString $n)) }}{{- fail (printf "loadBalancer node name %q may only contain letters, digits, - and _" $n) }}{{- end }}
+{{- end }}
+{{- if ne (len $nodeNames) (len (uniq $nodeNames)) }}{{- fail "loadBalancer node names (ownName and peers[].name) must be unique" }}{{- end }}
 {{- $fall := $lb.maxFails | default 2 }}
 {{- $rise := div (trimSuffix "s" ($lb.failTimeout | default "600s") | int) 10 }}
 {{- $connectTimeout := $lb.connectTimeout | default "3s" }}
@@ -104,7 +111,11 @@ data:
       # Callback leg: read the node tag the authorize redirect left in `state`, then
       # strip it so the gateway sees the state it issued.
       http-request set-var(txn.cbnode) url_param(state),field(2,~) if { path /callback }
-      http-request set-query %[query,regsub(~gateway-[0-9]+,,g)] if { path /callback } { var(txn.cbnode) -m found }
+      # Remove the node tag from `state`: one regsub per configured node name, plus the legacy gateway-<n>
+      # tags so a login that started before a rename still completes. Chained plain patterns on purpose: a
+      # `~` inside `code` is never touched, and parentheses cannot be used in a sample argument here. Longest
+      # names first (reverse alphabetical puts a name before any prefix of it), or ~pool10 would leave a 0.
+      http-request set-query %[query,regsub(~gateway-[0-9]+,,g){{ range $n := reverse (sortAlpha $nodeNames) }},regsub(~{{ $n }},,g){{ end }}] if { path /callback } { var(txn.cbnode) -m found }
       # Tag the gateway-to-IdP redirect (its redirect_uri is the global /callback) with
       # the node that issued it. Other redirects, such as a client's own error
       # redirect, are left alone.
