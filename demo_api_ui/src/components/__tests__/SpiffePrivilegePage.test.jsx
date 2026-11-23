@@ -59,6 +59,17 @@ global.fetch = vi.fn(() => fetchOk({
     fireEvent.click(screen.getAllByRole("button", { name: /run this shape/i })[1]);
     await waitFor(() => expect(screen.getByText(/REFUSED/)).toBeInTheDocument());
     expect(screen.getByText(/front door/)).toBeInTheDocument();
+    // the gateway body is shown through the shared JSON pane, not a hand-rolled <pre>
+    expect(screen.getAllByText(/Bearer token required/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/HTTP 401 https:\/\/gw\/spire-mcp\/mcp/)).toBeInTheDocument();
+  });
+
+  it("an error response shows its detail object in the Error detail inspector", async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 502, json: () => Promise.resolve({ error: "upstream_failed", error_description: "PF said no", hint: "retry in a minute" }) }));
+    render(<SpiffePrivilegePage />);
+    fireEvent.click(screen.getAllByRole("button", { name: /run this shape/i })[0]);
+    await waitFor(() => expect(screen.getByText(/Error detail/)).toBeInTheDocument());
+    expect(screen.getAllByText(/retry in a minute/).length).toBeGreaterThan(0);
   });
 
   it("a 503 config error from the BFF surfaces the message without crashing", async () => {
