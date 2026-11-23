@@ -80,12 +80,12 @@ const FAMILIES = [
   // Banking family — governed doors
   {
     name: 'tag-map-banking',
-    regex: '^(banking-mcp|banking-openapi|banking-aggregate)$',
+    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
     name: 'tag-map-aggregate',
-    regex: '^aggregate(-limited|-none)?$',
+    regex: '^(aggregate(-limited|-none)?|lab-agg-(full|limited|blocked))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   {
@@ -115,7 +115,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-idjag',
-    regex: '^(obo-idjag-test|pftoken|pftoken-rs|testobo)$',
+    regex: '^(obo-idjag-test|pftoken|pftoken-rs|testobo|lab-obo-full|lab-pftoken-(full|limited))$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
   },
   {
@@ -131,17 +131,38 @@ const FAMILIES = [
   // Agent access keys (keys inherit the family of the app they call)
   {
     name: 'tag-map-key-aggregate',
-    regex: '^agg-(delegate|guest)$',
+    regex: '^(agg-(delegate|guest)|lab-agg(-(delegate|guest))?-key)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   {
     name: 'tag-map-key-a2a',
-    regex: '^(langchain-caller|main-agent|worker-agent)$',
+    regex: '^(langchain-caller|main-agent|worker-agent|aws-agent-caller|aws-agent-worker)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
+  },
+  // gateway-client lab banking keys + LLM proxy keys
+  {
+    name: 'tag-map-key-lab-banking',
+    regex: '^lab-banking-(full|limited|blocked)-key$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-key-llm',
+    regex: '^(anthropic|openai|ollama|groq|llama\\.cpp|meta\\.[a-z0-9.-]+|pgc-agent-llm)$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'llm-proxy', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-key-logging',
+    regex: '^(priv-log-agent|privilege-logging-lab-fed)$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-lab-banking',
+    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
     name: 'tag-map-key-idjag',
-    regex: '^(pftoken-agent|pftoken-wl|tmp-pf-route-c-key|testobo-agent|privilege-logging-lab-fed)$',
+    regex: '^(pftoken-agent|pftoken-wl|tmp-pf-route-c-key|testobo-agent|privilege-logging-lab-fed|lab-pftoken-key)$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
   },
   {
@@ -163,8 +184,19 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-aggregate',
-    regex: '^agg-(delegate|guest)-aggregate-limited$',
+    regex: '^(agg-(delegate|guest)-aggregate-limited|lab-agg-(delegate|guest)-key-grant|lab-agg-(full|limited)-permit|lab-agg-key-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
+  },
+  // lab-banking / lab-obo / lab-pftoken door permits and key grants
+  {
+    name: 'tag-map-pol-lab-banking',
+    regex: '^lab-banking-(full|limited)(-permit|-key-grant)?$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-lab-idjag',
+    regex: '^lab-(obo-full-permit|pftoken-(full|limited)-permit|pftoken-key-grant)$',
+    tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
   },
   // agg222 — stray scratch aggregate app (leftover test create, per
   // CURRENT-CONFIGURATION.md the miscreated duplicate pattern)
