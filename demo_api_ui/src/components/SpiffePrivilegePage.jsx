@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./SpiffePrivilegePage.css";
 import PageHeader from "./common/PageHeader";
+import JsonPane from "./shared/JsonPane";
 
 const SHAPES = [
   {
@@ -43,14 +44,6 @@ function classifyGateway(status, body) {
   return { tone: "error", verdict: `Unexpected gateway status ${status ?? "—"}` };
 }
 
-function formatJson(value) {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
 function redactToken(token) {
   if (typeof token !== "string" || token.length < 24) return "<short token>";
   return `${token.slice(0, 12)}…${token.slice(-8)} (${token.length} chars, not displayed)`;
@@ -91,11 +84,12 @@ function ShapeCard({ shape, state, onRun, disabled }) {
           <div className="spfp-details__grid">
             <div>
               <h4>Decoded token claims</h4>
-              <pre>{formatJson(result.claims)}</pre>
+              <JsonPane value={result.claims} testId="spfp-claims" />
             </div>
             <div>
               <h4>Gateway response</h4>
-              <pre>{`HTTP ${result.gateway.status} ${result.gateway.url}\n\n${typeof result.gateway.body === "string" ? result.gateway.body : formatJson(result.gateway.body)}`}</pre>
+              <p className="spfp-card__http">{`HTTP ${result.gateway.status} ${result.gateway.url}`}</p>
+              <JsonPane value={result.gateway.body} testId="spfp-gateway-body" />
             </div>
             <div>
               <h4>Token presented (redacted)</h4>
@@ -107,7 +101,7 @@ function ShapeCard({ shape, state, onRun, disabled }) {
       {result && result.error && (
         <details className="spfp-details">
           <summary>Error detail</summary>
-          <pre>{result.detail || result.error}</pre>
+          <JsonPane value={result.detail || result.error} testId="spfp-error-detail" />
         </details>
       )}
     </section>
@@ -152,7 +146,7 @@ export default function SpiffePrivilegePage() {
       const body = err?.detail;
       const message = body?.error_description || body?.error || (err?.name === "AbortError" ? "timed out after 90s" : err?.message || "call failed");
       if (mounted.current) {
-        setStates((prev) => ({ ...prev, [tokenMode]: { running: false, result: { error: message, detail: formatJson(body ?? (err?.name === "AbortError" ? { timeout_ms: 90000 } : err)) } } }));
+        setStates((prev) => ({ ...prev, [tokenMode]: { running: false, result: { error: message, detail: body ?? (err?.name === "AbortError" ? { timeout_ms: 90000 } : { error: message }) } } }));
       }
     } finally {
       clearTimeout(timer);
