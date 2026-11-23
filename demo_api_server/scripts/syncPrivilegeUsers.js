@@ -19,7 +19,11 @@
  * than a 403. If the role is missing the script tries to assign it to the
  * worker (works only when the worker may delegate it, e.g. holds Organization
  * Admin); if it can't, it warns and syncs anyway. Skips (exit 0) when
- * Privilege's env is not configured or is the demo env itself.
+ * Privilege's env is not configured or is the demo env itself, unless the
+ * demo env is the Privilege env (one-environment setup): when no separate
+ * env is set (or it equals the demo env) and the demo env has a
+ * "PingOne Privilege" app, the group PrivilegeAdmins is ensured there and the
+ * demo accounts are added to it, with nothing to copy.
  *
  * Run standalone: node scripts/syncPrivilegeUsers.js [--dry-run]
  * Called automatically by bootstrapPingOne.js post-provisioning.
@@ -29,19 +33,23 @@ const GROUP_NAME = 'PrivilegeAdmins';
 
 const ROLE_NAME = 'Identity Data Admin';
 
+const PRIVILEGE_APP_NAME = 'PingOne Privilege';
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = console.log, dryRun = false, retryDelayMs = 1000 } = {}) {
   const src = env.PINGONE_ENVIRONMENT_ID;
-  const dst = env.PRIVILEGE_CONSOLE_ENV_ID || env.PRIVILEGE_SSO_ENV_ID;
+  let dst = env.PRIVILEGE_CONSOLE_ENV_ID || env.PRIVILEGE_SSO_ENV_ID;
+  const oneEnv = !dst || dst === src;
   const clientId = env.PINGONE_WORKER_CLIENT_ID;
   const clientSecret = env.PINGONE_WORKER_CLIENT_SECRET;
   const region = env.PINGONE_REGION || 'com';
 
-  if (!dst || dst === src) {
+  const noSeparateEnv = () => {
     log('[syncPrivilegeUsers] No separate Privilege env (PRIVILEGE_CONSOLE_ENV_ID / PRIVILEGE_SSO_ENV_ID) — skipping');
     return { skipped: true };
-  }
+  };
+  if (oneEnv && (!src || !clientId || !clientSecret)) return noSeparateEnv();
   if (!src || !clientId || !clientSecret) {
     log('[syncPrivilegeUsers] Missing PINGONE_ENVIRONMENT_ID / PINGONE_WORKER_CLIENT_ID / PINGONE_WORKER_CLIENT_SECRET — skipping');
     return { skipped: true };
@@ -70,6 +78,14 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
   };
   const users = async (e, filter) =>
     (await get(`${api(e)}/users?filter=${encodeURIComponent(filter)}`))._embedded?.users || [];
+
+  if (oneEnv) {
+    // One-environment setup: Privilege was added to the demo env itself. Without its app there is nothing to sync.
+    const apps = (await get(`${api(src)}/applications`))._embedded?.applications || [];
+    if (!apps.some((a) => a.name === PRIVILEGE_APP_NAME)) return noSeparateEnv();
+    dst = src;
+    log(`[syncPrivilegeUsers] One-environment setup: ${PRIVILEGE_APP_NAME} is in the demo env — adding the demo accounts to ${GROUP_NAME} there`);
+  }
 
   // Best effort: make sure the worker holds the role, but never let this
   // check stop a sync that would work anyway. A worker's client id is its
@@ -104,11 +120,21 @@ async function syncPrivilegeUsers({ env = process.env, fetchImpl = fetch, log = 
   }
 
   const groups = (await get(`${api(dst)}/groups?filter=${encodeURIComponent(`name eq "${GROUP_NAME}"`)}`))._embedded?.groups || [];
-  if (!groups[0]) {
-    log(`[syncPrivilegeUsers] No ${GROUP_NAME} group in Privilege env — skipping`);
-    return { skipped: true };
+  let groupId = groups[0]?.id;
+  if (!groupId) {
+    if (!oneEnv) {
+      log(`[syncPrivilegeUsers] No ${GROUP_NAME} group in Privilege env — skipping`);
+      return { skipped: true };
+    }
+    if (dryRun) log(`[syncPrivilegeUsers] would create group ${GROUP_NAME}`);
+    else {
+      const r = await fetchImpl(`${api(dst)}/groups`, { method: 'POST', headers: H, body: JSON.stringify({ name: GROUP_NAME, description: 'Admins allowed into PingOne Privilege' }) });
+      const g = await r.json();
+      if (!r.ok || !g.id) throw new Error(`could not create group ${GROUP_NAME} (HTTP ${r.status} ${g.code || ''})`);
+      groupId = g.id;
+      log(`[syncPrivilegeUsers] ✅ Created group ${GROUP_NAME}`);
+    }
   }
-  const groupId = groups[0].id;
   const pops = (await get(`${api(dst)}/populations`))._embedded?.populations || [];
   const pop = pops.find((p) => p.default) || pops[0];
 

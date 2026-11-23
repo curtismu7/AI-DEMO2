@@ -14,10 +14,10 @@ const env = {
 };
 
 // Fake PingOne: src/dst user directories, one group, a membership table.
-function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false, hasRole = true, grantStatus = 201 }) {
+function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false, hasRole = true, grantStatus = 201, privilegeApp = false, noGroup = false, groupCreateStatus = 201 }) {
   const calls = [];
   let tokens = 0;
-  const assignments = hasRole ? [{ role: { id: 'r-ida' }, scope: { type: 'ENVIRONMENT', id: DST } }] : [];
+  const assignments = hasRole ? [{ role: { id: 'r-ida' }, scope: { type: 'ENVIRONMENT', id: DST } }, { role: { id: 'r-ida' }, scope: { type: 'ENVIRONMENT', id: SRC } }] : [];
   let pending404 = first404;
   const json = (body, status = 200) => ({ ok: status < 300, status, json: async () => body });
   const match = (list, filter) => {
@@ -35,7 +35,9 @@ function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false, hasRo
       return json({}, grantStatus);
     }
     const filter = decodeURIComponent((url.split('filter=')[1] || ''));
-    if (url.includes('/groups?')) return json({ _embedded: { groups: [{ id: 'g1', name: 'PrivilegeAdmins' }] } });
+    if (url.endsWith('/applications')) return json({ _embedded: { applications: privilegeApp ? [{ name: 'PingOne Privilege' }] : [{ name: 'Other' }] } });
+    if (method === 'POST' && url.endsWith('/groups')) return json({ id: 'g-new', code: groupCreateStatus < 300 ? undefined : 'ACCESS_FAILED' }, groupCreateStatus);
+    if (url.includes('/groups?')) return json({ _embedded: { groups: noGroup ? [] : [{ id: 'g1', name: 'PrivilegeAdmins' }] } });
     if (url.endsWith('/populations')) return json({ _embedded: { populations: [{ id: 'p1', default: true }] } });
     if (method === 'GET' && url.includes(`/${SRC}/users?`)) return json({ _embedded: { users: match(srcUsers, filter) } });
     if (method === 'GET' && url.includes(`/${DST}/users?`)) return json({ _embedded: { users: match(dstUsers, filter) } });
@@ -58,11 +60,57 @@ function fakePingOne({ srcUsers, dstUsers, members = [], first404 = false, hasRo
 
 const quiet = () => {};
 
-test('skips when there is no separate Privilege env', async () => {
+test('skips when there is no separate Privilege env and the demo env has no Privilege app', async () => {
+  const p = fakePingOne({ srcUsers: [], dstUsers: [] });
+  const r = await syncPrivilegeUsers({ env: { ...env, PRIVILEGE_CONSOLE_ENV_ID: SRC }, fetchImpl: p.fetchImpl, log: quiet });
+  expect(r.skipped).toBe(true);
+  expect(p.calls.filter((c) => c.startsWith('POST') && !c.includes('/as/token'))).toEqual([]);
+});
+
+test('skips without calling PingOne when no separate env is set and the worker credentials are missing', async () => {
   const fetchImpl = jest.fn();
-  const r = await syncPrivilegeUsers({ env: { ...env, PRIVILEGE_CONSOLE_ENV_ID: SRC }, fetchImpl, log: quiet });
+  const r = await syncPrivilegeUsers({ env: { PINGONE_ENVIRONMENT_ID: SRC }, fetchImpl, log: quiet });
   expect(r.skipped).toBe(true);
   expect(fetchImpl).not.toHaveBeenCalled();
+});
+
+describe('one-environment setup (Privilege added to the demo env itself)', () => {
+  const oneEnv = { ...env, PRIVILEGE_CONSOLE_ENV_ID: undefined };
+  const alice = { id: 's1', username: 'alice@example.com', email: 'alice@example.com' };
+
+  test('creates PrivilegeAdmins when missing and adds the demo accounts, creating no users', async () => {
+    const p = fakePingOne({ srcUsers: [alice], dstUsers: [], privilegeApp: true, noGroup: true });
+    const r = await syncPrivilegeUsers({ env: oneEnv, fetchImpl: p.fetchImpl, log: quiet });
+    expect(r.created).toEqual([]);
+    expect(r.added).toEqual(['alice@example.com']);
+    expect(p.members).toEqual(['s1']);
+    expect(p.calls).toContain(`POST https://api.pingone.com/v1/environments/${SRC}/groups`);
+  });
+
+  test('uses the existing group and is a no-op the second time', async () => {
+    const p = fakePingOne({ srcUsers: [alice], dstUsers: [], privilegeApp: true, members: ['s1'] });
+    const r = await syncPrivilegeUsers({ env: oneEnv, fetchImpl: p.fetchImpl, log: quiet });
+    expect(r.ok).toEqual(['alice@example.com']);
+    expect(p.calls.filter((c) => c.startsWith('POST') && !c.includes('/as/token'))).toEqual([]);
+  });
+
+  test('also works when PRIVILEGE_CONSOLE_ENV_ID equals the demo env', async () => {
+    const p = fakePingOne({ srcUsers: [alice], dstUsers: [], privilegeApp: true });
+    const r = await syncPrivilegeUsers({ env: { ...env, PRIVILEGE_CONSOLE_ENV_ID: SRC }, fetchImpl: p.fetchImpl, log: quiet });
+    expect(r.added).toEqual(['alice@example.com']);
+  });
+
+  test('dry run writes nothing, not even the group', async () => {
+    const p = fakePingOne({ srcUsers: [alice], dstUsers: [], privilegeApp: true, noGroup: true });
+    await syncPrivilegeUsers({ env: oneEnv, fetchImpl: p.fetchImpl, log: quiet, dryRun: true });
+    expect(p.calls.filter((c) => c.startsWith('POST') && !c.includes('/as/token'))).toEqual([]);
+    expect(p.members).toHaveLength(0);
+  });
+
+  test('a failed group create stops with a clear error', async () => {
+    const p = fakePingOne({ srcUsers: [alice], dstUsers: [], privilegeApp: true, noGroup: true, groupCreateStatus: 403 });
+    await expect(syncPrivilegeUsers({ env: oneEnv, fetchImpl: p.fetchImpl, log: quiet })).rejects.toThrow(/could not create group PrivilegeAdmins/);
+  });
 });
 
 test('creates a missing demo user in the Privilege env and adds it to the group, retrying a fresh-user 404', async () => {
