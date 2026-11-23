@@ -96,6 +96,14 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
 - `McpAppConfig.EntryPath` does not recompute on PUT; a fresh create sets it right.
 - A POST that already exists → 500 (app) or 409 (key), not a friendly duplicate error.
   Make scripts idempotent: skip create when the new name is already present.
+- A door that accepts **PingFederate tokens** has its name in more places than Privilege. Renaming `pftoken` and deleting `testobo` on 2026-11-23 left every token
+  minted for the old URLs useless (gateway `token_not_found`, PingFederate `invalid_target`). When you rename or recreate such a door, move the door URL in all of:
+  the console identity's audience (`PFtoken`, `PFtoken-testobo`), the PingFederate access token manager's Audience Claim Value (and Resource URI where it has one;
+  `routeCTestAtm`, `testoboAgentAtm`), the token-exchange SP connection's entity ID and resource URI (`aiDemoPfPrivilegeOboSp`), the token processor's Allowed Audiences
+  (`aiDemoPfAccessSubjectProcessor`), and the lab's door URL. Then confirm a live call: 200 with a real token, 401 with a made-up one.
+- A key that authenticates by an identity's token must have the **identity as its custodian** (`CustodianRef` kind `NonHumanIdentity`) and no `VirtualKey`; a stored
+  virtual key cannot be cleared by PUT, so a key built from a user-custodian template has to be deleted and recreated under the same name. `lab-pftoken-key` and
+  `lab-obo-pf-key` are bound to `PFtoken` and `PFtoken-testobo` this way.
 
 ## 5. Families and the tag map
 
@@ -168,3 +176,4 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | Rulebook created: grammar, full/limited/blocked trio, key rules, rename procedure, families (PRs #3686, #3687) | Tenant cleanup after the Pingid-privilege rebuild |
 | 2026-11-23 | Made binding for all repos and agents (§0); drift test added; §8 gateway scheme added; full family list recorded in §5 | Owner request: one naming standard, kept current as apps change |
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
+| 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new trap about PingFederate-side audiences | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
