@@ -8,7 +8,7 @@
 .ucd-back { color: var(--th-status-info-text); font-size: var(--font-size-2xs); font-weight: 700; text-decoration: none; }
 .ucd-back:hover { text-decoration: underline; }
 .ucd-meta { color: var(--th-text-body); font-size: var(--font-size-2xs); }
-.ucd-desc { color: var(--th-text-body); max-width: 110ch; margin: 6px 0 0; font-size: 13px; }
+.ucd-desc { color: var(--th-text-body); max-width: 110ch; margin: 6px 0 0; font-size: var(--font-size-sm); }
 .ucd-value { color: var(--th-text-body); font-size: 12px; margin: 4px 0 0; }
 .ucd-value span { color: var(--th-status-info); font-size: var(--font-size-3xs); letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
 

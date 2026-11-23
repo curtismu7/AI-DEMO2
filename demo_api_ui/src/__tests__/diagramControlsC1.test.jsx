@@ -49,6 +49,9 @@ describe("diagram controls — batch c1", () => {
     expect(draggable()).toBe(true);
     expect(screen.getByRole("button", { name: /^Play$/ })).toBeTruthy();
     expect(hasSpeed()).toBe(true);
+    // Cold state: the first "Next hop" starts the walkthrough paused on step 1 (fc8d09f2d); the second advances.
+    fireEvent.click(screen.getByRole("button", { name: /Next hop/ }));
+    expect(screen.getByText(/Step 1 of/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Next hop/ }));
     expect(screen.getByText(/Step 2 of/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Reset$/ }));

@@ -1845,6 +1845,7 @@ export default function AdminSideNav({
       { label: "Page Catalog", path: "/page-catalog" },
       { label: "Intent binding (learn)", path: "/intent-binding-learning", icon: "doc" },
       "SPIFFE → PingOne Bridge (TODO)",
+      "SPIFFE → Privilege Gateway (live)",
       "llama-vscode Guide",
     ], "arc"),
     productGroup("Administration", [

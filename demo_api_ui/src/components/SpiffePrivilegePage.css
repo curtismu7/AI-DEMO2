@@ -14,8 +14,9 @@
 
 .spfp-intro code {
   background: var(--th-surface-raised, rgba(127, 127, 127, 0.12));
+  color: var(--th-text);
   padding: 0.05rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .spfp-intro__chain {
@@ -37,6 +38,7 @@
 }
 
 .spfp-card {
+  color: var(--th-text);
   border: 1px solid var(--th-border, rgba(127, 127, 127, 0.35));
   border-radius: 10px;
   padding: 1rem 1.1rem;
@@ -59,7 +61,7 @@
 
 .spfp-card__head h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--font-size-md);
 }
 
 .spfp-pill {
@@ -68,19 +70,22 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
 .spfp-pill--ok { background: var(--spfp-ok); color: var(--th-surface, #fff); }
 .spfp-pill--refused { background: var(--spfp-refused); color: var(--th-surface, #fff); }
 .spfp-pill--error { background: var(--spfp-error); color: var(--th-surface, #fff); }
-.spfp-pill--idle { background: var(--th-surface-raised, rgba(127, 127, 127, 0.2)); color: var(--th-text, inherit); }
+.spfp-pill--idle {
+  background: var(--th-surface-raised, rgba(127, 127, 127, 0.2));
+  color: var(--th-text, inherit);
+}
 
 .spfp-card__tagline,
 .spfp-card__expectation {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--font-size-body);
   line-height: 1.5;
 }
 
@@ -92,7 +97,7 @@
 .spfp-card__verdict {
   margin: 0.25rem 0 0;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--font-size-body);
   line-height: 1.4;
 }
 
@@ -108,7 +113,7 @@
 .spfp-card__error {
   margin: 0.25rem 0 0;
   color: var(--spfp-error);
-  font-size: 0.85rem;
+  font-size: var(--font-size-body);
   word-break: break-word;
 }
 
@@ -116,10 +121,10 @@
   align-self: flex-start;
   margin-top: 0.35rem;
   padding: 0.45rem 1rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border, rgba(127, 127, 127, 0.4));
-  background: var(--th-accent, var(--th-text, #333));
-  color: var(--th-surface, #fff);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
   font-weight: 600;
   cursor: pointer;
 }
@@ -131,7 +136,7 @@
 
 .spfp-details {
   margin-top: 0.5rem;
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .spfp-details summary {
@@ -148,20 +153,21 @@
 
 .spfp-details h4 {
   margin: 0 0 0.3rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.8;
 }
 
 .spfp-details pre {
+  color: var(--th-text);
   margin: 0;
   padding: 0.6rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-surface-raised, rgba(127, 127, 127, 0.1));
   overflow: auto;
   max-height: 220px;
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -171,12 +177,13 @@
   max-width: 1100px;
   margin: 2rem auto 0;
   padding: 0 1.5rem;
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   opacity: 0.85;
 }
 
 .spfp-footer code {
   background: var(--th-surface-raised, rgba(127, 127, 127, 0.12));
+  color: var(--th-text);
   padding: 0.05rem 0.3rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
