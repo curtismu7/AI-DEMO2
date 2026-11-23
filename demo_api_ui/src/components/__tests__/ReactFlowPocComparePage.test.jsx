@@ -51,7 +51,7 @@ describe("ReactFlowPocComparePage", () => {
   });
 
   /* eslint-disable testing-library/no-node-access, testing-library/no-container -- React Flow nodes have no role; the "draggable" class is what shows they move */
-  it("diagram rule: both tabs have Simulate, Reset and speed; Flow nodes are draggable", () => {
+  it("diagram rule: both tabs have Simulate, Step and speed; Flow nodes are draggable", () => {
     const { container } = renderPage();
     const nodes = container.querySelectorAll(".react-flow__node");
     expect(nodes.length).toBeGreaterThan(0);
@@ -59,7 +59,8 @@ describe("ReactFlowPocComparePage", () => {
     for (const tab of ["Flow", "Sequence"]) {
       fireEvent.click(screen.getAllByRole("tab", { name: tab })[0]);
       expect(screen.getByText("Simulate")).toBeTruthy();
-      expect(screen.getByText("↺ Reset")).toBeTruthy();
+      // Idle controls start the walkthrough stepped (fc8d09f2d, 26330179d): "Step →" replaces the idle Reset button.
+      expect(screen.getByText("Step →")).toBeTruthy();
       expect(container.querySelector(".dc-steptime-select")).toBeTruthy();
     }
     expect(screen.getByTestId("rfps-diagram")).toBeTruthy();
