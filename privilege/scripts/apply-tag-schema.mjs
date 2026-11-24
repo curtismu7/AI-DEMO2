@@ -115,7 +115,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-idjag',
-    regex: '^(obo-idjag-test|pftoken|pftoken-rs|testobo|lab-obo-full|lab-pftoken-(full|limited))$',
+    regex: '^(obo-idjag-test|pftoken|pftoken-rs|testobo|lab-obo-full|lab-obo-pf|lab-pftoken-(full|limited))$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
   },
   {
@@ -162,7 +162,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-key-idjag',
-    regex: '^(pftoken-agent|pftoken-wl|tmp-pf-route-c-key|testobo-agent|privilege-logging-lab-fed|lab-pftoken-key)$',
+    regex: '^(pftoken-agent|pftoken-wl|tmp-pf-route-c-key|testobo-agent|privilege-logging-lab-fed|lab-pftoken-key|lab-obo-pf-key)$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
   },
   {
@@ -195,7 +195,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-lab-idjag',
-    regex: '^lab-(obo-full-permit|pftoken-(full|limited)-permit|pftoken-key-grant)$',
+    regex: '^lab-(obo-full-permit|obo-pf-(permit|key-grant)|pftoken-(full|limited)-permit|pftoken-key-grant)$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
   },
   // agg222 — stray scratch aggregate app (leftover test create, per

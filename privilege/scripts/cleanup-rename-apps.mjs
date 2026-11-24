@@ -42,6 +42,8 @@ const APPS = [
   ['obo-idjag-test', 'lab-obo-full', ['.*'], 'OBO / ID-JAG test door, all tools.'],
   ['pftoken', 'lab-pftoken-full', ['.*'], 'PingFederate token-exchange test door, all tools.'],
   ['pftoken-rs', 'lab-pftoken-limited', SOME, 'PingFederate token-exchange resource door, limited tools.'],
+  // testobo was deleted by the 2026-11-23 cleanup and recreated the same day by hand as lab-obo-pf (Auth Mode obo; backup of the old door in the cleanup folder)
+  ['testobo', 'lab-obo-pf', ['.*'], 'PingFederate on-behalf-of test door (Auth Mode obo): the gateway makes its own exchange for the resource server, which reports what it received (whoami). All tools.'],
 ];
 // [oldKey, newKey, boundApp-or-null, tools]
 const KEYS = [
@@ -52,6 +54,7 @@ const KEYS = [
   ['agg-delegate', 'lab-agg-delegate-key', 'lab-agg-limited', SOME],
   ['agg-guest', 'lab-agg-guest-key', 'lab-agg-limited', SOME],
   ['pftoken-agent', 'lab-pftoken-key', 'lab-pftoken-full', ['.*']],
+  ['testobo-agent', 'lab-obo-pf-key', 'lab-obo-pf', ['.*']],
 ];
 
 const apps = await list('applications');
