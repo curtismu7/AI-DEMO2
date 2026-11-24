@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const T = 'ea040334-d50b-4ded-8d98-4d5cd14dbd4d';
+// Tenant: 5bfb4e12 from 2026-11-24 (the 2026-11-23 cleanup ran against ea040334). Override with PRIV_TENANT.
+const T = process.env.PRIV_TENANT || '5bfb4e12-8d71-4b81-8ef8-940b91728c05';
 const BASE = `https://local.procyon.ai:8643/api/${T}/v1`;
 const APPLY = process.argv.includes('--apply');
 const BKDIR = '/tmp/priv-cleanup';

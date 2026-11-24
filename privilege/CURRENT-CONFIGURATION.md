@@ -1,5 +1,11 @@
 # PingOne Privilege MCP: current configuration index
 
+> **Privilege tenant from 2026-11-24: `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege").** It replaces
+> `ea040334-d50b-4ded-8d98-4d5cd14dbd4d` ("Pingid-privilege", 2026-11-23), which replaced `4cb38c18…` / `0428ba4f…`.
+> The move is in progress: until the gateway cutover the gateways and lab keys still belong to `ea040334`,
+> and client ids below that name an older tenant are replaced at the cutover. Status and steps:
+> `~/Development/HANDOFF-2026-11-24-finish-move-to-5bfb4e12.md`.
+
 Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one mesh cluster
 (`ai-demo-cmuir`) behind a load balancer, gateway 1 in `ping-devops-curtismuir` and gateway 2 in
 `ping-devops-cmuir`. The table below describes gateway 1; see
@@ -37,7 +43,7 @@ what this repo called "agentless").
 | Namespace | `ping-devops-curtismuir` |
 | Helm release | `agentless-mcpgw` (chart `pingone-privgateway-helm-main/agentless`) |
 | Mesh cluster | `ai-demo-cmuir` |
-| PingOne tenant | `4cb38c18-691a-4201-a99d-b4b8842ca786` ("AI Agent") — changed from `0428ba4f-…` when the desktop app was re-enrolled 2026-11-18 |
+| PingOne tenant | `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege") from 2026-11-24 (move in progress, see the banner); before: `ea040334…` (2026-11-23), `4cb38c18…` / `0428ba4f…` |
 | Agentic App | `opensearch22` |
 | MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` — see "The entry path is derived from the backend URL" |
 | Backend registered as | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` — **`/mcp`, not `/sse`** (corrected 2026-09-08 evening, see the rule below) |

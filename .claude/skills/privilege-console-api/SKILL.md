@@ -38,7 +38,7 @@ with 31 apps, and a no-op object PUT returned 200. The listener
 as loopback-trust and never rely on it from another host.
 
 ```bash
-TENANT='0428ba4f-169c-436b-aff9-b230496e0e3b'
+TENANT='5bfb4e12-8d71-4b81-8ef8-940b91728c05'   # Privilege tenant from 2026-11-24
 curl -sk "https://local.procyon.ai:8643/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
   -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
 ```
@@ -68,9 +68,11 @@ curl -sk "$BASE/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
   random UUID passes (omit it → 400 "Procyon required header is missing"). Treat it as a
   correlation id, not a credential.
 
-## Step 2b — TENANT UUID (corrected 2026-11-19)
+## Step 2b — TENANT UUID (updated 2026-11-24)
 
-The live local tenant is **`0428ba4f-169c-436b-aff9-b230496e0e3b`**. An earlier note
+The Privilege tenant is **`5bfb4e12-8d71-4b81-8ef8-940b91728c05`** ("Pingid_Privillege") from 2026-11-24; before it
+`ea040334-d50b-4ded-8d98-4d5cd14dbd4d` (2026-11-23). The desktop agent answers only for its preferred
+tenant: another tenant's id returns 401 "User is not authorized". History (2026-11-19): the live local tenant was **`0428ba4f-169c-436b-aff9-b230496e0e3b`**. An earlier note
 here claimed the tenant changed to `4cb38c18-691a-4201-a99d-b4b8842ca786` — that was
 WRONG. The `4cb38c18…` id 401s on every call; the UI itself makes all its XHRs
 against `0428ba4f…` and they succeed (31 apps present). Always confirm by watching

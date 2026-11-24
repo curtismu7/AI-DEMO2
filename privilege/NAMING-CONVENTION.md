@@ -1,7 +1,7 @@
 # Privilege Naming Convention (Agentic Apps, Agent Keys, Policies)
 
 **Purpose:** every agent that creates, renames or cleans up objects in the PingOne Privilege
-tenant (local console `https://local.procyon.ai:8643`, tenant `ea040334-d50b-4ded-8d98-4d5cd14dbd4d`)
+tenant (local console `https://local.procyon.ai:8643`, tenant `5bfb4e12-8d71-4b81-8ef8-940b91728c05` from 2026-11-24; was `ea040334-d50b-4ded-8d98-4d5cd14dbd4d`)
 follows this pattern. Established 2026-11-23 in the great tenant cleanup (PR curtismu7/AI-DEMO2#3686);
 this file is the rulebook going forward.
 
@@ -183,3 +183,4 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | Made binding for all repos and agents (§0); drift test added; §8 gateway scheme added; full family list recorded in §5 | Owner request: one naming standard, kept current as apps change |
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
 | 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new traps (PingFederate-side audiences, River policies, write-only OBO secret) | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
+| 2026-11-24 | Tenant changed to `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege"); names and rules unchanged. Objects are replayed under these names during the move | Owner moved Privilege to a new console-made environment; `ea040334` is retired after the move |
