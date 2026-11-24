@@ -162,6 +162,11 @@ logShipping:
   # Name of a Secret with `username` and `password` keys. Set it when the
   # target needs basic auth, e.g. opensearchUrl pointed at Elasticsearch.
   authSecret: ""
+  # Optional second copy of every shipped event, posted to Cribl after the OpenSearch post (never instead of it). Off unless url is set.
+  # authSecret: a Secret with `username` and `password` keys (Basic login Cribl accepts on POST /<index>/_doc only).
+  cribl:
+    url: ""
+    authSecret: ""
 
 # Shared token store for experiments: the name of a Secret holding the gateway's
 # MCPGW_REDIS_URL under `key`. Empty means off, and the gateway keeps its resource

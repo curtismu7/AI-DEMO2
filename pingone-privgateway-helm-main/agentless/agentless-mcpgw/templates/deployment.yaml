@@ -143,6 +143,8 @@ spec:
             lookup nil-safe regardless of how values were supplied.
           */}}
           {{- $ls := .Values.logShipping | default dict }}
+          {{- /* Optional second copy of every shipped event, to Cribl (shared/cribl-siem in AI-DEMO-Standalone). Off unless logShipping.cribl.url is set. */}}
+          {{- $cr := $ls.cribl | default dict }}
           args:
             - |
               until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done
@@ -158,6 +160,16 @@ spec:
                   --post-file=/tmp/gw-event.json \
                   "{{ $ls.opensearchUrl | default "http://opensearch:9200" }}/{{ $ls.index | default "gateway-events" }}/_doc" \
                   2>/dev/null
+                {{- if $cr.url }}
+                # Second copy to Cribl, after the OpenSearch post so a slow or down Cribl never delays or loses that one.
+                # Short timeout, errors ignored: the OpenSearch copy is the one the inspector reads.
+                wget -q -O /dev/null -T 2 \
+                  --header 'Content-Type: application/json' \
+                  --header "Authorization: Basic $(printf '%s:%s' "$CRIBL_USERNAME" "$CRIBL_PASSWORD" | base64 | tr -d '\n')" \
+                  --post-file=/tmp/gw-event.json \
+                  "{{ $cr.url }}/{{ $ls.index | default "gateway-events" }}/_doc" \
+                  2>/dev/null || true
+                {{- end }}
               }
               tail -F /var/log/procyon/cyonproxy.log | while IFS= read -r line; do
                 echo "$line"
@@ -192,8 +204,9 @@ spec:
               {{- else }}
               tail -F /var/log/procyon/cyonproxy.log
               {{- end }}
-          {{- if $ls.authSecret }}
+          {{- if or $ls.authSecret $cr.authSecret }}
           env:
+            {{- if $ls.authSecret }}
             - name: LOG_SHIP_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -204,6 +217,19 @@ spec:
                 secretKeyRef:
                   name: {{ $ls.authSecret }}
                   key: password
+            {{- end }}
+            {{- if $cr.authSecret }}
+            - name: CRIBL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $cr.authSecret }}
+                  key: username
+            - name: CRIBL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $cr.authSecret }}
+                  key: password
+            {{- end }}
           {{- end }}
           volumeMounts:
             - name: logs
