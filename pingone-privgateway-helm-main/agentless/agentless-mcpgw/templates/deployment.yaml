@@ -145,10 +145,17 @@ spec:
           {{- $ls := .Values.logShipping | default dict }}
           {{- /* Optional second copy of every shipped event, to Cribl (shared/cribl-siem in AI-DEMO-Standalone). Off unless logShipping.cribl.url is set. */}}
           {{- $cr := $ls.cribl | default dict }}
+          {{- if and $cr.authSecret (not $cr.url) }}{{ fail "logShipping.cribl.authSecret is set but logShipping.cribl.url is empty: nothing would be sent to Cribl" }}{{ end }}
+          {{- $crUrl := ($cr.url | default "") | trimSuffix "/" }}
+          {{- $crIndex := $cr.index | default ($ls.index | default "gateway-events") }}
           args:
             - |
               until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done
               {{- if $ls.enabled }}
+              {{- if and $crUrl $cr.authSecret }}
+              # Basic header for Cribl, built once (not per event).
+              CRIBL_AUTH="Basic $(printf '%s:%s' "$CRIBL_USERNAME" "$CRIBL_PASSWORD" | base64 | tr -d '\n')"
+              {{- end }}
               # Post /tmp/gw-event.json to the index, if the line produced one.
               ship() {
                 [ -s /tmp/gw-event.json ] || return 0
@@ -160,14 +167,17 @@ spec:
                   --post-file=/tmp/gw-event.json \
                   "{{ $ls.opensearchUrl | default "http://opensearch:9200" }}/{{ $ls.index | default "gateway-events" }}/_doc" \
                   2>/dev/null
-                {{- if $cr.url }}
-                # Second copy to Cribl, after the OpenSearch post so a slow or down Cribl never delays or loses that one.
-                # Short timeout, errors ignored: the OpenSearch copy is the one the inspector reads.
+                {{- if $crUrl }}
+                # Second copy to Cribl, after the OpenSearch post so a slow or down Cribl never loses that one.
+                # busybox wget makes ONE attempt (it has no retry), so a black-holed Cribl costs 2s per event (-T 2),
+                # not more. Errors are ignored: the OpenSearch copy is the one the inspector reads.
                 wget -q -O /dev/null -T 2 \
                   --header 'Content-Type: application/json' \
-                  --header "Authorization: Basic $(printf '%s:%s' "$CRIBL_USERNAME" "$CRIBL_PASSWORD" | base64 | tr -d '\n')" \
+                  {{- if $cr.authSecret }}
+                  --header "Authorization: $CRIBL_AUTH" \
+                  {{- end }}
                   --post-file=/tmp/gw-event.json \
-                  "{{ $cr.url }}/{{ $ls.index | default "gateway-events" }}/_doc" \
+                  "{{ $crUrl }}/{{ $crIndex }}/_doc" \
                   2>/dev/null || true
                 {{- end }}
               }
