@@ -16,7 +16,7 @@ own client. Every command and error string here was observed, not inferred.
 | Chart | `pingone-privgateway-helm-main/agentless/agentless-mcpgw-0.1.0.tgz` |
 | Host | `mcpgw.ai-demo.ping-devops.com` (external-dns publishes it from the ingress) |
 | Cluster ID | `ai-demo-cmuir` (the `clusterID` in the enrollment token) |
-| PingOne tenant | `0428ba4f-169c-436b-aff9-b230496e0e3b` — "AI Agent" |
+| PingOne tenant | `5bfb4e12-8d71-4b81-8ef8-940b91728c05` — "Pingid_Privillege" from 2026-11-24 (gateways move at the cutover; until then they are enrolled to `ea040334…`; read the `tenantName` in the node's enrolment token to check) |
 | Client URL | `https://mcpgw.ai-demo.ping-devops.com/<AgenticAppName>/mcp` |
 
 **This chart prefixes nothing.** Its objects are `opensearch-mcp-server`,
@@ -355,5 +355,5 @@ modes with the log lines that distinguish them.
 | `Error finding next hop to <cluster>. Cluster not found` | app's Mesh Cluster names a torn-down gateway; set it to `ai-demo-cmuir` |
 | MCP client hangs forever | pointed at `svc.cluster.local`, or at a `*.applications.procyon.ai:8643` agent frontend (this chart exposes no inbound mesh port) |
 | Authorize redirects with empty `client_id` | pod still running pre-`helm upgrade` OIDC config; restart |
-| Console shows apps you did not create / your edits do not appear | wrong tenant. The gateway's tenant is `0428ba4f`; open the console from the agent menu bar and check the tenant name |
+| Console shows apps you did not create / your edits do not appear | wrong tenant. The gateway's tenant is `5bfb4e12` (from 2026-11-24); open the console from the agent menu bar and check the tenant name |
 | `404 NOT_FOUND` opening the app from the PingOne portal | expected — the gateway's OIDC client has no initiate-login URI; start from the client instead |
