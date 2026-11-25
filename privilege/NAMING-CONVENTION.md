@@ -134,7 +134,7 @@ Every `tag-map-*` family currently in the script (the drift test keeps this list
 `tag-map-banking`, `tag-map-aggregate`, `tag-map-opensearch`, `tag-map-hostile`, `tag-map-a2a`, `tag-map-catalog`, `tag-map-infra`, `tag-map-idjag`,
 `tag-map-meridian`, `tag-map-muse`, `tag-map-key-aggregate`, `tag-map-key-a2a`, `tag-map-key-lab-banking`, `tag-map-key-llm`, `tag-map-key-logging`,
 `tag-map-key-idjag`, `tag-map-key-obs`, `tag-map-pol-lab-banking`, `tag-map-pol-lab-idjag`, `tag-map-pol-river`, `tag-map-pol-opensearch`,
-`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`, `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`.
+`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`, `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`, `tag-map-banking-hitl`, `tag-map-pol-banking-hitl`.
 
 Adding a family: edit `FAMILIES` in the script, follow the existing comment style
 ("Edit HERE when apps are added or renamed"), then re-run and require `orphan 0`.
