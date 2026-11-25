@@ -156,11 +156,6 @@ const FAMILIES = [
     tags: { env: 'demo', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
   },
   {
-    name: 'tag-map-pol-lab-banking',
-    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
-    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
-  },
-  {
     name: 'tag-map-key-idjag',
     regex: '^(pftoken-agent|pftoken-wl|tmp-pf-route-c-key|testobo-agent|privilege-logging-lab-fed|lab-pftoken-key|lab-obo-pf-key)$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'id-jag-test', protection: 'governed' },
@@ -219,9 +214,10 @@ const FAMILIES = [
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   // lab-banking / lab-obo / lab-pftoken door permits and key grants
+  // (single declaration: the broader regex also covers aws-agent-worker-permit and priv-log-agent-grant)
   {
     name: 'tag-map-pol-lab-banking',
-    regex: '^lab-banking-(full|limited)(-permit|-key-grant)?$',
+    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -289,7 +285,11 @@ async function tagObject(kind, path, obj, name) {
       };
       if (byName.has(fam.name)) {
         const cur = byName.get(fam.name);
-        if (cur.RegExPattern === fam.regex && JSON.stringify(cur.Tags?.Map || {}) === JSON.stringify(fam.tags)) {
+        // deep-compare: JSON.stringify is key-order-sensitive and the console reorders keys,
+        // which made every family report "differs" and PUT on every run
+        const tagsEqual = Object.keys(cur.Tags?.Map || {}).length === Object.keys(fam.tags).length &&
+          Object.keys(fam.tags).every((k) => (cur.Tags?.Map || {})[k] === fam.tags[k]);
+        if (cur.RegExPattern === fam.regex && tagsEqual) {
           console.log(`  = ${fam.name} up to date`);
         } else {
           console.log(`  ~ ${fam.name} differs — PUT${DRY ? ' (dry-run)' : ''}`);
