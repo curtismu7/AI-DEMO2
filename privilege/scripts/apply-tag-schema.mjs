@@ -136,7 +136,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-key-a2a',
-    regex: '^(langchain-caller|main-agent|worker-agent|aws-agent-caller|aws-agent-worker)$',
+    regex: '^(langchain-caller|lab-a2a-(main|worker)-key|aws-agent-caller|aws-agent-worker)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
   },
   // gateway-client lab banking keys + LLM proxy keys
@@ -177,12 +177,12 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-key-hitl',
-    regex: '^lab-opensearch-hitl-key$',
+    regex: '^(lab-opensearch-hitl-key|lab-hitl-mfa(-key)?)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   {
     name: 'tag-map-pol-hitl',
-    regex: '^lab-opensearch-hitl-key-grant$',
+    regex: '^(lab-opensearch-hitl-key-grant|lab-hitl-mfa-(permit|key-grant))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   // HITL banking door (lab-banking-hitl, added 2026-11-25 by the move session)
@@ -193,7 +193,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-banking-hitl',
-    regex: '^lab-banking-hitl-(permit|key-grant)$',
+    regex: '^(lab-banking-hitl-(permit|key-grant)|lab-hitl-mfa)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   // PAC policies: console-generated per-principal "River-*" objects and
@@ -234,7 +234,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-a2a',
-    regex: '^MainAgentA2aMcpTools$',
+    regex: '^(lab-a2a-main-key-grant|MainAgentA2aMcpTools)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
   },
 ];
