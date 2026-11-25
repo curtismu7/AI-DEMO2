@@ -188,7 +188,12 @@ const FAMILIES = [
   // HITL banking door (lab-banking-hitl, added 2026-11-25 by the move session)
   {
     name: 'tag-map-banking-hitl',
-    regex: '^(lab-banking-hitl|lab-hitl-mfa)(-key(-grant)?)?$',
+    regex: '^lab-banking-hitl(-key(-grant)?)?$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-banking-hitl',
+    regex: '^(lab-banking-hitl-(permit|key-grant)|lab-hitl-mfa)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   // PAC policies: console-generated per-principal "River-*" objects and

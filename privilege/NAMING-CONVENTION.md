@@ -106,7 +106,9 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
   accepted. After a rename, list every policy and repoint those rules (`KarunRiver` for `PFtoken`, `StillwaterRiver` for `PFtoken-testobo`). A key-bound grant written
   before a key was deleted and recreated also stays stale; recreate it after the key.
 - An `obo` door's **client secret is write-only**: a copy made from a backup has no secret, and the gateway's own exchange fails with `invalid_client` (door answers 502).
-  Re-enter it in the console (for the PingFederate client `privilege-gw-obo` it is the vault secret `PF_GW_OBO_CLIENT_SECRET`) after every recreate.
+  Re-enter it in the console (for the PingFederate client `privilege-gw-obo` the secret is `PF_GW_OBO_CLIENT_SECRET` in the **repo's encrypted vault** —
+  `AI-DEMO2/secrets.vault`, unlocked by `VAULT_PASSWORD` in `demo_api_server/.env`, read with `node demo_api_server/scripts/vault.js get PF_GW_OBO_CLIENT_SECRET`;
+  NOT a Bitwarden item) after every recreate.
 - A key that authenticates by an identity's token must have the **identity as its custodian** (`CustodianRef` kind `NonHumanIdentity`) and no `VirtualKey`; a stored
   virtual key cannot be cleared by PUT, so a key built from a user-custodian template has to be deleted and recreated under the same name. `lab-pftoken-key` and
   `lab-obo-pf-key` are bound to `PFtoken` and `PFtoken-testobo` this way.
@@ -134,8 +136,7 @@ Every `tag-map-*` family currently in the script (the drift test keeps this list
 `tag-map-banking`, `tag-map-aggregate`, `tag-map-opensearch`, `tag-map-hostile`, `tag-map-a2a`, `tag-map-catalog`, `tag-map-infra`, `tag-map-idjag`,
 `tag-map-meridian`, `tag-map-muse`, `tag-map-key-aggregate`, `tag-map-key-a2a`, `tag-map-key-lab-banking`, `tag-map-key-llm`, `tag-map-key-logging`,
 `tag-map-key-idjag`, `tag-map-key-obs`, `tag-map-pol-lab-banking`, `tag-map-pol-lab-idjag`, `tag-map-pol-river`, `tag-map-pol-opensearch`,
-`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`, `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`,
-`tag-map-banking-hitl`.
+`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`, `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`, `tag-map-banking-hitl`, `tag-map-pol-banking-hitl`.
 
 Adding a family: edit `FAMILIES` in the script, follow the existing comment style
 ("Edit HERE when apps are added or renamed"), then re-run and require `orphan 0`.
@@ -185,4 +186,7 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
 | 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new traps (PingFederate-side audiences, River policies, write-only OBO secret) | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
 | 2026-11-24 | Tenant changed to `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege"); names and rules unchanged. Objects are replayed under these names during the move | Owner moved Privilege to a new console-made environment; `ea040334` is retired after the move |
+<<<<<<< HEAD
+| 2026-11-25 | Aggregate doors renamed on the new tenant (`aggregate*` → `lab-agg-full/limited/blocked`); SPIFFE lab objects added (`lab-spiffe-issuer-key`, `lab-spiffe-issuer-key-grant`, identity `spiffe-issuer-lab-svid`); new families `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`; `lab-agent` and the `lab-agent-aggregate*` grants folded into the aggregate families; `LM-Stuidio`, `audit-test`, `local` folded into `tag-map-key-llm` | Replay fork (b): the 11-17 export replayed by an earlier session; post-export objects redone by hand; tool lists in key-bound grants must use member-aliased names (`<member>__<tool>`) |
+| 2026-11-25 | `lab-banking-hitl` (door), `lab-banking-hitl-permit`, `lab-banking-hitl-key`, `lab-banking-hitl-key-grant`, `lab-banking-hitl-hold` (AI policy) added for the HITL MFA lab's real mode; `tag-map-banking`, `tag-map-key-lab-banking` and `tag-map-pol-lab-banking` extended to match. System `banking`, variant `hitl` (feature word, §1). Spec: `privilege/specs/2026-11-25-hitl-mfa-door.md` | The lab's real-mode key died with the retired tenant `ea040334`; rebuilt fresh per this convention (`create-hitl-banking-door.py`) |
 | 2026-11-25 | A2A lab keys renamed on the new tenant: `main-agent` → `lab-a2a-main-key`, `worker-agent` → `lab-a2a-worker-key`; grant `MainAgentA2aMcpTools` recreated as `lab-a2a-main-key-grant`; River policies `BeniRiver-334766334b4b` and `WisconsinRiver-717544326454` repointed in place; `tag-map-key-a2a` / `tag-map-pol-a2a` regexes updated, and `lab-hitl-mfa*` folded into the HITL families (script §5). Lab `.env` (`privilege-a2a-anthropic-demo-LAB`) migrated to the fresh key values | Bring the A2A lab's keys into the naming standard (rename procedure §4) |
