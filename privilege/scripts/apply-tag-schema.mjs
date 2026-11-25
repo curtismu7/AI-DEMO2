@@ -131,7 +131,7 @@ const FAMILIES = [
   // Agent access keys (keys inherit the family of the app they call)
   {
     name: 'tag-map-key-aggregate',
-    regex: '^(agg-(delegate|guest)|lab-agg(-(delegate|guest))?-key)$',
+    regex: '^(agg-(delegate|guest)|lab-agent|lab-agg(-(delegate|guest))?-key)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   {
@@ -147,7 +147,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-key-llm',
-    regex: '^(anthropic|openai|ollama|groq|llama\\.cpp|meta\\.[a-z0-9.-]+|pgc-agent-llm)$',
+    regex: '^(anthropic|openai|ollama|groq|llama\\.cpp|meta\\.[a-z0-9.-]+|pgc-agent-llm|LM-Stuidio|audit-test|local)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'llm-proxy', protection: 'governed' },
   },
   {
@@ -170,6 +170,26 @@ const FAMILIES = [
     regex: '^obs-logging-test$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
   },
+  {
+    name: 'tag-map-key-spiffe',
+    regex: '^lab-spiffe-issuer-key$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'spiffe-identity-lab', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-spiffe',
+    regex: '^lab-spiffe-issuer-key-grant$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'spiffe-identity-lab', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-key-hitl',
+    regex: '^lab-opensearch-hitl-key$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-hitl',
+    regex: '^lab-opensearch-hitl-key-grant$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
+  },
   // PAC policies: console-generated per-principal "River-*" objects and
   // per-door permit rules. Policy names echo the app family they govern.
   {
@@ -184,7 +204,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-aggregate',
-    regex: '^(agg-(delegate|guest)-aggregate-limited|lab-agg-(delegate|guest)-key-grant|lab-agg-(full|limited)-permit|lab-agg-key-grant)$',
+    regex: '^(agg-(delegate|guest)-aggregate-limited|lab-agent-aggregate(-limited|-none)?|lab-agg-(delegate|guest)-key-grant|lab-agg-(full|limited)-permit|lab-agg-key-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   // lab-banking / lab-obo / lab-pftoken door permits and key grants
