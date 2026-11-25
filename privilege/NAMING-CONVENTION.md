@@ -134,7 +134,7 @@ Every `tag-map-*` family currently in the script (the drift test keeps this list
 `tag-map-banking`, `tag-map-aggregate`, `tag-map-opensearch`, `tag-map-hostile`, `tag-map-a2a`, `tag-map-catalog`, `tag-map-infra`, `tag-map-idjag`,
 `tag-map-meridian`, `tag-map-muse`, `tag-map-key-aggregate`, `tag-map-key-a2a`, `tag-map-key-lab-banking`, `tag-map-key-llm`, `tag-map-key-logging`,
 `tag-map-key-idjag`, `tag-map-key-obs`, `tag-map-pol-lab-banking`, `tag-map-pol-lab-idjag`, `tag-map-pol-river`, `tag-map-pol-opensearch`,
-`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`.
+`tag-map-pol-aggregate`, `tag-map-pol-a2a`, `tag-map-scratch`, `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`.
 
 Adding a family: edit `FAMILIES` in the script, follow the existing comment style
 ("Edit HERE when apps are added or renamed"), then re-run and require `orphan 0`.
@@ -184,3 +184,4 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
 | 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new traps (PingFederate-side audiences, River policies, write-only OBO secret) | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
 | 2026-11-24 | Tenant changed to `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege"); names and rules unchanged. Objects are replayed under these names during the move | Owner moved Privilege to a new console-made environment; `ea040334` is retired after the move |
+| 2026-11-25 | Aggregate doors renamed on the new tenant (`aggregate*` → `lab-agg-full/limited/blocked`); SPIFFE lab objects added (`lab-spiffe-issuer-key`, `lab-spiffe-issuer-key-grant`, identity `spiffe-issuer-lab-svid`); new families `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`; `lab-agent` and the `lab-agent-aggregate*` grants folded into the aggregate families; `LM-Stuidio`, `audit-test`, `local` folded into `tag-map-key-llm` | Replay fork (b): the 11-17 export replayed by an earlier session; post-export objects redone by hand; tool lists in key-bound grants must use member-aliased names (`<member>__<tool>`) |
