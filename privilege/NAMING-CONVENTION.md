@@ -106,7 +106,9 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
   accepted. After a rename, list every policy and repoint those rules (`KarunRiver` for `PFtoken`, `StillwaterRiver` for `PFtoken-testobo`). A key-bound grant written
   before a key was deleted and recreated also stays stale; recreate it after the key.
 - An `obo` door's **client secret is write-only**: a copy made from a backup has no secret, and the gateway's own exchange fails with `invalid_client` (door answers 502).
-  Re-enter it in the console (for the PingFederate client `privilege-gw-obo` it is the vault secret `PF_GW_OBO_CLIENT_SECRET`) after every recreate.
+  Re-enter it in the console (for the PingFederate client `privilege-gw-obo` the secret is `PF_GW_OBO_CLIENT_SECRET` in the **repo's encrypted vault** —
+  `AI-DEMO2/secrets.vault`, unlocked by `VAULT_PASSWORD` in `demo_api_server/.env`, read with `node demo_api_server/scripts/vault.js get PF_GW_OBO_CLIENT_SECRET`;
+  NOT a Bitwarden item) after every recreate.
 - A key that authenticates by an identity's token must have the **identity as its custodian** (`CustodianRef` kind `NonHumanIdentity`) and no `VirtualKey`; a stored
   virtual key cannot be cleared by PUT, so a key built from a user-custodian template has to be deleted and recreated under the same name. `lab-pftoken-key` and
   `lab-obo-pf-key` are bound to `PFtoken` and `PFtoken-testobo` this way.
