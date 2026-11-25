@@ -151,14 +151,9 @@ const FAMILIES = [
     tags: { env: 'demo', source: 'ai-demo2', capability: 'llm-proxy', protection: 'governed' },
   },
   {
-    name: 'tag-map-key-logging',
+     name: 'tag-map-key-logging',
     regex: '^(priv-log-agent|privilege-logging-lab-fed)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
-  },
-  {
-    name: 'tag-map-pol-lab-banking',
-    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
-    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
     name: 'tag-map-key-idjag',
@@ -169,6 +164,46 @@ const FAMILIES = [
     name: 'tag-map-key-obs',
     regex: '^obs-logging-test$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
+  },
+  // lab-agent (step17a of the 5bfb4e12 rebuild: unconstrained aggregate caller)
+  // and its three grants; the lab-agent-aggregate(-limited|-none) grants it holds
+  {
+    name: 'tag-map-key-lab-agent',
+    regex: '^lab-agent$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-lab-agent',
+    regex: '^lab-agent-aggregate(-limited|-none)?$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
+  },
+  // lab-opensearch-hitl-key (+grant): step18/step20, HITL on the opensearch-hitl2 door
+  {
+    name: 'tag-map-key-lab-opensearch-hitl',
+    regex: '^lab-opensearch-hitl-key$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-lab-opensearch-hitl',
+    regex: '^lab-opensearch-hitl-key-grant$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
+  },
+  // lab-spiffe-issuer-key (+grant): the SPIFFE issuer lab's main-agent-shaped key
+  {
+    name: 'tag-map-key-lab-spiffe',
+    regex: '^lab-spiffe-issuer-key$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-lab-spiffe',
+    regex: '^lab-spiffe-issuer-key-grant$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
+  },
+  // LLM-proxy/scratch keys found on 5bfb4e12: provider-local keys and ad-hoc tests
+  {
+    name: 'tag-map-key-llm-local',
+    regex: '^(LM-Stuidio|local|audit-test)$',
+    tags: { env: 'sandbox', source: 'manual', capability: 'llm-proxy', protection: 'governed' },
   },
   // PAC policies: console-generated per-principal "River-*" objects and
   // per-door permit rules. Policy names echo the app family they govern.
@@ -190,7 +225,7 @@ const FAMILIES = [
   // lab-banking / lab-obo / lab-pftoken door permits and key grants
   {
     name: 'tag-map-pol-lab-banking',
-    regex: '^lab-banking-(full|limited)(-permit|-key-grant)?$',
+    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -258,7 +293,12 @@ async function tagObject(kind, path, obj, name) {
       };
       if (byName.has(fam.name)) {
         const cur = byName.get(fam.name);
-        if (cur.RegExPattern === fam.regex && JSON.stringify(cur.Tags?.Map || {}) === JSON.stringify(fam.tags)) {
+        // deep-compare: JSON.stringify is key-order-sensitive and the console reorders keys, which made every PUT report "differs" forever
+        const tagsEqual = JSON.stringify(cur.Tags?.Map || {}) === JSON.stringify(fam.tags) ||
+          JSON.stringify(Object.assign({}, cur.Tags?.Map || {})) === JSON.stringify(Object.assign({}, fam.tags)) ||
+          (Object.keys(cur.Tags?.Map || {}).length === Object.keys(fam.tags).length &&
+            Object.keys(fam.tags).every((k) => (cur.Tags?.Map || {})[k] === fam.tags[k]));
+        if (cur.RegExPattern === fam.regex && tagsEqual) {
           console.log(`  = ${fam.name} up to date`);
         } else {
           console.log(`  ~ ${fam.name} differs — PUT${DRY ? ' (dry-run)' : ''}`);
