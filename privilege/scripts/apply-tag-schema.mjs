@@ -80,7 +80,7 @@ const FAMILIES = [
   // Banking family — governed doors
   {
     name: 'tag-map-banking',
-    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked))$',
+    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked|hitl))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -142,7 +142,7 @@ const FAMILIES = [
   // gateway-client lab banking keys + LLM proxy keys
   {
     name: 'tag-map-key-lab-banking',
-    regex: '^lab-banking-(full|limited|blocked)-key$',
+    regex: '^lab-banking-(full|limited|blocked|hitl)-key$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -157,7 +157,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-lab-banking',
-    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
+    regex: '^(lab-banking-(full|limited|hitl)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
