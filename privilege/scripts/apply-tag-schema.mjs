@@ -80,7 +80,7 @@ const FAMILIES = [
   // Banking family — governed doors
   {
     name: 'tag-map-banking',
-    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked))$',
+    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked|hitl))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -131,34 +131,29 @@ const FAMILIES = [
   // Agent access keys (keys inherit the family of the app they call)
   {
     name: 'tag-map-key-aggregate',
-    regex: '^(agg-(delegate|guest)|lab-agg(-(delegate|guest))?-key)$',
+    regex: '^(agg-(delegate|guest)|lab-agent|lab-agg(-(delegate|guest))?-key)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   {
     name: 'tag-map-key-a2a',
-    regex: '^(langchain-caller|main-agent|worker-agent|aws-agent-caller|aws-agent-worker)$',
+    regex: '^(langchain-caller|lab-a2a-(main|worker)-key|aws-agent-caller|aws-agent-worker)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
   },
   // gateway-client lab banking keys + LLM proxy keys
   {
     name: 'tag-map-key-lab-banking',
-    regex: '^lab-banking-(full|limited|blocked)-key$',
+    regex: '^lab-banking-(full|limited|blocked|hitl)-key$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
     name: 'tag-map-key-llm',
-    regex: '^(anthropic|openai|ollama|groq|llama\\.cpp|meta\\.[a-z0-9.-]+|pgc-agent-llm)$',
+    regex: '^(anthropic|openai|ollama|groq|llama\\.cpp|meta\\.[a-z0-9.-]+|pgc-agent-llm|LM-Stuidio|audit-test|local)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'llm-proxy', protection: 'governed' },
   },
   {
     name: 'tag-map-key-logging',
     regex: '^(priv-log-agent|privilege-logging-lab-fed)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
-  },
-  {
-    name: 'tag-map-pol-lab-banking',
-    regex: '^(lab-banking-(full|limited)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
-    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
     name: 'tag-map-key-idjag',
@@ -169,6 +164,32 @@ const FAMILIES = [
     name: 'tag-map-key-obs',
     regex: '^obs-logging-test$',
     tags: { env: 'sandbox', source: 'ai-demo2', capability: 'logging-test', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-key-spiffe',
+    regex: '^lab-spiffe-issuer-key$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'spiffe-identity-lab', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-spiffe',
+    regex: '^lab-spiffe-issuer-key-grant$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'spiffe-identity-lab', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-key-hitl',
+    regex: '^(lab-opensearch-hitl-key|lab-hitl-mfa(-key)?)$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
+  },
+  {
+    name: 'tag-map-pol-hitl',
+    regex: '^(lab-opensearch-hitl-key-grant|lab-hitl-mfa-(permit|key-grant))$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
+  },
+  // HITL banking door (lab-banking-hitl, added 2026-11-25 by the move session)
+  {
+    name: 'tag-map-banking-hitl',
+    regex: '^(lab-banking-hitl|lab-hitl-mfa)(-key(-grant)?)?$',
+    tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   // PAC policies: console-generated per-principal "River-*" objects and
   // per-door permit rules. Policy names echo the app family they govern.
@@ -184,13 +205,14 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-aggregate',
-    regex: '^(agg-(delegate|guest)-aggregate-limited|lab-agg-(delegate|guest)-key-grant|lab-agg-(full|limited)-permit|lab-agg-key-grant)$',
+    regex: '^(agg-(delegate|guest)-aggregate-limited|lab-agent-aggregate(-limited|-none)?|lab-agg-(delegate|guest)-key-grant|lab-agg-(full|limited)-permit|lab-agg-key-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'multi-server-aggregate', protection: 'governed' },
   },
   // lab-banking / lab-obo / lab-pftoken door permits and key grants
+  // (single declaration: the broader regex also covers the hitl variant, aws-agent-worker-permit and priv-log-agent-grant)
   {
     name: 'tag-map-pol-lab-banking',
-    regex: '^lab-banking-(full|limited)(-permit|-key-grant)?$',
+    regex: '^(lab-banking-(full|limited|hitl)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -207,7 +229,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-a2a',
-    regex: '^MainAgentA2aMcpTools$',
+    regex: '^(lab-a2a-main-key-grant|MainAgentA2aMcpTools)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
   },
 ];
@@ -258,7 +280,11 @@ async function tagObject(kind, path, obj, name) {
       };
       if (byName.has(fam.name)) {
         const cur = byName.get(fam.name);
-        if (cur.RegExPattern === fam.regex && JSON.stringify(cur.Tags?.Map || {}) === JSON.stringify(fam.tags)) {
+        // deep-compare: JSON.stringify is key-order-sensitive and the console reorders keys,
+        // which made every family report "differs" and PUT on every run
+        const tagsEqual = Object.keys(cur.Tags?.Map || {}).length === Object.keys(fam.tags).length &&
+          Object.keys(fam.tags).every((k) => (cur.Tags?.Map || {})[k] === fam.tags[k]);
+        if (cur.RegExPattern === fam.regex && tagsEqual) {
           console.log(`  = ${fam.name} up to date`);
         } else {
           console.log(`  ~ ${fam.name} differs — PUT${DRY ? ' (dry-run)' : ''}`);
