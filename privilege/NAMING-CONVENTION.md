@@ -80,8 +80,13 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
    `UUID/CreatedAt/UpdatedAt/RevisionID`, replace the name in `ObjectMeta.Name`,
    `ObjectMeta.ID` = base64(`{tenant}@@@default@@@{name}`), and in every
    `*.applications.procyon.ai` URL).
-4. **Migrate consumers** (`.env` files, lab code, docs, tests) to the new names **before**
-   deleting the old object, and restart the consuming lab.
+ 4. **Migrate consumers** (`.env` files, lab code, docs, tests) to the new names **before**
+    deleting the old object, and restart the consuming lab. **Include cluster Secrets**:
+    a lab served from k8s reads its key from a Secret (e.g. the A2A lab's
+    `workeragentdemo2` door reads `WORKER_AGENT_KEY` from Secret
+    `privilege-a2a-demo-pingid`, namespace `ping-devops-cmuir`) — patch the Secret and
+    roll the Deployment (`kubectl set env … RELOAD=<ts>`), or the door keeps
+    authenticating with the deleted old key and the hop 401s after the rename.
 5. **Delete** the old object — and any old policies/grants that named it.
 6. **Re-run** `node privilege/scripts/apply-tag-schema.mjs --tenant <T> --key ... --secret ...`
    and require `orphan 0`. Add/extend a `tag-map-*` family in that script if the new name
@@ -186,6 +191,5 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
 | 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new traps (PingFederate-side audiences, River policies, write-only OBO secret) | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
 | 2026-11-24 | Tenant changed to `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege"); names and rules unchanged. Objects are replayed under these names during the move | Owner moved Privilege to a new console-made environment; `ea040334` is retired after the move |
-| 2026-11-25 | Aggregate doors renamed on the new tenant (`aggregate*` → `lab-agg-full/limited/blocked`); SPIFFE lab objects added (`lab-spiffe-issuer-key`, `lab-spiffe-issuer-key-grant`, identity `spiffe-issuer-lab-svid`); new families `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`; `lab-agent` and the `lab-agent-aggregate*` grants folded into the aggregate families; `LM-Stuidio`, `audit-test`, `local` folded into `tag-map-key-llm` | Replay fork (b): the 11-17 export replayed by an earlier session; post-export objects redone by hand; tool lists in key-bound grants must use member-aliased names (`<member>__<tool>`) |
-| 2026-11-25 | `lab-banking-hitl` (door), `lab-banking-hitl-permit`, `lab-banking-hitl-key`, `lab-banking-hitl-key-grant`, `lab-banking-hitl-hold` (AI policy) added for the HITL MFA lab's real mode; `tag-map-banking`, `tag-map-key-lab-banking` and `tag-map-pol-lab-banking` extended to match. System `banking`, variant `hitl` (feature word, §1). Spec: `privilege/specs/2026-11-25-hitl-mfa-door.md` | The lab's real-mode key died with the retired tenant `ea040334`; rebuilt fresh per this convention (`create-hitl-banking-door.py`) |
 | 2026-11-25 | A2A lab keys renamed on the new tenant: `main-agent` → `lab-a2a-main-key`, `worker-agent` → `lab-a2a-worker-key`; grant `MainAgentA2aMcpTools` recreated as `lab-a2a-main-key-grant`; River policies `BeniRiver-334766334b4b` and `WisconsinRiver-717544326454` repointed in place; `tag-map-key-a2a` / `tag-map-pol-a2a` regexes updated, and `lab-hitl-mfa*` folded into the HITL families (script §5). Lab `.env` (`privilege-a2a-anthropic-demo-LAB`) migrated to the fresh key values | Bring the A2A lab's keys into the naming standard (rename procedure §4) |
+| 2026-11-26 | §4 step 4 extended: consumers include k8s Secrets — a door served from the cluster (e.g. `workeragentdemo2` ← Secret `privilege-a2a-demo-pingid`) keeps using the deleted old key until the Secret is patched and the Deployment rolled | Renaming `main-agent`/`worker-agent` to `lab-a2a-main-key`/`lab-a2a-worker-key` left the cluster Secret stale; the A2A hop 401'd until it was patched |
