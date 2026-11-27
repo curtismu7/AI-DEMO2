@@ -80,7 +80,7 @@ const FAMILIES = [
   // Banking family — governed doors
   {
     name: 'tag-map-banking',
-    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked|hitl))$',
+    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked|hitl|hosted))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -90,12 +90,12 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-opensearch',
-    regex: '^opensearch(-hitl2?)?$',
+    regex: '^(opensearch(-hitl2?)?|lab-opensearch-hosted)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   {
     name: 'tag-map-hostile',
-    regex: '^(hostile-mcp|hostile-mcp-governed|hostile-a2a|libre)',
+    regex: '^(hostile-mcp|hostile-mcp-governed|hostile-a2a|libre|lab-hostile-hosted)',
     tags: { env: 'redteam', source: 'ai-demo2', capability: 'hostile-redteam', protection: 'hostile' },
   },
   {
@@ -182,7 +182,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-hitl',
-    regex: '^(lab-opensearch-hitl-key-grant|lab-hitl-mfa-(permit|key-grant))$',
+    regex: '^(lab-opensearch-hitl-key-grant|lab-opensearch-hosted-key-grant|lab-hostile-hosted-key-grant|lab-hitl-mfa-(permit|key-grant))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   // HITL banking door (lab-banking-hitl, added 2026-11-25 by the move session)
@@ -217,7 +217,7 @@ const FAMILIES = [
   // (single declaration: the broader regex also covers the hitl variant, aws-agent-worker-permit and priv-log-agent-grant)
   {
     name: 'tag-map-pol-lab-banking',
-    regex: '^(lab-banking-(full|limited|hitl)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
+    regex: '^(lab-banking-(full|limited|hitl|hosted)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
