@@ -1,5 +1,10 @@
 # PingOne Privilege MCP: current configuration index
 
+> **2026-11-27: three new `lab-*-hosted` doors created** — `lab-banking-hosted`,
+> `lab-opensearch-hosted`, `lab-hostile-hosted`, each with a key-bound grant
+> (`<door>-key-grant`). See the hosted-doors table in "Doors added 2026-11-27" below.
+> Verified live through `mcpgw-pingid3` (200 + tools/list).
+
 > **Privilege tenant from 2026-11-24: `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege").** It replaces
 > `ea040334-d50b-4ded-8d98-4d5cd14dbd4d` ("Pingid-privilege", 2026-11-23), which replaced `4cb38c18…` / `0428ba4f…`.
 > The move is in progress: until the gateway cutover the gateways and lab keys still belong to `ea040334`,
@@ -49,6 +54,38 @@ what this repo called "agentless").
 | Backend registered as | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` — **`/mcp`, not `/sse`** (corrected 2026-09-08 evening, see the rule below) |
 | Authentication | Gateway-managed OAuth: RFC 7591 dynamic registration + PKCE, no client id configured on the client |
 | Gateway's own OIDC | client `1a403855-81f6-45eb-b233-fed59abc5c73` in tenant `4cb38c18…` (was `0428ba4f…` before the 2026-11-18 re-enroll), from secret `agentless-mcpgw-oidc-config` (key `pingone.env`). This is what `PRIVILEGE_SSO_CLIENT_ID`/`_ENV_ID` must match — see "Which PingOne identity is which" |
+
+## Doors added 2026-11-27 (the `lab-*-hosted` trio)
+
+Created via the console REST API (x-procyon-session-id route), each an MCP Server app on
+mesh cluster `ai-demo-cmuir`, entry path `/mcp`, client URL
+`https://mcpgw-pingid3.ai-demo.ping-devops.com/<name>/mcp`. Backends are the same
+SE-cluster services the existing doors use (an earlier attempt pointed them at local
+OrbStack Docker containers; the mesh nodes cannot resolve those, so they were repointed).
+
+| App | Backend | Grant | Key issued | Verified |
+| --- | --- | --- | --- | --- |
+| `lab-banking-hosted` | `http://mcpdemo.ping-devops-cmuir.svc.cluster.local` | `lab-banking-hosted-key-grant` (all tools `.*`) | `lab-banking-full-key` | initialize 200 + full 33-tool tools/list 2026-11-27 |
+| `lab-opensearch-hosted` | `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local` | `lab-opensearch-hosted-key-grant` | `lab-opensearch-hitl-key` | initialize 200 + 9-tool tools/list 2026-11-27 |
+| `lab-hostile-hosted` | `http://hostile-mcp-server.ping-devops-curtismuir.svc.cluster.local` | `lab-hostile-hosted-key-grant` | `lab-opensearch-hitl-key` | initialize 200 2026-11-27 |
+
+Note: `lab-banking-hosted` serves the standard demo vertical (airline-flavored banking
+tools: `list_entitlements`, `get_portfolio_summary`, `transfer_funds`, …) — identical
+surface to `lab-banking-full`, since it fronts the same backend.
+
+Trap learned while wiring these: **a 403 on a brand-new door is almost always a missing
+key-bound grant, not a gateway problem.** A door with no policy rejects every key with a
+bare `Forbidden`, exactly like an expired policy does on an old one (see "A 403 here is an
+expired policy" above — the symptom is identical for both causes).
+
+Also 2026-11-27: the local Docker gateway `pingid-mcpgw`
+(`~/Development/pingid-gateway/`, `pingid-gw.local.ping-devops.com`) is **still enrolled
+to the deleted tenant `ea040334`** (its `proxy-token.env` decodes to `tenantName:
+ea040334`), so no `5bfb4e12` app routes through it and it has no console row. It was
+missed by the 2026-11-24 gateway cutover, which moved only the three SE cluster nodes.
+Re-enroll it with an AI GW token from the Gateways wizard (Cluster ID `ai-demo-cmuir`,
+Host IP `pingid-gw.local.ping-devops.com`) if a locally-hosted backend door is ever
+needed again.
 
 ## Rules that still bite
 
