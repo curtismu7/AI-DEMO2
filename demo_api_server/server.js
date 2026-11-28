@@ -2949,6 +2949,17 @@ process.on('uncaughtException', (err) => {
  * logged as warnings and never block requests (WR-22/WR-25).
  */
 async function runBackgroundStartupTasks() {
+    // Start every demo with the default balances (money spent in the last demo carries over a restart otherwise).
+    try {
+        const { resetBalancesOnStart } = require('./services/resetBalancesOnStart');
+        await resetBalancesOnStart({
+            dataStore: require('./data/store'),
+            provision: require('./routes/accounts').provisionDemoAccounts,
+            getVertical: require('./services/verticalAccountSnapshots').getCurrentVertical,
+        });
+    } catch (e) {
+        console.warn('[reset-balances] skipped:', e.message);
+    }
     // ── EMA seeded Inspector client ───────────────────────────────────────────
     // getSeededInspectorClient() reads client_id/client_secret via
     // configStore.getEffective(), which only sees vault-loaded values once
