@@ -69,13 +69,13 @@ const THEME_KEY = "dashboard-seq-theme";
 const FONT_SIZE_KEY = "dashboard-seq-font-size";
 const FONT_SIZE_OPTIONS = ["small", "medium", "large"];
 
-// Narration pace for slow mode — deliberately slow, this is for talking over
-// a live crowd, not for watching the data arrive.
-const SLOW_REVEAL_MS = 2600;
+// Narration pace for slow mode — faster than before (was 2600): the demo
+// read as stalled waiting for each step. 1200ms still reads as one-step-at-a-time.
+const SLOW_REVEAL_MS = 1200;
 const SLOW_SPEED_OPTIONS = [
-  { value: 1000, label: "1s (fast)" },
-  { value: 1500, label: "1.5s" },
-  { value: 2600, label: "2.6s (default)" },
+  { value: 600, label: "0.6s (fast)" },
+  { value: 1200, label: "1.2s (default)" },
+  { value: 2600, label: "2.6s" },
   { value: 4000, label: "4s" },
   { value: 6000, label: "6s (slow)" },
 ];

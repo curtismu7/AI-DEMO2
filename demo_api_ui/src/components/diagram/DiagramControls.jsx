@@ -21,14 +21,14 @@ import "./DiagramControls.css";
  * page. Values are the dwell time per step, in milliseconds.
  */
 export const STEP_TIME_OPTIONS = [
-  { value: 800, label: "0.8s (fast)" },
-  { value: 1500, label: "1.5s" },
-  { value: 2500, label: "2.5s (default)" },
+  { value: 600, label: "0.6s (fast)" },
+  { value: 1200, label: "1.2s (default)" },
+  { value: 2500, label: "2.5s" },
   { value: 4000, label: "4s" },
   { value: 6000, label: "6s (slow)" },
 ];
 
-export const DEFAULT_STEP_MS = 2500;
+export const DEFAULT_STEP_MS = 1200;
 
 function DiagramControls({
   // Zoom block (omit to hide)
