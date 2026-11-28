@@ -16,7 +16,7 @@ own client. Every command and error string here was observed, not inferred.
 | Chart | `pingone-privgateway-helm-main/agentless/agentless-mcpgw-0.1.0.tgz` |
 | Host | `mcpgw.ai-demo.ping-devops.com` (external-dns publishes it from the ingress) |
 | Cluster ID | `ai-demo-cmuir` (the `clusterID` in the enrollment token) |
-| PingOne tenant | `5bfb4e12-8d71-4b81-8ef8-940b91728c05` — "Pingid_Privillege" from 2026-11-24 (gateways move at the cutover; until then they are enrolled to `ea040334…`; read the `tenantName` in the node's enrolment token to check) |
+| PingOne tenant | `5bfb4e12-8d71-4b81-8ef8-940b91728c05` — "Pingid_Privillege" from 2026-11-24; all pool gateways enrolled to it (cutover 2026-11-24). To check a node, read the `tenantName` in its enrolment token, or its log line `aipolicy: tenant <id> compiled N policies` |
 | Client URL | `https://mcpgw.ai-demo.ping-devops.com/<AgenticAppName>/mcp` |
 
 **This chart prefixes nothing.** Its objects are `opensearch-mcp-server`,
