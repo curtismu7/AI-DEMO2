@@ -2956,6 +2956,10 @@ async function runBackgroundStartupTasks() {
         resetBalancesOnStart({
             dataStore: require('./data/store'),
             provision: require('./routes/accounts').provisionDemoAccounts,
+            reseed: require('./services/resetBalancesOnStart').makeReseed({
+                dataStore: require('./data/store'),
+                demoScenarioStore: require('./services/demoScenarioStore'),
+            }),
             getVertical: require('./services/verticalAccountSnapshots').getCurrentVertical,
         }).catch((e) => console.warn('[reset-balances] failed:', e.message));
     } catch (e) {

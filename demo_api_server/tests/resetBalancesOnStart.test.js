@@ -1,13 +1,13 @@
 'use strict';
-const { resetBalancesOnStart, isEnabled } = require('../services/resetBalancesOnStart');
+const { resetBalancesOnStart, isEnabled, verticalOf, makeReseed, VERTICAL_TYPES } = require('../services/resetBalancesOnStart');
 
 const BANK = { accountType: 'checking' };
 const quiet = { log: jest.fn(), warn: jest.fn() };
-function makeDeps({ users, accounts = {}, vertical = {}, provision = jest.fn(async () => []), env = {} }) {
+function makeDeps({ users, accounts = {}, vertical = {}, provision = jest.fn(async () => []), reseed = jest.fn(async () => []), env = {} }) {
   return {
     dataStore: { getAllUsers: () => users.map((id) => ({ id })), getAccountsByUserId: (id) => accounts[id] || [] },
     getVertical: async (id) => vertical[id] ?? null,
-    provision, env, log: quiet,
+    provision, reseed, env, log: quiet,
   };
 }
 
@@ -57,14 +57,43 @@ describe('resetBalancesOnStart', () => {
     expect(provision).not.toHaveBeenCalled();
   });
 
-  test('a user with non-banking accounts is skipped even when the vertical lookup says unknown (a failed lookup reads as null)', async () => {
+  test.each([
+    ['healthcare', ['Primary Care', 'HSA']],
+    ['retail', ['Rewards Points', 'Store Credit']],
+    ['workforce', ['PTO Balance', 'Sick Leave']],
+    ['sporting-goods', ['Pro Member', 'Elite Member']],
+  ])('a %s user is reseeded for that same vertical, not given banking accounts', async (vertical, types) => {
     const provision = jest.fn(async () => []);
+    const reseed = jest.fn(async () => []);
+    const r = await resetBalancesOnStart(makeDeps({ users: ['u'], accounts: { u: types.map((accountType) => ({ accountType })) }, provision, reseed }));
+    expect(reseed).toHaveBeenCalledWith('u', vertical);
+    expect(provision).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ reset: 1, skipped: 0 });
+  });
+
+  test('upper-case banking types from the seed profile (CHECKING/SAVINGS) count as banking', async () => {
+    const provision = jest.fn(async () => []);
+    await resetBalancesOnStart(makeDeps({ users: ['u'], accounts: { u: [{ accountType: 'CHECKING' }, { accountType: 'SAVINGS' }] }, provision }));
+    expect(provision).toHaveBeenCalledWith('u');
+  });
+
+  test('mixed verticals, unknown types and a saved vertical that disagrees with the types are skipped untouched', async () => {
+    const provision = jest.fn(async () => []);
+    const reseed = jest.fn(async () => []);
     const r = await resetBalancesOnStart(makeDeps({
-      users: ['h', 'm'], accounts: { h: [{ accountType: 'HSA' }, { accountType: 'Primary Care' }], m: [BANK, { accountType: 'Rewards Points' }] },
-      vertical: {}, provision,
+      users: ['mixed', 'unknown', 'disagree'],
+      accounts: { mixed: [BANK, { accountType: 'Rewards Points' }], unknown: [{ accountType: 'Mystery' }], disagree: [{ accountType: 'HSA' }] },
+      vertical: { disagree: 'retail' }, provision, reseed,
     }));
     expect(provision).not.toHaveBeenCalled();
-    expect(r).toMatchObject({ reset: 0, skipped: 2 });
+    expect(reseed).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ reset: 0, skipped: 3 });
+  });
+
+  test('a failing reseed is counted and logged, and the next user is still reset', async () => {
+    const reseed = jest.fn(async (id) => { if (id === 'a') throw new Error('disk full'); return []; });
+    const r = await resetBalancesOnStart(makeDeps({ users: ['a', 'b'], accounts: { a: [{ accountType: 'HSA' }], b: [{ accountType: 'HSA' }] }, reseed }));
+    expect(r).toMatchObject({ reset: 1, failed: 1 });
   });
 
   test('one user failing is counted and logged; the others are still reset and nothing throws', async () => {
@@ -78,7 +107,7 @@ describe('resetBalancesOnStart', () => {
 // The real wiring: server.js hands resetBalancesOnStart the real data store, the export on routes/accounts and
 // getCurrentVertical. If any of those is renamed, the unit tests above would still pass; this one would not.
 describe('resetBalancesOnStart with the real data store and provisioning', () => {
-  test('spent balances come back to the defaults; another vertical is left alone', async () => {
+  test('spent balances come back to the defaults; a retail user is reseeded as retail, not as banking', async () => {
     const os = require('os'), fs = require('fs'), path = require('path');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reset-balances-'));
     process.env.LMDB_PATH = path.join(dir, 'lmdb');
@@ -94,9 +123,26 @@ describe('resetBalancesOnStart with the real data store and provisioning', () =>
       const checking = dataStore.getAccountsByUserId(user.id).find((a) => a.accountType === 'checking');
       await dataStore.updateAccount(checking.id, { balance: 12.34 });
       expect(dataStore.getAccountById(checking.id).balance).toBe(12.34);
+      const shopper = await dataStore.createUser({ username: 'reset_e2e_shop', email: 'reset_e2e_shop@example.test', firstName: 'S', lastName: 'H', role: 'customer', password: 'x' });
+      await dataStore.seedAccountsForUser(shopper.id, 'retail');
+      const points = dataStore.getAccountsByUserId(shopper.id).find((a) => a.accountType === 'Rewards Points');
+      await dataStore.updateAccount(points.id, { balance: 1 });
+      const demoScenarioStore = require('../services/demoScenarioStore');
       result = await resetBalancesOnStart({
         dataStore, provision: accountsRouter.provisionDemoAccounts, getVertical: verticals.getCurrentVertical, env: {}, log: quiet,
+        reseed: makeReseed({ dataStore, demoScenarioStore }), // the same callback server.js wires in
       });
+      const shop = dataStore.getAccountsByUserId(shopper.id);
+      expect(shop.map((a) => a.accountType).sort()).toEqual(['Rewards Points', 'Store Credit']);
+      expect(shop.find((a) => a.accountType === 'Rewards Points').balance).not.toBe(1); // the spent value is gone
+      // old transactions are cleared and the fresh ones point only at the new accounts
+      const ids = new Set(shop.map((a) => a.id));
+      const txs = dataStore.getTransactionsByUserId(shopper.id);
+      expect(txs.length).toBeGreaterThan(0);
+      for (const tx of txs) expect(ids.has(tx.fromAccountId) || ids.has(tx.toAccountId)).toBe(true);
+      // the cold-start snapshot matches the fresh accounts, and the saved scenario fields survive the save
+      const scenario = await demoScenarioStore.load(shopper.id);
+      expect(scenario.accountSnapshot.map((a) => a.id).sort()).toEqual([...ids].sort());
       const after = dataStore.getAccountsByUserId(user.id);
       expect(after.find((a) => a.accountType === 'checking').balance).toBe(5000);
       expect(after.map((a) => a.accountType).sort()).toEqual(['checking', 'credit_card', 'loan', 'savings']);
@@ -105,4 +151,24 @@ describe('resetBalancesOnStart with the real data store and provisioning', () =>
     expect(result.failed).toBe(0);
     delete process.env.LMDB_PATH;
   }, 60000);
+});
+
+// VERTICAL_TYPES is a copy of what data/seeds/*.js produce. If a seed adds or renames a type, the users on it would be
+// skipped without a word, so this fails first.
+describe('VERTICAL_TYPES matches the seed files', () => {
+  const fs = require('fs'), path = require('path');
+  const seedDir = path.join(__dirname, '../data/seeds');
+  const files = fs.readdirSync(seedDir).filter((f) => f.endsWith('.js')).map((f) => f.replace(/\.js$/, ''));
+
+  test.each(Object.keys(VERTICAL_TYPES))('%s: every account type the seed creates is listed', (vertical) => {
+    const seed = require(path.join(seedDir, vertical));
+    const profile = seed.seed || seed;
+    const types = [profile.primary.accountType, profile.secondary.accountType].map((x) => x.toLowerCase());
+    expect([...types].sort()).toEqual([...VERTICAL_TYPES[vertical]].sort());
+    expect(verticalOf(types.map((accountType) => ({ accountType })))).toBe(vertical);
+  });
+
+  test('every seed file is either banking or covered', () => {
+    expect(files.filter((f) => f !== 'banking' && !VERTICAL_TYPES[f])).toEqual([]);
+  });
 });
