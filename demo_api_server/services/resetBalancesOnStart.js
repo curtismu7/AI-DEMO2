@@ -83,4 +83,21 @@ async function resetBalancesOnStart({ dataStore, provision, reseed, getVertical,
   return { enabled: true, reset, skipped, failed };
 }
 
-module.exports = { resetBalancesOnStart, isEnabled, verticalOf, BANKING_TYPES, VERTICAL_TYPES };
+/**
+ * The reseed callback server.js wires in: wipe-and-seed the user for their own vertical (this also clears their old
+ * transactions and seeds the vertical's sample ones), then rewrite the cold-start snapshot so a later restore cannot
+ * bring the spent balances back (the same thing /accounts/reset-demo does for banking). demoScenarioStore.save merges.
+ */
+function makeReseed({ dataStore, demoScenarioStore }) {
+  return async (userId, vertical) => {
+    await dataStore.reseedUserForVertical(userId, vertical);
+    await demoScenarioStore.save(userId, {
+      accountSnapshot: dataStore.getAccountsByUserId(userId).map((a) => ({
+        id: a.id, accountType: a.accountType, accountNumber: a.accountNumber, name: a.name || '',
+        balance: a.balance, currency: a.currency || 'USD', isActive: a.isActive !== false,
+      })),
+    });
+  };
+}
+
+module.exports = { resetBalancesOnStart, isEnabled, verticalOf, makeReseed, BANKING_TYPES, VERTICAL_TYPES };

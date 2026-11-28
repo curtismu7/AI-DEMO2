@@ -1,5 +1,5 @@
 'use strict';
-const { resetBalancesOnStart, isEnabled } = require('../services/resetBalancesOnStart');
+const { resetBalancesOnStart, isEnabled, verticalOf, makeReseed, VERTICAL_TYPES } = require('../services/resetBalancesOnStart');
 
 const BANK = { accountType: 'checking' };
 const quiet = { log: jest.fn(), warn: jest.fn() };
@@ -127,13 +127,22 @@ describe('resetBalancesOnStart with the real data store and provisioning', () =>
       await dataStore.seedAccountsForUser(shopper.id, 'retail');
       const points = dataStore.getAccountsByUserId(shopper.id).find((a) => a.accountType === 'Rewards Points');
       await dataStore.updateAccount(points.id, { balance: 1 });
+      const demoScenarioStore = require('../services/demoScenarioStore');
       result = await resetBalancesOnStart({
         dataStore, provision: accountsRouter.provisionDemoAccounts, getVertical: verticals.getCurrentVertical, env: {}, log: quiet,
-        reseed: (id, v) => dataStore.reseedUserForVertical(id, v),
+        reseed: makeReseed({ dataStore, demoScenarioStore }), // the same callback server.js wires in
       });
       const shop = dataStore.getAccountsByUserId(shopper.id);
       expect(shop.map((a) => a.accountType).sort()).toEqual(['Rewards Points', 'Store Credit']);
-      expect(shop.find((a) => a.accountType === 'Rewards Points').balance).toBeGreaterThanOrEqual(4200);
+      expect(shop.find((a) => a.accountType === 'Rewards Points').balance).not.toBe(1); // the spent value is gone
+      // old transactions are cleared and the fresh ones point only at the new accounts
+      const ids = new Set(shop.map((a) => a.id));
+      const txs = dataStore.getTransactionsByUserId(shopper.id);
+      expect(txs.length).toBeGreaterThan(0);
+      for (const tx of txs) expect(ids.has(tx.fromAccountId) || ids.has(tx.toAccountId)).toBe(true);
+      // the cold-start snapshot matches the fresh accounts, and the saved scenario fields survive the save
+      const scenario = await demoScenarioStore.load(shopper.id);
+      expect(scenario.accountSnapshot.map((a) => a.id).sort()).toEqual([...ids].sort());
       const after = dataStore.getAccountsByUserId(user.id);
       expect(after.find((a) => a.accountType === 'checking').balance).toBe(5000);
       expect(after.map((a) => a.accountType).sort()).toEqual(['checking', 'credit_card', 'loan', 'savings']);
@@ -142,4 +151,24 @@ describe('resetBalancesOnStart with the real data store and provisioning', () =>
     expect(result.failed).toBe(0);
     delete process.env.LMDB_PATH;
   }, 60000);
+});
+
+// VERTICAL_TYPES is a copy of what data/seeds/*.js produce. If a seed adds or renames a type, the users on it would be
+// skipped without a word, so this fails first.
+describe('VERTICAL_TYPES matches the seed files', () => {
+  const fs = require('fs'), path = require('path');
+  const seedDir = path.join(__dirname, '../data/seeds');
+  const files = fs.readdirSync(seedDir).filter((f) => f.endsWith('.js')).map((f) => f.replace(/\.js$/, ''));
+
+  test.each(Object.keys(VERTICAL_TYPES))('%s: every account type the seed creates is listed', (vertical) => {
+    const seed = require(path.join(seedDir, vertical));
+    const profile = seed.seed || seed;
+    const types = [profile.primary.accountType, profile.secondary.accountType].map((x) => x.toLowerCase());
+    expect([...types].sort()).toEqual([...VERTICAL_TYPES[vertical]].sort());
+    expect(verticalOf(types.map((accountType) => ({ accountType })))).toBe(vertical);
+  });
+
+  test('every seed file is either banking or covered', () => {
+    expect(files.filter((f) => f !== 'banking' && !VERTICAL_TYPES[f])).toEqual([]);
+  });
 });
