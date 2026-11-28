@@ -79,3 +79,25 @@ export function transactionTokenHeaderState(headers: IncomingHttpHeaders): Trans
 export function transactionTokenFromHeaders(headers: IncomingHttpHeaders): string | null {
   return transactionTokenHeaderState(headers).value;
 }
+
+/**
+ * Requests that are a Privilege discovery probe running as the gateway itself.
+ *
+ * The gateway mints its own machine token for these (client credentials), and
+ * PingOne does not put `sub` in a client-credentials token. The policy step
+ * requires `sub`, so without this every `initialize` / `tools/list` from
+ * Privilege was refused with "Empty or missing token payload" and the console
+ * could never discover the app's tools (it will not create a policy until it
+ * has). The mark is set in-process, by GatewayServer, only after the bridge
+ * bearer matched and the method was one of PRIVILEGE_BRIDGE_DISCOVERY_METHODS.
+ * It is a WeakSet, not a header, so no caller can set it.
+ */
+const privilegeBridgeDiscoveryRequests = new WeakSet<object>();
+
+export function markPrivilegeBridgeDiscovery(req: object): void {
+  privilegeBridgeDiscoveryRequests.add(req);
+}
+
+export function isPrivilegeBridgeDiscovery(req: object | null | undefined): boolean {
+  return !!req && privilegeBridgeDiscoveryRequests.has(req);
+}

@@ -1,9 +1,36 @@
 # PingOne Privilege MCP: current configuration index
 
+> **2026-11-27: three new `lab-*-hosted` doors created** — `lab-banking-hosted`,
+> `lab-opensearch-hosted`, `lab-hostile-hosted`, each with a key-bound grant
+> (`<door>-key-grant`). See the hosted-doors table in "Doors added 2026-11-27" below.
+> Verified live through `mcpgw-pingid3` (200 + tools/list).
+
+> **Privilege tenant: `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege"), move done 2026-11-24.** It replaced
+> `ea040334-d50b-4ded-8d98-4d5cd14dbd4d` ("Pingid-privilege", 2026-11-23, deleted by 2026-11-25), which replaced `4cb38c18…` / `0428ba4f…`.
+> The gateways (`mcpgw-cm-pool1`, `mcpgw-ct-pool2`, `mcpgw-ct-new1`) are enrolled to `5bfb4e12` and sign users in through its
+> "PingOne Privilege" app `1bd04cae…`; consumers hold `5bfb4e12` keys. Client ids below that name an older tenant are history.
+> Record of the move: `~/Development/HANDOFF-2026-11-24-finish-move-to-5bfb4e12.md`, `STANDALONE-COORDINATION.md` (2026-11-24/25).
+
 Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one mesh cluster
 (`ai-demo-cmuir`) behind a load balancer, gateway 1 in `ping-devops-curtismuir` and gateway 2 in
 `ping-devops-cmuir`. The table below describes gateway 1; see
 [GATEWAY-LOAD-BALANCER.md](GATEWAY-LOAD-BALANCER.md) section 00 for the current layout.**
+
+> **Update 2026-11-18: the LOCAL console tenant UUID changed.** The Privilege desktop app
+> was re-enrolled; the live tenant is now `4cb38c18-691a-4201-a99d-b4b8842ca786`
+> (`0428ba4f-…` below is dead and 401s everywhere). All 31 apps carried over unchanged.
+> Console API key/secret auth is also broken (valid keys 401 naming the cloud host) — use
+> the `x-auth-token` cookie route; see `.claude/skills/privilege-console-api/SKILL.md`
+> and [TAG-POLICIES.md](TAG-POLICIES.md) (4-key tag schema now applied tenant-wide by
+> `scripts/apply-tag-schema.mjs`).
+>
+> **CORRECTION 2026-11-19: the 2026-11-18 note above is WRONG about the tenant.** Live
+> testing on 2026-11-19 shows the console UI making all its XHRs against
+> `0428ba4f-169c-436b-aff9-b230496e0e3b` and succeeding (31 apps), while
+> `4cb38c18-…` 401s on everything. The tenant did NOT change. The OIDC client-id /
+> env-id claims from that update should also be re-verified before relying on them.
+> The key/secret-auth breakage part stands. Always confirm the live tenant by watching
+> which id the UI's own requests use.
 
 > **Update 2026-10-12: the `opensearch22` Agentic App described below was deleted from the
 > console.** The dated measurements that name it are kept as a record of what was verified on
@@ -21,12 +48,44 @@ what this repo called "agentless").
 | Namespace | `ping-devops-curtismuir` |
 | Helm release | `agentless-mcpgw` (chart `pingone-privgateway-helm-main/agentless`) |
 | Mesh cluster | `ai-demo-cmuir` |
-| PingOne tenant | `0428ba4f-169c-436b-aff9-b230496e0e3b` ("AI Agent") |
+| PingOne tenant | `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege") from 2026-11-24 (move done, see the banner); before: `ea040334…` (2026-11-23), `4cb38c18…` / `0428ba4f…` |
 | Agentic App | `opensearch22` |
 | MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` — see "The entry path is derived from the backend URL" |
 | Backend registered as | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` — **`/mcp`, not `/sse`** (corrected 2026-09-08 evening, see the rule below) |
 | Authentication | Gateway-managed OAuth: RFC 7591 dynamic registration + PKCE, no client id configured on the client |
-| Gateway's own OIDC | client `1a403855-81f6-45eb-b233-fed59abc5c73` in tenant `0428ba4f…`, from secret `agentless-mcpgw-oidc-config` (key `pingone.env`). This is what `PRIVILEGE_SSO_CLIENT_ID`/`_ENV_ID` must match — see "Which PingOne identity is which" |
+| Gateway's own OIDC | client `1a403855-81f6-45eb-b233-fed59abc5c73` in tenant `4cb38c18…` (was `0428ba4f…` before the 2026-11-18 re-enroll), from secret `agentless-mcpgw-oidc-config` (key `pingone.env`). This is what `PRIVILEGE_SSO_CLIENT_ID`/`_ENV_ID` must match — see "Which PingOne identity is which" |
+
+## Doors added 2026-11-27 (the `lab-*-hosted` trio)
+
+Created via the console REST API (x-procyon-session-id route), each an MCP Server app on
+mesh cluster `ai-demo-cmuir`, entry path `/mcp`, client URL
+`https://mcpgw-pingid3.ai-demo.ping-devops.com/<name>/mcp`. Backends are the same
+SE-cluster services the existing doors use (an earlier attempt pointed them at local
+OrbStack Docker containers; the mesh nodes cannot resolve those, so they were repointed).
+
+| App | Backend | Grant | Key issued | Verified |
+| --- | --- | --- | --- | --- |
+| `lab-banking-hosted` | `http://mcpdemo.ping-devops-cmuir.svc.cluster.local` | `lab-banking-hosted-key-grant` (all tools `.*`) | `lab-banking-full-key` | initialize 200 + full 33-tool tools/list 2026-11-27 |
+| `lab-opensearch-hosted` | `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local` | `lab-opensearch-hosted-key-grant` | `lab-opensearch-hitl-key` | initialize 200 + 9-tool tools/list 2026-11-27 |
+| `lab-hostile-hosted` | `http://hostile-mcp-server.ping-devops-curtismuir.svc.cluster.local` | `lab-hostile-hosted-key-grant` | `lab-opensearch-hitl-key` | initialize 200 2026-11-27 |
+
+Note: `lab-banking-hosted` serves the standard demo vertical (airline-flavored banking
+tools: `list_entitlements`, `get_portfolio_summary`, `transfer_funds`, …) — identical
+surface to `lab-banking-full`, since it fronts the same backend.
+
+Trap learned while wiring these: **a 403 on a brand-new door is almost always a missing
+key-bound grant, not a gateway problem.** A door with no policy rejects every key with a
+bare `Forbidden`, exactly like an expired policy does on an old one (see "A 403 here is an
+expired policy" above — the symptom is identical for both causes).
+
+Also 2026-11-27: the local Docker gateway `pingid-mcpgw`
+(`~/Development/pingid-gateway/`, `pingid-gw.local.ping-devops.com`) is **still enrolled
+to the deleted tenant `ea040334`** (its `proxy-token.env` decodes to `tenantName:
+ea040334`), so no `5bfb4e12` app routes through it and it has no console row. It was
+missed by the 2026-11-24 gateway cutover, which moved only the three SE cluster nodes.
+Re-enroll it with an AI GW token from the Gateways wizard (Cluster ID `ai-demo-cmuir`,
+Host IP `pingid-gw.local.ping-devops.com`) if a locally-hosted backend door is ever
+needed again.
 
 ## Rules that still bite
 
@@ -509,8 +568,8 @@ values below were measured, not inferred.
 
 | | Tenant | Client | Purpose |
 |---|---|---|---|
-| **Gateway OIDC** | `0428ba4f…` (Privilege) | `1a403855…` | The gateway signs users in with this. Lives in secret `agentless-mcpgw-oidc-config`, key `pingone.env`. **This is what `PRIVILEGE_SSO_CLIENT_ID` / `PRIVILEGE_SSO_ENV_ID` must be set to.** |
-| **Console API** | `0428ba4f…` (Privilege) | none — an `auth_token` cookie | Lists Agentic Apps and `pacpolicys`. Set `PRIVILEGE_CONSOLE_ENV_ID`; it is a **separate variable** because `PRIVILEGE_SSO_ENV_ID` is paired with a client id. |
+| **Gateway OIDC** | `4cb38c18…` (Privilege; was `0428ba4f…` pre-2026-11-18) | `1a403855…` | The gateway signs users in with this. Lives in secret `agentless-mcpgw-oidc-config`, key `pingone.env`. **This is what `PRIVILEGE_SSO_CLIENT_ID` / `PRIVILEGE_SSO_ENV_ID` must be set to.** |
+| **Console API** | `4cb38c18…` (Privilege) | none — an `auth_token` cookie | Lists Agentic Apps and `pacpolicys`. Set `PRIVILEGE_CONSOLE_ENV_ID`; it is a **separate variable** because `PRIVILEGE_SSO_ENV_ID` is paired with a client id. |
 | **Banking worker** | `01d89b06…` (demo) | `6586d3de…` (`PINGONE_MCP_GATEWAY_*`) | `client_credentials` for `aud=mcpserver.ping.demo`. What `privilegeMcpSimple.js` needs. |
 
 Facts that settle arguments:
@@ -528,8 +587,8 @@ Facts that settle arguments:
   `k8s/create-secrets.sh` refuses to deploy if `.env` holds a different non-empty
   value. Write the vault, then match or blank the `.env` line — never the reverse.
 - **The gateway federates into the demo's own tenant, so there is no double
-  login.** Measured chain: `0428ba4f/as/authorize` →
-  `0428ba4f/rp/authenticate?providerId=122422d9…` →
+  login.** Measured chain: `4cb38c18/as/authorize` →
+  `4cb38c18/rp/authenticate?providerId=122422d9…` →
   `01d89b06/as/authorize` (client `fa486771…`, "Demo AI App - Privilege Tenant
   Federation") → `01d89b06` sign-on. No `prompt=login`, no `max_age`. One login,
   at the demo's own tenant. **k8s namespaces are irrelevant to any of this** —

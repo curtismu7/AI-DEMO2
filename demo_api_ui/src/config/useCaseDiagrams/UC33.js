@@ -21,6 +21,7 @@ const EDGES = [
   ["agent", "gw", "show_mortgage", { detail: "Same delegated token as UC1 — the tool changed, the credential did not." }],
   ["gw", "p1", "validate + Authorize", { detail: "The full delegated chain replays: gateway validation, then the policy question." }],
   ["p1", "res", "PERMIT · act={agent}", { dashed: true, detail: "The act claim proves the agent all the way to a mortgage lookup, not just a balance." }],
+  ["res", "user", "mortgage returns", { dashed: true, detail: "The mortgage data flows back through the agent and renders in Alice's UI — the same proof, delivered to the same person." }],
 ];
 
 const walk = [
@@ -47,6 +48,12 @@ const walk = [
     nodes: ["p1", "res"], edges: [3],
     lines: [{ who: "Mortgage API", text: "PERMIT: every new tool the surface grows already carries the same proof." }],
     tech: [{ t: "API", c: "POST /gateway/mcp tools/call show_mortgage -> 200 (delegated, attributed)" }],
+  },
+  {
+    title: "Mortgage returns to Alice", label: "Answer, rendered",
+    nodes: ["res", "user"], edges: [4],
+    lines: [{ who: "Alice", text: "My mortgage details render in the chat — attributed and authorized exactly like my balance was." }],
+    tech: [{ t: "TOKEN", c: "rendered mortgage summary; act={agent} on the record for this read too" }],
   },
 ];
 
@@ -86,6 +93,13 @@ const steps = [
     beats: [3],
     detail: {
       form: "POST /gateway/mcp tools/call show_mortgage -> 200\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"result\": { \"content\": [{ \"type\": \"text\", \"text\": \"<mortgage summary>\" }] } }\n\nDelegated and attributed: act={agent} is on the record for this tool just as for a balance.",
+      tokens: [],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "Mortgage summary rendered in Alice's chat.\n\nThe delegated token stayed on the service path; Alice sees only the rendered answer, with the same attribution proof as UC1.",
       tokens: [],
     },
   },

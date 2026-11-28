@@ -1,17 +1,16 @@
-/* UseCaseDiagramPage.css — use-case diagram pages: header, verdict pill,
-   details panel, wire rows. Every color is a --th-* token, so both themes
+/* UseCaseDiagramPage.css — use-case diagram pages: compact header, floating
+   drawer detail, wire rows. Every color is a --th-* token, so both themes
    follow automatically; the drift test's palette rule enforces it. */
-.ucd-page { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
+.ucd-page { max-width: 1400px; margin: 0 auto; padding: 20px 16px 48px; }
 .ucd-head__row1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ucd-head__row1 h1 { margin: 0; font-size: var(--font-size-xl); }
+.ucd-head__row1 h1 { margin: 0; font-size: var(--font-size-lg, 1.25rem); }
 .ucd-cue { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-radius: 7px; padding: 3px 10px; font-size: var(--font-size-xs); font-weight: 700; }
 .ucd-back { color: var(--th-status-info-text); font-size: var(--font-size-2xs); font-weight: 700; text-decoration: none; }
 .ucd-back:hover { text-decoration: underline; }
-.ucd-id { color: var(--th-text-body); font-size: var(--font-size-2xs); }
 .ucd-meta { color: var(--th-text-body); font-size: var(--font-size-2xs); }
-.ucd-desc { color: var(--th-text-body); max-width: 90ch; }
-.ucd-value span, .ucd-card__top b { color: var(--th-status-info); font-size: var(--font-size-3xs); letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
-.ucd-value { color: var(--th-text-body); font-size: 12.5px; }
+.ucd-desc { color: var(--th-text-body); max-width: 110ch; margin: 6px 0 0; font-size: var(--font-size-sm); }
+.ucd-value { color: var(--th-text-body); font-size: 12px; margin: 4px 0 0; }
+.ucd-value span { color: var(--th-status-info); font-size: var(--font-size-3xs); letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
 
 .ucd-pill { border-radius: var(--radius-pill); padding: 2px 10px; font-size: 10.5px; font-weight: 700; }
 .ucd-pill--ok { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
@@ -19,9 +18,8 @@
 .ucd-pill--err { background: var(--th-status-error-bg); color: var(--th-status-error-text); }
 .ucd-pill--info { background: var(--th-status-info-bg); color: var(--th-status-info-text); }
 
-.ucd-panel { display: flex; gap: 10px; align-items: baseline; border: 1px solid var(--th-border); border-radius: 10px; background: var(--th-bg-inset); padding: 12px 14px; margin-top: 12px; }
-.ucd-panel__chip { flex: 0 0 auto; background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-radius: var(--radius-md); padding: 2px 8px; font-size: var(--font-size-3xs); font-weight: 800; }
-.ucd-panel__body { flex: 1; min-width: 0; }
+/* Shared detail bits (now rendered inside the floating drawer). */
+.ucd-panel__chip { display: inline-block; background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-radius: var(--radius-md); padding: 2px 8px; font-size: var(--font-size-3xs); font-weight: 800; }
 .ucd-panel__hint { color: var(--th-text-body); margin: 0; font-size: 12.5px; }
 .ucd-panel__hop { font-size: var(--font-size-sm); color: var(--th-text); }
 .ucd-panel__line { color: var(--th-text-body); font-size: 12.5px; margin: 4px 0 0; }
@@ -44,13 +42,11 @@
 .ucd-step__refs b { color: var(--th-text); }
 .ucd-step__kind { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: var(--radius-pill); font-size: var(--font-size-3xs); font-weight: 800; background: var(--th-status-info-bg); color: var(--th-status-info-text); border: 1px solid var(--th-border-strong); }
 .ucd-step__kind--emerging { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
-.ucd-panel__step { flex: 0 0 auto; color: var(--th-text-body); font-size: var(--font-size-2xs); }
-.ucd-next { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
-.ucd-next__link { border: 1px solid var(--th-border-strong); border-radius: var(--radius-pill); padding: 4px 12px; font-size: var(--font-size-2xs); font-weight: 700; }
 
 .ucd-gallery__grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .ucd-card { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--th-border); border-radius: var(--radius-xl); padding: 14px; background: var(--th-bg-card); }
 .ucd-card__top { display: flex; justify-content: space-between; align-items: center; }
+.ucd-card__top b { color: var(--th-status-info); font-size: var(--font-size-3xs); letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
 .ucd-card__title { font-weight: 700; color: var(--th-text); }
 .ucd-card__what { color: var(--th-text-body); font-size: 12.5px; }
 /* Reverse link: every gallery card also points at the live step it diagrams. */
@@ -58,16 +54,25 @@
 .ucd-card__run:hover { text-decoration: underline; }
 .ucd-card__run:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
 
-/* Review finding 4: styled links need the sibling diagrams-index treatment —
-   no underline, visible keyboard focus. */
-.ucd-page a.ucd-card,
-.ucd-page a.ucd-next__link { text-decoration: none; }
+/* Styled links need the sibling diagrams-index treatment — no underline,
+   visible keyboard focus. */
+.ucd-page a.ucd-card { text-decoration: none; }
 /* The PingOne end-user-nano sheet colors `.App.end-user-nano a` (0,2,1) with
    --bs-link-color-rgb, which dark mode sets to the same light blue as
    --th-bg-emphasis — the cue's own color (0,1,0) loses and the pill goes
    text-on-text. Re-assert the themed ink at equal-or-higher specificity. */
 .ucd-page a.ucd-cue { color: var(--th-text-on-emphasis); text-decoration: none; }
-.ucd-card:focus-visible, .ucd-next__link:focus-visible {
+.ucd-page a.ucd-back { text-decoration: none; }
+.ucd-page a.ucd-back:hover { text-decoration: underline; }
+.ucd-back:focus-visible, .ucd-cue:focus-visible, .ucd-card:focus-visible {
   outline: 2px solid var(--th-status-info);
   outline-offset: 2px;
 }
+
+/* Floating details drawer (FloatingPanel, docked right). The panel shell owns
+   its chrome; we theme the body content, which reuses the .ucd-panel__* classes
+   so both themes follow the tokens. The drawer is THE detail surface: it opens
+   with the page, follows the walk, and a node click fills it. */
+.ucd-float-panel .fp-content { overflow: auto; padding: 10px 14px 14px; }
+.ucd-floating__body { display: grid; gap: 6px; align-content: start; }
+.ucd-floating__body .ucd-panel__chip { justify-self: start; }

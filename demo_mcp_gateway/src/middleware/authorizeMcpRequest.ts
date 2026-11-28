@@ -33,6 +33,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { PingOneAuthorizeClient, policySourceForEngine, actChainDepth } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
+import { isPrivilegeBridgeDiscovery } from '../auth/privilegeBridge';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient, scopeMismatchReasonFromExchangeError } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
@@ -407,6 +408,7 @@ export function buildAuthorizeMcpRequest(
         config,
         preParsed.params?.name,
         preParsed.method === 'tools/call' ? 'McpToolCall' : undefined,
+        { bridgeDiscovery: isPrivilegeBridgeDiscovery(_req) },
       );
       auditTrail.introspection = pipelineResult.audit.introspection;
       auditTrail.policy = pipelineResult.audit.policy;
@@ -955,6 +957,23 @@ export function buildAuthorizeMcpRequest(
         // Already decided above — do not consult the PDP for a call the backstop
         // already denied (nothing to gain, and it would waste a real PDP round-trip).
         authzDecision = _localBackstopDenial;
+      } else if (isPrivilegeBridgeDiscovery(_req) && method !== 'tools/call') {
+        // A Privilege discovery probe (initialize, tools/list, ...) runs as the
+        // gateway itself. The PDP's tool-discovery rule looks the subject up as a
+        // PingOne USER so a disabled user cannot enumerate tools; the gateway's
+        // own client id is not a user, so that lookup always answered
+        // unknown_sub and Privilege could never discover the app's tools. There
+        // is no user to evaluate here, so the gateway decides alone and says so:
+        // local-fallback + degraded, which never reads as a PDP PERMIT. The mark
+        // is set only for read-only methods after the bridge bearer matched, and
+        // tools/call is excluded again here.
+        authzDecision = {
+          decision: 'PERMIT',
+          reason: 'privilege bridge discovery: read-only catalogue request on the gateway machine identity; no user to evaluate',
+          engine: 'mock',
+          policySource: 'local-fallback',
+          degraded: true,
+        };
       } else if (deps) {
         authzDecision = await deps.authorize(
           decoded,

@@ -49,12 +49,13 @@ import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS 
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, setJwksSimDown, validationErrorHttpStatus, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
-import { isPrivilegeBridgeBearer, transactionTokenHeaderState } from '../auth/privilegeBridge';
+import { isPrivilegeBridgeBearer, isPrivilegeBridgeDiscovery, markPrivilegeBridgeDiscovery, transactionTokenHeaderState } from '../auth/privilegeBridge';
 import { guardToolsList } from '../pingAuthorizeGuard';
 import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
+import { cancelOnDisconnect } from '../disconnectCancel';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from '../serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from '../modernNegotiation';
 import { selfBaseUrl } from '../selfBaseUrl';
@@ -198,7 +199,11 @@ export class GatewayServer {
   // notifications/cancelled {requestId:1} abort a DIFFERENT caller's in-flight
   // id 1 (cross-caller cancellation / DoS). The WS transport avoids this by
   // giving each connection its own inFlightCalls map (index.ts).
-  private readonly inFlightCalls = new Map<string, AbortController>();
+  // The entry carries whether the call is cancellable at all (read-only tool,
+  // disconnectCancel.ts) — an explicit notifications/cancelled for a
+  // money-moving tool is refused, same rule as the disconnect path: aborting
+  // a committed transfer leaves the caller without an outcome.
+  private readonly inFlightCalls = new Map<string, { controller: AbortController; cancellable: boolean }>();
   private oauthBroker: OAuthBrokerRouter;
 
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
@@ -908,6 +913,10 @@ export class GatewayServer {
         this.sendUnauthorized(req, res, 'invalid_token', 'Privilege bridge could not mint the gateway machine token');
         return;
       }
+      // Tell the authorize step this request is a bridge discovery probe, so its
+      // client-credentials token (no `sub`) is accepted for this read-only
+      // method only. In-process mark, not a header: callers cannot set it.
+      markPrivilegeBridgeDiscovery(req);
       if (!this.config.devBypass) {
         try {
           decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
@@ -1011,7 +1020,10 @@ export class GatewayServer {
       const targetId = cancelParams?.requestId;
       if (targetId !== undefined) {
         const key = this.callKey(callerScope, targetId);
-        this.inFlightCalls.get(key)?.abort();
+        const target = this.inFlightCalls.get(key);
+        // A money-moving tool refuses the cancel (runs to completion) — the
+        // same rule the disconnect path applies, see disconnectCancel.ts.
+        if (target?.cancellable) target.controller.abort();
         this.inFlightCalls.delete(key);
       }
       res.writeHead(202, { 'Content-Type': 'application/json' });
@@ -1104,7 +1116,13 @@ export class GatewayServer {
 
       const controller = new AbortController();
       const callKey = requestId !== undefined ? this.callKey(callerScope, requestId) : undefined;
-      if (callKey !== undefined) this.inFlightCalls.set(callKey, controller);
+      const cancellable = cancelOnDisconnect(jsonRpc.method, rpcToolName);
+      if (callKey !== undefined) this.inFlightCalls.set(callKey, { controller, cancellable });
+      // MCP 2026-07-28: a closed connection cancels the call, unless it is a tool that must
+      // not be cut off half-way (disconnectCancel.ts). 'close' also fires after a normal end.
+      if (cancellable) {
+        res.on('close', () => { if (!res.writableEnded) controller.abort(); });
+      }
 
       if (useSse) {
         res.writeHead(200, {
@@ -1136,6 +1154,8 @@ export class GatewayServer {
           res.end(JSON.stringify(rpcResult));
         }
       } catch (err) {
+        // The client is gone: nobody is left to answer, and a cancel is not a backend failure.
+        if (controller.signal.aborted && res.destroyed) return;
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName ?? jsonRpc.method}:`, msg);
         const errBody = JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } });
@@ -1203,6 +1223,13 @@ export class GatewayServer {
     // left on the handshake path. A backend that refuses the Modern request
     // before running it is marked Legacy and falls through to the handshake.
     let sessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
+    // MCP 2026-07-28: a closed connection cancels the forwarded call, unless it is a tool that
+    // must not be cut off half-way (disconnectCancel.ts). Covers the two tool-forwarding
+    // POSTs below; the initialize handshake is left alone.
+    const disconnect = new AbortController();
+    if (cancelOnDisconnect(jsonRpc.method, rpcToolName)) {
+      res.on('close', () => { if (!res.writableEnded) disconnect.abort(); });
+    }
     let modernUpstream: AxiosResponse<ArrayBuffer> | undefined;
     if (upstreamModernEnabled() && !isInitialize && !isNotification && !sessionId
         && await upstreamSupportsModern(upstreamBase, upstreamToken)) {
@@ -1215,6 +1242,7 @@ export class GatewayServer {
           timeout: timeoutMs,
           validateStatus: () => true,
           httpsAgent: this.upstreamHttpsAgent,
+          signal: disconnect.signal,
         });
         let rejected = false;
         if (modernResp.status === 400) {
@@ -1225,6 +1253,7 @@ export class GatewayServer {
         if (rejected) markUpstreamLegacy(upstreamBase);
         else modernUpstream = modernResp;
       } catch (err) {
+        if (axios.isCancel(err)) return; // client disconnected; nobody to answer
         const axErr = err as AxiosError;
         if (axErr.code === 'ECONNREFUSED' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNRESET') {
           res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -1310,6 +1339,7 @@ export class GatewayServer {
         timeout: timeoutMs,
         validateStatus: () => true, // forward all status codes
         httpsAgent: this.upstreamHttpsAgent,
+        signal: disconnect.signal,
       });
 
       // Propagate upstream response headers clients care about
@@ -1334,7 +1364,9 @@ export class GatewayServer {
         // request (authorizeMcpRequest.ts).
         const rawVertical = req.headers['x-active-vertical'];
         const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
-        const governed = await this.governHttpToolsList(responseBody, responseHeaders['Content-Type'], decoded, activeVertical);
+        const governed = await this.governHttpToolsList(
+          responseBody, responseHeaders['Content-Type'], decoded, activeVertical, isPrivilegeBridgeDiscovery(req),
+        );
         if (governed) responseBody = governed;
       }
       // A Modern caller is owed resultType (and, on tools/list, per-caller cache
@@ -1347,6 +1379,7 @@ export class GatewayServer {
       res.writeHead(upstream.status, responseHeaders);
       res.end(responseBody);
     } catch (err) {
+      if (axios.isCancel(err)) return; // client disconnected; nobody to answer
       const axErr = err as AxiosError;
       if (axErr.code === 'ECONNREFUSED' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNRESET') {
         res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -1379,7 +1412,13 @@ export class GatewayServer {
     contentType: string | undefined,
     decoded: DecodedGatewayToken,
     activeVertical?: string,
+    bridgeDiscovery = false,
   ): Promise<Buffer | null> {
+    // A Privilege discovery probe has no user, and what it asks for is the whole
+    // catalogue: Privilege builds its per-tool policy from it and enforces the
+    // per-user view itself. The per-caller filter below would judge the
+    // gateway's own machine identity, so relay the upstream list unchanged.
+    if (bridgeDiscovery) return null;
     const isSse = (contentType || '').includes('text/event-stream');
     let parsed: { id?: unknown; result?: { tools?: unknown[] } } | undefined;
     try {

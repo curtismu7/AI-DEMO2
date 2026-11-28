@@ -6,7 +6,8 @@ import jwt from 'jsonwebtoken';
 export interface DecodedToken {
   sub: string;
   iss?: string;
-  act?: { sub: string };
+  act?: { sub: string; act?: { sub: string } };
+  client_id?: string;
   scope?: string | string[];
   aud: string | string[];
   exp: number;

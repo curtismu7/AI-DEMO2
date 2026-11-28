@@ -124,7 +124,7 @@ router.post('/comprehensive-shutdown', authenticateToken, async (req, res) => {
   let killResult = null;
   try {
     const killSwitchService = require('../services/killSwitchService');
-    killResult = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, 'full', req.sessionID);
+    killResult = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, 'full', req.sessionID, req.session?.oauthType);
     steps.push({ key: 'live_kill', label: 'Full-scope kill of the live agent', detail: `Revoked tokens and disabled the agent's PingOne application (${killResult.time_to_revoke_ms}ms).`, ran: true, skipped: false });
   } catch (e) {
     steps.push({ key: 'live_kill', label: 'Full-scope kill of the live agent', detail: `Kill switch failed: ${e.message}`, ran: false, skipped: false });

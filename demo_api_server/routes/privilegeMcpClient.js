@@ -2805,7 +2805,7 @@ const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 
 // The console API is tenanted on the PRIVILEGE tenant — the one that owns the
 // Agentic Apps. Proven from the gateway's own log, where the app reference
-// base64-decodes to `0428ba4f-…@@@default@@@<appName>` (the encoding is
+// base64-decodes to `4cb38c18-…@@@default@@@<appName>` (the encoding is
 // app-name-independent).
 //
 // This used to read PRIVILEGE_SSO_ENV_ID first and nothing else, which is a

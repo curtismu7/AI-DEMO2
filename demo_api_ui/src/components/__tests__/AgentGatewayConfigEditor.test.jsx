@@ -68,9 +68,9 @@ test('switching to Form view renders the parsed JSON as labeled fields', async (
   await waitFor(() => expect(screen.getByTestId('monaco')).toHaveValue(FILE_DETAIL.raw));
   fireEvent.click(screen.getByRole('button', { name: 'Form' }));
   expect(screen.queryByTestId('monaco')).toBeNull();
-  expect(screen.getByText('Description')).toBeInTheDocument();
+  expect(screen.getByText(/description/)).toBeInTheDocument();
   expect(screen.getByText('Gateway route file')).toBeInTheDocument();
-  expect(screen.getByText('Streaming Enabled')).toBeInTheDocument();
+  expect(screen.getByText(/streamingEnabled/)).toBeInTheDocument();
 });
 
 test('switching back to Editor view restores Monaco with the current value', async () => {

@@ -44,6 +44,9 @@ loadBalancer:
   #       address: agentless-mcpgw.ping-devops-cmuir.svc.cluster.local:8623
   #       scheme: http
   #       parked: false
+  # Node names a login in flight may still carry after a rename (for example the old gateway-pingid-1).
+  # They are only stripped from the callback, never routed to. Same rules as node names.
+  legacyNodeNames: []
   peers: []
   resources:
     requests: {cpu: 50m, memory: 32Mi}
@@ -159,6 +162,12 @@ logShipping:
   # Name of a Secret with `username` and `password` keys. Set it when the
   # target needs basic auth, e.g. opensearchUrl pointed at Elasticsearch.
   authSecret: ""
+  # Optional second copy of every shipped event, posted to Cribl after the OpenSearch post (never instead of it). Off unless url is set.
+  # authSecret: a Secret with `username` and `password` keys (Basic login Cribl accepts on POST /<index>/_doc only).
+  cribl:
+    url: ""          # e.g. http://cribl-siem:9200 (a trailing slash is trimmed)
+    authSecret: ""   # unset = no Authorization header (only for a Cribl endpoint that needs none); setting it without url fails the render
+    index: ""        # default: the same as logShipping.index
 
 # Shared token store for experiments: the name of a Secret holding the gateway's
 # MCPGW_REDIS_URL under `key`. Empty means off, and the gateway keeps its resource

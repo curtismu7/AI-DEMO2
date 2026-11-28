@@ -29,6 +29,9 @@ const { decodeJwt } = require('../utils/tokenUtils');
 const { getCorrelationId } = require('../utils/correlationContext');
 const nrSegments = require('./nrSegments');
 const { isNodeGatewayOnlyTool } = require('./mcpGatewayRoutingPolicy');
+const {
+    modernRequestsEnabled, toModernRequest, legacyRetryReason, isModernKnownUnsupported, markModernUnsupported,
+} = require('./mcpModernRequest');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -506,12 +509,31 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     );
     const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : DEFAULT_TIMEOUT_MS;
 
-    console.log('[GW→PingGateway] REQUEST: url=%s method=POST', url);
-    console.log('[GW→PingGateway] HEADERS: %j', redactGatewayRequestHeaders(headers));
+    // MCP 2026-07-28 stateless request (flag `mcp_modern_requests`, on by default):
+    // _meta + Mcp-Method/Mcp-Name, no initialize, no session. Negotiated per
+    // gateway by trying it first: Node gateway only (PingGateway speaks
+    // 2025-06-18/2025-11-25, the Privilege door is not ours), never for a caller
+    // that brought its own session, and not toward a gateway that rejected it in
+    // the last few minutes. If the gateway answers input_required or rejects the
+    // version, the call did not run and is resent once in the old shape below.
+    const modernSkip = opts.forceLegacy ? (opts.legacyReason === 'input_required' ? 'resent-input-required' : 'resent-rejected')
+        : isIgBase ? 'pinggateway'
+        : pinGatewayBase ? 'privilege-door'
+        : opts.sessionId ? 'caller-session'
+        : !modernRequestsEnabled() ? 'flag-off'
+        : isModernKnownUnsupported(base) ? 'gateway-rejected-recently'
+        : null;
+    const useModern = modernSkip === null;
+    const wire = useModern ? toModernRequest(body, headers) : { body, headers };
+    const reqBody = wire.body;
+    const reqHeaders = wire.headers;
+
+    console.log('[GW→PingGateway] REQUEST: url=%s method=POST%s', url, useModern ? ' (MCP 2026-07-28)' : '');
+    console.log('[GW→PingGateway] HEADERS: %j', redactGatewayRequestHeaders(reqHeaders));
     // Tool-call/response payloads can contain banking records — log them only when
     // explicitly opted in (MCP_GATEWAY_LOG_BODIES=true), not by default.
     if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
-        console.log('[GW→PingGateway] BODY: %j', body);
+        console.log('[GW→PingGateway] BODY: %j', reqBody);
     }
 
     let response;
@@ -523,10 +545,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // retry after a transient 502/503/504 cannot replay the first proof.
         // Keep this best-effort, matching the original call behavior.
         if (opts.dpopKey && opts.dpopKey.privatePem) {
-            delete headers.DPoP;
+            delete reqHeaders.DPoP;
             try {
                 const { signDpopProof, accessTokenHash } = require('./dpopKeyService');
-                headers['DPoP'] = signDpopProof({
+                reqHeaders['DPoP'] = signDpopProof({
                     privatePem: opts.dpopKey.privatePem,
                     publicJwk: opts.dpopKey.publicJwk,
                     htu: url,
@@ -537,8 +559,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         }
         try {
             response = await nrSegments.mcpToolCall(() =>
-                axios.post(url, body, {
-                    headers,
+                axios.post(url, reqBody, {
+                    headers: reqHeaders,
                     timeout: timeoutMs,
                     // Handle error status codes ourselves so we can emit structured errors
                     validateStatus: () => true,
@@ -555,7 +577,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 // Normalize transport failures (timeout / connection refused) into stable
                 // GATEWAY_* codes + HTTP statuses so callers get a consistent shape instead
                 // of a raw axios ECONNABORTED/ECONNREFUSED.
-                throw _normalizeGatewayNetworkError(axErr, timeoutMs);
+                throw Object.assign(
+                    _normalizeGatewayNetworkError(axErr, timeoutMs),
+                    { mcpProtocol: { version: reqHeaders['MCP-Protocol-Version'], stateless: useModern, reason: modernSkip || 'stateless' } },
+                );
             }
             console.warn('[mcpGatewayClient] transient read call transport failure; retrying once: tool=%s code=%s', tool, axErr.code);
         }
@@ -568,7 +593,22 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         await new Promise((resolve) => setTimeout(resolve, SAFE_READ_RETRY_DELAY_MS));
     }
 
+    const retryReason = useModern ? legacyRetryReason(response) : null;
+    if (retryReason) {
+        console.warn('[mcpGatewayClient] MCP 2026-07-28 not usable for this call (%s, status=%d); resending in the 2025-11-25 shape: tool=%s', retryReason, response.status, tool);
+        // A rejection means this gateway cannot take stateless requests; remember it so
+        // the next calls skip straight to the old shape. input_required is NOT a
+        // rejection: the gateway did speak Modern and wants a confirmation.
+        if (retryReason === 'rejected') markModernUnsupported(base);
+        return callToolViaGateway(gatewayUrl, bearerToken, tool, params, { ...opts, forceLegacy: true, legacyReason: retryReason });
+    }
+
     const status = response.status;
+    // Which MCP version this hop spoke — attached to thrown errors too, so the
+    // trace panel can show the version on denied/errored calls, not only on
+    // success (the pipeline's catch paths read err.mcpProtocol).
+    const mcpProtocol = { version: reqHeaders['MCP-Protocol-Version'], stateless: useModern, reason: modernSkip || 'stateless' };
+    const withMcpProtocol = (fields) => ({ mcpProtocol, ...fields });
     console.log('[GW→PingGateway] RESPONSE: status=%d', status);
     console.log('[GW→PingGateway] RESPONSE HEADERS: %j', response.headers);
     if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
@@ -746,6 +786,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 gatewayMessage: body429.message || '',
                 retryAfterMs,
                 rateLimitLayer: body429.rateLimitLayer || (isIgBase ? 'ig' : 'gateway'),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -846,6 +887,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     httpStatus: 403,
                     mcpErrorData: rpcErr403.data || {},
                     gwAuditTrail: _parseGwAuditTrail(response),
+                    ...withMcpProtocol({}),
                 },
             );
         }
@@ -880,6 +922,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     // without it the PERMIT-before-obligation decision is lost and
                     // ProofStrip renders "Run failed before authorize-decision".
                     gwAuditTrail: _parseGwAuditTrail(response),
+                    ...withMcpProtocol({}),
                 },
             );
         }
@@ -914,6 +957,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     denyMessage,
                     tool,
                 ),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -924,7 +968,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (status >= 300 && status < 400) {
         throw Object.assign(
             new Error(`Gateway returned unexpected redirect (HTTP ${status})`),
-            { code: 'gateway_redirect_error', httpStatus: status },
+            withMcpProtocol({ code: 'gateway_redirect_error', httpStatus: status }),
         );
     }
 
@@ -937,7 +981,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         if (body5xx.error === 'gateway_misconfigured') {
             throw Object.assign(
                 new Error(body5xx.message || 'The security gateway is misconfigured'),
-                { code: 'gateway_misconfigured', httpStatus: status, gatewayErrorCode: body5xx.error, gatewayMessage: body5xx.message || '' },
+                withMcpProtocol({ code: 'gateway_misconfigured', httpStatus: status, gatewayErrorCode: body5xx.error, gatewayMessage: body5xx.message || '' }),
             );
         }
         throw Object.assign(
@@ -950,6 +994,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 // chain can show the denial instead of dropping it as an opaque
                 // 502 — same pattern as the 401/403 branches above.
                 gwAuditTrail: _parseGwAuditTrail(response),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -967,7 +1012,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             || '';
         throw Object.assign(
             new Error(gatewayMessage || `Gateway returned HTTP ${status}`),
-            { code: 'gateway_client_error', httpStatus: status, gatewayMessage },
+            withMcpProtocol({ code: 'gateway_client_error', httpStatus: status, gatewayMessage }),
         );
     }
 
@@ -1009,6 +1054,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 gatewayMessage: msg,
                 gatewayErrorCode: isWeatherScope ? 'weather_scope_denied' : undefined,
                 gwAuditTrail: _trailWithWeatherFallback(gwAuditTrail, msg, tool),
+                ...withMcpProtocol({}),
             },
         );
     }
@@ -1035,7 +1081,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             : permit;
     }
 
-    return { result, gwAuditTrail: trailOut, gwMcpHandshake };
+    // What this hop actually spoke, for the trace panel.
+    return { result, gwAuditTrail: trailOut, gwMcpHandshake, mcpProtocol };
 }
 
 /**

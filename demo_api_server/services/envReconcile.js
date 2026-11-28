@@ -174,7 +174,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'skip_token_signature_validation', 'strict_scope_validation', 'scope_validation_timeout',
   'cache_token_validation', 'token_cache_ttl', 'jwks_requests_per_minute', 'jwks_cache_max_age',
   'use_agent_actor_for_mcp', 'token_exchange_auto_fallback', 'token_exchange_log_mode_switches',
-  'mcp_use_legacy_protocol', 'mcp_gw_passthrough_to_mcp_server', 'gateway_health_probe_insecure',
+  'mcp_use_legacy_protocol', 'mcp_gw_passthrough_to_mcp_server', 'mcp_modern_requests', 'gateway_health_probe_insecure',
   'mcp_gateway_reject_unauthorized', 'pingone_validate_on_startup', 'mcp_gw_p1az_enabled',
   // How hard the MCP OAuth brokers make PingOne re-authenticate ('once' | 'login' |
   // 'select_account' | 'off'). A behavioural preference, not env identity — the same
@@ -217,6 +217,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'spiffe_pf_issuer', 'spiffe_pf_token_endpoint', 'spiffe_pf_svid_audience', 'spiffe_pf_ca_path',
   'spiffe_pf_exchange_client_id', 'spiffe_pf_exchange_client_secret',
   'spiffe_pf_subject_client_id', 'spiffe_pf_subject_client_secret',
+  // Privilege gateway URL and the Privilege NHI audience: Privilege's own values, not PingOne env-scoped.
+  'spiffe_privilege_gateway_url', 'spiffe_privilege_audience',
   'pf_ai_agent_actor_client_id', 'pf_ai_agent_actor_client_secret',
   'pf_ai_agent_actor_token_endpoint_auth_method',
   'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',

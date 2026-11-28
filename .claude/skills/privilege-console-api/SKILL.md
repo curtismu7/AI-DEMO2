@@ -20,7 +20,7 @@ a credential minted on one does not work on the other (wrong audience → 401 ev
 |---|---|---|
 | URL | `https://local.procyon.ai:8643` | `https://console.privilege.pingone.com` |
 | Cert | self-signed — use `curl -k` / `NODE_TLS_REJECT_UNAUTHORIZED=0` | normal CA |
-| Auth | **key/secret headers** (see Step 2) | **browser `auth_token` cookie** (see Step 3) |
+| Auth | **session-id header only — any UUID** (see Step 2; key/secret unnecessary) | **browser `auth_token` cookie** (see Step 3) |
 | Served by | the PingOne Privilege desktop app on this Mac | Ping cloud |
 
 **Uptime dependency (local):** `local.procyon.ai:8643` is served by the PingOne Privilege
@@ -28,17 +28,32 @@ desktop app. If API calls fail with "fetch failed", check `lsof -nP -iTCP:8643` 
 `open -a "PingOne Privilege"`. If the app is running but wedged, quit + relaunch it from
 the menu bar. It is not a VPN and does not need one.
 
-## Step 2 — Local console: get key/secret from the Privilege UI
+## Step 2 — Local console auth: THE ANSWER (corrected 2026-11-19)
 
-This is the credential a user can obtain themselves, with no devtools:
+**The LOCAL console API requires only `x-procyon-session-id` — any random UUID.**
+No cookie, no key/secret, no auth header, no `x-auth-token` blob. Verified live
+2026-11-19 from plain curl AND node fetch: a GET on applications returned 200
+with 31 apps, and a no-op object PUT returned 200. The listener
+(`cyonagent_mac`, loopback 8643) apparently trusts local processes — treat this
+as loopback-trust and never rely on it from another host.
 
-1. Open the **PingOne Privilege** desktop app (or `https://local.procyon.ai:8643` in a
-   browser that trusts the self-signed cert).
-2. Go to **Settings → For Developers**.
-3. Create/copy the **API Key** and **API Secret**. The secret is shown once — store it in
-   your secret manager. Keys have an expiry (`NotAfter`) — check it before blaming auth.
+```bash
+TENANT='5bfb4e12-8d71-4b81-8ef8-940b91728c05'   # Privilege tenant from 2026-11-24
+curl -sk "https://local.procyon.ai:8643/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
+```
 
-Wire scheme (this is the part the public docs omit):
+**History of this section (all superseded):** key/secret auth was reported broken
+2026-11-18 (401s naming the cloud host); an `x-auth-token` JSON-blob header
+route was documented 2026-11-18 and could not be reproduced 2026-11-19 (the UI
+sends `authorization: Bearer undefined` and relies on an HttpOnly cookie that
+`document.cookie` and devtools request-header panels hide — but that cookie is
+itself unnecessary, see above). If the session-id-only route ever stops working,
+check Application → Cookies on `local.procyon.ai:8643` for an HttpOnly session
+cookie and send it as `cookie:` header. The CLOUD console
+(console.privilege.pingone.com) still needs its own `auth_token` cookie (Step 3).
+
+Wire scheme (kept for when it works again):
 
 ```bash
 TENANT='<tenant-uuid>'        # shown in the console URL / settings
@@ -48,13 +63,35 @@ curl -sk "$BASE/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
   -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
 ```
 
-- `Authorization: Basic <key>:<secret>` also works.
+- `Authorization: Basic <key>:<secret>` also worked (historically).
 - `x-procyon-session-id` is **structurally required but its value is unvalidated** — any
   random UUID passes (omit it → 400 "Procyon required header is missing"). Treat it as a
   correlation id, not a credential.
-- The **cloud** host (`console.privilege.pingone.com`, `privilege.pingone.com`) still 401s
-  this key/secret pair in every probed header/cookie/HMAC shape — do not burn time
-  re-probing; use the cookie route there.
+
+## Step 2b — TENANT UUID (updated 2026-11-24)
+
+The Privilege tenant is **`5bfb4e12-8d71-4b81-8ef8-940b91728c05`** ("Pingid_Privillege") from 2026-11-24; before it
+`ea040334-d50b-4ded-8d98-4d5cd14dbd4d` (2026-11-23). The desktop agent answers only for its preferred
+tenant: another tenant's id returns 401 "User is not authorized". History (2026-11-19): the live local tenant was **`0428ba4f-169c-436b-aff9-b230496e0e3b`**. An earlier note
+here claimed the tenant changed to `4cb38c18-691a-4201-a99d-b4b8842ca786` — that was
+WRONG. The `4cb38c18…` id 401s on every call; the UI itself makes all its XHRs
+against `0428ba4f…` and they succeed (31 apps present). Always confirm by watching
+which tenant id the console UI's own network requests use before any API work.
+
+## Step 2c — (superseded) the old `x-auth-token` blob route
+
+Documented 2026-11-18, could not be reproduced 2026-11-19. Kept only in case the
+session-id-only route (Step 2) stops working. Historically:
+
+```bash
+TOK='{"user":"<user-uuid>","org":"default","tenant":"<tenant-uuid>"}'
+curl -sk "https://local.procyon.ai:8643/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -H "x-auth-token: $TOK" -H "x-procyon-session-id: $(uuidgen)" -H 'accept: application/json'
+```
+
+`privilege/scripts/apply-tag-schema.mjs` still accepts `--token '<json>'`, but
+its `--key/--secret` args are equally unnecessary locally — the session-id-only
+route makes any of these credentials optional on the local console.
 
 ## Step 3 — Cloud console: get the `auth_token` cookie from the browser
 
@@ -116,12 +153,111 @@ credentials — its 200 is **not** an auth signal.
 - **Tags:** apply via API PUT with `ObjectMeta.CTags: {Map:{k:v}}` — persists and shows in
   the "Tags And Labels" panel for http/Remote-Agent apps, but MCP Server apps show
   "No Procyon tags" even when set (UI bug, API state correct). The Create-Tag wizard UI is
-  undrivable by synthetic clicks; the API is not. Tag policies created via API do not
-  decorate existing apps.
+  undrivable by automation; the API is not. Tag policies created via API do not
+  decorate existing apps. **As of 2026-11-18 the tenant carries the 4-key schema
+  (`env`/`source`/`capability`/`protection`) across all 69 resources, applied by
+  `privilege/scripts/apply-tag-schema.mjs` (17 `tag-map-*` policies, idempotent,
+  exits 2 on orphan resources) — re-run it after adding/renaming resources. See
+  `privilege/TAG-POLICIES.md`.**
 - **AI Guard is per-KEY** (`agentaccesskeys` `Spec.AIGuardConfig`), not per-app.
 - **Policy propagation:** gateway changes take ~4 min to propagate; don't re-test sooner.
 - **No-policy = DENY ALL.** An ungoverned twin needs an explicit allow-all policy.
+- **A2A agent cards (learned 2026-11-19):** Discovery is per-app — set
+  `Spec.HttpAppConfig.EnableAgentCard: true` via read-modify-write PUT on the
+  Remote-Agent (HttpAppConfig) app with a backend; the gateway then polls
+  `<backend>/.well-known/agent-card.json` (A2A protocol 0.3.0) and populates
+  `Status.A2AAgentStatus` (AgentCardJson, parsed Skills, CardURL,
+  ProtocolVersion, LastDiscoveredAt) within minutes — no crawler or sync
+  endpoint needed. Backend must actually serve the well-known card. Script:
+  `privilege/scripts/enable-agent-cards.mjs`.
+- **Agent Cards UI tab is crawler-fed, NOT per-app discovery.** The
+  `/ui/admin/workload-agents/agent-cards` tab shows "No agent cards discovered
+  yet" even when the API has populated cards — it reads Workload Scanner
+  crawler results (`visibilitys` collection, `Status.CrawlerStartedAt/EndedAt`),
+  not `Status.A2AAgentStatus`. An empty tenant has zero visibility records.
+  Empty tab ≠ broken discovery; verify via the applications API.
+- **Browser-session fetch gotcha:** a `fetch` from the page against the WRONG
+  tenant id returns 401 "User is not authorized for
+  console.privilege.pingone.com/api/…" — the same misleading error text as the
+  broken key/secret route. 401 on one tenant + 200 on another = wrong tenant id,
+  not an auth outage. The Playwright session can hit the console directly
+  (credentials:'include') if a console tab is open.
 - **Session-id hygiene:** mint a fresh UUID per call; never log the key/secret or cookie.
+
+## AI platform accounts & the Workload Scanner crawler (learned 2026-11-19)
+
+The `/ui/admin/workload-agents/*` tabs (Overview, Agents, Agent Cards, MCP
+Servers, Gateways/Policies) are fed by the Workload Scanner crawler from
+`aiagentaccounts`, NOT from gateway applications. Per source:
+
+| aiagentaccounts Spec.Type | Crawls | Lands in tab |
+|---|---|---|
+| `AGENTCORE` (AWS, RoleARN + Regions) | Bedrock AgentCore runtimes + gateways | Agents + Gateways/Policies |
+| `AGENT_REGISTRY` (GCP, GcpJsonCreds + Projects + Locations) | `agentregistry.googleapis.com` agents + mcpServers | Agents + Agent Cards + MCP Servers |
+
+- **API for aiagentaccounts:** same console API — GET/POST
+  `/api/<tenant>/v1/aiagentaccounts?ObjectMeta.Namespace=default`, per-object
+  `/default/<name>`. Read-modify-write PUT for changes. `Status.Status.Status`
+  holds Synced/Error/Scanning; `Status.AgentCount`; `Status.LastSyncedAt`.
+  Governance blobs (`Spec.AgentCoreSpec.Governance.*JSON`) hold the crawl
+  results (GatewaysJSON, IAMRolesJSON, GatewayBypassPostureJSON…).
+- **PUT triggers an AGENTCORE rescan within ~1 min** (a no-op field touch
+  worked). PUT does NOT trigger an AGENT_REGISTRY crawl — as of 2026-11-19 the
+  registry crawl awaited the nightly schedule; status stayed blank (`Status:
+  ""`, `LastSyncedAt: ""`) for 10+ min after creation.
+- **Crawl-region gotcha:** an account crawls only its configured Regions. Ours
+  had `us-east-1` only and silently ignored runtimes in us-east-2/us-west-2 —
+  fix by appending regions to `Spec.AgentCoreSpec.Regions.Elems` and re-PUT.
+- **Broken crawl looks like nothing:** a failed `AssumeRole` (external-ID
+  mismatch) showed `Status: Error, "failed to assume role"` and the crawler
+  simply produced nothing new. Check the account's `Status.Error` first when
+  tabs stop updating. Fixing the IAM trust + re-PUT resumes crawling.
+- **The local console binary (`cyonagent_mac`) contains full crawler code** for
+  all account types (AGENTREGISTRY strings present), but crawl scheduling for
+  AGENT_REGISTRY appears cloud/nightly-side.
+
+### GCP Agent Registry (agentregistry.googleapis.com) — registration recipe
+
+Discovery doc: `https://agentregistry.googleapis.com/$discovery/rest?version=v1`.
+Resources are read-only (`agents`, `mcpServers`: list/search/get); **you
+register things as `Services`** — POST
+`v1/projects/<proj>/locations/<loc>/services?serviceId=<id>` with a `Service`
+object. Fields:
+
+- `displayName`, `description`
+- **`agentSpec: {type: "A2A_AGENT_CARD", content: <the card JSON>}`** — the
+  card is validated STRICTLY (OpenAPI-ish schema). Gotchas that cost rounds:
+  1. `securitySchemes.<name>` must be flat OpenAPI shape: `{type: "oauth2",
+     flows: {...}}` — NOT the A2A `{oauth2: {...}}` wrapper.
+  2. `flows.authorizationCode` requires `authorizationUrl`, `tokenUrl`
+     (+ `refreshUrl`), real URLs.
+  3. `url` must not duplicate any `additionalInterfaces[].url` — drop the
+     redundant interface entry.
+- **`mcpServerSpec: {type: "NO_SPEC"}`** (or `TOOL_SPEC` = a `tools/list`
+  payload, ≤10KB) plus **`interfaces: [{url, protocolBinding: "JSONRPC"|"GRPC"|"HTTP_JSON"}]`**
+  — interfaces are REQUIRED; without them: "at least one interface must be
+  provided". `endpointSpec` and `mcpServerSpec` are a ONEOF — set only one.
+- Create returns a long-running `operations/...`; poll it, then GET the
+  service. Registered services appear in `agents`/`mcpServers` listings
+  (agents get a `urn:agent:…` id).
+- Enable first: `gcloud services enable agentregistry.googleapis.com --project <proj>`.
+- Crawler credentials: a GCP service account JSON key with viewer on the
+  project (`roles/viewer` covers registry list/get). Verify with the key via
+  `google-auth` before wiring it into Privilege. SA key creation is a
+  human-run privileged action (standing rule). Impersonation test needs
+  `roles/iam.serviceAccountTokenCreator` on the SA for your user.
+
+### Our setup (2026-11-19, for reference)
+
+- GCP project `privilege-workspace` (coachcurtis.org domain), location
+  `us-central1`, SA `privilege-crawler@privilege-workspace.iam.gserviceaccount.com`,
+  key at `/tmp/privilege-crawler-key.json` (re-create if lost).
+- Registered: `langchainagent` (A2A card from `langchain-midagent` app) +
+  `banking-mcp` (endpoint `https://mcpgw.ai-demo.ping-devops.com/banking-mcp/mcp`).
+- Privilege account: `gcp-agent-registry` (AGENT_REGISTRY) — created via API;
+  crawl pending nightly. Check `Status.LastSyncedAt`; if still blank next day,
+  recreate the account through the console UI Add-flow (its verify step may
+  trigger an immediate scan the API POST skips).
 
 ## Related skills / docs in this repo
 

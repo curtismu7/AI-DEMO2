@@ -186,3 +186,66 @@
   background: var(--th-status-warning-bg);
   border-radius: var(--radius-sm);
 }
+
+/* "lucid" variant (opt-in through the `variant` prop): the look of the reference Lucidchart sequence. Lavender lifeline boxes and
+   purple lifelines, black arrows with numbered discs, pale blue / peach / green bands under a yellow banner, yellow notes, purple
+   alt / loop frames. The hues are local to this variant (like the lane hues above); text and canvas still follow the theme tokens. */
+.sfx--lucid {
+  --lucid-life: #8b7fd1;
+  --lucid-actor: #efeafc;
+  --lucid-actor-text: #1c2330;
+  --lucid-arrow: #111111;
+  --lucid-note: #fff9b1;
+  --lucid-note-line: #d6c84a;
+  --lucid-note-text: #1c2330;
+}
+[data-theme="dark"] .sfx--lucid {
+  --lucid-actor: #2a2540;
+  --lucid-actor-text: #e6eaf1;
+  --lucid-arrow: #e6eaf1;
+  --lucid-note: #4a4420;
+  --lucid-note-line: #9c8f2e;
+  --lucid-note-text: #f2eab0;
+}
+.sfx--lucid .sfx-part { background: var(--lucid-actor); border: 1px solid var(--lucid-life); color: var(--lucid-actor-text); border-radius: var(--radius-sm); }
+.sfx--lucid .sfx-lifeline { border-left: 1.5px solid var(--lucid-life); opacity: 1; }
+.sfx--lucid .sfx-anchor { background: transparent; } /* not display:none: React Flow measures the handles inside it to place the arrows */
+.sfx--lucid .react-flow__edge-path { stroke: var(--lucid-arrow); stroke-width: 1.4; }
+.sfx--lucid .react-flow__arrowhead polyline { stroke: var(--lucid-arrow); fill: var(--lucid-arrow); }
+.sfx--lucid .sfx-label { background: transparent; color: var(--th-text); font-size: var(--font-size-2xs); }
+.sfx--lucid .sfx-label--pick { pointer-events: all; cursor: pointer; }
+.sfx--lucid .sfx-label--pick:hover { text-decoration: underline; }
+.sfx--lucid .sfx-label--pick:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
+.sfx--lucid .sfx-note { color: var(--lucid-note-text); background: var(--lucid-note); border: 1px solid var(--lucid-note-line); border-radius: 0; }
+.sfx--lucid .sfx-disc circle { fill: var(--lucid-arrow); }
+.sfx--lucid .sfx-disc text { fill: var(--th-bg-card); font-size: var(--font-size-3xs); font-weight: 700; }
+.sfx--lucid .react-flow__edge.dstep-hot .react-flow__edge-path, .sfx--lucid .react-flow__edge.animated .react-flow__edge-path { stroke: var(--th-status-info); stroke-width: 2.2; } /* arrowheads scale with the stroke width, so the line in focus stays close to the others */
+.sfx-band { box-sizing: border-box; border-radius: 0; }
+.sfx-frame { position: relative; box-sizing: border-box; border: 1px solid var(--lucid-life, #8b7fd1); background: transparent; pointer-events: none; }
+.sfx-frame__tag { position: absolute; top: 0; left: 0; padding: 0 10px 2px 6px; font-size: var(--font-size-2xs); font-weight: 700; color: var(--th-text); background: var(--th-bg-inset); border: 1px solid var(--lucid-life, #8b7fd1); border-top: 0; border-left: 0; clip-path: polygon(0 0, 100% 0, 100% 70%, 88% 100%, 0 100%); }
+.sfx-frame__title { position: absolute; top: 2px; left: 52px; font-size: var(--font-size-2xs); color: var(--th-text); white-space: nowrap; }
+.sfx-frame__else { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--lucid-life, #8b7fd1); }
+.sfx-frame__else .sfx-frame__title { top: 3px; }
+[data-theme="dark"] .sfx--lucid .sfx-band { filter: brightness(0.25) saturate(1.3); }
+/* A 71-message diagram is thousands of pixels tall: the details row would open far above the message you clicked. In this variant it is a
+   side panel docked on the right (non-modal: no backdrop, the step bar and the diagram stay usable), it follows the step in focus while
+   Simulate runs, stays while you scroll, and closes with its Close button. On a narrow screen it becomes a sheet along the bottom. */
+.sfx--lucid .dreel-detail {
+  position: fixed;
+  top: 4.5rem;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  width: min(30rem, 42vw);
+  max-height: none;
+  overflow: auto;
+  border-right: 0;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.22);
+}
+@media (max-width: 62rem) {
+  .sfx--lucid .dreel-detail { top: auto; left: 0; width: auto; height: 45vh; border-radius: var(--radius-md) var(--radius-md) 0 0; border-right: 1px solid var(--th-border); box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.22); }
+}
+.sfx--lucid .react-flow__arrowhead polyline { stroke: var(--lucid-arrow) !important; fill: var(--lucid-arrow) !important; }
+/* Lifelines, bands and frames do nothing when clicked and sit over the message labels: let the click through to the label. */
+.sfx--lucid .react-flow__node-lifeline, .sfx--lucid .react-flow__node-band, .sfx--lucid .react-flow__node-frame { pointer-events: none !important; } /* React Flow sets pointer-events inline on each node */

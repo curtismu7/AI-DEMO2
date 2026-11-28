@@ -786,6 +786,10 @@ services:
       # (config/oauth.js, health oauth_provider probe) must leave via the host —
       # same mapping mcp-server/ping-gateway/mcp-resource-server already carry.
       - "local.ping-devops.com:host-gateway"
+      # The laptop PingID gateway (~/Development/pingid-gateway, `gw-switch local`) is
+      # published on the host. *.local.ping-devops.com resolves to 127.0.0.1, which inside
+      # this container is the container itself (ECONNREFUSED), so map the name to the host.
+      - "pingid-gw.local.ping-devops.com:host-gateway"
     group_add:
       - "0"
     networks:
@@ -2195,7 +2199,14 @@ services:
     # (sha256:79bda54a…), which adds USER_BINDING in pingone.env. Roll back by
     # restoring the old digest. Bump by re-pulling a newer dated tag and
     # updating the digest.
-    image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:79bda54a21f4fed72ed65b55c5ca5e745b4e1fe0d92b9736304fabd78fb3f273
+    # 2026-11-23: moved off the NYL build to v1.261120 (sha256:2733e787…, the same image as the `latest` tag that day;
+    # pinned by digest, not by `latest`). Checked in a throwaway container: it still derives its listener from
+    # SERVER_URL (:443, plain HTTP behind nginx) and accepts USER_BINDING. Roll back by restoring the NYL digest
+    # sha256:79bda54a21f4fed72ed65b55c5ca5e745b4e1fe0d92b9736304fabd78fb3f273 (v1.261112-NYL).
+    # 2026-11-28: bumped to v1.261127 (sha256:7c137221…), what every hosted gateway runs. Not started or tested here:
+    # the local Docker gateway was dropped 2026-11-23 and its stack is stopped. Roll back by restoring the v1.261120
+    # digest sha256:2733e78749e2d08710bae1b58e147f36204949f96d802f4606a72e7e9c3142e0.
+    image: public.ecr.aws/s7q1z8z4/privilege-aigw@sha256:7c137221ee2e7a5c8787d7accee62adc1e14fc317f929aba6ced6d0d063d50a3
     pull_policy: always
     container_name: ai-demo-ping-mcpgw
     # AGENTLESS (self-hosted frontend) MODE — see privilege/PRIVILEGE-MCP.md.

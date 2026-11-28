@@ -45,6 +45,7 @@ const PrivilegeDemoPage = lazyWithRetry(() => import("./pages/PrivilegeDemoPage"
 const PrivilegeIntentTriagePage = lazyWithRetry(() => import("./pages/PrivilegeIntentTriagePage"));
 const PrivilegeCodingAgentsPage = lazyWithRetry(() => import("./pages/PrivilegeCodingAgentsPage"));
 const PrivilegeSaasAccessPage = lazyWithRetry(() => import("./pages/PrivilegeSaasAccessPage"));
+const PrivilegeGoogleSecretsPage = lazyWithRetry(() => import("./pages/PrivilegeGoogleSecretsPage"));
 const PrivilegePromptLogPage = lazyWithRetry(() => import("./pages/PrivilegePromptLogPage"));
 const PrivilegeA2aPage = lazyWithRetry(() => import("./pages/PrivilegeA2aPage"));
 const PrivilegePiiDetectionPage = lazyWithRetry(() => import("./pages/PrivilegePiiDetectionPage"));
@@ -61,6 +62,7 @@ const PrivilegeFirstGatewayPage = lazyWithRetry(() => import("./components/Privi
 const PersonalAgentDesignPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentDesignPage"));
 const UhgChatgptMcpFlowPage = lazyWithRetry(() => import("./pages/UhgChatgptMcpFlowPage"));
 const PocFlowPage = lazyWithRetry(() => import("./pages/PocFlowPage"));
+const CibaApprovalSequencePage = lazyWithRetry(() => import("./pages/CibaApprovalSequencePage"));
 const GatewayClaimsPage = lazyWithRetry(() => import("./pages/GatewayClaimsPage"));
 const PoppyPage = lazyWithRetry(() => import("./pages/PoppyPage"));
 const PoppyInspectorPage = lazyWithRetry(() => import("./pages/PoppyInspectorPage"));
@@ -305,6 +307,8 @@ import PublicRoutes, {
   IntentInspectorPageRoute,
   AuditAgentPageRoute,
   SpiffePingoneBridgePageRoute,
+  SpiffePrivilegePageRoute,
+  WorkloadStandardsPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
   StandaloneIndexRoute,
@@ -1145,6 +1149,20 @@ function AppWithAuth() {
                 <Route
                   path="/spiffe-pingone-bridge"
                   element={<SpiffePingoneBridgePageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/spiffe-privilege"
+                  element={
+                    loading ? null : user ? (
+                      <SpiffePrivilegePageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/workload-standards"
+                  element={<WorkloadStandardsPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/academy/journey"
@@ -2439,6 +2457,10 @@ function AppWithAuth() {
                               element={<PrivilegeSaasAccessPage />}
                             />
                             <Route
+                              path="/privilege-google-secrets"
+                              element={<PrivilegeGoogleSecretsPage />}
+                            />
+                            <Route
                               path="/privilege-prompt-log"
                               element={<PrivilegePromptLogPage />}
                             />
@@ -2605,6 +2627,13 @@ function AppWithAuth() {
                               element={
                                 // Customer POC pattern: signed-in users only.
                                 loading ? null : user ? <PocFlowPage /> : <SignInPrompt message="This customer POC pattern needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/ciba-approval-sequence"
+                              element={
+                                // Internal architecture chart with the real component names: signed-in users only.
+                                loading ? null : user ? <CibaApprovalSequencePage /> : <SignInPrompt message="This architecture sequence needs a signed-in session." />
                               }
                             />
                             <Route

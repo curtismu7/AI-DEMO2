@@ -325,7 +325,7 @@ async function listAvailableTools(req, agentToken, opts = {}) {
   // unfiltered (it delegates filtering to the gateway). Fall back to the default
   // server URL only when no gateway is configured (dev/offline).
   const serverUrl = getMcpGatewayWsUrl() || undefined;
-  const result = await mcpListTools(agentToken, userSub, correlationId, { vertical, serverUrl });
+  const result = await mcpListTools(agentToken, userSub, correlationId, { vertical, serverUrl, allowModern: !!serverUrl });
   if (req?.recordTokenEvent) {
     // The MCP session the gateway opened to answer this tools/list. On this path
     // the BFF is NOT the MCP client — demo_mcp_gateway is, and it performs

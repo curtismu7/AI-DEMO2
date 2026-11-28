@@ -1146,6 +1146,7 @@ async function runMcpToolPipeline(ctx) {
         let result;
         let gwAuditTrail = null;
         let gwMcpHandshake = null;
+        let mcpProtocol = null;
         // DPoP (RFC 9449): pass the session's ephemeral key so the gateway client signs a
         // per-hop proof. Only when ff_dpop is on AND Phase A minted a key during token
         // resolution — never create one here.
@@ -1209,7 +1210,7 @@ async function runMcpToolPipeline(ctx) {
                 const _dbgClaims = decodeJwt(mcpAccessToken)?.claims || {};
                 console.warn(`[mcpToolPipeline][triage] tool=${tool} gatewayUrl=${gatewayHttpUrl} aud=${JSON.stringify(_dbgClaims.aud)} scope="${_dbgClaims.scope || ''}" act=${JSON.stringify(_dbgClaims.act || null)}`);
             } catch (_) { /* diagnostics only */ }
-            ({ result, gwAuditTrail, gwMcpHandshake } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups, pinNodeGateway: a2aPinnedNodeGateway, workloadActorClientId: req.workloadAgentRuntime?.clientId || null, userMayActSub: _sessionMayActSub(req) }));
+            ({ result, gwAuditTrail, gwMcpHandshake, mcpProtocol } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups, pinNodeGateway: a2aPinnedNodeGateway, workloadActorClientId: req.workloadAgentRuntime?.clientId || null, userMayActSub: _sessionMayActSub(req) }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
@@ -1417,6 +1418,29 @@ async function runMcpToolPipeline(ctx) {
                 gwEvents.push(gwFilterEvent);
             }
         }
+        // Which MCP version this gateway hop spoke (2026-07-28 stateless, or the
+        // 2025-11-25 / 2025-06-18 shape and why). Shown on the trace's gateway step.
+        if (mcpProtocol && mcpProtocol.version) {
+            const MCP_PROTOCOL_WHY = {
+                stateless: 'The gateway accepted a stateless request: protocol version and client capabilities ride in _meta, with no initialize handshake and no session.',
+                'flag-off': 'The MCP 2026-07-28 flag is off, so the call used the 2025-11-25 shape.',
+                pinggateway: 'PingGateway\'s MCP filter speaks 2025-06-18 only, so the call used that version.',
+                'privilege-door': 'This call went to the Privilege gateway door, which is not negotiated here, so it used the 2025-11-25 shape.',
+                'caller-session': 'The caller supplied its own MCP session, so the call used the 2025-11-25 shape.',
+                'gateway-rejected-recently': 'This gateway rejected a stateless request recently, so the call used the 2025-11-25 shape.',
+                'resent-rejected': 'The gateway rejected the stateless request, so the call was resent in the 2025-11-25 shape.',
+                'resent-input-required': 'The gateway asked for a confirmation, which the BFF handles in the 2025-11-25 shape, so the call was resent that way.',
+            };
+            const mcpProtocolEvent = deps.buildTokenEvent(
+                'mcp-protocol',
+                `MCP protocol — ${mcpProtocol.version}${mcpProtocol.stateless ? ' (stateless)' : ''}`,
+                'active', null,
+                MCP_PROTOCOL_WHY[mcpProtocol.reason] || `The gateway hop used MCP ${mcpProtocol.version}.`,
+                { protocolVersion: mcpProtocol.version, stateless: !!mcpProtocol.stateless, reason: mcpProtocol.reason },
+            );
+            tokenEvents.push(mcpProtocolEvent);
+            gwEvents.push(mcpProtocolEvent);
+        }
         if (gwEvents.length > 0) {
             deps.publishTokenEventsToSse(flowTraceId, gwEvents);
         }
@@ -1585,6 +1609,20 @@ async function runMcpToolPipeline(ctx) {
         }
         return { kind: 'result', httpStatus: 200, tokenEvents, body: out };
     } catch (err) {
+        // Which MCP version the gateway hop spoke, on the error path. The success
+        // path emits this from the returned mcpProtocol (see above); thrown errors
+        // carry it as err.mcpProtocol (mcpGatewayClient attaches it to every
+        // throw) so the trace's gateway step shows the version on denied and
+        // errored calls too — not only on success.
+        if (err.mcpProtocol && err.mcpProtocol.version && !tokenEvents.some((e) => e && e.id === 'mcp-protocol')) {
+            tokenEvents.push(deps.buildTokenEvent(
+                'mcp-protocol',
+                `MCP protocol — ${err.mcpProtocol.version}${err.mcpProtocol.stateless ? ' (stateless)' : ''}`,
+                'active', null,
+                `The gateway hop used MCP ${err.mcpProtocol.version}${err.mcpProtocol.stateless ? ' as a stateless request' : ''} before this error.`,
+                { protocolVersion: err.mcpProtocol.version, stateless: !!err.mcpProtocol.stateless, reason: err.mcpProtocol.reason },
+            ));
+        }
         // HTTP 428 Precondition Required: the gateway's PDP asked for step-up
         // MFA. Relayed in the SAME envelope the BFF's own gate used to emit
         // (`mcp_step_up_required` + `step_up_method`) so the agent's existing

@@ -273,7 +273,6 @@ function StepInfoPanel({
   activeStep,
   currentStepIdx,
   steps,
-  isPaused,
   onStepClick,
   panelWidth = 280,
 }) {
@@ -668,11 +667,7 @@ function StepInfoPanel({
             <button
               key={step.step}
               data-step={step.step}
-              onClick={() => {
-                if (isPaused) {
-                  onStepClick(idx);
-                }
-              }}
+              onClick={() => onStepClick(idx)}
               style={{
                 padding: "0.35rem 0.5rem",
                 borderRadius: 4,
@@ -680,13 +675,11 @@ function StepInfoPanel({
                 background: isActive ? "#dbeafe" : "#fff",
                 color: isActive ? "#004687" : "#475569",
                 fontWeight: isActive ? 600 : 400,
-                cursor: isPaused ? "pointer" : "default",
+                cursor: "pointer",
                 textAlign: "left",
                 fontSize: "0.75rem",
-                opacity: isPaused ? 1 : 0.6,
                 transition: "all 0.2s",
               }}
-              disabled={!isPaused}
             >
               <span style={{ color: "#94a3b8", marginRight: "0.25rem" }}>
                 {step.step}.
@@ -3384,33 +3377,33 @@ export default function SequenceDiagramPage() {
     scheduleSteps(pausedStepIdx.current + 1);
   }, [isPaused, scheduleSteps]);
 
+  // §8f (owner, 2026-11-21): Next/Prev from a fresh diagram (or while playing) drop into a paused
+  // walkthrough at that step, so stepping works without pressing Simulate first.
+  const stepTo = useCallback((idx) => {
+    simTimeouts.current.forEach(clearTimeout);
+    simTimeouts.current = [];
+    const clamped = Math.max(0, Math.min(idx, steps.length - 1));
+    setIsSimulating(true);
+    setIsPaused(true);
+    applyStep(clamped);
+    pausedStepIdx.current = clamped;
+  }, [steps.length, applyStep]);
+
   const prevStep = useCallback(() => {
-    if (!isPaused) return;
-    const prev = pausedStepIdx.current - 1;
-    if (prev < 0) return;
-    applyStep(prev);
-    pausedStepIdx.current = prev;
-  }, [isPaused, applyStep]);
+    if (!isSimulating) { stepTo(0); return; }
+    stepTo(pausedStepIdx.current - 1);
+  }, [isSimulating, stepTo]);
 
   const nextStep = useCallback(() => {
-    if (!isPaused) return;
-    const next = pausedStepIdx.current + 1;
-    if (next >= steps.length) {
-      resetDiagram();
-      setIsSimulating(false);
-      return;
-    }
-    applyStep(next);
-    pausedStepIdx.current = next;
-  }, [isPaused, steps.length, applyStep, resetDiagram]);
+    if (!isSimulating) { stepTo(0); return; }
+    stepTo(pausedStepIdx.current + 1);
+  }, [isSimulating, stepTo]);
 
   const handleStepClick = useCallback(
     (idx) => {
-      if (!isPaused) return;
-      applyStep(idx);
-      pausedStepIdx.current = idx;
+      stepTo(idx);
     },
-    [isPaused, applyStep],
+    [stepTo],
   );
 
   const jumpTo = useCallback(
@@ -3592,7 +3585,7 @@ export default function SequenceDiagramPage() {
           </button>
         </div>
         <DiagramControls
-          currentStep={currentStepIdx + 1}
+          currentStep={currentStepIdx < 0 ? 1 : currentStepIdx + 1}
           totalSteps={steps.length}
           isSimulating={isSimulating}
           isPaused={isPaused}
@@ -3640,7 +3633,6 @@ export default function SequenceDiagramPage() {
             activeStep={activeStep}
             currentStepIdx={currentStepIdx}
             steps={steps}
-            isPaused={isPaused}
             onStepClick={handleStepClick}
             panelWidth={leftPanelWidth}
           />

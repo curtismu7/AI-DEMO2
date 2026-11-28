@@ -200,7 +200,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   z-index: 10050;
   width: 380px;
   height: auto;
-  max-height: calc(100vh - 140px);
+  /* As tall as the window: the full viewport minus the 100px top offset and a
+     16px bottom margin. (Was calc(100vh - 140px), which left a dead band below.) */
+  max-height: calc(100vh - 116px);
   min-width: 280px;
   min-height: 220px;
   display: flex;

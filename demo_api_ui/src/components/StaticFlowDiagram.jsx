@@ -63,6 +63,9 @@ import DiagramStepBar from "./DiagramStepBar";
 import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps, withStepDetail } from "../utils/diagramReel";
 import { createRouter, labelPoint, pathFromPoints } from "../utils/orthoRoute";
+import { Passport, PassportActions, FitOpen } from "../diagram-kit/DiagramKit.jsx";
+import { boxPassport } from "../diagram-kit/diagramKit.js";
+import "../diagram-kit/diagram-kit.css";
 import "./StaticFlowDiagram.css";
 
 const NODE_W = 250;
@@ -197,11 +200,11 @@ function routeOnce(rects, edges, cell) {
 }
 
 function FlowNode({ data }) {
-  const { n, color, className, testId, onClick } = data;
+  const { n, color, className, testId, onClick, passport } = data;
   return (
     <div
       className={className}
-      style={{ width: NODE_W, minHeight: nodeH(n), borderColor: color }}
+      style={{ width: data.passport ? undefined : NODE_W, minHeight: nodeH(n), borderColor: color }}
       onClick={onClick}
       data-testid={`${testId}-node-${n.id}`}
     >
@@ -210,6 +213,7 @@ function FlowNode({ data }) {
       {(n.sub || []).map((s, i) => (
         <div key={i} className="sfd-node-sub">{s}</div>
       ))}
+      {passport && <Passport p={passport} />}
       <Handle id="tl" type="target" position={Position.Left} style={HIDDEN} />
       <Handle id="tr" type="target" position={Position.Right} style={HIDDEN} />
       <Handle id="sl" type="source" position={Position.Left} style={HIDDEN} />
@@ -274,7 +278,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 const nodeTypes = { sfd: FlowNode };
 const edgeTypes = { sfd: FlowEdge };
 
-function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId }) {
+function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId, openNode, passportFor, actions }) {
   const ref = useRef(null);
   const uid = useFlowUid();
   const lastDragEnd = useRef(0);
@@ -303,6 +307,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
         const dimmed = selectedPath && n.path && !active;
         const hot = (stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id)) || focusId === n.id || (walkStep ? walkStep.nodes.includes(n.id) : false);
         const seen = !hot && visited ? visited.has(n.id) : false;
+        const open = openNode === n.id;
         const activate = () => {
           // The click that ends a drag is not a selection.
           if (pingStyle && Date.now() - lastDragEnd.current < 300) return;
@@ -314,6 +319,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
           position: { x: n.x * SPREAD_X, y: n.y * SPREAD_Y },
           draggable: true,
           selectable: false,
+          zIndex: open ? 10 : undefined, // an expanded box sits above its neighbours
           // A box is a tab stop only when picking it does something; then it is named and Enter / Space pick it like a click.
           focusable: actionable,
           ...(actionable ? {
@@ -330,12 +336,13 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
             n,
             color: g.bg || "var(--sfd-edge)",
             testId,
-            className: `sfd-node${dimmed ? " dimmed" : ""}${hot ? " step-hot" : ""}${seen ? " step-seen" : ""}${pingStyle && selectedId === n.id ? " sfd-node--selected" : ""}`,
+            className: `sfd-node${dimmed ? " dimmed" : ""}${hot ? " step-hot" : ""}${seen ? " step-seen" : ""}${pingStyle && selectedId === n.id ? " sfd-node--selected" : ""}${open ? " dk-open" : ""}`,
             onClick: activate,
+            passport: open ? passportFor(n.id) : null,
           },
         };
       }),
-    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick, actionable, walkStep, visited, pingStyle, selectedId],
+    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick, actionable, walkStep, visited, pingStyle, selectedId, openNode, passportFor],
   );
 
   const { nodes, onNodesChange } = useDraggableNodes(laidOut);
@@ -406,6 +413,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
           </marker>
         </defs>
       </svg>
+      <PassportActions.Provider value={actions}>
       <ReactFlow
         id={uid}
         nodes={nodes}
@@ -424,6 +432,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
         nodeDragThreshold={pingStyle ? 5 : undefined}
         onNodeDragStart={pingStyle ? () => setDragging(true) : undefined}
         onNodeDragStop={() => { lastDragEnd.current = Date.now(); setDragging(false); }}
+        onPaneClick={() => actions.close()}
         nodesConnectable={false}
         elementsSelectable={false}
         zoomOnScroll={false}
@@ -432,7 +441,9 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, actionable, te
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
         <Controls showInteractive={false} />
+        <FitOpen open={openNode} closePadding={0.08} />
       </ReactFlow>
+      </PassportActions.Provider>
       {pannable && <p className="sfd-pan-hint">Drag to pan, use + and − to zoom</p>}
     </div>
   );
@@ -477,8 +488,31 @@ export default function StaticFlowDiagram({
   }, [driver, walk, EDGES, NODES, details, pingStyle, steps]);
   const [nodeDetail, setNodeDetail] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [openNode, setOpenNode] = useState(null);
   const [openKey, setOpenKey] = useState(0);
   const reelRef = useRef(null);
+  // The kit's Passport: what an expanded box shows. graph = { nodes, edges, groups } in the kit's shape.
+  const graph = useMemo(
+    () => ({
+      nodes: NODES.map((n) => ({ id: n.id, label: n.label, sub: n.sub || [], group: n.group })),
+      edges: EDGES.map(([src, tgt, label]) => ({ source: src, target: tgt, label: label || null })),
+      groups: GROUPS,
+    }),
+    [NODES, EDGES, GROUPS],
+  );
+  const passportFor = useCallback((id) => boxPassport(graph, id), [graph]);
+  const actions = useMemo(
+    () => ({
+      open: (id) => setOpenNode(id),
+      close: () => setOpenNode(null),
+      link: (id) => {
+        const u = new URL(window.location.href);
+        u.searchParams.set("node", id);
+        return u.toString();
+      },
+    }),
+    [],
+  );
   const dstep = driver ? driver.step : -1;
   // pingStyle: moving the stepper/reel selects that step's box, unless the selected box is already part of the step.
   useEffect(() => {
@@ -510,6 +544,9 @@ export default function StaticFlowDiagram({
   // A page that handles node clicks itself keeps its own panel; otherwise the details row shows the node.
   const handleNodeClick = useCallback(
     (node) => {
+      // Click-to-expand: the box opens its Passport in place (kit standard, §8c) and
+      // the page's own onNodeClick still fires so pages that keep a panel stay in sync.
+      setOpenNode((o) => (o === node.id ? null : node.id));
       if (pingStyle) {
         pickNode(node);
         if (onNodeClick) onNodeClick(node);
@@ -537,6 +574,9 @@ export default function StaticFlowDiagram({
           visited={visited}
           pingStyle={pingStyle}
           selectedId={selectedId}
+          openNode={openNode}
+          passportFor={passportFor}
+          actions={actions}
         />
       </ReactFlowProvider>
       {pingStyle && (

@@ -711,7 +711,7 @@ Auth Mode         None`}
                 { label: "Gateway 2", value: "Helm release agentless-mcpgw2, namespace ping-devops-cmuir, mesh cluster ai-demo-cmuir2" },
                 { label: "Load balancer", value: "Deployment and Service mcpgw-lb, namespace ping-devops-curtismuir" },
                 { label: "Gateway image", value: "public.ecr.aws/s7q1z8z4/privilege-aigw", mono: true },
-                { label: "Gateway's PingOne tenant", value: "0428ba4f-169c-436b-aff9-b230496e0e3b (AI Agent)", mono: true },
+                { label: "Gateway's PingOne tenant", value: "4cb38c18-691a-4201-a99d-b4b8842ca786 (AI Agent)", mono: true },
               ]} />
             </Card>
 

@@ -21,14 +21,14 @@ import "./DiagramControls.css";
  * page. Values are the dwell time per step, in milliseconds.
  */
 export const STEP_TIME_OPTIONS = [
-  { value: 800, label: "0.8s (fast)" },
-  { value: 1500, label: "1.5s" },
-  { value: 2500, label: "2.5s (default)" },
+  { value: 600, label: "0.6s (fast)" },
+  { value: 1200, label: "1.2s (default)" },
+  { value: 2500, label: "2.5s" },
   { value: 4000, label: "4s" },
   { value: 6000, label: "6s (slow)" },
 ];
 
-export const DEFAULT_STEP_MS = 2500;
+export const DEFAULT_STEP_MS = 1200;
 
 function DiagramControls({
   // Zoom block (omit to hide)
@@ -136,20 +136,41 @@ function DiagramControls({
             title="Time each step takes during Simulate"
           />
           {!isSimulating ? (
-            <button
-              type="button"
-              className="dc-ctrl-btn dc-ctrl-btn--simulate"
-              onClick={then(".dc-ctrl-btn--pause", onSimulate)}
-            >
-              Simulate
-            </button>
+            <>
+              {/* §8f (owner, 2026-11-21): a walkthrough can start stepped, not only playing — Prev/Next from a
+                  fresh diagram start it paused at the first step (the handlers own that; see useDiagramStepper). */}
+              <button
+                type="button"
+                className="dc-ctrl-btn dc-ctrl-btn--prev"
+                onClick={then(".dc-ctrl-btn--pause", onPrev)}
+                disabled={totalSteps < 2}
+              >
+                ← Prev
+              </button>
+              <button
+                type="button"
+                className="dc-ctrl-btn dc-ctrl-btn--simulate"
+                onClick={then(".dc-ctrl-btn--pause", onSimulate)}
+              >
+                Simulate
+              </button>
+              <button
+                type="button"
+                className="dc-ctrl-btn dc-ctrl-btn--step"
+                onClick={then(".dc-ctrl-btn--pause", onNext)}
+                disabled={totalSteps < 1}
+                title="Start the walkthrough paused on step 1"
+              >
+                Step →
+              </button>
+            </>
           ) : (
             <>
               <button
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--prev"
                 onClick={onPrev}
-                disabled={!isPaused}
+                disabled={currentStep <= 1}
               >
                 ← Prev
               </button>
@@ -174,7 +195,7 @@ function DiagramControls({
                 type="button"
                 className="dc-ctrl-btn dc-ctrl-btn--next"
                 onClick={onNext}
-                disabled={!isPaused}
+                disabled={currentStep >= totalSteps}
               >
                 Next →
               </button>

@@ -1,34 +1,72 @@
-/* demo_api_ui/src/components/shared/JsonFormView.css */
+/* demo_api_ui/src/components/shared/JsonFormView.css — hybrid sections + flat dot-path rows */
 .jfv-root {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  font-size: 0.85rem;
+  gap: 0.4rem;
+  font-size: var(--font-size-sm);
 }
-.jfv-section-title {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #5c646b;
-  margin-bottom: 0.5rem;
+.jfv-item {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
-.jfv-group {
+.jfv-head {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  background: var(--th-bg-hover);
+  border: none;
+  text-align: left;
+  font-size: var(--font-size-xs);
+  color: var(--th-text);
+}
+.jfv-head--toggle {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--th-text);
+}
+.jfv-head--toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.jfv-head-name {
+  color: var(--th-text);
+  font-weight: 600;
+  word-break: break-all;
+}
+.jfv-caret {
+  color: var(--th-text-faint);
+  flex: 0 0 auto;
+}
+.jfv-meta {
+  margin-left: auto;
+  color: var(--th-text-faint);
+  font-weight: 400;
+  font-size: var(--font-size-3xs);
+  white-space: nowrap;
+}
+.jfv-body {
+  padding: 0.25rem 0.75rem 0.5rem;
 }
 .jfv-row {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.3rem 0;
-  border-bottom: 1px solid #eff0f1;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--th-bg-hover);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+}
+.jfv-row:last-child {
+  border-bottom: none;
 }
 .jfv-label {
-  flex: 0 0 220px;
-  color: var(--th-text);
-  font-weight: 600;
+  flex: 0 0 46%;
+  color: var(--th-text-faint);
+  word-break: break-all;
 }
 .jfv-value {
   flex: 1;
@@ -41,42 +79,36 @@
 }
 .jfv-value-text {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--font-size-2xs);
 }
 .jfv-empty {
-  color: #909ea4;
+  color: var(--th-text-faint);
   font-style: italic;
 }
+.jfv-empty-inline {
+  color: var(--th-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+}
 .jfv-empty-state {
-  color: #909ea4;
+  color: var(--th-text-faint);
   font-style: italic;
   padding: 1rem 0;
 }
-.jfv-subgroup {
-  margin-left: 1rem;
-  padding-left: 0.75rem;
-  border-left: 2px solid #e0e2e4;
-  margin-top: 0.35rem;
-}
-.jfv-subgroup-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #263746;
-  margin-bottom: 0.25rem;
-}
 .jfv-expand,
 .jfv-copy {
-  border: 1px solid #cdd1d4;
-  background: #fff;
-  color: #263746;
-  font-size: 0.7rem;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg);
+  color: var(--th-text-body);
+  font-size: var(--font-size-3xs);
   font-weight: 600;
-  padding: 0.1rem 0.4rem;
+  padding: 0.05rem 0.35rem;
   border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
 }
 .jfv-expand:hover,
 .jfv-copy:hover {
-  background: #eff0f1;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }

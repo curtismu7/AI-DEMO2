@@ -147,6 +147,12 @@
   margin: 8px 12px 12px;
 }
 
+/* When the floating details pop-out is mounted inside, this card is its
+   positioning anchor — the pop-out stays inside the card's own box. */
+.udp-page .udp-trace--popout-host {
+  position: relative;
+}
+
 /* An honest empty state: a dashed box that reads at body size, not 10px grey on grey. */
 .udp-page .srd-empty {
   padding: 12px;

@@ -1,11 +1,11 @@
 import React from "react";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
+import FloatingDetailsPanel from "./FloatingDetailsPanel";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
 import ServerTopologyStory from "./ServerTopologyStory";
 import TokenTopologyPanel from "./TokenTopologyPanel";
-import { DetailPaneResizeHandle } from "./DashboardTracePanels";
 
 /**
  * The clinical-split layout (ff_agent_clinical_split): it owns the whole dashboard area when on. Moved out of
@@ -13,11 +13,8 @@ import { DetailPaneResizeHandle } from "./DashboardTracePanels";
  * modals stay reachable from this branch.
  */
 export default function DashboardClinicalSplit({
-  detailPaneHeight,
   followFlow,
   globalModals,
-  onDetailPaneResizeKeyDown,
-  onDetailPaneResizeMouseDown,
   selectedSeqStep,
   setSelectedSeqStep,
   setSlowMode,
@@ -44,26 +41,27 @@ export default function DashboardClinicalSplit({
           {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <SequenceReelDiagram
-              onSelectStep={setSelectedSeqStep}
-              onReset={() => setSelectedSeqStep(null)}
-              selectedStepId={selectedSeqStep?.id}
-              slowMode={slowMode}
-              followFlow={followFlow}
-              onToggleSlowMode={() => setSlowMode(!slowMode)}
-            />
-          )}
-          {showSequenceDiagram && selectedSeqStep && (
-            <>
-              <DetailPaneResizeHandle
-                height={detailPaneHeight}
-                onMouseDown={onDetailPaneResizeMouseDown}
-                onKeyDown={onDetailPaneResizeKeyDown}
+            <div className={`csx-trace-wrap${selectedSeqStep ? " csx-trace-wrap--popout-host" : ""}`}>
+              <SequenceReelDiagram
+                onSelectStep={setSelectedSeqStep}
+                onReset={() => setSelectedSeqStep(null)}
+                selectedStepId={selectedSeqStep?.id}
+                slowMode={slowMode}
+                followFlow={followFlow}
+                onToggleSlowMode={() => setSlowMode(!slowMode)}
               />
-              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
-              <CollapsibleStepDetail step={selectedSeqStep} />
-              </div>
-            </>
+              {showSequenceDiagram && selectedSeqStep && (
+                <FloatingDetailsPanel
+                  open
+                  id="seq-step-clinical"
+                  title={selectedSeqStep.label || "Step details"}
+                  status={selectedSeqStep.status}
+                  onClose={() => setSelectedSeqStep(null)}
+                >
+                  <CollapsibleStepDetail step={selectedSeqStep} />
+                </FloatingDetailsPanel>
+              )}
+            </div>
           )}
         </div>
         {globalModals}

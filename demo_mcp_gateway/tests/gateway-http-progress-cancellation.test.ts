@@ -13,6 +13,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
  * aborting the matching in-flight call.
  */
 
+import http from 'node:http';
 import supertest from 'supertest';
 import type { GatewayConfig } from '../src/config';
 
@@ -204,6 +205,75 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
     expect(capturedSignal?.aborted).toBe(true);
   });
 
+  it('refuses an explicit notifications/cancelled for a money-moving tool (runs to completion, like the disconnect path)', async () => {
+    // The upstream parks the tools/call until released. An explicit
+    // notifications/cancelled must NOT abort a money-moving tool — aborting a
+    // transfer after the backend may have committed leaves the caller with no
+    // outcome while the money moved. The tool's own release completes it.
+    let upstream: http.Server | undefined;
+    let port = 0;
+    let release: (() => void) | undefined;
+    const parkedUpstream = new Promise<void>((parkedReady) => {
+      upstream = http.createServer((rq, rs) => {
+        let raw = '';
+        rq.on('data', (d) => { raw += d; });
+        rq.on('end', () => {
+          if (!raw) { rs.writeHead(200, { 'Content-Type': 'application/json' }); rs.end(); return; }
+          const msg = JSON.parse(raw);
+          if (msg.method !== 'tools/call') {
+            rs.writeHead(200, { 'Content-Type': 'application/json' });
+            rs.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: {} }));
+            return;
+          }
+          parkedReady();
+          release = () => {
+            rs.writeHead(200, { 'Content-Type': 'application/json' });
+            rs.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: 'committed' }] } }));
+          };
+        });
+      });
+      upstream.listen(0, '127.0.0.1', () => { port = (upstream!.address() as { port: number }).port; });
+    });
+    // The upstream server must be listening before the gateway is constructed
+    // (its URL embeds the port) and before anything dials it.
+    await new Promise<void>((r) => upstream!.on('listening', () => r()));
+    // devBypass: the money path under test is the HTTP notifications/cancelled
+    // interception + forwarding, not the auth pipeline (which needs JWKS /
+    // introspection configured to pass). devBypass forwards the bearer as-is.
+    const moneyGateway = new GatewayServer({ config: { ...stubConfig, devBypass: true }, upstreamMcpUrl: `http://127.0.0.1:${port}` });
+    const moneyRequest = supertest(moneyGateway.httpServer);
+
+    const scopedToken = (scope: string): string => {
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(JSON.stringify({
+        sub: 'user-123', aud: GATEWAY_AUDIENCE, scope, exp: Math.floor(Date.now() / 1000) + 3600, iss: 'https://auth.example.com',
+      })).toString('base64url');
+      return `${header}.${payload}.${Buffer.from('fakesig').toString('base64url')}`;
+    };
+
+    const callPromise = moneyRequest
+      .post('/mcp')
+      .set('Authorization', `Bearer ${scopedToken('read write transfer')}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name: 'create_transfer', arguments: { from_account_id: 'a1', to_account_id: 'a2', amount: 10 } } }));
+    callPromise.then(() => {}, () => {});
+    // The upstream acks the tools/call only after the gateway forwarded it.
+    await parkedUpstream;
+
+    const cancelRes = await moneyRequest
+      .post('/mcp')
+      .set('Authorization', `Bearer ${scopedToken('read write transfer')}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 71 } }));
+    expect(cancelRes.status).toBe(202);
+
+    // The call still completes — the cancel did not abort it.
+    release?.();
+    await callPromise;
+
+    upstream!.close();
+  });
+
   it('does not let a different caller abort an in-flight call that shares the same JSON-RPC id', async () => {
     let capturedSignal: AbortSignal | undefined;
     let resolveCall: ((value: unknown) => void) | undefined;
@@ -243,5 +313,142 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
     const callRes = await callPromise;
     expect(callRes.status).toBe(200);
     expect(capturedSignal?.aborted).toBe(false);
+  });
+});
+
+describe('POST /mcp: a dropped HTTP connection cancels the call (MCP 2026-07-28)', () => {
+  let gateway: GatewayServer;
+  let request: ReturnType<typeof supertest>;
+
+  beforeEach(() => {
+    mockedProxyJsonRpc.mockReset();
+    gateway = new GatewayServer({
+      config: stubConfig,
+      upstreamMcpUrl: 'http://127.0.0.1:19999',
+    });
+    request = supertest(gateway.httpServer);
+  });
+
+  function parkUntilAborted(): { signal: () => AbortSignal | undefined } {
+    let captured: AbortSignal | undefined;
+    mockedProxyJsonRpc.mockImplementation((_url, _token, _req, _x, _tls, _onProgress, signal: AbortSignal) => {
+      captured = signal;
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(Object.assign(new Error('Cancelled'), { code: 'cancelled' })));
+      });
+    });
+    return { signal: () => captured };
+  }
+
+  it('aborts a read-only call when the client goes away', async () => {
+    const parked = parkUntilAborted();
+    const call = request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 51, method: 'resources/list', params: {} }));
+    call.then(() => {}, () => {});
+
+    await waitFor(() => parked.signal() !== undefined, 'the call to reach the proxy');
+    expect(parked.signal()?.aborted).toBe(false);
+
+    call.abort();
+    await waitFor(() => parked.signal()?.aborted === true, 'the call to be aborted after the disconnect');
+  });
+
+  it('leaves the call running when the client stays connected', async () => {
+    const parked = parkUntilAborted();
+    const call = request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 52, method: 'resources/list', params: {} }));
+    call.then(() => {}, () => {});
+
+    await waitFor(() => parked.signal() !== undefined, 'the call to reach the proxy');
+    await new Promise((r) => setTimeout(r, 100));
+    expect(parked.signal()?.aborted).toBe(false);
+    call.abort();
+  });
+});
+
+describe('POST /mcp: a dropped HTTP connection on the forwarded (olb) path', () => {
+  // The upstream parks every tools/call until released and records whether the gateway hung up on it.
+  let upstream: http.Server;
+  let upstreamPort = 0;
+  let gateway: GatewayServer;
+  let request: ReturnType<typeof supertest>;
+  const parked = new Map<string, { hungUp: boolean; release: () => void }>();
+
+  function scopedToken(scope: string): string {
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({
+      sub: 'user-123', aud: GATEWAY_AUDIENCE, scope, exp: Math.floor(Date.now() / 1000) + 3600, iss: 'https://auth.example.com',
+    })).toString('base64url');
+    return `${header}.${payload}.${Buffer.from('fakesig').toString('base64url')}`;
+  }
+
+  beforeAll(async () => {
+    upstream = http.createServer((rq, rs) => {
+      let raw = '';
+      rq.on('data', (d) => { raw += d; });
+      rq.on('end', () => {
+        const msg = JSON.parse(raw);
+        if (msg.method !== 'tools/call') {
+          rs.writeHead(200, { 'Content-Type': 'application/json' });
+          rs.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: {} }));
+          return;
+        }
+        const entry = { hungUp: false, release: () => {
+          rs.writeHead(200, { 'Content-Type': 'application/json' });
+          rs.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: 'done' }] } }));
+        } };
+        parked.set(msg.params.name, entry);
+        rs.on('close', () => { if (!rs.writableEnded) entry.hungUp = true; });
+      });
+    });
+    await new Promise<void>((r) => upstream.listen(0, '127.0.0.1', () => r()));
+    upstreamPort = (upstream.address() as { port: number }).port;
+  });
+
+  afterAll(() => { upstream.close(); });
+
+  beforeEach(() => {
+    parked.clear();
+    gateway = new GatewayServer({ config: stubConfig, upstreamMcpUrl: `http://127.0.0.1:${upstreamPort}` });
+    request = supertest(gateway.httpServer);
+  });
+
+  function call(tool: string, args: Record<string, unknown>) {
+    const req = request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${scopedToken('read write transfer accounts:read')}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 61, method: 'tools/call', params: { name: tool, arguments: args } }));
+    req.then(() => {}, () => {});
+    return req;
+  }
+
+  it('hangs up on the upstream when a read-only tool call is dropped', async () => {
+    const req = call('get_my_accounts', {});
+    await waitFor(() => parked.has('get_my_accounts'), 'the call to reach the upstream');
+    expect(parked.get('get_my_accounts')!.hungUp).toBe(false);
+
+    req.abort();
+    await waitFor(() => parked.get('get_my_accounts')!.hungUp, 'the gateway to hang up on the upstream');
+  });
+
+  it('keeps the upstream call open when a money-moving tool call is dropped', async () => {
+    const money = call('create_transfer', { from_account_id: 'a1', to_account_id: 'a2', amount: 10 });
+    const read = call('get_my_accounts', {});
+    await waitFor(() => parked.has('create_transfer') && parked.has('get_my_accounts'), 'both calls to reach the upstream');
+
+    money.abort();
+    read.abort();
+    // The read hang-up proves the gateway has processed the disconnects; the transfer must still be open.
+    await waitFor(() => parked.get('get_my_accounts')!.hungUp, 'the read-only call to be hung up on');
+    expect(parked.get('create_transfer')!.hungUp).toBe(false);
+
+    parked.get('create_transfer')!.release();
   });
 });

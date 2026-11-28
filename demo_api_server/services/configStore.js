@@ -497,6 +497,12 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // registered here so the shared .env value is tracked in the config registry.
   mcp_gw_passthrough_to_mcp_server: { public: true, default: 'false' },
 
+  // BFF -> Node gateway negotiates MCP 2026-07-28 stateless requests (_meta, no
+  // initialize): tries them first and falls back per gateway. 'false' = never.
+  // Consumed by services/mcpModernRequest.js. A Modern answer the BFF cannot use
+  // (input_required, version rejection) is resent in the 2025-11-25 shape.
+  mcp_modern_requests: { public: true, default: 'true' },
+
   // Dev-only TLS bypass for the gateway health probe and MCP WebSocket client.
   // When true AND NODE_ENV != 'production', skips TLS verification on wss:// and
   // the gateway /health probe. Production code hard-ignores this flag regardless
@@ -855,6 +861,11 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   spiffe_pf_exchange_client_secret:       { public: false, default: '' },
   spiffe_pf_subject_client_id:            { public: false, default: '' },
   spiffe_pf_subject_client_secret:        { public: false, default: '' },
+  // SPIFFE workload identity → Privilege gateway (Non-Human Identity / federated agent).
+  // Gated by ff_spiffe_privilege; off by default so behaviour is unchanged.
+  ff_spiffe_privilege:                    { public: true,  default: 'false' },
+  spiffe_privilege_gateway_url:           { public: true,  default: 'https://mcpgw.ai-demo.ping-devops.com' },
+  spiffe_privilege_audience:              { public: true,  default: '' },
   spiffe_bridge_private_key:              { public: false, default: '' },
   spiffe_bridge_kid:                      { public: true,  default: '' },
   spiffe_pingone_client_map:              { public: true,  default: '' },
@@ -1281,6 +1292,7 @@ const ENV_FALLBACK_MAP = {
   mcp_gw_resource_uri:              ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI'],
   mcp_gw_token_endpoint_auth_method:      ['MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD'],
   mcp_gw_passthrough_to_mcp_server:       ['MCP_GW_PASSTHROUGH_TO_MCP_SERVER'],
+  mcp_modern_requests:                    ['MCP_BFF_MODERN_REQUESTS'],
   gateway_health_probe_insecure:           ['GATEWAY_HEALTH_PROBE_INSECURE'],
   mcp_gateway_reject_unauthorized:         ['MCP_GATEWAY_REJECT_UNAUTHORIZED'],
   pingone_validate_on_startup:             ['PINGONE_VALIDATE_ON_STARTUP'],
@@ -1441,6 +1453,9 @@ const ENV_FALLBACK_MAP = {
   spiffe_pf_exchange_client_secret:      ['SPIFFE_PF_EXCHANGE_CLIENT_SECRET'],
   spiffe_pf_subject_client_id:           ['SPIFFE_PF_SUBJECT_CLIENT_ID'],
   spiffe_pf_subject_client_secret:       ['SPIFFE_PF_SUBJECT_CLIENT_SECRET'],
+  ff_spiffe_privilege:                   ['FF_SPIFFE_PRIVILEGE'],
+  spiffe_privilege_gateway_url:          ['SPIFFE_PRIVILEGE_GATEWAY_URL'],
+  spiffe_privilege_audience:             ['SPIFFE_PRIVILEGE_AUDIENCE'],
   spiffe_bridge_private_key:             ['SPIFFE_BRIDGE_PRIVATE_KEY'],
   spiffe_bridge_kid:                     ['SPIFFE_BRIDGE_KID'],
   spiffe_pingone_client_map:             ['SPIFFE_PINGONE_CLIENT_MAP'],

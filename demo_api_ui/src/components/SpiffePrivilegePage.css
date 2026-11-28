@@ -1,0 +1,189 @@
+.spfp-page {
+  --spfp-ok: var(--th-success, #1a7f37);
+  --spfp-refused: var(--th-danger, #b42318);
+  --spfp-error: var(--th-warning, #b54708);
+  padding: 0 0 3rem;
+}
+
+.spfp-intro {
+  max-width: 1100px;
+  margin: 0 auto 1.5rem;
+  padding: 0 1.5rem;
+  line-height: 1.6;
+}
+
+.spfp-intro code {
+  background: var(--th-surface-raised, rgba(127, 127, 127, 0.12));
+  color: var(--th-text);
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
+.spfp-intro__chain {
+  font-weight: 600;
+}
+
+.spfp-intro__warn {
+  color: var(--spfp-error);
+  font-weight: 600;
+}
+
+.spfp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.spfp-card {
+  color: var(--th-text);
+  border: 1px solid var(--th-border, rgba(127, 127, 127, 0.35));
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  background: var(--th-surface, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.spfp-card--ok { border-color: var(--spfp-ok); }
+.spfp-card--refused { border-color: var(--spfp-refused); }
+.spfp-card--error { border-color: var(--spfp-error); }
+
+.spfp-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.spfp-card__head h3 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.spfp-pill {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.spfp-pill--ok { background: var(--spfp-ok); color: var(--th-surface, #fff); }
+.spfp-pill--refused { background: var(--spfp-refused); color: var(--th-surface, #fff); }
+.spfp-pill--error { background: var(--spfp-error); color: var(--th-surface, #fff); }
+.spfp-pill--idle {
+  background: var(--th-surface-raised, rgba(127, 127, 127, 0.2));
+  color: var(--th-text, inherit);
+}
+
+.spfp-card__tagline,
+.spfp-card__expectation {
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+}
+
+.spfp-card__expectation {
+  color: var(--th-text-muted, inherit);
+  opacity: 0.85;
+}
+
+.spfp-card__verdict {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+  font-size: var(--font-size-body);
+  line-height: 1.4;
+}
+
+.spfp-card__verdict--ok { color: var(--spfp-ok); }
+.spfp-card__verdict--refused { color: var(--spfp-refused); }
+.spfp-card__verdict--error { color: var(--spfp-error); }
+
+.spfp-card__running {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.spfp-card__error {
+  margin: 0.25rem 0 0;
+  color: var(--spfp-error);
+  font-size: var(--font-size-body);
+  word-break: break-word;
+}
+
+.spfp-card__run {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border, rgba(127, 127, 127, 0.4));
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.spfp-card__run:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.spfp-details {
+  margin-top: 0.5rem;
+  font-size: var(--font-size-sm);
+}
+
+.spfp-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+
+.spfp-details__grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.spfp-details h4 {
+  margin: 0 0 0.3rem;
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.spfp-details pre {
+  color: var(--th-text);
+  margin: 0;
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  background: var(--th-surface-raised, rgba(127, 127, 127, 0.1));
+  overflow: auto;
+  max-height: 220px;
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.spfp-footer {
+  max-width: 1100px;
+  margin: 2rem auto 0;
+  padding: 0 1.5rem;
+  font-size: var(--font-size-sm);
+  opacity: 0.85;
+}
+
+.spfp-footer code {
+  background: var(--th-surface-raised, rgba(127, 127, 127, 0.12));
+  color: var(--th-text);
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--radius-sm);
+}

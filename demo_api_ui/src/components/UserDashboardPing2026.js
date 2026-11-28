@@ -66,12 +66,14 @@ import { DashboardExplainers, FloatChainActions, MiddleAgentFab, MiddleResizeHan
 import DashboardGlobalModals from "./DashboardGlobalModals";
 import DashboardStepUpToast from "./DashboardStepUpToast";
 import { DetailPaneResizeHandle, RunTraceCard } from "./DashboardTracePanels";
+import FloatingDetailsPanel from "./FloatingDetailsPanel";
 import { SimBanner, StatusChip } from "./pingUi";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { dashboardModeText, chatStatusChip } from "./dashboardFrameStatus";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AuthLoadingScreen from "./shared/AuthLoadingScreen";
+import { decodeSegment } from './shared/JsonPane.jsx';
 
 /**
  * True when the server answered from its idempotency ledger rather than by
@@ -1008,8 +1010,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       const parts = token.split(".");
       if (parts.length !== 3) return null;
 
-      const header = JSON.parse(atob(parts[0]));
-      const payload = JSON.parse(atob(parts[1]));
+      const header = decodeSegment(parts[0]);
+      const payload = decodeSegment(parts[1]);
 
       return {
         header,
@@ -2570,7 +2572,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <RunTraceCard baselineRunId={traceBaselineRunId}>
+            <RunTraceCard baselineRunId={traceBaselineRunId} withPopout={Boolean(selectedSeqStep)}>
               <SequenceReelDiagram
                 onSelectStep={setSelectedSeqStep}
                 onReset={() => setSelectedSeqStep(null)}
@@ -2579,19 +2581,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 followFlow={followFlow}
                 onToggleSlowMode={() => setSlowMode(!slowMode)}
               />
+              {showSequenceDiagram && selectedSeqStep && (
+                <FloatingDetailsPanel
+                  open
+                  id="seq-step"
+                  title={selectedSeqStep.label || "Step details"}
+                  status={selectedSeqStep.status}
+                  onClose={() => setSelectedSeqStep(null)}
+                >
+                  <CollapsibleStepDetail step={selectedSeqStep} />
+                </FloatingDetailsPanel>
+              )}
             </RunTraceCard>
-          )}
-          {showSequenceDiagram && selectedSeqStep && (
-            <>
-              <DetailPaneResizeHandle
-                height={detailPaneHeight}
-                onMouseDown={onDetailPaneResizeMouseDown}
-                onKeyDown={onDetailPaneResizeKeyDown}
-              />
-              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
-              <CollapsibleStepDetail step={selectedSeqStep} />
-              </div>
-            </>
           )}
         </div>
       ) : (
@@ -2666,7 +2667,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
             {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
-            <RunTraceCard baselineRunId={traceBaselineRunId}>
+            <RunTraceCard baselineRunId={traceBaselineRunId} withPopout={Boolean(selectedSeqStep)}>
               <SequenceReelDiagram
                 onSelectStep={setSelectedSeqStep}
                 onReset={() => setSelectedSeqStep(null)}
@@ -2675,19 +2676,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 followFlow={followFlow}
                 onToggleSlowMode={() => setSlowMode(!slowMode)}
               />
+              {showSequenceDiagram && selectedSeqStep && (
+                <FloatingDetailsPanel
+                  open
+                  id="seq-step"
+                  title={selectedSeqStep.label || "Step details"}
+                  status={selectedSeqStep.status}
+                  onClose={() => setSelectedSeqStep(null)}
+                >
+                  <CollapsibleStepDetail step={selectedSeqStep} />
+                </FloatingDetailsPanel>
+              )}
             </RunTraceCard>
-          )}
-          {showSequenceDiagram && selectedSeqStep && (
-            <>
-              <DetailPaneResizeHandle
-                height={detailPaneHeight}
-                onMouseDown={onDetailPaneResizeMouseDown}
-                onKeyDown={onDetailPaneResizeKeyDown}
-              />
-              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
-              <CollapsibleStepDetail step={selectedSeqStep} />
-              </div>
-            </>
           )}
           </div>
       )}

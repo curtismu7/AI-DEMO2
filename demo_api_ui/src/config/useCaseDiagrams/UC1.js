@@ -19,6 +19,7 @@ const EDGES = [
   ["agent", "gw", "user token", { detail: "Gateway validates the client (CIMD) before any policy check." }],
   ["gw", "p1", "RFC 8693 exchange", { detail: "User token in, downscoped agent token out with sub=alice, act={sub:<agent client id>}." }],
   ["p1", "acct", "agent token · accounts:read", { detail: "Narrowed: read-only, one user, one API." }],
+  ["acct", "user", "balance returns", { dashed: true, detail: "The account data flows back through the agent and the answer is rendered in Alice's UI — the loop the exchange opened closes here." }],
 ];
 
 const walk = [
@@ -51,6 +52,12 @@ const walk = [
     nodes: ["p1", "acct"], edges: [3],
     lines: [{ who: "Accounts", text: "Scope validated per call; read-only, this user only." }],
     tech: [{ t: "API", c: "GET /api/accounts  Authorization: Bearer <agent AT> -> 200 accounts[]" }],
+  },
+  {
+    title: "Balance returns to Alice", label: "The answer, rendered",
+    nodes: ["acct", "user"], edges: [4],
+    lines: [{ who: "Alice", text: "The account data flows back through the agent and renders in my UI — I never saw a token." }],
+    tech: [{ t: "TOKEN", c: "absent in the browser: the delegated token stayed on the service path; only the rendered answer reached Alice" }],
   },
 ];
 
@@ -116,6 +123,14 @@ const steps = [
         claims: { iss: ISS, sub: "<alice user id>", aud: "<accounts API URI>", scope: "accounts:read", act: { sub: "<agent client id>" } },
       }],
       refs: [RFC(6750, "Bearer token usage"), RFC(9068, "JWT profile for access tokens"), RFC(8693, "act claim: who is acting for whom")],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "200 OK -> rendered in the app\n\n{ \"accounts\": [ { \"id\": \"{accountId}\", \"type\": \"checking\", \"balance\": <number> } ] }\n\nThe delegated token never left the service path: the browser holds only the session cookie and sees the rendered balance.",
+      tokens: [],
+      refs: [RFC(6750, "Bearer token usage (kept server-side end to end)")],
     },
   },
 ];

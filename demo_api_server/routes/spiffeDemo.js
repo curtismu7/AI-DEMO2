@@ -20,6 +20,8 @@
  * enforced now; see services/spiffeTrustDomain.js.
  */
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const { requireSession } = require('../middleware/auth');
 const router = express.Router();
 const spiffeTrustDomain = require('../services/spiffeTrustDomain');
 const mockSpiffeWorkloadApi = require('../services/mockSpiffeWorkloadApi');
@@ -148,9 +150,10 @@ router.post('/verify', express.json(), (req, res) => {
  * `spiffe` Docker compose profile (real SPIRE server + agent + helper) and
  * PingFederate 13 with the SPIRE JWT Token Processor 2.0 configured
  * (see spiffe/pingfederate/). Gated by ff_spiffe_pf_exchange; off by default
- * so the demo stack behaves exactly as before.
+ * so the demo stack behaves exactly as before. It mints a real PF token, so
+ * it needs a signed-in session.
  */
-router.post('/pingfederate/exchange', express.json(), async (req, res) => {
+router.post('/pingfederate/exchange', requireSession, express.json(), async (req, res) => {
   try {
     const result = await require('../services/spiffePingfederateService').exchangeWithPingFederate({
       audience: req.body?.audience,
@@ -169,6 +172,94 @@ router.post('/pingfederate/exchange', express.json(), async (req, res) => {
       return res.status(err.httpStatus || 503).json({ error: 'spiffe_pf_unavailable', error_description: err.message, details: err.details });
     }
     return res.status(502).json({ error: 'spiffe_pf_exchange_failed', error_description: err.message });
+  }
+});
+
+// This route mints a JWT-SVID / PingFederate token and forwards it to the Privilege gateway, so it
+// needs a signed-in session (checked before the limiter, so anonymous traffic cannot use up a per-IP
+// bucket that signed-in users share) and the caller may not choose where it goes or what it asks for.
+// These are the values SpiffePrivilegePage.jsx sends (tests/spiffePrivilegeCallRoute.test.js reads the
+// page source and fails if they drift); omitted fields keep the service defaults.
+const PRIVILEGE_CALL_ALLOWED = {
+  resources: ['/spire-mcp/mcp'],
+  audience: 'priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr',
+  scopes: ['mcp:invoke'],
+  methods: ['tools/list'],
+};
+
+const privilegeCallLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  // Per signed-in user (requireSession runs first, so the id is always set). Keying on IP would put
+  // everyone behind the SE-cluster ingress or a shared NAT in one bucket (`trust proxy` is 1).
+  // 60 stays well above what a page run needs (3 shapes).
+  max: 60,
+  keyGenerator: (req) => (req.session.user.id ? `user:${req.session.user.id}` : `ip:${req.ip}`),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => ['1', 'true', 'yes'].includes(String(process.env.DISABLE_RATE_LIMIT || '').toLowerCase()),
+  message: { error: 'rate_limit_exceeded', error_description: 'Too many calls. Try again in a minute.' },
+});
+
+/** Returns the field name of the first caller-chosen value that is not allowed, or null. */
+function disallowedPrivilegeCallField(b) {
+  if (b.resource !== undefined && !PRIVILEGE_CALL_ALLOWED.resources.includes(b.resource)) return 'resource';
+  if (b.audience !== undefined && b.audience !== PRIVILEGE_CALL_ALLOWED.audience) return 'audience';
+  if (b.scopes !== undefined
+    && !(Array.isArray(b.scopes) && b.scopes.length > 0 && b.scopes.every((s) => PRIVILEGE_CALL_ALLOWED.scopes.includes(s)))) return 'scopes';
+  if (b.mcp_method !== undefined && !PRIVILEGE_CALL_ALLOWED.methods.includes(b.mcp_method)) return 'mcp_method';
+  return null;
+}
+
+/**
+ * LIVE Privilege gateway call with a SPIFFE workload identity as the only
+ * credential. Complements /pingfederate/exchange above: that one proves PF
+ * accepts an SVID in token exchange; this one proves (or measures) whether
+ * the Privilege gateway's Non-Human Identity / Pass Agent Token path accepts
+ * SPIFFE-issued identity. Three token shapes are comparable; see
+ * services/spiffePrivilegeService.js. Gated by ff_spiffe_privilege; off by
+ * default. The access token is returned for playground inspection only.
+ *
+ * @flow spiffe
+ * @name SPIFFE
+ * @actor workforce-agent
+ * @to privilege-gateway
+ * @step 3
+ * @body {"token_mode":"raw-svid"}
+ * @why The Privilege gateway's federated-identity path verifies a caller's JWT against a registered issuer's JWKS — the same contract a SPIRE JWT-SVID satisfies — so an agent's workload identity can be the only credential it presents.
+ * @example Like a building whose door reader accepts a badge from a visitor's own company, after checking that company's published key list — no lobby-issued badge needed.
+ * @ai Agents get short-lived, attested workload identities instead of static secrets; the gateway decides what the identity may do without minting or storing a key for it.
+ */
+router.post('/privilege/call', requireSession, privilegeCallLimiter, express.json(), async (req, res) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const bad = disallowedPrivilegeCallField(body);
+  if (bad) {
+    return res.status(400).json({ error: 'invalid_request', error_description: `${bad} is not an allowed value for this demo call` });
+  }
+  try {
+    const result = await require('../services/spiffePrivilegeService').callPrivilegeWithWorkloadIdentity({
+      tokenMode: body.token_mode,
+      resource: body.resource,
+      mcpMethod: body.mcp_method,
+      audience: body.audience,
+      scopes: body.scopes,
+    });
+    res.json({
+      call: 'spiffe-privilege-workload-identity',
+      token_mode: result.tokenMode,
+      issuer: result.issuer,
+      claims: result.claims,
+      gateway: {
+        url: result.gatewayUrl,
+        status: result.gatewayStatus,
+        body: result.gatewayBody,
+      },
+      access_token: result.token,
+    });
+  } catch (err) {
+    if (err.isConfigError) {
+      return res.status(err.httpStatus || 503).json({ error: 'spiffe_privilege_unavailable', error_description: err.message, details: err.details });
+    }
+    return res.status(502).json({ error: 'spiffe_privilege_call_failed', error_description: err.message });
   }
 });
 

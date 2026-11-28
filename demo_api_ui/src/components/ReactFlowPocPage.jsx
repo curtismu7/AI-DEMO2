@@ -1326,8 +1326,10 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
       setSimulating(false);
     }
   };
-  const onNext = () => showStep(Math.min(stepIndex + 1, steps.length - 1));
-  const onPrev = () => showStep(Math.max(stepIndex - 1, 0));
+  // §8f (owner, 2026-11-21): Next/Prev from a fresh diagram (or while playing) drop into a paused
+  // walkthrough at that step, so stepping works without pressing Simulate first.
+  const onNext = () => { clearTimer(); setSimulating(true); setPaused(true); showStep(Math.max(0, Math.min(stepIndex + 1, steps.length - 1))); };
+  const onPrev = () => { clearTimer(); setSimulating(true); setPaused(true); showStep(Math.max(0, Math.min(stepIndex - 1, steps.length - 1))); };
   const onReset = () => {
     clearTimer();
     setSimulating(false);
@@ -1520,7 +1522,7 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
     <div className="rfp-panel__controls" data-testid="rfp-panel-controls">
       <span className="rfp-panel__controls-label">Step controls</span>
       <DiagramControls
-        currentStep={stepIndex < 0 ? 0 : stepIndex + 1}
+        currentStep={stepIndex < 0 ? 1 : stepIndex + 1}
         totalSteps={steps.length}
         isSimulating={simulating}
         isPaused={paused}
@@ -1530,7 +1532,6 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
         onResume={onResume}
         onNext={onNext}
         onStop={onReset}
-        onReset={onReset}
         stepTimeOptions={STEP_TIME_OPTIONS}
         stepMs={stepMs}
         onSetStepMs={setStepMs}

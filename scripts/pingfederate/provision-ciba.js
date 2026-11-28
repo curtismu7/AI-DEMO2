@@ -143,7 +143,7 @@ const DEFAULT_MAPPING = {
     act: { source: { type: 'TEXT' }, value: '{}' },
     scope: { source: { type: 'TEXT' }, value: 'openid' }, // both CIBA clients are restricted to openid
     client_id: { source: { type: 'CONTEXT' }, value: 'ClientId' },
-    spiffeId: { source: { type: 'TEXT' }, value: 'placeholder' },
+    spiffeId: { source: { type: 'TEXT' }, value: process.env.PF_AGENT_SPIFFE_ID || 'spiffe://se-cluster.ping-devops/ns/ping-devops-cmuir/sa/mcp-agent' },
   },
   issuanceCriteria: { conditionalCriteria: [] },
 };

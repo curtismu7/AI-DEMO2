@@ -66,7 +66,8 @@ import WebSocket from 'ws';
 import jwt from 'jsonwebtoken';
 import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
-import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
+import { decodeAndValidate, extractScopes, isGatewayStaticToken, TokenError } from './server/tokenValidator';
+import { logTokenValidated, logStaticTokenAccepted, logTokenRefused, logNoBearer, logToolUnknown, logScopeRefused, logToolCalled, logToolFailed } from './decisionLog';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { DEMO_BANKING_SUBJECT } from './tools/bankingToolHandler';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
@@ -265,6 +266,7 @@ function handleMcpPost(req: IncomingMessage, res: ServerResponse): void {
     try { parsedMethod = JSON.parse(body)?.method; } catch { /* malformed body — handleMessage below reports the parse error */ }
 
     if (!token && !DISCOVERY_METHODS.has(parsedMethod ?? '')) {
+      logNoBearer(parsedMethod, req.url || '/mcp');
       // ChatGPT (Apps SDK) callers — params._meta carries openai/* keys — get the
       // challenge in-band as a tool error with _meta["mcp/www_authenticate"], which
       // is what triggers its sign-in link. Everyone else keeps the HTTP 401.
@@ -713,6 +715,23 @@ function rpcResult(id: unknown, result: unknown): string {
 // ---------------------------------------------------------------------------
 
 /**
+ * decodeAndValidate plus one decision-log line (spec: docs/superpowers/specs/2026-11-22-mcp-resource-server-decision-log.md).
+ * Same result, same throw: the log never changes what the caller sees, and a failure inside a log call cannot reach this code.
+ */
+async function validateLogged(token: string, method: string): ReturnType<typeof decodeAndValidate> {
+  let decoded: Awaited<ReturnType<typeof decodeAndValidate>>;
+  try {
+    decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES);
+  } catch (e) {
+    logTokenRefused(method, e);
+    throw e;
+  }
+  if (isGatewayStaticToken(token)) logStaticTokenAccepted(method, String(decoded.scope ?? ''));
+  else logTokenValidated(method, decoded);
+  return decoded;
+}
+
+/**
  * Metrics-observing wrapper — records mcprs_mcp_message_duration_seconds and
  * delegates to the unchanged implementation below. The label is a throwaway
  * best-effort parse purely for the metric; the real parse (with its own
@@ -850,7 +869,7 @@ async function handleMessageImpl(
     let values: string[] = [];
     if (ref?.type === 'ref/prompt' && ref?.name === 'summarize_airline_booking' && argument?.name === 'bookingId') {
       let decoded;
-      try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch { decoded = undefined; }
+      try { decoded = await validateLogged(token, 'completion/complete'); } catch { decoded = undefined; }
       if (decoded) {
         const match = resolvePassenger(decoded.sub);
         const prefix = String(argument.value ?? '').toUpperCase();
@@ -887,7 +906,7 @@ async function handleMessageImpl(
     let toolsForList = ALL_TOOLS;
     if (token) {
       let decoded;
-      try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+      try { decoded = await validateLogged(token, 'tools/list'); } catch (e) {
         const te = e as TokenError;
         send(rpcError(id, -32001, te.message));
         return;
@@ -915,7 +934,7 @@ async function handleMessageImpl(
     const args: Record<string, unknown> = msg.params?.arguments || {};
 
     let decoded;
-    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+    try { decoded = await validateLogged(token, 'tools/call'); } catch (e) {
       const te = e as TokenError;
       send(rpcError(id, -32001, te.message));
       return;
@@ -924,6 +943,7 @@ async function handleMessageImpl(
     // Per-tool scope check
     const tool = findTool(toolName);
     if (!tool) {
+      logToolUnknown(decoded.sub);
       send(rpcResult(id, { content: [{ type: 'text', text: `Unknown tool: ${toolName}` }], isError: true }));
       return;
     }
@@ -933,6 +953,7 @@ async function handleMessageImpl(
       (s) => scopes.includes(s) || scopes.includes('*') || scopes.includes('*'),
     );
     if (!hasScopes) {
+      logScopeRefused(tool.name, tool.requiredScopes, decoded.sub);
       send(rpcError(id, -32005, `Insufficient scope for tool '${toolName}'`, {
         requiredScopes: tool.requiredScopes,
         availableScopes: scopes,
@@ -947,6 +968,7 @@ async function handleMessageImpl(
     const _startedAt = Date.now();
     try {
       const result = await dispatch(toolName, args, token, decoded.sub);
+      logToolCalled(tool.name);
       if (correlationId) {
         emitHop({ phase: 'mcp.tool', op: toolName, correlationId, durationMs: Date.now() - _startedAt, status: 'ok' });
       }
@@ -956,6 +978,7 @@ async function handleMessageImpl(
       }));
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      logToolFailed(tool.name, decoded.sub);
       if (correlationId) {
         emitHop({ phase: 'mcp.tool', op: toolName, correlationId, durationMs: Date.now() - _startedAt, status: 'error' });
       }
@@ -967,7 +990,7 @@ async function handleMessageImpl(
 
   if (method === 'resources/list') {
     let decoded;
-    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+    try { decoded = await validateLogged(token, 'resources/list'); } catch (e) {
       const te = e as TokenError;
       send(rpcError(id, -32001, te.message));
       return;
@@ -986,7 +1009,7 @@ async function handleMessageImpl(
 
   if (method === 'resources/templates/list') {
     let decoded;
-    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+    try { decoded = await validateLogged(token, 'resources/templates/list'); } catch (e) {
       const te = e as TokenError;
       send(rpcError(id, -32001, te.message));
       return;
@@ -1006,7 +1029,7 @@ async function handleMessageImpl(
   if (method === 'resources/read') {
     const uri: string = msg.params?.uri || '';
     let decoded: Awaited<ReturnType<typeof decodeAndValidate>>;
-    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+    try { decoded = await validateLogged(token, 'resources/read'); } catch (e) {
       const te = e as TokenError;
       send(rpcError(id, -32001, te.message));
       return;
@@ -1055,6 +1078,7 @@ wss.on('connection', (ws, req) => {
   const token = bearerFrom(req.headers['authorization']);
 
   if (!token) {
+    logNoBearer('ws-connect', req.url || '/');
     ws.close(4001, 'Bearer token required');
     return;
   }

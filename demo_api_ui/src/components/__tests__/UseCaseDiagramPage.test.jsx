@@ -26,15 +26,6 @@ function renderAt(path) {
 }
 
 describe("UseCaseDiagramPage", () => {
-  it("gives every bottom UC chip a tooltip with the use-case title", () => {
-    renderAt("/use-case-diagrams/UC2.5");
-    const nav = screen.getByRole("navigation", { name: /more use-case diagrams/i });
-    const chip = nav.querySelector('a[href="/use-case-diagrams/UC2"]');
-    expect(chip).toHaveAttribute("title", expect.stringMatching(/^UC2 — A2A delegation/));
-    expect(chip).toHaveAttribute("aria-label", chip.getAttribute("title"));
-    nav.querySelectorAll("a").forEach((a) => expect(a.getAttribute("title")).toBeTruthy());
-  });
-
   it("overlays the live walk when the store holds a matching UC1 run", () => {
     act(() => {
       tokenChainTraceStore.beginTrace({ prompt: "balance" });
@@ -68,17 +59,17 @@ describe("UseCaseDiagramPage", () => {
     expect(cue.getAttribute("href")).toBe("/use-cases#UC1");
   });
 
-  it("always shows an explicit back-to-dashboard button in the header", () => {
+  it("always shows an explicit back button in the header", () => {
     renderAt("/use-case-diagrams/UC1");
     const back = screen.getByTestId("ucd-back");
     expect(back.getAttribute("href")).toBe("/dashboard");
-    expect(back.textContent).toMatch(/back to dashboard/i);
+    expect(back.textContent).toMatch(/back/i);
   });
 
-  it("opens on hop 1 active-and-paused with the entry node ringed", () => {
+  it("opens idle with the Simulate button visible (walk starts on click)", () => {
     renderAt("/use-case-diagrams/UC1");
-    expect(screen.getByTestId("ucd-hop-label").textContent).toContain("1 / 4");
-    expect(document.querySelector(".sfd-node.step-hot")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("Press Simulate to walk the diagram");
   });
 
   it("unknown ucId shows the fallback listing valid ids", () => {
@@ -92,22 +83,22 @@ describe("UseCaseDiagramPage", () => {
     expect(screen.getByTestId("ucd-desc")).toBeTruthy();
   });
 
-  it("node click opens the details panel with node detail", () => {
+  it("node click fills the floating drawer with node detail (and re-click clears)", () => {
     renderAt("/use-case-diagrams/UC1");
     // StaticFlowDiagram testId is `ucd-uc1`, node cards are `${testId}-node-${id}`
     fireEvent.click(screen.getByTestId("ucd-uc1-node-gw"));
-    expect(screen.getByTestId("ucd-panel").textContent).toContain("Agent gateway");
-    expect(screen.getByTestId("ucd-panel").textContent).toContain("TOKEN");
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("Agent gateway");
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("TOKEN");
     fireEvent.click(screen.getByTestId("ucd-uc1-node-gw")); // click again clears
-    expect(screen.getByTestId("ucd-panel").textContent).not.toContain("Agent gateway");
+    expect(screen.getByTestId("ucd-floating-panel").textContent).not.toContain("Agent gateway");
   });
 
   it("Prev/Next step the walk while paused", () => {
     renderAt("/use-case-diagrams/UC1");
-    const next = screen.getByRole("button", { name: "Next →" });
-    expect(next.disabled).toBe(false);
-    fireEvent.click(next);
-    expect(screen.getByTestId("ucd-hop-label").textContent).toContain("2 / 4");
+    fireEvent.click(screen.getByRole("button", { name: "Step →" })); // idle -> paused at step 1
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("1 / 5");
+    fireEvent.click(screen.getByRole("button", { name: "Next →" }));
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("2 / 5");
   });
 
   it("gallery lists every registered config with deep links", () => {

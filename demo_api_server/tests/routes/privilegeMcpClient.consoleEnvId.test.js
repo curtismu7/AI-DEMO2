@@ -2,7 +2,7 @@
 
 // The Privilege console API is tenanted on the tenant that owns the Agentic
 // Apps, which is NOT the banking environment. Proven from the gateway log: the
-// app reference base64-decodes to `0428ba4f-…@@@default@@@aggregate`.
+// app reference base64-decodes to `4cb38c18-…@@@default@@@aggregate`.
 //
 // consoleEnvId() read PRIVILEGE_SSO_ENV_ID first and nothing else. That variable
 // is currently the banking env — startupConfigGuard warns about exactly that
@@ -18,7 +18,7 @@
 const express = require('express');
 const request = require('supertest');
 
-const CONSOLE_ENV = '0428ba4f-169c-436b-aff9-b230496e0e3b';
+const CONSOLE_ENV = '4cb38c18-691a-4201-a99d-b4b8842ca786';
 const BANKING_ENV = '01d89b06-66d5-430e-9f28-65636843788b';
 
 const ENV_KEYS = ['PRIVILEGE_CONSOLE_ENV_ID', 'PRIVILEGE_SSO_ENV_ID', 'PINGONE_ENVIRONMENT_ID'];

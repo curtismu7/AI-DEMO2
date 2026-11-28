@@ -1190,6 +1190,10 @@ async function main() {
       }
       console.log('');
     }
+    console.log('  PingOne Authorize is a manual console step (this script does not import policy):');
+    console.log('    import snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json, then publish (docs/PINGONE_AUTHORIZE_SETUP_GUIDE.md Part 3).');
+    console.log('    Optional kill-switch timing probe: merge it INTO an export, never import it alone (docs/p1az-ks-timing-probe.md).');
+    console.log('');
     console.log('  Files written:');
     console.log('    demo_api_server/.env          all PingOne credentials');
     if (configPath) console.log(`    ${path.relative(process.cwd(), configPath).padEnd(30)}reference dump (resource IDs, demo creds, all non-secret config)`);

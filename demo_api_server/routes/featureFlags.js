@@ -227,6 +227,26 @@ const FLAG_REGISTRY = [
   },
 
   {
+    id:           'mcp_modern_requests',
+    name:         'MCP — Negotiate 2026-07-28 stateless requests (Node gateway)',
+    category:     'MCP Server',
+    description:
+      'When **ON** (default), the BFF tries MCP 2026-07-28 stateless requests on calls to the **Node gateway**: ' +
+      'the protocol version and client capabilities ride in `_meta` on every call, with `Mcp-Method` / `Mcp-Name` headers and no `initialize` handshake. ' +
+      'It negotiates per gateway, so stateless and 2025-11-25 gateways work side by side with nothing to flip: ' +
+      'if a gateway rejects the version it is remembered for a few minutes and that call is resent in the 2025-11-25 shape. ' +
+      'The same resend covers a confirmation (`input_required`), so confirmations and HITL keep working. ' +
+      'Calls to PingGateway are never affected (its MCP filter only speaks 2025-06-18 / 2025-11-25). ' +
+      'The version each call used is shown in the trace, on the gateway step. ' +
+      'Change takes effect on the **next** tool call.',
+    impact:
+      'ON (default) = Node-gateway calls (A2A and Node-only tools) skip the handshake where the gateway supports it. ' +
+      'OFF = every call is sent in the 2025-11-25 shape, as before.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+
+  {
     id:           'mcp_use_pingone_server',
     name:         'MCP — Use PingOne MCP Server (hosted HTTP)',
     category:     'MCP Server',

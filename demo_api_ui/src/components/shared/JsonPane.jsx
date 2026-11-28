@@ -454,7 +454,7 @@ function Form({ value, hot, alert, k = '', depth = 0 }) {
  * @param {React.ReactNode} [props.actions]  Controls shown beside the switch (e.g. a copy button).
  * @param {boolean} [props.copyFields]  Form view: a Copy button beside every primitive value and chip (default true); false hides them.
  */
-export function JsonPane({ value: given, label, testId, toggle = true, hot, alert, deep = false, view: forced, defaultView = 'form', actions, copyFields = true }) {
+function Pane({ value: given, label, testId, toggle = true, hot, alert, deep = false, view: forced, defaultView = 'form', actions, copyFields = true }) {
   const [chosen] = useJsonView(defaultView);
   const jsonOnly = useContext(JsonOnlyContext);
   const mode = forced ?? (jsonOnly ? 'json' : chosen);
@@ -514,6 +514,82 @@ export function JsonPane({ value: given, label, testId, toggle = true, hot, aler
       )}
     </div>
   );
+}
+
+// ---- Decoded tokens (Rule 24b, owner 2026-11-18): every whole JWT a value carries is also shown decoded -------
+// Ported from the standalone labs' shared pane (AI-DEMO-Standalone #396). Under the pane, one card per
+// token named by its field path: Header, Payload, Signature, each the standard pane. `decode={false}`
+// marks a pane that IS a decoded part of a token (or a lab viewer that decodes itself), so a token is
+// never decoded twice. Caps: 6 tokens, depth 8; cut-short and non-JWT strings skipped; decoding never
+// verifies. Everything is React text through visible().
+const WHOLE_JWT = /^(?:(?:Bearer|DPoP) )?(eyJ[\w-]{4,}\.[\w-]{4,}\.[\w-]*)$/;
+const DECODE_MAX = 6;
+const DECODE_DEPTH = 8;
+
+export function decodeSegment(seg) {
+  const t = String(seg).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(t + '='.repeat((4 - (t.length % 4)) % 4));
+  const v = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0))));
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+}
+
+export function decodedTokensIn(v, path = '', out = [], depth = 0) {
+  if (out.length >= DECODE_MAX || depth > DECODE_DEPTH) return out;
+  if (typeof v === 'string') {
+    const m = WHOLE_JWT.exec(v.trim());
+    if (m) {
+      if (!out.some((o) => o.raw === m[1])) {
+        try {
+          const [h, c, s2] = m[1].split('.');
+          const header = decodeSegment(h);
+          const claims = decodeSegment(c);
+          if (header && claims) out.push({ name: path || 'token', raw: m[1], header, claims, signature: s2 });
+        } catch { /* not a decodable JWT */ }
+      }
+      return out;
+    }
+    const inner = depth < 3 ? parseJsonText(v) : undefined;
+    if (inner !== undefined) return decodedTokensIn(inner, path, out, depth + 1);
+    return out;
+  }
+  if (Array.isArray(v)) { v.forEach((x, i) => decodedTokensIn(x, `${path}[${i}]`, out, depth + 1)); return out; }
+  if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) decodedTokensIn(x, path ? `${path}.${k}` : k, out, depth + 1);
+  return out;
+}
+
+export function TokenParts({ header, claims, raw, label, hot, claimsTestId }) {
+  const signature = typeof raw === 'string' ? WHOLE_JWT.exec(raw.trim())?.[1].split('.')[2] ?? null : null;
+  return (
+    <>
+      <p className="jdec__h">Header</p>
+      <JsonPane value={header} label={`${label} header`} decode={false} />
+      <p className="jdec__h">Payload</p>
+      <JsonPane value={claims} label={`${label} payload`} decode={false} hot={hot} testId={claimsTestId} />
+      <p className="jdec__h">Signature</p>
+      {signature ? <JsonPane value={signature} label={`${label} signature`} decode={false} /> : <p className="jdec__none">This token has no signature segment.</p>}
+    </>
+  );
+}
+
+export function DecodedTokens({ value, label, hot }) {
+  const toks = decodedTokensIn(value);
+  if (!toks.length) return null;
+  return (
+    <div className="jdec" role="group" aria-label={`${label || 'JSON'} decoded tokens`} data-testid="decoded-tokens">
+      <p className="jdec__h">Decoded {toks.length === 1 ? 'token' : 'tokens'}</p>
+      {toks.map((t) => (
+        <article key={`${t.name}-${t.raw.slice(-12)}`} className="jdec__card" data-testid="decoded-token">
+          <p className="jdec__name">{visible(t.name)}</p>
+          <TokenParts header={t.header} claims={t.claims} raw={t.raw} label={`${label || 'JSON'} ${t.name}`} hot={hot} />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+export function JsonPane({ decode = true, ...props }) {
+  const pane = <Pane {...props} />;
+  return decode ? <>{pane}<DecodedTokens value={props.value} label={props.label} hot={props.hot} /></> : pane;
 }
 
 export default JsonPane;

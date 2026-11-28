@@ -170,6 +170,8 @@ no stick table, no peers section. An untagged callback, or one tagged for a node
 down, falls back to the balancer. Only a 302 whose `Location` contains `%2Fcallback` is
 tagged, so a client's own error redirect is left alone. The log line gains `app=`.
 
+> **Node names (2026-11-23).** The tag is the node name, and the names are `loadBalancer.ownName` / `peers[].name` (standard: `mcpgw-<where>-<role><n>`, see [NAMING-CONVENTION.md](NAMING-CONVENTION.md) section 8). The chart builds the strip from those names, plus `legacyNodeNames` (tags from before a rename, so a login in flight completes) and the old `gateway-<n>` tags. A name must start with a letter or digit, use only letters, digits, `-` and `_`, be at least 6 characters (each name is stripped from the whole query, so a short one could eat part of `code`) and be unique; the chart refuses anything else. Keep the server order when renaming: it sets the consistent-hash positions. `scripts/check-haproxy-node-names.test.js` runs the real HAProxy against the rendered config.
+
 Tested 2026-10-31 (haproxy 3.0.30, three fake gateways, then live): one IP's 8 apps landed
 on all three nodes, and each callback reached the node that issued its authorize. Not yet
 tested: a full browser sign-in through PingOne on an app that hashes to gateway 2 or 3.

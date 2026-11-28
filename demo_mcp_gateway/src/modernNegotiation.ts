@@ -3,12 +3,13 @@
 /**
  * MCP spec 2026-07-28: per-request version negotiation. A Modern request
  * declares its protocol version in `_meta['io.modelcontextprotocol/protocolVersion']`
- * on every call instead of establishing one via `initialize`. This gateway
- * doesn't implement any Modern-era behavior yet (MRTR, list caching,
- * stateless core) — only the negotiation mechanism: recognize a
- * Modern-shaped request and reject it cleanly with
- * UnsupportedProtocolVersionError, rather than silently processing it
- * under Legacy semantics it never declared support for.
+ * on every call instead of establishing one via `initialize`. This module is
+ * only the negotiation mechanism: recognize a Modern-shaped request and
+ * reject an unsupported version cleanly with UnsupportedProtocolVersionError
+ * (-32022), rather than silently processing it under semantics it never
+ * declared support for. What a supported Modern request then gets (header
+ * checks, resultType, cache hints, MRTR requestState, upstream hops) lives in
+ * GatewayServer.ts, upstreamModern.ts and requestState.ts.
  */
 
 export const MODERN_PROTOCOL_VERSION_META_KEY = 'io.modelcontextprotocol/protocolVersion';

@@ -202,7 +202,7 @@ models_seeded_on_disk() {
     pod="$(kubectl get pods -n "$NS" -l "$label" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
     [ -n "$pod" ] || continue
     if kubectl exec -n "$NS" "$pod" -- sh -c \
-        'test -f /models/gpt-oss-20b-MXFP4.gguf && test -f /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf' \
+        'test -f /models/gpt-oss-20b-MXFP4.gguf && test -f /models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf' \
         2>/dev/null; then
       llm_ok=1
       break
@@ -332,7 +332,7 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # every token with PingOne on SE, so the ID-JAG playground's step 4 (oauth-mcp / PingFederate tokens) would
   # always fail. false makes the page show one line instead of the "List tools" button. Unset = on (local Docker).
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"ID_JAG_PLAYGROUND_STEP4_ENABLED\":\"false\",\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER:-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com}\"}}"
+    "{\"data\":{\"ID_JAG_PLAYGROUND_STEP4_ENABLED\":\"false\",\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER:-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,cmuir+demouser@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com,tarunmadiraju@pingidentity.com,cjmuir@pingidentity.com,chrisarmstrong@pingidentity.com}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the

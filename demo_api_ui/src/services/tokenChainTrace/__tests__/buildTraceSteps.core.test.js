@@ -228,6 +228,20 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
     expect(gwStep(steps).detail.stages).toBeUndefined();
   });
 
+  test("the gateway step says which MCP version the hop spoke", () => {
+    const rows = (events) => Object.fromEntries(
+      gwStep(buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", tokenEvents: events })).detail.kv,
+    );
+    const permit = { id: "gw-authorize", decision: "PERMIT" };
+
+    expect(rows([permit, { id: "mcp-protocol", protocolVersion: "2026-07-28", stateless: true }])["MCP protocol"])
+      .toBe("2026-07-28 — stateless, no initialize");
+    expect(rows([permit, { id: "mcp-protocol", protocolVersion: "2025-11-25", stateless: false }])["MCP protocol"])
+      .toBe("2025-11-25");
+    // Nothing reported (older BFF, or a call that failed before the client answered): no row.
+    expect(rows([permit])["MCP protocol"]).toBeUndefined();
+  });
+
   test("a gateway permit that reports only its filter chain is drawn as done", () => {
     // PingOne Agent Gateway permits often publish nothing but X-Gw-Audit-Trail.
     const steps = buildTraceSteps({

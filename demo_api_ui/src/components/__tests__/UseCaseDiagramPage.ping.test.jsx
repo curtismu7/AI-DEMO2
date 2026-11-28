@@ -57,7 +57,7 @@ describe("UseCaseDiagramPage with a pingStyle config (pilot UC-NHI2)", () => {
     renderAt("UC-NHI2");
     fireEvent.click(await screen.findByTestId("ucd-uc-nhi2-node-events"));
     expect(document.querySelector(".sfd-node--selected")).toBeTruthy();
-    expect(screen.getByTestId("ucd-panel").textContent).toContain("Lifecycle events");
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("Lifecycle events");
     expect(screen.queryByTestId("ucd-uc-nhi2-reel-detail")).toBeNull();
   });
 });
@@ -70,13 +70,14 @@ describe("UseCaseDiagramPage with a config that does not opt in", () => {
     expect(screen.queryByLabelText("Arrow key")).toBeNull();
     expect(screen.queryByTestId("sfd-edge-badge-1")).toBeNull();
     expect(document.querySelector(".sfd-node--selected")).toBeNull();
-    expect(screen.getByTestId("ucd-panel").textContent).toContain("Agent gateway");
+    expect(screen.getByTestId("ucd-floating-panel").textContent).toContain("Agent gateway");
   });
 });
 
 describe("per-step detail (cfg.steps)", () => {
   it("the pilot shows form, mock token and standards for the active step, and follows the stepper", async () => {
     renderAt("UC-NHI2");
+    fireEvent.click(screen.getByRole("button", { name: "Step →" })); // idle -> paused at step 1
     const d = await screen.findByTestId("ucd-step-detail");
     expect(d.textContent).toContain("POST /api/admin/agent/{agentId}/kill-switch");
     expect(d.textContent).toContain("MOCK, teaching values only");
@@ -94,7 +95,7 @@ describe("per-step detail (cfg.steps)", () => {
 
   it("a config without steps renders no step detail", async () => {
     renderAt("UC48");
-    await screen.findByTestId("ucd-panel");
+    await screen.findByTestId("ucd-floating-panel");
     expect(screen.queryByTestId("ucd-step-detail")).toBeNull();
   });
 });

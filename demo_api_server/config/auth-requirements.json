@@ -214,6 +214,8 @@
     "/privilege-intent-triage": "public",
     "/privilege-coding-agents": "public",
     "/privilege-saas-access": "public",
+    "/privilege-google-secrets": "public",
+    "/workload-standards": "public",
     "/privilege-prompt-log": "public",
     "/privilege-pii-detection": "public",
     "/pingfederate-ai-agent": "public",
@@ -295,6 +297,7 @@
     "/oas-demo": "public",
     "/oauth-academy": "public",
     "/spiffe-pingone-bridge": "public",
+    "/spiffe-privilege": "user",
     "/oauth-debug-logs": "admin",
     "/oauth/token-display": "public",
     "/orchestration-sdk": "public",
@@ -319,6 +322,7 @@
     "/personal-agent-design": "public",
     "/personal-agent-dual-gateway": "public",
     "/poc-flow": "user",
+    "/ciba-approval-sequence": "user",
     "/uhg-chatgpt-mcp-flow": "user",
     "/united-personal-agent-flow": "public",
     "/personal-agent-flow": "public",
@@ -432,6 +436,7 @@
     "/webmcp": "public",
     "/welcome": "public",
     "/workload-agents": "public",
+    "/workload-standards": "public",
     "/privilege-owasp-top10": "public"
   },
   "softAuthRoutes": [

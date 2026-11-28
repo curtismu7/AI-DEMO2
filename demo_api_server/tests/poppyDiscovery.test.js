@@ -52,6 +52,18 @@ describe('Poppy discovery', () => {
     expect(res.status).toBe(404);
   });
 
+  it('publishes organization.domain with its port when the port is not 443 (spec 1.0 section 3.1), and still serves by hostname', async () => {
+    process.env.POPPY_DOMAIN = 'poppy.example:3001';
+    jest.resetModules();
+    const res = await request(app()).get('/.well-known/poppy.json').set('Host', 'poppy.example:3001');
+    expect(res.status).toBe(200);
+    expect(res.body.organization.domain).toBe('poppy.example:3001');
+    const pr = await request(app()).get('/.well-known/oauth-protected-resource').set('Host', 'poppy.example:3001');
+    expect(pr.body.resource).toBe('https://poppy.example:3001');
+    // the domain in poppy.json is the host part of the protected resource, character for character
+    expect(`https://${res.body.organization.domain}`).toBe(pr.body.resource);
+  });
+
   it('serves resource = https://{domain} on the Poppy host', async () => {
     const res = await request(app()).get('/.well-known/oauth-protected-resource').set('Host', 'poppy.example');
     expect(res.body.resource).toBe('https://poppy.example');

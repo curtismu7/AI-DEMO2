@@ -187,7 +187,7 @@ The mapping comes from the code, and the app names were checked against the envi
 | Claude Code's banking-gateway login fails | Claude Code - Banking Gateway | `GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` (pinned in `docker-compose.yml`) |
 | Grafana's PingOne sign-in fails (local admin still works) | Demo AI App - Grafana Login | `GRAFANA_PINGONE_CLIENT_ID` (default pinned in `docker-compose.yml`) |
 | A Management API call fails | Check `PINGONE_MGMT_*` / `PINGONE_MANAGEMENT_*` first. If those are unset, the call uses Demo AI App - Admin Login **before** the worker. | See `pingone_mgmt_client_id` in `services/configStore.js` |
-| Agent Privilege sign-in fails with `invalid_client` | The gateway's OIDC client in the Privilege tenant (`0428ba4f`), not this environment | `PRIVILEGE_SSO_CLIENT_ID`; the vault holds the real secret |
+| Agent Privilege sign-in fails with `invalid_client` | The gateway's OIDC client in the Privilege tenant (`5bfb4e12` from 2026-11-24), not this environment | `PRIVILEGE_SSO_CLIENT_ID`; the vault holds the real secret |
 
 ### Every app the demo uses
 
@@ -222,7 +222,7 @@ Apps you can usually ignore when debugging the demo:
 
 Outside this environment:
 
-- **Privilege tenant `0428ba4f`:** the gateway's OIDC client. It is read from `PRIVILEGE_SSO_CLIENT_ID`, and the vault is the source of truth for its secret.
+- **Privilege tenant `5bfb4e12` (from 2026-11-24; earlier `ea040334`, `0428ba4f`):** the gateway's OIDC client. It is read from `PRIVILEGE_SSO_CLIENT_ID`, and the vault is the source of truth for its secret.
 - **The "PingOne Privilege" app (`a6219652…`):** owned by the Privilege service. **Never rotate its secret**: the Privilege console signs in through it, and one copy can't be updated.
 - **Copilot Studio broker:** `agent_token_service/.env` reuses the variable name `PINGONE_AGENT_CLIENT_ID` for a different app.
 

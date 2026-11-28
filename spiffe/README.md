@@ -102,4 +102,105 @@ On the SPIRE side, volumes (`spiffe-server-data`, `spiffe-agent-data`,
 `spiffe-bootstrap`) persist the CA, keys, and join token; after any agent
 container recreation, re-run
 `docker compose --profile spiffe run --rm spire-registration` so workload
-entries point at the live agent.
+entries point at the live agent — or just run
+`scripts/spiffe-recover.sh`, which does the stop → re-register → start
+sequence and waits for the workload API socket.
+
+---
+
+## SPIFFE → Privilege gateway (federated workload identity)
+
+`POST /api/demo/spiffe/privilege/call` (flag `ff_spiffe_privilege`, default
+off) presents a workload identity to the Privilege gateway's Non-Human
+Identity / Pass Agent Token path — the same setup verified 2026-11-13 in
+`privilege/GATEWAY-WORKLOAD-IDENTITY-SETUP.md` for PingFederate tokens, here
+extended to SPIRE-issued identity. Three token shapes are comparable:
+
+| `token_mode` | Token presented | What it tests |
+|---|---|---|
+| `raw-svid` | SPIRE JWT-SVID, verbatim (`sub` = `spiffe://…`) | Does the gateway verify SPIFFE identity directly? |
+| `pf-exchanged` | PF token minted in exchange for that SVID as `actor_token` (`/pingfederate/exchange`) | The composite story: SVID → PF → gateway, with `client_id`/`act.sub` the required-claims pattern expects |
+| `pf-client-credentials` | Plain PF client-credentials token | Baseline with no SPIFFE at all |
+
+Request body (all optional): `token_mode` (default `raw-svid`), `resource`
+(gateway path, default `/mcp`), `mcp_method` (default `tools/list`),
+`audience` (SVID audience, default the gateway URL), `scopes`. The route
+needs a signed-in session (401 otherwise) and only accepts the values the page sends — `resource`
+`/spire-mcp/mcp`, `mcp_method` `tools/list`, `scopes` `["mcp:invoke"]`, and the
+Privilege NHI `audience` — and answers any other value with 400
+`invalid_request` (omit a field to keep its default). It is limited to 60
+calls a minute per client. The gateway's HTTP status and body are returned
+verbatim — a 401/403 **is the demo result**, not an error.
+
+### Privilege console setup (mirrors the PF pattern)
+
+1. **Non-Human Identities → Register Identity**: issuer = the SPIRE OIDC
+   Discovery Provider issuer (`https://local.ping-devops.com:8443` for the
+   PF-validated issuer currently configured), key source "Fetch from URL"
+   with the discovery provider's JWKS URL.
+2. **Agent app**: Agentic Apps → Add Application → MCP Server, Auth Mode
+   **Pass Agent Token** (see `privilege/GATEWAY-WORKLOAD-IDENTITY-SETUP.md`
+   part C).
+3. **Agent key**: Agent Registry → Add Agent, custodian = the identity from
+   step 1 (part D).
+
+### The reachability blocker (raw SVID against the remote gateway)
+
+The gateway fetches the registered JWKS from the **public internet**. The
+SPIRE OIDC Discovery Provider currently serves only on
+`local.ping-devops.com:8443`, which `mcpgw.ai-demo.ping-devops.com` cannot
+reach — so a `raw-svid` call against the remote gateway demonstrates the
+**refusal** (JWKS/issuer failure), which is itself a useful demo beat.
+Options to get the acceptance path live:
+
+- Deploy the discovery provider behind the SE cluster's public ingress
+  (`ai-demo.ping-devops.com`), then re-point the NHI registration's JWKS URL;
+  or
+- Run the checks against a locally deployed Privilege gateway
+  (`privilege/GATEWAY-LOCAL-DOCKER.md`), which can resolve the local host.
+
+The `pf-exchanged` and `pf-client-credentials` modes have no such constraint —
+their JWKS is PingFederate's, already public.
+
+### Live results (2026-11-22, laptop SPIRE → `mcpgw.ai-demo.ping-devops.com`)
+
+The blocker above was solved with **inline pinned JWKS** on the NHI
+(`spire-ai-demo`, platform `spiffe`) instead of a fetch URL, plus the
+generated audience `priv-nhi-l5hp7w677rxl3somiehznpomuyxxlhdr`:
+
+- **`raw-svid`: 200 from the gateway with the real OpenSearch MCP tool
+  list**, verified repeatedly — gateway log:
+  `workload token accepted for key spire-agent issuer=https://local.ping-devops.com:8443 subject=spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent`.
+- **`pf-exchanged` / `pf-client-credentials`: 401 `token_not_found`.**
+  The token itself is correct (verified at PF: `spiffeId`, `sub`,
+  `act.sub` = the exchanger client). The pinned inline-JWKS NHI
+  `pf-local-spiffe` (issuer `https://local.ping-devops.com:9031`, kid
+  `aidemopf-idjag-signing`) is upserted on the gateway
+  (`llmgw: upserted workload key pf-local-agent … rebuilding 1 key(s)`)
+  but never matches — the gateway only ever logs `workloadid:` verifier
+  keys for remote JwksURIs. Suspected gateway-side limitation: inline-JWKS
+  OIDC-platform NHIs are not loaded as verifier keys. Documented as a
+  known gap; the demo UI shows these as honest REFUSED verdicts.
+
+### PF-exchange prerequisite (2026-11-22 fix, do not skip)
+
+The exchange step itself 400s with "Invalid Token" unless PF's
+**`aiDemoPfAccessSubjectProcessor`** (the TE policy's subject token
+processor) lists the gateway URL in **Allowed Audiences** — the
+client-credentials subject token carries `aud` = the gateway resource
+URL, and PF validates it. Add
+`https://mcpgw.ai-demo.ping-devops.com/spire-mcp/mcp` via the admin API
+(`idp/tokenProcessors/aiDemoPfAccessSubjectProcessor`, Allowed Audiences
+table) or the admin console. With that fixed, the BFF reaches the
+gateway (the 401 `token_not_found` above is the *gateway's* refusal,
+which is the honest demo beat).
+
+Also note the config lives in the BFF LMDB config store, not `.env`:
+`spiffe_pf_exchange_client_id` = `ai-demo-spiffe-te` (secret in
+`spiffe/pingfederate/spiffe-te-client.json`), `spiffe_pf_subject_client_id`
+= `ai-demo-pf-standard-agent-exchanger`, `ff_spiffe_pf_exchange` = `true`.
+
+The demo page is **`/spiffe-privilege`** (nav: Architecture & Learning →
+"SPIFFE → Privilege Gateway (live)"): runs all three shapes live, shows
+the verdict, decoded claims, redacted token, and the full
+request/response JSON.
