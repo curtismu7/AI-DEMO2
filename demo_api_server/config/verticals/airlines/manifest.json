@@ -15,10 +15,15 @@
       "--app-primary-red-hover": "#001731",
       "--app-primary-red-mid": "#1414D2",
       "--app-primary-red-border": "#001731",
+      "--app-primary-btn-text": "#ffffff",
+      "--brand-navy": "#002244",
       "--brand-dashboard-header-start": "#002244",
       "--brand-dashboard-header-end": "#1414D2",
       "--brand-app-shell-hero-start": "#002244",
       "--brand-app-shell-hero-end": "#1414D2",
+      "--brand-topnav-bg-start": "#002244",
+      "--brand-topnav-bg-end": "#1414D2",
+      "--brand-topnav-text": "#ffffff",
       "--theme-accent": "#1414D2",
       "--brand-dashboard-header-text": "#ffffff"
     }
@@ -506,6 +511,18 @@
     "write": "write",
     "transfer": "transfer",
     "featureScope": "airlines:read"
+  },
+  "delegation": {
+    "pageTitle": "Travel Companion Access",
+    "pageDescription": "Share your reservations and loyalty account with a travel companion — powered by RFC 8693 token exchange",
+    "granteeLabel": "travel companion",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Reservations",     "description": "See reservation details and upcoming trips" },
+      "view_balances":     { "label": "View MileagePlus Balance", "description": "See the loyalty points balance" },
+      "create_deposit":    { "label": "Book Flights",          "description": "Book new flights on this account" },
+      "create_withdrawal": { "label": "Cancel Reservations",   "description": "Cancel reservations and process refunds" },
+      "create_transfer":   { "label": "Transfer Miles",        "description": "Move loyalty miles to another account" }
+    }
   },
   "demoUsers": {
     "customer": {
