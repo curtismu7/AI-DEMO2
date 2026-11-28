@@ -90,6 +90,26 @@ describe('resetBalancesOnStart', () => {
     expect(r).toMatchObject({ reset: 0, skipped: 3 });
   });
 
+  test('a saved label with no seed of its own (university, airlines) does not block: the account types decide', async () => {
+    const provision = jest.fn(async () => []);
+    const reseed = jest.fn(async () => []);
+    const r = await resetBalancesOnStart(makeDeps({
+      users: ['u', 'a', 'w'],
+      accounts: { u: [{ accountType: 'CHECKING' }, { accountType: 'SAVINGS' }], a: [BANK], w: [{ accountType: 'PTO Balance' }, { accountType: 'Sick Leave' }] },
+      vertical: { u: 'university', a: 'airlines', w: 'university' }, provision, reseed,
+    }));
+    expect(provision.mock.calls.map((c) => c[0])).toEqual(['u', 'a']);
+    expect(reseed).toHaveBeenCalledWith('w', 'workforce');
+    expect(r).toMatchObject({ reset: 3, skipped: 0 });
+  });
+
+  test('a seeded vertical that disagrees with the types is still skipped', async () => {
+    const provision = jest.fn(async () => []);
+    const r = await resetBalancesOnStart(makeDeps({ users: ['x'], accounts: { x: [BANK] }, vertical: { x: 'retail' }, provision }));
+    expect(provision).not.toHaveBeenCalled();
+    expect(r.skipped).toBe(1);
+  });
+
   test('a failing reseed is counted and logged, and the next user is still reset', async () => {
     const reseed = jest.fn(async (id) => { if (id === 'a') throw new Error('disk full'); return []; });
     const r = await resetBalancesOnStart(makeDeps({ users: ['a', 'b'], accounts: { a: [{ accountType: 'HSA' }], b: [{ accountType: 'HSA' }] }, reseed }));
