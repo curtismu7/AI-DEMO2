@@ -53,7 +53,7 @@ test('the overlay renders: every node name is a server, a use-server rule and a 
   const r = render();
   assert.ok(r.ok, r.err);
   const cfg = cfgOf(r.out);
-  const names = ['mcpgw-ct-retired1', 'mcpgw-cm-pool1', 'mcpgw-cm-spare1', 'mcpgw-ct-pool2'];
+  const names = ['mcpgw-ct-new1', 'mcpgw-cm-pool1', 'mcpgw-cm-spare1', 'mcpgw-ct-pool2'];
   assert.deepEqual([...cfg.matchAll(/^\s+server (\S+) /gm)].map((m) => m[1]), names, 'server order = hash order, unchanged by a rename');
   assert.deepEqual([...cfg.matchAll(/^\s+use-server (\S+) /gm)].map((m) => m[1]), names);
   const expr = stripExpr(cfg);
@@ -62,7 +62,7 @@ test('the overlay renders: every node name is a server, a use-server rule and a 
   // the tags a login in flight carries today (the names the live LB uses) are still stripped after the rename
   for (const old of ['gateway-old-1', 'gateway-pingid-1', 'gateway-pingid-2', 'gateway-pingid-3']) assert.ok(expr.includes(`regsub(~${old},,g)`), `legacy ${old} is stripped`);
   assert.match(cfg, /server mcpgw-cm-spare1 .* disabled/, 'the parked spare stays disabled');
-  assert.match(cfg, /server mcpgw-ct-retired1 .* disabled/, 'the parked own node stays disabled');
+  assert.doesNotMatch(cfg, /server mcpgw-ct-new1 .* disabled/, 'the live own node takes traffic (not parked)');
 });
 
 test('a name that is a prefix of another is stripped after it (otherwise ~pool10 would leave a 0)', { skip: skipUnless(HELM, 'helm not installed') }, () => {
