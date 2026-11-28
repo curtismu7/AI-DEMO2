@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import HostileMcpTab from '../HostileMcpTab';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 // The JSON panes keep the visitor's Form | JSON choice in localStorage; start every test from the default (Form).
 beforeEach(() => { try { localStorage.clear(); } catch { /* storage unavailable: the default applies */ } });
@@ -140,6 +141,7 @@ describe('HostileMcpTab JSON panes', () => {
     await loadAndRun();
     expect(pane('Agent request')).toHaveAttribute('role', 'group');
     expect(pane('create_transfer input schema')).toBeInTheDocument();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(pane('Agent request').closest('.jp-box')).getByRole('button', { name: 'JSON' }));
     const request = JSON.parse(screen.getByLabelText('Agent request').textContent);
     expect(request).toEqual({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider: 'llamacpp', task: "What's the weather in Denver?" } });

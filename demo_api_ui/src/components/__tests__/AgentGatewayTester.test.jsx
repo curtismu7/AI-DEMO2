@@ -3,6 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import apiClient from '../../services/apiClient';
 import AgentGatewayTester from '../AgentGatewayTester';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 vi.mock('../../services/apiClient', () => ({
   default: {
@@ -264,6 +265,7 @@ test('the Result tab is a bare shared pane: Form by default, the exact JSON afte
   expect(form.closest('.inspector-shell-output-code')).toBeNull();
   expect(document.querySelector('pre.jp-raw[aria-label="Result"]')).toBeNull();
 
+  await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
   fireEvent.click(within(form.closest('.jp-box')).getByRole('button', { name: 'JSON' }));
   // Wait for the JSON view itself before reading it: the click switches the view on the next render.
   await waitFor(() => expect(document.querySelector('pre.jp-raw[aria-label="Result"]')).not.toBeNull());

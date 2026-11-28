@@ -5,6 +5,7 @@
 // whole point of the card, so it is the thing worth a test.
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import InterAgentAbuseTester from '../InterAgentAbuseTester';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 afterEach(() => vi.unstubAllGlobals());
 // The JSON button saves a page-wide choice; keep one test from leaking it into the next.
@@ -60,6 +61,7 @@ describe('InterAgentAbuseTester', () => {
     await waitFor(() => expect(screen.getAllByText(/✅/).length).toBe(3));
 
     const row = screen.getByText('Inter-agent call, FORGED bearer').closest('li');
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(row).getAllByRole('button', { name: 'JSON', hidden: true })[0]);
     await waitFor(() => expect(row.querySelectorAll('pre.jp-raw')).toHaveLength(2));
     const [request, response] = [...row.querySelectorAll('pre.jp-raw')];
@@ -82,6 +84,7 @@ describe('InterAgentAbuseTester', () => {
     const response = within(row).getByRole('group', { name: 'Inter-agent call, FORGED bearer response', hidden: true });
     expect(response).toHaveTextContent('unauthorized');
     expect(row.querySelector('[data-alert]')).toBeNull();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(row).getAllByRole('button', { name: 'JSON', hidden: true })[0]);
     await waitFor(() => expect(row.querySelectorAll('pre.jp-raw')).toHaveLength(2));
     expect(row.querySelector('.jp-tok--alert')).toBeNull();
@@ -96,6 +99,7 @@ describe('InterAgentAbuseTester', () => {
     await waitFor(() => expect(screen.getAllByText(/❌/).length).toBe(2));
     const row = screen.getByText('Inter-agent call, FORGED bearer').closest('li');
     expect(row.querySelector('.jp-row[data-alert="true"]')).not.toBeNull();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(row).getAllByRole('button', { name: 'JSON', hidden: true })[0]);
     await waitFor(() => expect(row.querySelectorAll('pre.jp-raw')).toHaveLength(2));
     expect(row.querySelector('.jp-tok--alert')).not.toBeNull();

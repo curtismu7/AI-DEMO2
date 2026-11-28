@@ -5,6 +5,7 @@ const { get, post, put, del } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(),
 vi.mock("../../services/bffAxios", () => ({ default: { get, post, put, delete: del } }));
 
 import IdJagPlaygroundPage from "../IdJagPlaygroundPage";
+import { flushEffects } from "../../test-utils/flushEffects";
 
 const config = (over = {}) => ({
   provider: "pingfederate", enabled: true, signedIn: true,
@@ -126,6 +127,7 @@ describe("ID-JAG playground page", () => {
     expect(container.querySelector(".ijp-form")).not.toBeNull();
     expect(container.querySelector(".ijp-kv dt")).not.toBeNull();
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getByRole("button", { name: "JSON" }));
     expect(container.querySelector(".ijp-form")).toBeNull();
     expect(container.querySelector(".jp-box .jp-raw").textContent).toContain('"grant_type"');
@@ -606,6 +608,7 @@ describe("ID-JAG playground page", () => {
     await waitFor(() => expect(screen.getByTestId("ijp-resource-page")).toHaveTextContent("bearer check failed"));
     expect(screen.getByTestId("ijp-resource-page")).toHaveTextContent("401");
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(screen.getByRole("button", { name: "JSON" }));
     expect(screen.getByTestId("ijp-resource")).toHaveTextContent('"authorization": "none"');
   });

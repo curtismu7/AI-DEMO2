@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import { ThemeProvider } from "../../context/ThemeContext";
 import TransactionTraceEmbedPage, { facadeHopsToSequenceSteps, realFlowHops } from "../TransactionTraceEmbedPage";
+import { flushEffects } from "../../test-utils/flushEffects";
 
 vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn() } }));
 
@@ -87,6 +88,7 @@ describe("TransactionTraceEmbedPage", () => {
     // Payload panels open in Form, with JSON one click away.
     const requestSection = screen.getByRole("heading", { name: "Request" }).closest("section");
     expect(within(requestSection).getByRole("button", { name: "Form" })).toHaveAttribute("aria-pressed", "true");
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(requestSection).getByRole("button", { name: "JSON" }));
     expect(within(requestSection).getByText('"tool"')).toBeInTheDocument();
     expect(within(requestSection).getByText('"get_my_accounts"')).toBeInTheDocument();

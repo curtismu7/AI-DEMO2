@@ -5,6 +5,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AuditPage from "../AuditPage";
+import { flushEffects } from "../../test-utils/flushEffects";
 
 const mockNavigate = vi.fn();
 let searchParamsValue = "";
@@ -412,6 +413,7 @@ describe("AuditPage - class names, dialog behaviour and live regions", () => {
     expect(form.textContent).toContain("Customers");
     expect(within(form).getAllByRole("button", { name: /^Copy / }).length).toBeGreaterThan(0);
     expect(row.querySelector("pre")).toBeNull();
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(row).getByRole("button", { name: "JSON" }));
     await waitFor(() => expect(row.querySelector(".jp-raw")).not.toBeNull());
     expect(row.querySelector(".jp-raw").textContent).toContain('"requiredGroup": "Customers"');

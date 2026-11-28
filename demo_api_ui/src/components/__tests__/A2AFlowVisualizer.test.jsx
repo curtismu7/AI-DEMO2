@@ -15,6 +15,7 @@ import { vi } from 'vitest';
 import { A2A_RECORDED_RUN } from '../../data/a2aRecordedRun';
 import { buildA2aChainDetail } from '../../utils/a2aChainDetail';
 import A2AFlowVisualizer from '../A2AFlowVisualizer';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 // @xyflow/react needs ResizeObserver in jsdom (same stub ReactFlowPocPage.test.jsx uses).
 class ResizeObserverStub {
@@ -83,6 +84,7 @@ describe('A2AFlowVisualizer — timeline mode', () => {
     // Nested act: specialist acting for the generalist.
     expect(form.textContent).toContain('act');
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     await user.click(within(detail).getByRole('button', { name: 'JSON' }));
     await waitFor(() => expect(detail.querySelector('.jp-raw')).not.toBeNull());
     const json = detail.querySelector('.jp-raw');
@@ -123,6 +125,7 @@ describe('A2AFlowVisualizer — Ping-style evidence list', () => {
     // a pane is a named region, never an unnamed tab stop
     expect(first.querySelector('.jp-form').getAttribute('aria-label')).toMatch(/evidence$/);
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     await user.click(within(first).getByRole('button', { name: 'JSON' }));
     await waitFor(() => expect(first.querySelector('.jp-raw')).not.toBeNull());
     expect(first.querySelector('.jp-raw').textContent.trim().startsWith('{')).toBe(true);

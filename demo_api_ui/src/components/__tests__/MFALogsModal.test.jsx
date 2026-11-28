@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import MFALogsModal from '../MFALogsModal';
 import apiClient from '../../services/apiClient';
+import { flushEffects } from '../../test-utils/flushEffects';
 
 vi.mock('../../services/apiClient', () => ({
   default: { get: vi.fn(), delete: vi.fn() },
@@ -45,6 +46,7 @@ describe('MFALogsModal details', () => {
     await openFirstLog();
     await screen.findByRole('group', { name: 'Log 1 details' });
 
+    await flushEffects(); // let the pane's switch subscribe (an effect) before pressing JSON
     fireEvent.click(within(screen.getByRole('group', { name: 'Log 1 details view' })).getByRole('button', { name: 'JSON' }));
     await waitFor(() => expect(document.querySelectorAll('pre.jp-raw')).toHaveLength(2));
     for (const raw of document.querySelectorAll('pre.jp-raw')) {
