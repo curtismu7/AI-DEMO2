@@ -71,6 +71,7 @@ if DOOR not in apps:
     m = d["Spec"]["McpAppConfig"]
     m["FrontEndName"] = {"Elems": [f"{DOOR}.default.applications.procyon.ai:8643"]}
     m["EntryPath"] = "/mcp"
+    m["Backends"] = {"Elems": ["http://mcpdemo-hitl.ping-devops-cmuir.svc.cluster.local"]}  # own backend: transfer_funds is flag-gated there, so the shared mcpdemo (and lab-banking-full) never lists it (2026-11-27)
     d["Spec"]["Description"] = f"HITL MFA lab door: {TOOL} is held for human approval (hold policy {HOLD})."
     plan.append(("applications", DOOR, d))
 else:
