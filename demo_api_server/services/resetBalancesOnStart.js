@@ -12,8 +12,9 @@
  * sporting-goods each seed their own). A banking user goes through the banking provisioning; a user on another
  * vertical is reseeded for that same vertical (the same wipe-and-seed the vertical switch uses), so they stay on it. Those
  * verticals seed a balance in a range, so "default" there means a fresh seed, not one fixed number. A user is skipped
- * when their account types mix verticals or are unknown, or when the saved vertical disagrees with the types (a failed
- * vertical lookup reads as "unknown", so the types are the check that matters).
+ * when their account types mix verticals or are unknown, or when a saved vertical that has its own seed disagrees with the
+ * types. A saved label without a seed (university, airlines, ...) is a skin over the banking seed and does not block the
+ * reset (a failed vertical lookup reads as "unknown", so the types are the check that matters).
  * One user failing is logged and never stops the server or the other users.
  *
  * Switch: DEMO_RESET_BALANCES_ON_START=1|true|on|yes forces it on, 0|false|off|no forces it off. Unset: on for a
@@ -34,6 +35,7 @@ const VERTICAL_TYPES = {
   workforce: ['pto balance', 'sick leave'],
   'sporting-goods': ['pro member', 'elite member'],
 };
+const SEEDED = new Set(['banking', ...Object.keys(VERTICAL_TYPES)]);
 const VERTICAL_BY_TYPE = new Map(Object.entries(VERTICAL_TYPES).flatMap(([v, types]) => types.map((t) => [t, v])));
 
 /** The one vertical a user's accounts belong to, or null when empty, mixed or unknown. */
@@ -70,7 +72,9 @@ async function resetBalancesOnStart({ dataStore, provision, reseed, getVertical,
       const live = verticalOf(accounts);
       if (!live) { skipped += 1; continue; }
       const saved = await getVertical(user.id);
-      if (saved && saved !== live) { skipped += 1; continue; }
+      // Only a saved vertical that has its own seed can disagree with the live data. Other labels (university, airlines,
+      // ...) are skins over the banking seed, so the account types decide and those users are reset too.
+      if (saved && SEEDED.has(saved) && saved !== live) { skipped += 1; continue; }
       if (live === 'banking') await provision(user.id);
       else await reseed(user.id, live);
       reset += 1;
