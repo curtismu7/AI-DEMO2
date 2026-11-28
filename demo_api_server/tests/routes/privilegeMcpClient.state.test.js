@@ -125,6 +125,10 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
   });
 
   it('offers the sibling opensearch/brave Agentic Apps for both Privilege and Façade mode', async () => {
+    // A developer's .env sets these (the preset URLs derive from them); the defaults are what is asserted here.
+    delete process.env.PRIVILEGE_MCPGW_URL;
+    delete process.env.PRIVILEGE_AGENTLESS_MCPGW_URL;
+
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
     // `aggregate` is the DEFAULT app now, so it appears as preset "2 · Privilege —
