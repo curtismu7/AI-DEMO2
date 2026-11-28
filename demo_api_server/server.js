@@ -2956,6 +2956,17 @@ async function runBackgroundStartupTasks() {
         resetBalancesOnStart({
             dataStore: require('./data/store'),
             provision: require('./routes/accounts').provisionDemoAccounts,
+            reseed: async (userId, vertical) => {
+                const store = require('./data/store');
+                await store.reseedUserForVertical(userId, vertical);
+                // Keep the cold-start snapshot in step with the fresh seed, as /accounts/reset-demo does for banking.
+                await require('./services/demoScenarioStore').save(userId, {
+                    accountSnapshot: store.getAccountsByUserId(userId).map((a) => ({
+                        id: a.id, accountType: a.accountType, accountNumber: a.accountNumber, name: a.name || '',
+                        balance: a.balance, currency: a.currency || 'USD', isActive: a.isActive !== false,
+                    })),
+                });
+            },
             getVertical: require('./services/verticalAccountSnapshots').getCurrentVertical,
         }).catch((e) => console.warn('[reset-balances] failed:', e.message));
     } catch (e) {
