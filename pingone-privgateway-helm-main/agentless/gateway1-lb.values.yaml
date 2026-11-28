@@ -7,9 +7,10 @@
 # To park a gateway for a test, set its `parked` (or `ownParked`) to true and run
 # the same upgrade; the load balancer pods roll on their own.
 meshPort: 8690
-# The old-tenant gateway in this release (agentless-mcpgw) is scaled to 0 by owner decision ("Do not scale
-# or restart"). The scale was done by hand, so the release still said 1 and an upgrade would have started it.
-replicaCount: 0
+# This release's own gateway (agentless-mcpgw, ns ping-devops-curtismuir) is the live node `mcpgw-ct-new1` on the
+# new tenant (earlier it was the retired old-tenant gateway, scaled to 0). It runs 1 replica; with 0 here an upgrade
+# would take it down.
+replicaCount: 1
 frontService: ""          # empty = the ingresses use the chart's load balancer
 # Every key is spelled out on purpose: --reuse-values may not pick up the chart's
 # new defaults, so nothing here relies on them.
@@ -27,11 +28,11 @@ loadBalancer:
   # `~tag` the load balancer appends to `state`, so they may only use letters, digits, - and _ and must be
   # unique (the chart refuses anything else). The old names were gateway-old-1 and gateway-pingid-1/2/3;
   # a login that started under an old tag still completes because those tags are in legacyNodeNames.
-  # This release's own gateway is the retired old-tenant one (scaled to 0), so it is parked.
+  # This release's own gateway is the live new-tenant node mcpgw-ct-new1, so it is not parked.
   # Tags a login that started under the old names still carries: stripped on the callback so it completes.
   legacyNodeNames: [gateway-old-1, gateway-pingid-1, gateway-pingid-2, gateway-pingid-3]
-  ownName: mcpgw-ct-retired1
-  ownParked: true
+  ownName: mcpgw-ct-new1
+  ownParked: false
   # A failed gateway is held out for 10 minutes before it is tried again
   # (failover drill 2026-10-03: a 10s return made clients sign in twice).
   maxFails: 2
