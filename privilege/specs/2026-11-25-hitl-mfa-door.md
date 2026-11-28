@@ -40,3 +40,6 @@ The HITL MFA lab's real video take (blocked, see the handoff in this thread) and
 - PingID capability/paired-phone setup on the new tenant (owner, needs a person at the console).
 - Renaming or deleting the old-tenant objects (they are gone with `ea040334`).
 - Changing the lab's mock side or Story mode.
+
+## Backend (2026-11-27)
+The door's backend is `http://mcpdemo-hitl.ping-devops-cmuir.svc.cluster.local` (entry path `/mcp`), a second instance of the A2A demo MCP server with `MCP_ENABLE_TRANSFER_FUNDS=true` (manifest: privilege-a2a-anthropic-demo-LAB `k8s/mcpdemo-hitl.yaml`). It was first the shared `mcpdemo`, which made `lab-banking-full` (permits `.*`) list 19 tools instead of 18. The shared `mcpdemo` has the flag off. Repointed live on 2026-11-27; the pre-change door is backed up in `~/.config/demo-kit/backups/`.

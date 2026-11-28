@@ -928,8 +928,9 @@ export default function BankingAgent({
   const [oauthConfig, setOauthConfig] = useState(null);
   /** {x,y} when panel has been dragged; null = CSS-anchored default position */
   const [dragPos, setDragPos] = useState(null);
-  /** Panel dimensions for resizing — floating default is large enough for header, chips, and two-column body */
-  const [panelSize, setPanelSize] = useState({ width: 620, height: 860 });
+  /** Panel dimensions for resizing — floating default fills the viewport height
+   *  (as tall as the window; CSS max-height clamps on short viewports) */
+  const [panelSize, setPanelSize] = useState({ width: 620, height: typeof window !== "undefined" ? window.innerHeight - 60 : 860 });
   const panelSizeRef = useRef(panelSize);
   useEffect(() => {
     panelSizeRef.current = panelSize;

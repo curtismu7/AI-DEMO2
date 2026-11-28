@@ -23,7 +23,16 @@ function appFor(sessionState = {}) {
 }
 
 describe('one-shot ID-JAG login intent', () => {
-  afterEach(() => jest.restoreAllMocks());
+  // The login route probes PF_TOKEN_ENDPOINT before it redirects and refuses when the connection is refused. A
+  // developer's .env points that at a local PingFederate that is usually not running, which turns the redirect
+  // these tests assert into an error page. Unset, the probe fails open, as it does on CI.
+  const originalPfTokenEndpoint = process.env.PF_TOKEN_ENDPOINT;
+  beforeEach(() => { delete process.env.PF_TOKEN_ENDPOINT; });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalPfTokenEndpoint === undefined) delete process.env.PF_TOKEN_ENDPOINT;
+    else process.env.PF_TOKEN_ENDPOINT = originalPfTokenEndpoint;
+  });
 
   test('accepts UC40 and a same-origin path, then consumes exactly once', () => {
     const req = { session: {}, headers: {} };

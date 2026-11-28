@@ -27,8 +27,8 @@ const API_URL = '/api/privilege-a2a/chain';
 // services/gatewayEvents.js). It has no `from`/`to`, so it is never a hop.
 export const PRIVILEGE_A2A_GATEWAY_RECORD_ID = `${PRIVILEGE_A2A_CHAIN_EVENT_PREFIX}gateway-record`;
 // The gateway's shipper posts a line as it is written; the index needs a
-// moment to make it searchable.
-const RECORD_DELAY_MS = 1500;
+// moment to make it searchable. (Was 1500; shortened for demo pace.)
+const RECORD_DELAY_MS = 600;
 const CHAT_API_URL = '/api/privilege-a2a/chat';
 
 const str = (value) => (typeof value === 'string' ? value : '');

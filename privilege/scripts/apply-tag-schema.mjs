@@ -80,7 +80,7 @@ const FAMILIES = [
   // Banking family — governed doors
   {
     name: 'tag-map-banking',
-    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked|hitl))$',
+    regex: '^(banking-mcp|banking-openapi|banking-aggregate|lab-banking-(full|limited|blocked|hitl|hosted))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -90,12 +90,12 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-opensearch',
-    regex: '^opensearch(-hitl2?)?$',
+    regex: '^(opensearch(-hitl2?)?|lab-opensearch-hosted)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   {
     name: 'tag-map-hostile',
-    regex: '^(hostile-mcp|hostile-mcp-governed|hostile-a2a|libre)',
+    regex: '^(hostile-mcp|hostile-mcp-governed|hostile-a2a|libre|lab-hostile-hosted)',
     tags: { env: 'redteam', source: 'ai-demo2', capability: 'hostile-redteam', protection: 'hostile' },
   },
   {
@@ -136,7 +136,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-key-a2a',
-    regex: '^(langchain-caller|main-agent|worker-agent|aws-agent-caller|aws-agent-worker)$',
+    regex: '^(langchain-caller|lab-a2a-(main|worker)-key|aws-agent-caller|aws-agent-worker)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
   },
   // gateway-client lab banking keys + LLM proxy keys
@@ -177,12 +177,12 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-key-hitl',
-    regex: '^lab-opensearch-hitl-key$',
+    regex: '^(lab-opensearch-hitl-key|lab-hitl-mfa(-key)?)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   {
     name: 'tag-map-pol-hitl',
-    regex: '^lab-opensearch-hitl-key-grant$',
+    regex: '^(lab-opensearch-hitl-key-grant|lab-opensearch-hosted-key-grant|lab-hostile-hosted-key-grant|lab-hitl-mfa-(permit|key-grant))$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'access-review-search', protection: 'governed' },
   },
   // HITL banking door (lab-banking-hitl, added 2026-11-25 by the move session)
@@ -193,7 +193,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-banking-hitl',
-    regex: '^lab-banking-hitl-(permit|key-grant)$',
+    regex: '^(lab-banking-hitl-(permit|key-grant)|lab-hitl-mfa)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   // PAC policies: console-generated per-principal "River-*" objects and
@@ -217,7 +217,7 @@ const FAMILIES = [
   // (single declaration: the broader regex also covers the hitl variant, aws-agent-worker-permit and priv-log-agent-grant)
   {
     name: 'tag-map-pol-lab-banking',
-    regex: '^(lab-banking-(full|limited|hitl)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
+    regex: '^(lab-banking-(full|limited|hitl|hosted)(-permit|-key-grant)?|aws-agent-worker-permit|priv-log-agent-grant)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'banking-transfers', protection: 'governed' },
   },
   {
@@ -234,7 +234,7 @@ const FAMILIES = [
   },
   {
     name: 'tag-map-pol-a2a',
-    regex: '^MainAgentA2aMcpTools$',
+    regex: '^(lab-a2a-main-key-grant|MainAgentA2aMcpTools)$',
     tags: { env: 'demo', source: 'ai-demo2', capability: 'a2a-agent-chain', protection: 'governed' },
   },
 ];

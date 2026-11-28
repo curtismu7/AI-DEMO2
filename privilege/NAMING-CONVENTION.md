@@ -41,6 +41,8 @@ this file is the rulebook going forward.
 Examples: `lab-banking-full`, `lab-banking-limited`, `lab-banking-blocked`,
 `lab-agg-limited`, `lab-pftoken-key`, `demo-banking-full` (a future customer-facing triple).
 
+**AI policies** (Cedar objects such as a human-in-the-loop hold): `<prefix>-<system>-<variant>-<what>`, with `<what>` = `hold` or `expiry`, named after the door's family, for example `lab-banking-hitl-hold`, `lab-banking-hitl-expiry`, `lab-opensearch-hitl-hold`. The Cedar rule keeps matching the **door** name in `context.app`, so renaming the policy never touches the door. The tag map does not cover AI policies (`apply-tag-schema.mjs` tags apps, keys and PAC policies), so `orphan 0` does not check them; this line is the only guard. A missing hold fails open (the call goes through), so check the held call after any change.
+
 ## 2. The two-versions rule (allow-all + half-tools)
 
 Every demo/test **door trio** comes in three variants — this is the standing pattern:
@@ -80,8 +82,13 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
    `UUID/CreatedAt/UpdatedAt/RevisionID`, replace the name in `ObjectMeta.Name`,
    `ObjectMeta.ID` = base64(`{tenant}@@@default@@@{name}`), and in every
    `*.applications.procyon.ai` URL).
-4. **Migrate consumers** (`.env` files, lab code, docs, tests) to the new names **before**
-   deleting the old object, and restart the consuming lab.
+ 4. **Migrate consumers** (`.env` files, lab code, docs, tests) to the new names **before**
+    deleting the old object, and restart the consuming lab. **Include cluster Secrets**:
+    a lab served from k8s reads its key from a Secret (e.g. the A2A lab's
+    `workeragentdemo2` door reads `WORKER_AGENT_KEY` from Secret
+    `privilege-a2a-demo-pingid`, namespace `ping-devops-cmuir`) — patch the Secret and
+    roll the Deployment (`kubectl set env … RELOAD=<ts>`), or the door keeps
+    authenticating with the deleted old key and the hop 401s after the rename.
 5. **Delete** the old object — and any old policies/grants that named it.
 6. **Re-run** `node privilege/scripts/apply-tag-schema.mjs --tenant <T> --key ... --secret ...`
    and require `orphan 0`. Add/extend a `tag-map-*` family in that script if the new name
@@ -97,7 +104,9 @@ Never PUT a new name onto an existing object. Rename = **backup → create new �
 - A POST that already exists → 500 (app) or 409 (key), not a friendly duplicate error.
   Make scripts idempotent: skip create when the new name is already present.
 - A door that accepts **PingFederate tokens** has its name in more places than Privilege. Renaming `pftoken` and deleting `testobo` on 2026-11-23 left every token
-  minted for the old URLs useless (gateway `token_not_found`, PingFederate `invalid_target`). When you rename or recreate such a door, move the door URL in all of:
+  minted for the old URLs useless (gateway `token_not_found`, PingFederate `invalid_target`). **Re-hit 2026-11-26:** the Cedar labs' central credentials
+  (`~/Development/.ping-labs/pf-route-c.env`) still carried the old `/pftoken/mcp` door URL three days later, and the probe got `403 refused-at-grant` on every
+  call — the audience in the minted token named `lab-pftoken-full/mcp`, which is the tell. When you rename or recreate such a door, move the door URL in all of:
   the console identity's audience (`PFtoken`, `PFtoken-testobo`), the PingFederate access token manager's Audience Claim Value (and Resource URI where it has one;
   `routeCTestAtm`, `testoboAgentAtm`), the token-exchange SP connection's entity ID and resource URI (`aiDemoPfPrivilegeOboSp`), the token processor's Allowed Audiences
   (`aiDemoPfAccessSubjectProcessor`), and the lab's door URL. Then confirm a live call: 200 with a real token, 401 with a made-up one.
@@ -186,6 +195,9 @@ names until the owner applies the overlay (`helm upgrade --reuse-values -f gatew
 | 2026-11-23 | HAProxy backends take the gateway names (chart: callback strip built from the configured node names; overlay updated to `mcpgw-cm-pool1`, `mcpgw-cm-spare1`, `mcpgw-ct-pool2`, `mcpgw-ct-retired1`); not yet applied to the cluster | Gateway naming scheme decided earlier the same day; the fixed `gateway-<n>` regex was the only blocker |
 | 2026-11-23 | `lab-obo-pf` (door), `lab-obo-pf-permit`, `lab-obo-pf-key`, `lab-obo-pf-key-grant` added for the PingFederate on-behalf-of lab (system `obo`, variant `pf`, a feature word); `lab-pftoken-key` rebuilt with the identity `PFtoken` as custodian; new traps (PingFederate-side audiences, River policies, write-only OBO secret) | The cleanup renamed `pftoken` and deleted `testobo`, which broke the live OBO lab; recreated under this convention |
 | 2026-11-24 | Tenant changed to `5bfb4e12-8d71-4b81-8ef8-940b91728c05` ("Pingid_Privillege"); names and rules unchanged. Objects are replayed under these names during the move | Owner moved Privilege to a new console-made environment; `ea040334` is retired after the move |
-<<<<<<< HEAD
-| 2026-11-25 | Aggregate doors renamed on the new tenant (`aggregate*` → `lab-agg-full/limited/blocked`); SPIFFE lab objects added (`lab-spiffe-issuer-key`, `lab-spiffe-issuer-key-grant`, identity `spiffe-issuer-lab-svid`); new families `tag-map-key-spiffe`, `tag-map-pol-spiffe`, `tag-map-key-hitl`, `tag-map-pol-hitl`; `lab-agent` and the `lab-agent-aggregate*` grants folded into the aggregate families; `LM-Stuidio`, `audit-test`, `local` folded into `tag-map-key-llm` | Replay fork (b): the 11-17 export replayed by an earlier session; post-export objects redone by hand; tool lists in key-bound grants must use member-aliased names (`<member>__<tool>`) |
-| 2026-11-25 | `lab-banking-hitl` (door), `lab-banking-hitl-permit`, `lab-banking-hitl-key`, `lab-banking-hitl-key-grant`, `lab-banking-hitl-hold` (AI policy) added for the HITL MFA lab's real mode; `tag-map-banking`, `tag-map-key-lab-banking` and `tag-map-pol-lab-banking` extended to match. System `banking`, variant `hitl` (feature word, §1). Spec: `privilege/specs/2026-11-25-hitl-mfa-door.md` | The lab's real-mode key died with the retired tenant `ea040334`; rebuilt fresh per this convention (`create-hitl-banking-door.py`) |
+| 2026-11-25 | A2A lab keys renamed on the new tenant: `main-agent` → `lab-a2a-main-key`, `worker-agent` → `lab-a2a-worker-key`; grant `MainAgentA2aMcpTools` recreated as `lab-a2a-main-key-grant`; River policies `BeniRiver-334766334b4b` and `WisconsinRiver-717544326454` repointed in place; `tag-map-key-a2a` / `tag-map-pol-a2a` regexes updated, and `lab-hitl-mfa*` folded into the HITL families (script §5). Lab `.env` (`privilege-a2a-anthropic-demo-LAB`) migrated to the fresh key values | Bring the A2A lab's keys into the naming standard (rename procedure §4) |
+| 2026-11-26 | §4 step 4 extended: consumers include k8s Secrets — a door served from the cluster (e.g. `workeragentdemo2` ← Secret `privilege-a2a-demo-pingid`) keeps using the deleted old key until the Secret is patched and the Deployment rolled | Renaming `main-agent`/`worker-agent` to `lab-a2a-main-key`/`lab-a2a-worker-key` left the cluster Secret stale; the A2A hop 401'd until it was patched |
+| 2026-11-26 | No rename. `pftoken`→`lab-pftoken-full` (2026-11-23) was still missing from the Cedar labs' central PF credentials and the probe got 403-at-grant; fixed the door URL there and in `.env` copies | Re-hit of the 2026-11-23 trap, found while verifying the labs' new Real mode; trap bullet above now names it |
+| 2026-11-27 | Doors `lab-banking-hosted`, `lab-opensearch-hosted`, `lab-hostile-hosted` added (system words `banking`/`opensearch`/`hostile`, feature word `hosted` — no new family or system word needed); key-bound grants `lab-banking-hosted-key-grant`, `lab-opensearch-hosted-key-grant`, `lab-hostile-hosted-key-grant`. Tag families already match. `lab-banking-hosted` is issued to `lab-banking-full-key`, the opensearch/hostile pair to `lab-opensearch-hitl-key`. Trap recorded: a new door with no key-bound grant 403s with the same bare `Forbidden` as an expired policy | Owner asked for new hosted doors on the tenant (2026-11-27 session) |
+| 2026-11-27 | Correction: the hosted doors' names did NOT already match the tag-map regexes — `hosted` had to be added to `tag-map-banking` (apps + grant family), `tag-map-opensearch` (app), `tag-map-hostile` (app) and `tag-map-pol-hitl` (the two non-banking grants); `apply-tag-schema.mjs` then reports orphan 0 (applied for real, 109 unchanged). The first change-log line above was written before the dry run proved otherwise | Dry run found 6 orphans; rulebook requires the families be fixed in the same change |
+| 2026-11-28 | AI-policy naming rule added under §1. The HITL hold `opensearch-hitl2-hold` was missing from the tenant (held call returned 200); restored from backup, then renamed to `lab-opensearch-hitl-hold` (backup, create with identical Cedar, delete old, held call re-checked: `policy_ids: lab-opensearch-hitl-hold:1`). No door, key or tag-map change. `privilege/scripts/create-hitl-banking-door.py` clones the new name | The old name had no `lab-` prefix and matched no rule; the convention said nothing about AI policies |

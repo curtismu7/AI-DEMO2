@@ -71,6 +71,7 @@ if DOOR not in apps:
     m = d["Spec"]["McpAppConfig"]
     m["FrontEndName"] = {"Elems": [f"{DOOR}.default.applications.procyon.ai:8643"]}
     m["EntryPath"] = "/mcp"
+    m["Backends"] = {"Elems": ["http://mcpdemo-hitl.ping-devops-cmuir.svc.cluster.local"]}  # own backend: transfer_funds is flag-gated there, so the shared mcpdemo (and lab-banking-full) never lists it (2026-11-27)
     d["Spec"]["Description"] = f"HITL MFA lab door: {TOOL} is held for human approval (hold policy {HOLD})."
     plan.append(("applications", DOOR, d))
 else:
@@ -112,7 +113,7 @@ if GRANT not in pols:
 
 # 5. hold policy (AI policy; State Active or the gateway only shadows it — step-20 lesson)
 if HOLD not in aip:
-    h = copy.deepcopy(aip["opensearch-hitl2-hold"]); strip(h)
+    h = copy.deepcopy(aip["lab-opensearch-hitl-hold"]); strip(h)
     h["ObjectMeta"].update({"Name": HOLD, "ID": b64(f"{T}@@@default@@@{HOLD}"), "CTags": CT})
     cedar = (f'@grant("transaction")\n@ttl("120")\n@request_ttl("300")\n@approvers("{approver_id}")\n'
              f'@reason("HITL MFA lab: {TOOL} needs a human")\n'
@@ -138,8 +139,8 @@ if not plan: print("  nothing to create")
 if not APPLY: print("(dry run)"); sys.exit(0)
 
 os.makedirs(BACKUPS, exist_ok=True)
-for src in ("lab-banking-full", "lab-banking-full-permit", "lab-banking-full-key-grant", "opensearch-hitl2-hold"):
-    kind = "applications" if src == "lab-banking-full" else ("aipolicys" if src == "opensearch-hitl2-hold" else "pacpolicys")
+for src in ("lab-banking-full", "lab-banking-full-permit", "lab-banking-full-key-grant", "lab-opensearch-hitl-hold"):
+    kind = "applications" if src == "lab-banking-full" else ("aipolicys" if src == "lab-opensearch-hitl-hold" else "pacpolicys")
     obj = apps.get(src) or pols.get(src) or aip.get(src)
     if obj:
         bk = os.path.join(BACKUPS, f"{src}.{time.strftime('%Y%m%d-%H%M%S')}.json")

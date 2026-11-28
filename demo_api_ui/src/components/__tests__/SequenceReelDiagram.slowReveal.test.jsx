@@ -28,7 +28,7 @@ vi.mock("../../services/tokenChainTrace/tokenChainTraceStore", () => ({
 import SequenceReelDiagram from "../SequenceReelDiagram";
 import { VerticalContext } from "../../vertical/VerticalProvider";
 
-const DEFAULT_MS = 2600;
+const DEFAULT_MS = 1200;
 const noop = () => {};
 
 let scrollIntoViewSpy;
@@ -583,7 +583,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     localStorage.setItem("dashboard-seq-speed", "1234");
     const c = renderWithSteps();
     expect(c.querySelector(".srd-zoom-reset").textContent).toContain("70");
-    expect(c.querySelector(".srd-speed-select").value).toBe("2600");
+    expect(c.querySelector(".srd-speed-select").value).toBe("1200");
   });
 
   it("starts compact and lets the presenter change theme and flow font size", () => {
