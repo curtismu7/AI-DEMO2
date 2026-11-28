@@ -89,7 +89,9 @@ opensearch:
 
 # Pin the gateway image to a version tag, never the floating `latest` (it only refreshes on pod recreation, so what
 # runs would depend on when a pod last restarted). This release's own gateway is the retired old-tenant one (scaled to
-# 0); the pool gateways have their own releases. v1.261120 is the same image as `latest` today (digest 2733e787) and
-# what the pool gateways run; the NYL builds (v1.261112-NYL*) are no longer used for the shared gateways.
+# 0); the pool gateways have their own releases. v1.261127 is what every hosted gateway runs since 2026-11-28 (the
+# newest tag then; `latest` matched none of the v1.2611xx tags, so never use it); the NYL builds (v1.261112-NYL*) are no
+# longer used for the shared gateways. Raise this tag together with the live release: a `helm upgrade` from this file
+# would otherwise downgrade a gateway that was upgraded by hand.
 image:
-  tag: v1.261120
+  tag: v1.261127
