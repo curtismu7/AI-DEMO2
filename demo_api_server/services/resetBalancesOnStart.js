@@ -8,16 +8,28 @@
  * demo runs out of money part-way through. The reset itself is the existing provisioning used by
  * POST /accounts/reset-demo (default balances, fresh sample history, snapshot rewritten).
  *
- * Skipped for a user whose live data belongs to another vertical (healthcare, retail, ...), because
- * the provisioning builds the banking set. DEMO_RESET_BALANCES_ON_START=0|false|off|no turns it off.
+ * A user is reset only when the live data is banking: the saved vertical is banking or unknown AND every
+ * account has a banking type. (A vertical lookup that fails also reads as "unknown", so the account types
+ * are the second check; healthcare/retail accounts are never replaced by the banking set.)
  * One user failing is logged and never stops the server or the other users.
+ *
+ * Switch: DEMO_RESET_BALANCES_ON_START=1|true|on|yes forces it on, 0|false|off|no forces it off. Unset: on for a
+ * local or standalone run, OFF inside a Kubernetes pod (KUBERNETES_SERVICE_HOST set), so a rollout or a crash-restart
+ * on a shared hosted deployment never wipes a colleague's mid-demo accounts. A hosted deployment opts in explicitly.
+ *
+ * It runs after the server is listening (a request in the first moments can still see old balances); provisioning is
+ * single-flight per user, so an overlapping /accounts/my joins it rather than duplicating accounts.
  */
 
 const OFF = new Set(['0', 'false', 'off', 'no']);
+const ON = new Set(['1', 'true', 'on', 'yes']);
+const BANKING_TYPES = new Set(['checking', 'savings', 'loan', 'credit_card', 'investment', 'money_market']);
 
 function isEnabled(env = process.env) {
-  const v = env.DEMO_RESET_BALANCES_ON_START;
-  return v === undefined || v === '' || !OFF.has(String(v).trim().toLowerCase());
+  const v = String(env.DEMO_RESET_BALANCES_ON_START ?? '').trim().toLowerCase();
+  if (OFF.has(v)) return false;
+  if (ON.has(v)) return true;
+  return !env.KUBERNETES_SERVICE_HOST;
 }
 
 /**
@@ -33,7 +45,8 @@ async function resetBalancesOnStart({ dataStore, provision, getVertical, env = p
   let reset = 0, skipped = 0, failed = 0;
   for (const user of dataStore.getAllUsers() || []) {
     try {
-      if (!(dataStore.getAccountsByUserId(user.id) || []).length) { skipped += 1; continue; }
+      const accounts = dataStore.getAccountsByUserId(user.id) || [];
+      if (!accounts.length || !accounts.every((a) => BANKING_TYPES.has(a.accountType))) { skipped += 1; continue; }
       const vertical = await getVertical(user.id);
       if (vertical && vertical !== 'banking') { skipped += 1; continue; }
       await provision(user.id);
@@ -47,4 +60,4 @@ async function resetBalancesOnStart({ dataStore, provision, getVertical, env = p
   return { enabled: true, reset, skipped, failed };
 }
 
-module.exports = { resetBalancesOnStart, isEnabled };
+module.exports = { resetBalancesOnStart, isEnabled, BANKING_TYPES };

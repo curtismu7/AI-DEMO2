@@ -2952,11 +2952,12 @@ async function runBackgroundStartupTasks() {
     // Start every demo with the default balances (money spent in the last demo carries over a restart otherwise).
     try {
         const { resetBalancesOnStart } = require('./services/resetBalancesOnStart');
-        await resetBalancesOnStart({
+        // Not awaited: the other startup tasks must not wait on every user being re-provisioned.
+        resetBalancesOnStart({
             dataStore: require('./data/store'),
             provision: require('./routes/accounts').provisionDemoAccounts,
             getVertical: require('./services/verticalAccountSnapshots').getCurrentVertical,
-        });
+        }).catch((e) => console.warn('[reset-balances] failed:', e.message));
     } catch (e) {
         console.warn('[reset-balances] skipped:', e.message);
     }
